@@ -2,14 +2,14 @@ import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { getTools } from "@/lib/data";
 
-export const metadata = { title: "كل الأدوات" };
+export const metadata = { title: "الأدوات" };
 const groups = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"]] as const;
 
 export default async function ToolsPage() {
   const tools = await getTools();
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-[28px] font-bold text-navy-900">كل الأدوات</h1>
+      <h1 className="text-[28px] font-bold text-navy-900">الأدوات</h1>
       {groups.map(([g, label]) => {
         const list = tools.filter((t) => t.category === g);
         if (!list.length) return null;

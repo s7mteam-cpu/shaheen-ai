@@ -39,3 +39,5 @@ body { background: #fff; color: var(--color-ink); }
 .chip { font-size: .875rem; font-weight: 600; padding: .55rem 1rem; border-radius: 999px; border: 1px solid var(--color-field); background: #fff; }
 .chip[aria-pressed="true"] { background: var(--color-navy-800); color: #fff; border-color: var(--color-navy-800); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@keyframes sheetUp { from { transform: translateY(24px); opacity: 0 } to { transform: none; opacity: 1 } }
