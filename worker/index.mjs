@@ -535,6 +535,7 @@ async function renderDesign(job) {
       return data?.signedUrl ? { ...img, url: data.signedUrl } : null;
     };
     spec.brand.logo = await sign(spec.brand.logo);
+    for (const k of Object.keys(spec.icon3d ?? {})) { const v = await sign(spec.icon3d[k]); if (v) spec.icon3d[k] = v; else delete spec.icon3d[k]; }
     for (const s of spec.slides) {
       s.photo = await sign(s.photo);
       if (s.person) s.person.photo = await sign(s.person.photo);
