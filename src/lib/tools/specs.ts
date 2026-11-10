@@ -118,7 +118,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
   },
   "video-editing": {
     fields: [
-      { type: "files", name: "video", label: "الفيديو الخام", accept: "video", min: 1, max: 1, hint: "MP4 أو MOV حتى 500 ميجا و10 دقائق." },
+      { type: "files", name: "video", label: "الفيديو (أو عدة لقطات)", accept: "video", min: 1, max: 6, hint: "ارفع فيديو واحد أو لين 6 لقطات، وشاهين يركّبهم ورا بعض بالترتيب. المجموع لين 10 دقائق." },
       { type: "toggle", name: "cut_silence", label: "قص الأجزاء الصامتة", default: true },
       { type: "toggle", name: "captions", label: "ترجمة عربية متحركة كلمة كلمة", default: true },
       { type: "choice", name: "aspect", label: "المقاس النهائي", default: "9:16", options: [{ value: "9:16", label: "ريلز / تيك توك 9:16 (1080×1920)" }, { value: "1:1", label: "مربع 1:1 (1080×1080)" }, { value: "16:9", label: "يوتيوب عريض 16:9 (1920×1080)" }, { value: "original", label: "كما هو" }] },

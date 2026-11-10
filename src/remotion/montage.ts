@@ -7,6 +7,9 @@ export type Title = { text: string; at: number; dur: number; pos: "top" | "cente
 export type Zoom = { at: number; dur: number; scale: number };    // output seconds (video part)
 export type CaptionStyle = "karaoke" | "box" | "minimal";
 export type CaptionPos = "bottom" | "middle" | "top";
+export type Transition = "none" | "flash" | "zoom";
+export type Corner = "tl" | "tr" | "bl" | "br";
+export type Emoji = { e: string; at: number; dur: number }; // output seconds (video part)
 
 export type MontageSpec = {
   src: string;          // signed URL (refreshed on every load / render)
@@ -24,7 +27,22 @@ export type MontageSpec = {
   intro: { on: boolean; title: string; subtitle: string };
   outro: { on: boolean; title: string; subtitle: string };
   music?: { url: string; name: string } | null;
+  // Pro touches (optional so older drafts keep working)
+  transition?: Transition;                                       // at every cut / clip change
+  logo?: { path: string; url: string; on: boolean; pos: Corner } | null;
+  emojis?: Emoji[];
+  sfx?: boolean;                                                  // whoosh on titles/cuts, pop on emojis
+  progress?: boolean;                                             // thin progress bar on top
 };
+
+export const EMOJIS = ["🔥", "💡", "✅", "❤️", "👏", "😍", "🤲", "⭐", "💰", "🎯", "⚡", "👇", "📌", "🙏", "😂", "😮"];
+
+/** Output times (video part) where one kept segment ends and the next begins. */
+export function cutTimes(m: MontageSpec) {
+  const out: number[] = []; let off = 0;
+  m.segments.forEach((g, i) => { if (i > 0) out.push(off); off += g.e - g.s; });
+  return out;
+}
 
 export const MFPS = 30;
 export const INTRO_S = 2;

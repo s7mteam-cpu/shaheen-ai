@@ -70,5 +70,6 @@ async function montage(jobId: string, tool: ToolRow, content: Content) {
   if (!data || data.status !== "draft" || !spec) return null;
   const { data: signed } = await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6);
   if (!signed?.signedUrl) return <p className="card p-6 text-center">ما لقينا الفيديو الأصلي. ارفعه مرة ثانية.</p>;
-  return <MontageStudio jobId={data.id} initial={{ ...spec, src: signed.signedUrl }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
+  const logoUrl = spec.logo?.path ? (await createAdminClient().storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" : "";
+  return <MontageStudio jobId={data.id} initial={{ ...spec, src: signed.signedUrl, logo: spec.logo ? { ...spec.logo, url: logoUrl } : null }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
 }

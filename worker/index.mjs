@@ -73,7 +73,9 @@ const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال م
  "colors": {"text":"#FFFFFF","accent":"#hex","bg":"#hex"},
  "font": "Cairo|Tajawal|Almarai|Changa|Amiri",
  "caption_style": "karaoke|box|minimal",
- "caption_pos": "bottom|middle|top"   // مكان الترجمة، الافتراضي bottom
+ "caption_pos": "bottom|middle|top",  // مكان الترجمة، الافتراضي bottom
+ "transition": "none|flash|zoom",     // تأثير عند كل قطع أو انتقال بين اللقطات
+ "emojis": [{"e":"🔥","at":0,"dur":1.5}]  // إيموجي قليلة (3-6) عند لحظات مناسبة، "at" بتوقيت الفيديو الأصلي. للمحتوى الديني أو الجاد استخدم إيموجي محترمة قليلة (🤲 💡 ✅) أو لا شيء
 }
 القواعد: التزم بالمدة المطلوبة تقريباً. لا تقص جملة من نصها. العناوين من كلام الفيديو نفسه أو تلخيص دقيق له، بدون اختراع معلومات.
 نفّذ وصف العميل بدقة إذا ذكره. حسابات أو أرقام تواصل فقط إذا ذكرها العميل.`;
@@ -116,11 +118,42 @@ function toOutput(segments, t) {
 async function analyzeMontage(job) {
   const dir = await mkdtemp(join(tmpdir(), "montage-"));
   try {
-    const [path] = job.input.video ?? [];
-    const { data: file, error } = await db.storage.from("uploads").download(path);
-    if (error) throw new Error(`download: ${error.message}`);
-    const video = join(dir, "in.mp4");
-    await writeFile(video, Buffer.from(await file.arrayBuffer()));
+    const paths = (job.input.video ?? []).slice(0, 6);
+    if (!paths.length) throw new Error("no video");
+    const dims = { "9:16": [1080, 1920], "1:1": [1080, 1080], "16:9": [1920, 1080] };
+    const local = [];
+    for (const [i, p] of paths.entries()) {
+      const { data: file, error } = await db.storage.from("uploads").download(p);
+      if (error) throw new Error(`download: ${error.message}`);
+      const f = join(dir, `clip${i}.mp4`);
+      await writeFile(f, Buffer.from(await file.arrayBuffer()));
+      local.push(f);
+    }
+    // Several clips → one source: same size, 30fps, stereo audio (silent if a clip has none), then join.
+    let path = paths[0];
+    let video = local[0];
+    if (local.length > 1) {
+      const first = await probe(local[0]);
+      const [W, H] = dims[job.input.aspect] ?? (first.width > first.height ? [1920, 1080] : [1080, 1920]);
+      const parts = [];
+      for (const [i, f] of local.entries()) {
+        const o = join(dir, `n${i}.mp4`);
+        await ff(["-i", f, "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-filter_complex",
+          `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=30,setsar=1[v]`,
+          "-map", "[v]", "-map", "0:a?", "-map", "1:a", "-shortest", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-ar", "44100", "-ac", "2", o]);
+        // keep only the first audio stream (the clip's own when it has one)
+        const o2 = join(dir, `m${i}.mp4`);
+        await ff(["-i", o, "-map", "0:v", "-map", "0:a:0", "-c", "copy", o2]);
+        parts.push(o2);
+        await setProgress(job.id, 3 + Math.round((i + 1) / local.length * 7));
+      }
+      await writeFile(join(dir, "list.txt"), parts.map((x) => `file '${x}'`).join("\n"));
+      video = join(dir, "joined.mp4");
+      await ff(["-f", "concat", "-safe", "0", "-i", join(dir, "list.txt"), "-c", "copy", "-movflags", "+faststart", video]);
+      path = `${job.user_id}/${job.id}-joined.mp4`;
+      const up = await db.storage.from("uploads").upload(path, await readFile(video), { contentType: "video/mp4", upsert: true });
+      if (up.error) throw new Error(`upload joined: ${up.error.message}`);
+    }
     await setProgress(job.id, 10);
 
     const meta = await probe(video);
@@ -133,7 +166,7 @@ async function analyzeMontage(job) {
 
     const full = job.input.target === "full" || !(Number(job.input.target) > 0);
     const target = full ? meta.duration : Number(job.input.target);
-    const { data: kit } = await db.from("brand_kits").select("business_name,colors").eq("user_id", job.user_id).maybeSingle();
+    const { data: kit } = await db.from("brand_kits").select("business_name,colors,logo_url").eq("user_id", job.user_id).maybeSingle();
     const brandColors = (kit?.colors ?? []).filter((c) => /^#[0-9a-f]{6}$/i.test(c ?? ""));
     const lines = sentences(words).map((x) => `[${x.s.toFixed(1)}-${x.e.toFixed(1)}] ${x.text}`).join("\n");
 
@@ -142,6 +175,7 @@ async function analyzeMontage(job) {
       plan = await claudePlan(
         `طول الفيديو: ${meta.duration.toFixed(1)} ثانية. المدة المطلوبة: ${full ? "بدون تقصير" : `${target} ثانية تقريباً`}.\n` +
         `وصف العميل: ${job.input.notes || "مونتاج احترافي جذاب للريلز"}\n` +
+        (local.length > 1 ? `الفيديو مركّب من ${local.length} لقطات ورا بعض.\n` : "") +
         `اسم النشاط: ${kit?.business_name || "غير محدد"}${brandColors.length ? `، ألوان الهوية: ${brandColors.join(", ")}` : ""}\n\nالنص:\n${lines || "(لا يوجد كلام واضح)"}`);
     } catch (e) { console.error("plan fallback", job.id, e); }
     await setProgress(job.id, 75);
@@ -183,6 +217,11 @@ async function analyzeMontage(job) {
       intro: { on: !!plan?.intro?.on, title: String(plan?.intro?.title || kit?.business_name || "").slice(0, 60), subtitle: String(plan?.intro?.subtitle ?? "").slice(0, 60) },
       outro: { on: !!plan?.outro?.on, title: String(plan?.outro?.title || "تابعنا للمزيد").slice(0, 60), subtitle: String(plan?.outro?.subtitle ?? "").slice(0, 60) },
       music: null,
+      transition: ["none", "flash", "zoom"].includes(plan?.transition) ? plan.transition : local.length > 1 ? "zoom" : "none",
+      logo: kit?.logo_url ? { path: kit.logo_url, url: "", on: true, pos: "tl" } : null,
+      emojis: place(plan?.emojis, (x, at) => ({ e: String(x.e ?? "").slice(0, 4), at, dur: clamp(Number(x.dur) || 1.5, 0.8, 3) })).filter((x) => x.e).slice(0, 8),
+      sfx: true,
+      progress: true,
     };
     if (spec.intro.on && !spec.intro.title) spec.intro.on = false;
 
@@ -197,7 +236,7 @@ async function analyzeMontage(job) {
 
 // ---------- Rendering (motion + montage) ----------
 const here = dirname(fileURLToPath(import.meta.url));
-const serveUrl = await bundle({ entryPoint: join(here, "remotion", "entry.tsx") });
+const serveUrl = await bundle({ entryPoint: join(here, "remotion", "entry.tsx"), publicDir: join(here, "..", "public") });
 
 async function render(job, compositionId, props) {
   const dir = await mkdtemp(join(tmpdir(), "render-"));
@@ -229,7 +268,12 @@ async function renderMontage(job) {
   const spec = job.input.spec;
   const { data } = await db.storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 3);
   if (!data?.signedUrl) return fail(job, new Error("source video missing"));
-  return render(job, "Montage", { ...spec, src: data.signedUrl });
+  let logo = spec.logo ?? null;
+  if (logo?.on && logo.path) {
+    const l = await db.storage.from("uploads").createSignedUrl(logo.path, 60 * 60 * 3);
+    logo = { ...logo, url: l.data?.signedUrl ?? "" };
+  }
+  return render(job, "Montage", { ...spec, src: data.signedUrl, logo });
 }
 
 console.log("Shaheen video worker started");

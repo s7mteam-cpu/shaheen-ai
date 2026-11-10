@@ -1,6 +1,6 @@
 import React from "react";
-import { AbsoluteFill, Audio, Easing, OffthreadVideo, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { MFPS, captionLines, introFrames, outroFrames, videoSeconds, type MontageSpec } from "./montage";
+import { AbsoluteFill, Audio, Easing, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { MFPS, captionLines, cutTimes, introFrames, outroFrames, videoSeconds, type MontageSpec } from "./montage";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 
@@ -43,6 +43,9 @@ function Footage({ m }: { m: MontageSpec }) {
       const k = Math.min(interpolate(t, [a - 0.4, a], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease }), interpolate(t, [b, b + 0.4], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease }));
       scale = Math.max(scale, 1 + (z.scale - 1) * k);
     }
+  }
+  if (m.transition === "zoom") {
+    for (const c of cutTimes(m)) if (t >= c && t < c + 0.3) scale *= interpolate(t, [c, c + 0.3], [1.14, 1], { easing: ease });
   }
   let off = 0;
   return (
@@ -128,6 +131,71 @@ function Titles({ m, u }: { m: MontageSpec; u: number }) {
   );
 }
 
+/** White flash on every cut (when chosen). */
+function Flashes({ m }: { m: MontageSpec }) {
+  const t = useCurrentFrame() / MFPS;
+  if (m.transition !== "flash") return null;
+  const c = cutTimes(m).find((x) => t >= x && t < x + 0.22);
+  if (c === undefined) return null;
+  return <AbsoluteFill style={{ background: "#fff", opacity: interpolate(t, [c, c + 0.22], [0.6, 0]) }} />;
+}
+
+function Emojis({ m, u }: { m: MontageSpec; u: number }) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const t = frame / MFPS;
+  return (
+    <>
+      {(m.emojis ?? []).map((x, i) => {
+        if (t < x.at || t > x.at + x.dur + 0.3) return null;
+        const p = spring({ frame: frame - Math.round(x.at * MFPS), fps, config: { damping: 9, mass: 0.6 } });
+        const out = interpolate(t, [x.at + x.dur, x.at + x.dur + 0.3], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+        const top = m.captions.pos === "top" ? "62%" : "30%";
+        return (
+          <AbsoluteFill key={i} style={{ alignItems: i % 2 ? "flex-start" : "flex-end", padding: `0 ${70 * u}px` }}>
+            <div style={{ position: "absolute", top, fontSize: 140 * u, opacity: Math.min(1, p) * out, transform: `scale(${Math.min(1.15, p)}) rotate(${(1 - Math.min(1, p)) * 25 * (i % 2 ? -1 : 1)}deg)`, filter: `drop-shadow(0 ${10 * u}px ${20 * u}px rgba(0,0,0,.45))` }}>{x.e}</div>
+          </AbsoluteFill>
+        );
+      })}
+    </>
+  );
+}
+
+function Logo({ m, u }: { m: MontageSpec; u: number }) {
+  if (!m.logo?.on || !m.logo.url) return null;
+  const pos = m.logo.pos;
+  const side = 60 * u;
+  return (
+    <div style={{ position: "absolute", [pos.startsWith("t") ? "top" : "bottom"]: side * 1.4, [pos.endsWith("l") ? "left" : "right"]: side, width: 150 * u, height: 150 * u, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.92 }}>
+      <Img src={m.logo.url} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: `drop-shadow(0 ${4 * u}px ${12 * u}px rgba(0,0,0,.5))` }} />
+    </div>
+  );
+}
+
+function ProgressBar({ m, u, frames }: { m: MontageSpec; u: number; frames: number }) {
+  const frame = useCurrentFrame();
+  if (!m.progress) return null;
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 9 * u, background: "rgba(255,255,255,.18)" }}>
+      <div style={{ height: "100%", width: `${Math.min(100, (frame / frames) * 100)}%`, background: m.colors.accent, marginLeft: "auto" }} />
+    </div>
+  );
+}
+
+/** Whoosh on titles and cuts, pop on emojis. */
+function Sfx({ m }: { m: MontageSpec }) {
+  if (!m.sfx) return null;
+  const at = (s: number) => Math.max(0, Math.round(s * MFPS));
+  const cuts = m.transition && m.transition !== "none" ? cutTimes(m) : [];
+  return (
+    <>
+      {m.titles.map((x, i) => <Sequence key={`t${i}`} from={at(x.at - 0.12)} durationInFrames={20} layout="none"><Audio src={staticFile("sfx/whoosh.mp3")} volume={0.5} /></Sequence>)}
+      {cuts.map((c, i) => <Sequence key={`c${i}`} from={at(c - 0.1)} durationInFrames={18} layout="none"><Audio src={staticFile("sfx/whoosh.mp3")} volume={0.3} /></Sequence>)}
+      {(m.emojis ?? []).map((x, i) => <Sequence key={`e${i}`} from={at(x.at)} durationInFrames={8} layout="none"><Audio src={staticFile("sfx/pop.mp3")} volume={0.6} /></Sequence>)}
+    </>
+  );
+}
+
 export function MontageVideo(m: MontageSpec) {
   const { width, height } = useVideoConfig();
   const u = Math.min(width, height) / 1080;
@@ -136,14 +204,20 @@ export function MontageVideo(m: MontageSpec) {
   const outro = outroFrames(m);
   return (
     <AbsoluteFill dir="rtl" style={{ background: "#000", fontFamily: `"${m.font}", Cairo, sans-serif` }}>
+      {intro > 0 && m.sfx && <Audio src={staticFile("sfx/ding.mp3")} volume={0.35} endAt={20} />}
       {intro > 0 && <Sequence durationInFrames={intro}><Card title={m.intro.title} subtitle={m.intro.subtitle} m={m} u={u} len={intro} /></Sequence>}
       <Sequence from={intro} durationInFrames={vid}>
         <Footage m={m} />
+        <Flashes m={m} />
         {m.captions.on && <Captions m={m} u={u} />}
+        <Emojis m={m} u={u} />
         <Titles m={m} u={u} />
+        <Logo m={m} u={u} />
+        <Sfx m={m} />
       </Sequence>
       {outro > 0 && <Sequence from={intro + vid} durationInFrames={outro}><Card title={m.outro.title} subtitle={m.outro.subtitle} m={m} u={u} len={outro} /></Sequence>}
       {m.music?.url && <Audio src={m.music.url} volume={0.12} />}
+      <ProgressBar m={m} u={u} frames={intro + vid + outro} />
     </AbsoluteFill>
   );
 }

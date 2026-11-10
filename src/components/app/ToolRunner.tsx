@@ -41,6 +41,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
   const [editText, setEditText] = useState("");
   const [editOpts, setEditOpts] = useState<Record<string, unknown>>({});
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const clipSecs = useRef<Record<string, number>>({});
 
   const units = useMemo(() => Math.max(1, spec.units(values)), [spec, values]);
   const cost = units * tool.credit_cost;
@@ -87,7 +88,9 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
             el.preload = "metadata"; el.onloadedmetadata = () => res(el.duration || 60); el.onerror = () => res(60);
             el.src = URL.createObjectURL(file);
           });
-          set("duration_seconds", Math.ceil(secs));
+          // several clips: the paid length is their total
+          clipSecs.current[d.path] = secs;
+          setValues((v) => ({ ...v, duration_seconds: Math.ceil(Object.values(clipSecs.current).reduce((a, b) => a + b, 0)) }));
         }
         added.push({ path: d.path, name: file.name, preview: f.accept === "image" ? URL.createObjectURL(file) : undefined });
       }
@@ -102,6 +105,10 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
     const next = (uploads[name] ?? []).filter((x) => x.path !== path);
     setUploads((u) => ({ ...u, [name]: next }));
     set(name, next.map((x) => x.path));
+    if (path in clipSecs.current) {
+      delete clipSecs.current[path];
+      set("duration_seconds", Math.ceil(Object.values(clipSecs.current).reduce((a, b) => a + b, 0)) || undefined);
+    }
   }
 
   async function inspire() {

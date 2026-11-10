@@ -11,7 +11,7 @@ import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
-import { MFPS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type MontageSpec } from "@/remotion/montage";
+import { EMOJIS, MFPS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
 
@@ -26,6 +26,8 @@ const Card = ({ title, icon, children }: { title: string; icon?: string; childre
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 const styles: [CaptionStyle, string][] = [["karaoke", "كلمة كلمة ملوّنة"], ["box", "داخل صندوق"], ["minimal", "بسيطة"]];
 const positions: [CaptionPos, string][] = [["bottom", "تحت"], ["middle", "بالوسط"], ["top", "فوق"]];
+const transitions: [Transition, string][] = [["none", "بدون"], ["zoom", "زووم سريع"], ["flash", "وميض أبيض"]];
+const corners: [Corner, string][] = [["tl", "فوق يسار"], ["tr", "فوق يمين"], ["bl", "تحت يسار"], ["br", "تحت يمين"]];
 const colorLabels = { text: "لون النص", accent: "اللون المميز", bg: "لون البطاقات" } as const;
 
 export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: string; initial: MontageSpec; editCost: number; tracks: Track[] }) {
@@ -43,8 +45,8 @@ export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: str
   // Keep the draft between visits (the video link is always the fresh one from the server).
   useEffect(() => {
     setMounted(true);
-    try { const s = localStorage.getItem(key); if (s) setSpec({ ...JSON.parse(s), src: initial.src }); } catch {}
-  }, [key, initial.src]);
+    try { const s = localStorage.getItem(key); if (s) { const d = JSON.parse(s); setSpec({ ...d, src: initial.src, logo: d.logo && initial.logo ? { ...d.logo, url: initial.logo.url } : initial.logo }); } } catch {}
+  }, [key, initial.src, initial.logo]);
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify({ ...spec, src: "" })); } catch {} }, [key, spec]);
 
   useEffect(() => {
@@ -79,6 +81,9 @@ export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: str
     setSpec({ ...spec, titles: [...spec.titles, { text: "عنوان جديد", at: +at.toFixed(2), dur: 2.5, pos: "top" as const }].sort((a, b) => a.at - b.at) });
   }
   const removeTitle = (i: number) => setSpec({ ...spec, titles: spec.titles.filter((_, j) => j !== i) });
+  const nowAt = () => Math.max(0, Math.min(videoSeconds(spec) - 0.5, ((player.current?.getCurrentFrame() ?? 0) - introFrames(spec)) / MFPS));
+  const addEmoji = (e: string) => setSpec({ ...spec, emojis: [...(spec.emojis ?? []), { e, at: +nowAt().toFixed(2), dur: 1.5 }].sort((a, b) => a.at - b.at) });
+  const removeEmoji = (i: number) => setSpec({ ...spec, emojis: (spec.emojis ?? []).filter((_, j) => j !== i) });
 
   if (sent) {
     return (
@@ -176,13 +181,54 @@ export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: str
           </div>
         </Card>
 
+        <Card title="لمسات احترافية" icon="🎬">
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
+              <span className="font-semibold">🔊 مؤثرات صوتية</span>
+              <input type="checkbox" checked={!!spec.sfx} onChange={(e) => setSpec({ ...spec, sfx: e.target.checked })} className="h-5 w-5" />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
+              <span className="font-semibold">📊 شريط تقدّم فوق</span>
+              <input type="checkbox" checked={!!spec.progress} onChange={(e) => setSpec({ ...spec, progress: e.target.checked })} className="h-5 w-5" />
+            </label>
+          </div>
+
+          <Sub>الانتقال عند كل قطع</Sub>
+          <div className="flex flex-wrap gap-2">{transitions.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.transition ?? "none") === v} onClick={() => setSpec({ ...spec, transition: v })} className="chip">{l}</button>)}</div>
+
+          <Sub>شعار نشاطك</Sub>
+          {spec.logo ? (
+            <>
+              <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
+                <span className="font-semibold">إظهار الشعار بالزاوية</span>
+                <input type="checkbox" checked={spec.logo.on} onChange={(e) => setSpec({ ...spec, logo: { ...spec.logo!, on: e.target.checked } })} className="h-5 w-5" />
+              </label>
+              {spec.logo.on && <div className="flex flex-wrap gap-2">{corners.map(([c, l]) => <button key={c} type="button" aria-pressed={spec.logo!.pos === c} onClick={() => setSpec({ ...spec, logo: { ...spec.logo!, pos: c } })} className="chip">{l}</button>)}</div>}
+            </>
+          ) : <p className="text-[13px] text-subtle">ارفع شعارك من <Link href="/app/brand" className="font-semibold text-navy-700 underline">هويتي التجارية</Link> وبيطلع بالمونتاجات الجاية.</p>}
+
+          <Sub>إيموجي</Sub>
+          {(spec.emojis ?? []).length > 0 && (
+            <ul className="flex flex-wrap gap-2">
+              {(spec.emojis ?? []).map((x, i) => (
+                <li key={i} className="flex items-center gap-1.5 rounded-full border border-line bg-white py-1 pe-1 ps-3 text-[14px]">
+                  <span className="text-[18px]">{x.e}</span><span className="text-subtle" dir="ltr">{x.at.toFixed(1)}s</span>
+                  <button type="button" onClick={() => removeEmoji(i)} aria-label={`حذف ${x.e}`} className="rounded-full px-2 text-red-700 hover:bg-red-50">×</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-[12px] text-subtle">وقّف الفيديو عند اللحظة اللي تبيها، واضغط على إيموجي لإضافته.</p>
+          <div className="flex flex-wrap gap-1.5">{EMOJIS.map((e) => <button key={e} type="button" onClick={() => addEmoji(e)} aria-label={`أضف ${e}`} className="rounded-xl border border-line bg-white px-2.5 py-1.5 text-[20px] hover:border-gold-500">{e}</button>)}</div>
+        </Card>
+
         <Card title="تعديل متقدّم (بالوصف)" icon="✨">
           <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} className="field" placeholder="مثال: زيد عناوين للأفكار الأساسية، وكبّر أكثر على الجمل القوية، وخلّ الألوان أحمر وأسود" />
           <button type="button" disabled={!instruction.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
-            onClick={async () => { const d = await call<{ spec: MontageSpec }>("revise", { spec: { ...spec, src: "", words: [] }, instruction }); if (d) { setSpec({ ...d.spec, src: spec.src, words: spec.words, segments: spec.segments }); setInstruction(""); } }}>
+            onClick={async () => { const d = await call<{ spec: MontageSpec }>("revise", { spec: { ...spec, src: "", words: [] }, instruction }); if (d) { setSpec({ ...d.spec, src: spec.src, words: spec.words, segments: spec.segments, logo: d.spec.logo ? { ...d.spec.logo, url: spec.logo?.url ?? "" } : null }); setInstruction(""); } }}>
             {busy === "revise" ? "جاري التعديل…" : `طبّق التعديل (${editCost} ريشة)`}
           </button>
-          <p className="text-[12px] text-subtle">يعدّل العناوين والتكبير والألوان والخط والبطاقات. القصّ نفسه يبقى مثل ما هو.</p>
+          <p className="text-[12px] text-subtle">يعدّل العناوين والتكبير والإيموجي والانتقالات والمؤثرات والألوان والخط والبطاقات ومكان الترجمة. القصّ نفسه يبقى مثل ما هو.</p>
         </Card>
 
         <Card title="موسيقى خلفية" icon="🎵">
