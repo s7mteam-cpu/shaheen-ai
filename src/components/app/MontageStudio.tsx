@@ -33,8 +33,6 @@ const colorLabels = { text: "لون النص", accent: "اللون المميز"
 
 type Kit = { colors: string[]; font: string | null; handle: string | null; name: string | null } | null;
 
-const DIALECTS: [string, string][] = [["asis", "مثل ما كتبت"], ["kuwaiti", "كويتي"], ["gulf", "خليجي"], ["saudi", "سعودي"], ["emirati", "إماراتي"], ["qatari", "قطري"], ["msa", "فصحى"], ["egyptian", "مصري"], ["levantine", "شامي"]];
-
 export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, voices = [] }: { jobId: string; initial: MontageSpec; editCost: number; tracks: Track[]; kit?: Kit; voices?: { id: string; name: string; note?: string }[] }) {
   const key = `montage:${jobId}`;
   const [spec, setSpec] = useState<MontageSpec>(initial);
@@ -65,7 +63,24 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   const [uploading, setUploading] = useState(false);
   const [voText, setVoText] = useState(initial.vo?.text ?? "");
   const [voVoice, setVoVoice] = useState(initial.vo?.voice || voices[0]?.id || "");
-  const [dialect, setDialect] = useState("asis");
+  const voAudio = useRef<HTMLAudioElement | null>(null);
+  const [voPlaying, setVoPlaying] = useState(false);
+  const voName = voices.find((v) => v.id === spec.vo?.voice)?.name ?? "تعليق صوتي";
+  const voSecs = spec.vo?.words.length ? spec.vo.words[spec.vo.words.length - 1].e : 0;
+  function toggleVo() {
+    if (!spec.vo?.url) return;
+    if (voPlaying) { voAudio.current?.pause(); setVoPlaying(false); return; }
+    voAudio.current?.pause();
+    voAudio.current = new Audio(spec.vo.url);
+    voAudio.current.onended = () => setVoPlaying(false);
+    voAudio.current.play().then(() => setVoPlaying(true)).catch(() => {});
+  }
+  /** ✕ on the voice bar: remove the voice-over; captions go back to the original speech. */
+  function removeVo() {
+    voAudio.current?.pause(); setVoPlaying(false);
+    setSpec((sp) => ({ ...sp, vo: null, videoVolume: 1 }));
+  }
+  useEffect(() => () => voAudio.current?.pause(), []);
 
   useEffect(() => {
     if (!sent || render.status === "done" || render.status === "failed") return;
@@ -281,12 +296,6 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               <input type="checkbox" checked={!!spec.track} onChange={(e) => setSpec({ ...spec, track: e.target.checked })} className="h-5 w-5" />
             </label>
           )}
-          {spec.vo && (
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
-              <span className="font-semibold">🎙️ التعليق الصوتي</span>
-              <input type="checkbox" checked={spec.vo.on} onChange={(e) => setSpec({ ...spec, vo: { ...spec.vo!, on: e.target.checked } })} className="h-5 w-5" />
-            </label>
-          )}
           <Sub>صوت الفيديو الأصلي</Sub>
           <div className="flex flex-wrap gap-2">
             {([[1, "كامل"], [0.25, "منخفض"], [0, "صامت"]] as const).map(([v, l]) => <button key={l} type="button" aria-pressed={Math.abs((spec.videoVolume ?? 1) - v) < 0.14} onClick={() => setSpec({ ...spec, videoVolume: v })} className="chip">{l}</button>)}
@@ -295,25 +304,43 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         </Card>
 
         <Card title="التعليق الصوتي" icon="🎙️">
-          <p className="text-[13px] text-subtle">{spec.vo ? "عدّل الكلام، أو غيّر الصوت واللهجة، وأعد التسجيل. الفيديو والترجمة بيتظبطون على الصوت الجديد." : "أضف تعليق صوتي فوق الفيديو: اكتب الكلام واختر الصوت."}</p>
-          <textarea value={voText} onChange={(e) => setVoText(e.target.value)} rows={5} maxLength={1500} className="field" placeholder="اكتب الكلام اللي تبي ينقال…" />
-          {voices.length > 0 && (
-            <label className="flex flex-col gap-1"><span className="text-[12px] text-subtle">الصوت</span>
-              <select value={voVoice} onChange={(e) => setVoVoice(e.target.value)} className="field">{voices.map((v) => <option key={v.id} value={v.id}>{v.name}{v.note ? ` · ${v.note}` : ""}</option>)}</select></label>
+          {spec.vo ? (
+            /* the voice track: play it, or ✕ to delete and record a new one */
+            <div className="flex items-center gap-3 rounded-2xl border border-navy-800/15 bg-navy-800 px-3 py-3 text-white">
+              <button type="button" onClick={toggleVo} aria-label={voPlaying ? "إيقاف" : "تشغيل الصوت"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-500 text-navy-900">{voPlaying ? "❚❚" : "▶"}</button>
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <span className="truncate text-[14px] font-semibold">🎙️ {voName}</span>
+                <span aria-hidden className="flex h-5 items-center gap-[3px] overflow-hidden">
+                  {Array.from({ length: 34 }, (_, i) => <span key={i} className="w-[3px] rounded-full bg-gold-500/80" style={{ height: `${25 + Math.abs(Math.sin(i * 1.7) * 75)}%` }} />)}
+                </span>
+              </div>
+              <span className="shrink-0 text-[12px] text-white/70" dir="ltr">{voSecs.toFixed(0)}s</span>
+              <button type="button" onClick={removeVo} aria-label="حذف التعليق الصوتي" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-[18px] hover:bg-red-600">✕</button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-[13px] text-subtle">اكتب الكلام واختر الصوت، وبيتسجّل فوق الفيديو والترجمة تمشي معه.</p>
+              <textarea value={voText} onChange={(e) => setVoText(e.target.value)} rows={5} maxLength={1500} className="field" placeholder="اكتب الكلام اللي تبي ينقال…" />
+              {voices.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <Sub>اختر الصوت</Sub>
+                  {voices.map((v) => (
+                    <button key={v.id} type="button" aria-pressed={voVoice === v.id} onClick={() => setVoVoice(v.id)}
+                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-start ${voVoice === v.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white"}`}>
+                      <span aria-hidden>🎙️</span><span className="flex-1 font-semibold">{v.name}</span>{voVoice === v.id && <span aria-hidden>✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button type="button" disabled={!voText.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
+                onClick={async () => {
+                  const d = await call<{ spec: MontageSpec; url: string; text: string }>("voice", { spec: { ...spec, src: "", words: [], face: [] }, text: voText, voice: voVoice });
+                  if (d) { setSpec((sp) => ({ ...sp, segments: d.spec.segments, videoVolume: d.spec.videoVolume, vo: { ...d.spec.vo!, url: d.url } })); setVoText(d.text); }
+                }}>
+                {busy === "voice" ? "جاري التسجيل…" : `🎙️ سجّل الصوت (${editCost} ريشة)`}
+              </button>
+            </div>
           )}
-          <Sub>اللهجة</Sub>
-          <div className="flex flex-wrap gap-2">{DIALECTS.map(([d, l]) => <button key={d} type="button" aria-pressed={dialect === d} onClick={() => setDialect(d)} className="chip">{l}</button>)}</div>
-          {dialect !== "asis" && <p className="text-[12px] text-subtle">شاهين بيحوّل كلامك لهذي اللهجة قبل التسجيل.</p>}
-          <button type="button" disabled={!voText.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
-            onClick={async () => {
-              const d = await call<{ spec: MontageSpec; url: string; text: string }>("voice", { spec: { ...spec, src: "", words: [], face: [] }, text: voText, voice: voVoice, dialect });
-              if (d) {
-                setSpec((sp) => ({ ...sp, segments: d.spec.segments, videoVolume: d.spec.videoVolume, vo: { ...d.spec.vo!, url: d.url } }));
-                setVoText(d.text); setDialect("asis");
-              }
-            }}>
-            {busy === "voice" ? "جاري التسجيل…" : `${spec.vo ? "🔁 أعد تسجيل الصوت" : "🎙️ سجّل التعليق"} (${editCost} ريشة)`}
-          </button>
         </Card>
 
         <Card title="صور إضافية فوق الكلام" icon="🖼️">

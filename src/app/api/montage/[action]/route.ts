@@ -41,7 +41,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     grade: ["none", "natural", "vivid", "warm", "cinematic"].includes(String(s.grade)) ? s.grade : base.grade ?? "none",
     autoBright: base.autoBright ?? 1,
     videoVolume: typeof s.videoVolume === "number" ? clamp(s.videoVolume, 0, 1) : base.videoVolume ?? 1,
-    vo: base.vo ? { ...base.vo, url: "", on: s.vo ? !!s.vo.on : base.vo.on } : null,
+    vo: s.vo === null ? null : base.vo ? { ...base.vo, url: "", on: s.vo ? !!s.vo.on : base.vo.on } : null,
     transition: ["none", "flash", "zoom"].includes(String(s.transition)) ? s.transition : base.transition ?? "none",
     logo: base.logo ? { ...base.logo, url: "", on: s.logo?.on ?? base.logo.on, pos: ["tl", "tr", "bl", "br"].includes(String(s.logo?.pos)) ? s.logo!.pos : base.logo.pos } : null,
     emojis: (Array.isArray(s.emojis) ? s.emojis : base.emojis ?? []).slice(0, 12).map((x) => ({ e: String(x.e ?? "").slice(0, 4), at: clamp(Number(x.at) || 0, 0, Math.max(0, len - 0.3)), dur: clamp(Number(x.dur) || 1.5, 0.6, 4) })).filter((x) => x.e),
@@ -164,7 +164,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     } catch (e) {
       console.error("montage voice", e);
       await refund("voice");
-      return NextResponse.json({ error: "ما ضبط تسجيل الصوت، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
+      const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
+      const why = me?.role === "admin" ? ` [${String(e instanceof Error ? e.message : e).slice(0, 220)}]` : "";
+      return NextResponse.json({ error: `ما ضبط تسجيل الصوت، ورجّعنا لك الريش. حاول مرة ثانية.${why}` }, { status: 502 });
     }
   }
 
