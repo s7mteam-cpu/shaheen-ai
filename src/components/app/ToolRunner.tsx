@@ -3,6 +3,7 @@ import { Progress } from "@/components/app/Progress";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { compressVideo } from "@/lib/compressVideo";
 import { Icon } from "@/components/Icon";
 import { Media, WorkCard, type Work, type WorkFile } from "@/components/app/WorkCard";
 import { defaultValues, toolSpecs, type Field, type Values } from "@/lib/tools/specs";
@@ -33,8 +34,10 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
   });
   const [uploads, setUploads] = useState<Record<string, Upload[]>>({});
   const [busyUpload, setBusyUpload] = useState(false);
+  const [squeeze, setSqueeze] = useState<number | null>(null);
   const [balance, setBalance] = useState(initialBalance);
   const [error, setError] = useState("");
+  const [fileError, setFileError] = useState<{ field: string; text: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [job, setJob] = useState<JobView | null>(null);
   const [ideas, setIdeas] = useState<string[]>([]);
@@ -71,13 +74,16 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
 
   async function addFiles(f: Extract<Field, { type: "files" }>, list: FileList | null) {
     if (!list?.length) return;
-    setError(""); setBusyUpload(true);
+    setError(""); setFileError(null); setBusyUpload(true);
     try {
       const supabase = createClient();
       const current = uploads[f.name] ?? [];
       const room = f.max - current.length;
       const added: Upload[] = [];
-      for (const file of Array.from(list).slice(0, room)) {
+      for (const original of Array.from(list).slice(0, room)) {
+        // big phone videos are shrunk to 1080p in the browser first (faster upload, under the file limit)
+        let file = original;
+        if (f.accept === "video") { setSqueeze(0); file = await compressVideo(original, setSqueeze); setSqueeze(null); }
         const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: f.accept, type: file.type, size: file.size, name: file.name }) });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
@@ -102,7 +108,8 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
       setUploads((u) => ({ ...u, [f.name]: next }));
       set(f.name, next.map((x) => x.path));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "تعذّر رفع الملف.");
+      // shown right inside the upload card, where the customer is looking
+      setFileError({ field: f.name, text: e instanceof Error ? e.message : "تعذّر رفع الملف." });
     } finally { setBusyUpload(false); }
   }
   function removeFile(name: string, path: string) {
@@ -186,6 +193,12 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
 
                 {f.type === "files" && (
                   <>
+                    {fileError?.field === f.name && (
+                      <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-800">
+                        <span aria-hidden>⚠️</span><span className="flex-1">{fileError.text}</span>
+                        <button type="button" aria-label="إغلاق" onClick={() => setFileError(null)} className="text-red-700">✕</button>
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-3">
                       {(uploads[f.name] ?? []).map((u) => (
                         <div key={u.path} className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-tint text-xs text-subtle">
@@ -196,7 +209,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
                       ))}
                       {(uploads[f.name] ?? []).length < f.max && (
                         <label className="flex h-24 w-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-[1.5px] border-dashed border-field bg-canvas text-[13px] font-semibold text-navy-700">
-                          <Icon name={busyUpload ? "upload" : "plus"} size={20} />{busyUpload ? "جارٍ الرفع" : "رفع"}
+                          <Icon name={busyUpload ? "upload" : "plus"} size={20} />{busyUpload ? (squeeze !== null ? `تجهيز الفيديو ${squeeze}%` : "جارٍ الرفع") : "رفع"}
                           <input id={`f-${f.name}`} type="file" accept={accepts[f.accept]} multiple={f.max > 1} className="sr-only" onChange={(e) => { addFiles(f, e.target.files); e.target.value = ""; }} />
                         </label>
                       )}
