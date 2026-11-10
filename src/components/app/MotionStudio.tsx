@@ -11,6 +11,7 @@ import { Player } from "@remotion/player";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MotionVideo } from "@/remotion/MotionVideo";
+import { Progress } from "@/components/app/Progress";
 import { COLOR_LABELS, FONTS, FPS, dimensions, narration, setText, textFields, type Colors, type MotionSpec } from "@/remotion/spec";
 
 type Track = { name: string; mood?: string; url: string };
@@ -37,6 +38,17 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [render, setRender] = useState<{ status: string; progress: number; url?: string }>({ status: "queued", progress: 0 });
+  useEffect(() => {
+    if (!sent || render.status === "done" || render.status === "failed") return;
+    const t = setInterval(async () => {
+      const r = await fetch(`/api/jobs/${jobId}`).catch(() => null);
+      if (!r?.ok) return;
+      const d = await r.json();
+      setRender({ status: d.status, progress: d.progress ?? 0, url: d.files?.[0]?.url });
+    }, 3000);
+    return () => clearInterval(t);
+  }, [sent, render.status, jobId]);
   const preview = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -74,8 +86,21 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
   if (sent) {
     return (
       <div className="mx-auto flex max-w-xl flex-col items-center gap-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-8 text-center">
-        <h2 className="text-[22px] font-bold text-emerald-900">✓ تم إرسال الفيديو للمعالجة</h2>
-        <p className="text-emerald-900/80">الفيديو ينجهز الحين بالخلفية، وبيوصلك في «أعمالي» أول ما يخلص (عادةً دقيقة أو دقيقتين).</p>
+        {render.status === "done" && render.url ? (
+          <>
+            <h2 className="text-[22px] font-bold text-emerald-900">✓ الفيديو جاهز</h2>
+            <video src={render.url} controls playsInline className="max-h-[60vh] w-full rounded-2xl bg-black" />
+            <a href={render.url} download className="btn btn-gold w-full py-3.5">⬇️ تحميل الفيديو</a>
+          </>
+        ) : render.status === "failed" ? (
+          <p className="font-semibold text-red-800">ما نجح التصدير، ورجّعنا لك الريش. حاول مرة ثانية.</p>
+        ) : (
+          <>
+            <h2 className="text-[22px] font-bold text-emerald-900">✓ تم إرسال الفيديو للمعالجة</h2>
+            <Progress value={render.progress} label={render.status === "queued" && !render.progress ? "في الطابور…" : "جاري تجهيز الفيديو…"} />
+            <p className="text-[14px] text-emerald-900/80">تقدر تطلع من الصفحة، وبيوصلك الفيديو في «أعمالي» أول ما يخلص.</p>
+          </>
+        )}
         <div className="flex flex-wrap justify-center gap-3">
           <Link href="/app/works" className="btn btn-primary px-6 py-3">روح لأعمالي</Link>
           <Link href="/app/tools/motion-video" className="btn border border-line bg-white px-6 py-3">إنشاء فيديو جديد</Link>

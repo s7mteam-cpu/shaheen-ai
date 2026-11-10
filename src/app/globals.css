@@ -40,3 +40,4 @@ body { background: #fff; color: var(--color-ink); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @keyframes sheetUp { from { transform: translateY(24px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes shine { from { background-position: -50% 0 } to { background-position: 150% 0 } }

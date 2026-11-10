@@ -16,6 +16,7 @@ const run = promisify(execFile);
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const MAX_SECONDS = 600;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const setProgress = (id, p) => db.from("jobs").update({ progress: Math.max(0, Math.min(100, Math.round(p))) }).eq("id", id).then(() => {}, () => {});
 
 async function ff(args) { return run("ffmpeg", ["-hide_banner", "-y", ...args], { maxBuffer: 64 * 1024 * 1024 }); }
 async function duration(file) {
@@ -105,8 +106,10 @@ async function processJob(job) {
     const paidMinutes = Math.max(1, Math.ceil(Number(job.input.duration_seconds ?? 60) / 60));
     if (Math.ceil(secs / 60) > paidMinutes + 1) throw new Error("DURATION_MISMATCH");
 
+    await setProgress(job.id, 15);
     if (job.input.cut_silence) current = await cutSilence(current, join(dir, "cut.mp4"), dir);
 
+    await setProgress(job.id, 40);
     const filters = [];
     const sf = scaleFilter(job.input.aspect);
     if (sf) filters.push(sf);
@@ -118,13 +121,14 @@ async function processJob(job) {
     // Final length the customer picked (30s / 60s / 90s); "full" keeps everything.
     const target = Number(job.input.target);
     const limit = Number.isFinite(target) && target > 0 && (await duration(current)) > target ? ["-t", String(target)] : [];
+    await setProgress(job.id, 70);
     const out = join(dir, "out.mp4");
     await ff(["-i", current, ...limit, ...(filters.length ? ["-vf", filters.join(",")] : []), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", out]);
 
     const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.mp4`;
     const up = await db.storage.from("results").upload(dest, await readFile(out), { contentType: "video/mp4" });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
-    await db.from("jobs").update({ status: "done", output: { files: [{ path: dest, type: "video/mp4" }] }, updated_at: new Date().toISOString() }).eq("id", job.id);
+    await db.from("jobs").update({ status: "done", progress: 100, output: { files: [{ path: dest, type: "video/mp4" }] }, updated_at: new Date().toISOString() }).eq("id", job.id);
     console.log("done", job.id);
   } catch (e) {
     console.error("failed", job.id, e);
@@ -145,11 +149,18 @@ async function renderMotion(job) {
     const props = job.input.spec;
     const composition = await selectComposition({ serveUrl, id: "Motion", inputProps: props });
     const out = join(dir, "out.mp4");
-    await renderMedia({ composition, serveUrl, codec: "h264", crf: 20, x264Preset: "veryfast", outputLocation: out, inputProps: props, concurrency: Number(process.env.RENDER_CONCURRENCY) || null });
+    let last = 0;
+    await setProgress(job.id, 3);
+    await renderMedia({
+      composition, serveUrl, codec: "h264", crf: 20, x264Preset: "veryfast", outputLocation: out, inputProps: props,
+      concurrency: Number(process.env.RENDER_CONCURRENCY) || null,
+      onProgress: ({ progress }) => { const p = 3 + progress * 92; if (p - last >= 4) { last = p; setProgress(job.id, p); } },
+    });
+    await setProgress(job.id, 97);
     const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.mp4`;
     const up = await db.storage.from("results").upload(dest, await readFile(out), { contentType: "video/mp4" });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
-    await db.from("jobs").update({ status: "done", output: { files: [{ path: dest, type: "video/mp4" }] }, updated_at: new Date().toISOString() }).eq("id", job.id);
+    await db.from("jobs").update({ status: "done", progress: 100, output: { files: [{ path: dest, type: "video/mp4" }] }, updated_at: new Date().toISOString() }).eq("id", job.id);
     console.log("motion done", job.id);
   } catch (e) {
     console.error("motion failed", job.id, e);

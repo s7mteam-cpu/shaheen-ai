@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Progress } from "@/components/app/Progress";
 
 const lengths = [[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"]] as const;
 const aspects = [["9:16", "ريلز / تيك توك 9:16"], ["1:1", "مربع 1:1"], ["16:9", "يوتيوب عريض 16:9"]] as const;
@@ -17,6 +18,14 @@ export function MotionStart({ costPer15, balance, brand }: { costPer15: number; 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const cost = Math.max(1, Math.round(seconds / 15)) * costPer15;
+  const [pct, setPct] = useState(0);
+  // Writing takes ~10-30s: move smoothly towards 95%, the last 5% when it is done.
+  useEffect(() => {
+    if (!busy) return;
+    setPct(2);
+    const t = setInterval(() => setPct((p) => p + (95 - p) * 0.07), 400);
+    return () => clearInterval(t);
+  }, [busy]);
 
   async function go(e: React.FormEvent) {
     e.preventDefault();
@@ -25,6 +34,7 @@ export function MotionStart({ costPer15, balance, brand }: { costPer15: number; 
       const r = await fetch("/api/motion/script", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, brand: name, seconds, aspect, dialect }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
+      setPct(100);
       router.push(`/app/tools/motion-video?job=${d.jobId}`);
     } catch (err) { setError((err as Error).message || "صار خطأ."); setBusy(false); }
   }
@@ -44,9 +54,9 @@ export function MotionStart({ costPer15, balance, brand }: { costPer15: number; 
       <div className="flex flex-col gap-2"><span className="font-semibold">المقاس</span>{chips(aspects, aspect, setAspect)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">لهجة النصوص</span>{chips(dialects, dialect, setDialect)}</div>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
-      <button disabled={busy || idea.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">
-        {busy ? "شاهين يكتب الفيديو…" : `✨ أنشئ الفيديو (${cost} ريشة)`}
-      </button>
+      {busy ? <Progress value={pct} label="جاري إنشاء الفيديو…" /> : (
+        <button disabled={idea.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">✨ أنشئ الفيديو ({cost} ريشة)</button>
+      )}
       {balance < cost && <p className="text-center text-[14px] text-red-700">رصيدك ما يكفي. <a href="/app/subscribe" className="underline">زوّد رصيدك</a></p>}
       <p className="text-center text-[13px] text-subtle">بعدها تقدر تعدّل الألوان والنصوص والخط مجاناً وتشوف التغيير مباشرة.</p>
     </form>
