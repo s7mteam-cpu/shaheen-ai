@@ -69,7 +69,7 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
   };
 
   // «تعديل» on an image result: edit the previous output with the customer's instruction.
-  if (typeof v._edit_from === "string" && ["image", "product-photo", "ad-design"].includes(job.tool_id)) {
+  if (typeof v._edit_from === "string" && ["image", "carousel", "product-photo", "ad-design"].includes(job.tool_id)) {
     const admin = createAdminClient();
     const { data: signed } = await admin.storage.from("results").createSignedUrl(v._edit_from, 3600);
     const src = signed?.signedUrl ? [signed.signedUrl] : [];
@@ -134,6 +134,33 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
         });
         const [file] = await save(falImages(data));
         out.push({ ...file, caption: `${ad.angle}\n\n${ad.headline}\n${ad.body}` });
+      }
+      return out;
+    }
+
+    case "carousel": {
+      const count = Number(v.slides);
+      const slides = await aiJson<{ title: string; text: string; image_prompt: string }[]>(
+        "أنت مصمم محتوى خليجي محترف لكاروسيل إنستغرام. كل شريحة فكرة وحدة واضحة، والشريحة الأولى خطّاف يشد القارئ، والأخيرة دعوة لاتخاذ إجراء.",
+        `الموضوع: ${v.prompt}\nاللهجة: ${v.dialect}\n${brand}\n` +
+        `اكتب ${count} شرائح بالترتيب. لكل شريحة: title (عنوان عربي قصير جداً، 2-6 كلمات)، text (سطر أو سطرين للكابشن)، image_prompt (وصف إنجليزي لتصميم الشريحة). أعد مصفوفة JSON.`,
+      );
+      const imgs = await signedUploadUrls(files(v, "images"));
+      const { provider, model: m } = await config("carousel");
+      const style = "Cohesive Instagram carousel series: same layout grid, same color palette, same typography style on every slide, clean modern design, generous margins.";
+      const out: OutFile[] = [];
+      for (const [i, s] of slides.slice(0, count).entries()) {
+        const prompt = `Slide ${i + 1} of ${count}. ${s.image_prompt}. ${style} Render this exact Arabic headline, large, correctly spelled, right-to-left: «${s.title}». No other text. ${brand}`;
+        if (provider === "google") {
+          const [file] = await googleImages(m, prompt, imgs, 1);
+          out.push({ ...file, caption: `${i + 1}. ${s.title}\n${s.text}` });
+          continue;
+        }
+        const data = await falRun(imgs.length ? (m.endsWith("/edit") ? m : `${m}/edit`) : m, {
+          prompt, num_images: 1, aspect_ratio: v.aspect, ...(imgs.length ? { image_urls: imgs } : {}),
+        });
+        const [file] = await save(falImages(data));
+        out.push({ ...file, caption: `${i + 1}. ${s.title}\n${s.text}` });
       }
       return out;
     }

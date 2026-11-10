@@ -12,6 +12,7 @@ export const providerInfo: Record<ProviderId, { name: string; env: string; site:
 /** Allowed providers per tool + the default model for each. */
 export const toolProviders: Record<string, Partial<Record<ProviderId, string>>> = {
   image: { fal: "fal-ai/nano-banana-2", google: "gemini-3-pro-image-preview" },
+  carousel: { fal: "fal-ai/nano-banana-pro", google: "gemini-3-pro-image-preview" },
   "product-photo": { fal: "fal-ai/nano-banana-pro/edit", google: "gemini-3-pro-image-preview" },
   "ad-design": { fal: "fal-ai/nano-banana-pro", google: "gemini-3-pro-image-preview" },
   "motion-video": { fal: "fal-ai/kling-video/v2.5-turbo/pro/text-to-video", google: "veo-3.1-fast-generate-preview" },

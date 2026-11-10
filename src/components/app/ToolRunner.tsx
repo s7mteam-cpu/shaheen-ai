@@ -264,6 +264,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
                           <label className="flex items-center gap-2"><input type="checkbox" defaultChecked={Boolean(values.cut_silence ?? true)} onChange={(e) => setEditOpts({ ...editOpts, cut_silence: e.target.checked })} className="accent-navy-700" />قص الأجزاء الصامتة</label>
                           <label className="flex items-center gap-2"><input type="checkbox" defaultChecked={Boolean(values.captions ?? true)} onChange={(e) => setEditOpts({ ...editOpts, captions: e.target.checked })} className="accent-navy-700" />ترجمة عربية مكتوبة</label>
                           <div className="flex flex-wrap gap-2">{[["original", "كما هو"], ["9:16", "9:16"], ["1:1", "1:1"], ["16:9", "16:9"]].map(([a, l]) => <button key={a} type="button" aria-pressed={editOpts.aspect === a} onClick={() => setEditOpts({ ...editOpts, aspect: a })} className="chip">{l}</button>)}</div>
+                          <div className="flex flex-wrap gap-2">{[["30", "30 ثانية"], ["60", "دقيقة"], ["90", "دقيقة ونص"], ["full", "بدون تقصير"]].map(([d, l]) => <button key={d} type="button" aria-pressed={(editOpts.target ?? values.target) === d} onClick={() => setEditOpts({ ...editOpts, target: d })} className="chip">{l}</button>)}</div>
                         </div>
                       ) : (
                         <textarea id={`edit-${i}`} rows={3} value={editText} onChange={(e) => setEditText(e.target.value)} placeholder={hint.placeholder} className="field resize-y leading-7" />

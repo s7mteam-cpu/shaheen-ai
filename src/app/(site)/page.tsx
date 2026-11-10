@@ -45,23 +45,10 @@ export default async function Home() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={c.hero.image} alt="" className="w-full max-w-[520px] rounded-3xl shadow-[0_30px_60px_-30px_rgba(11,42,74,0.4)]" />
             ) : (
-            <div className="w-full max-w-[500px] overflow-hidden rounded-3xl border border-line bg-white shadow-[0_30px_60px_-30px_rgba(11,42,74,0.4)]">
-              <div className="flex items-center justify-between bg-navy-800 px-4 py-3.5">
-                <span className="text-[15px] font-semibold text-white">فيديو موشن جرافيك</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/20 px-2.5 py-1 text-[13px] font-semibold text-gold-500"><Icon name="feather" size={14} />9 ريش</span>
-              </div>
-              <div className="flex flex-col gap-4 p-5">
-                <div className="rounded-2xl border border-line bg-canvas p-4 text-[15px] leading-7">فيديو ريلز لمطعم مشاوي في الكويت: عرض الويكند، خصم 20% على الوجبات العائلية، بلهجة كويتية وموسيقى حماسية.</div>
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div className="flex aspect-[9/16] items-end rounded-xl bg-navy-800 p-2.5 text-xs font-bold text-gold-500">المشهد 1</div>
-                  <div className="flex aspect-[9/16] items-end rounded-xl bg-navy-700 p-2.5 text-xs font-bold text-white">المشهد 2</div>
-                  <div className="flex aspect-[9/16] items-end rounded-xl bg-[#E9DDBF] p-2.5 text-xs font-bold text-navy-900">المشهد 3</div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[13px] text-subtle">10 ثوانٍ · 9:16 · لهجة كويتية</span>
-                  <span className="rounded-xl bg-navy-800 px-4 py-2.5 text-sm font-semibold text-white">تحميل الفيديو</span>
-                </div>
-              </div>
+            <div className="relative flex aspect-square w-full max-w-[460px] items-center justify-center overflow-hidden rounded-[32px] bg-navy-800 shadow-[0_30px_60px_-30px_rgba(11,42,74,0.5)]">
+              <Circuit className="absolute inset-0 h-full w-full text-gold-500/15" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/eagle.png" alt="شعار شاهين" className="relative w-[62%] drop-shadow-[0_20px_40px_rgba(0,0,0,0.35)]" />
             </div>
             )}
           </div>

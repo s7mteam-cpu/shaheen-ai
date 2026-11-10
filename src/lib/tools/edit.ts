@@ -6,6 +6,7 @@ type Parent = { tool_id: string; input: Values; output: { files?: { path: string
 /** What the customer types / picks when pressing «تعديل», per tool. */
 export const editHints: Record<string, { label: string; placeholder: string; textReplaces?: boolean; options?: boolean }> = {
   image: { label: "وش تبي تغيّر في الصورة؟", placeholder: "مثال: خلّ الخلفية أفتح، وأضف ظل خفيف" },
+  carousel: { label: "وش تبي تغيّر في هالشريحة؟", placeholder: "مثال: كبّر العنوان وخلّ الخلفية أفتح" },
   "product-photo": { label: "وش تبي تغيّر في الصورة؟", placeholder: "مثال: قرّب على المنتج وغيّر الإضاءة لدافئة" },
   "ad-design": { label: "وش تبي تغيّر في صورة الإعلان؟", placeholder: "مثال: خلّ الألوان ذهبية أكثر" },
   "motion-video": { label: "وش تبي تغيّر في الفيديو؟", placeholder: "مثال: خلّ الحركة أبطأ، والإضاءة ليلية" },
@@ -20,11 +21,11 @@ export function buildEditInput(parent: Parent, req: EditRequest): { input: Value
   const v = { ...parent.input };
   const text = (req.instruction ?? "").trim().slice(0, 1200);
   const files = parent.output?.files ?? [];
-  const isImageTool = ["image", "product-photo", "ad-design"].includes(parent.tool_id);
+  const isImageTool = ["image", "carousel", "product-photo", "ad-design"].includes(parent.tool_id);
 
   if (parent.tool_id === "video-editing") {
     const o = req.options ?? {};
-    return { input: { ...v, cut_silence: Boolean(o.cut_silence ?? v.cut_silence), captions: Boolean(o.captions ?? v.captions), aspect: String(o.aspect ?? v.aspect) } };
+    return { input: { ...v, cut_silence: Boolean(o.cut_silence ?? v.cut_silence), captions: Boolean(o.captions ?? v.captions), aspect: String(o.aspect ?? v.aspect), target: String(o.target ?? v.target ?? "60") } };
   }
   if (!text) return { error: "اكتب التعديل اللي تبيه." };
 

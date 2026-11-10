@@ -15,13 +15,27 @@ export type Field =
 export type Values = Record<string, unknown>;
 export type ToolSpec = { fields: Field[]; units: (v: Values) => number; inspire?: boolean };
 
+// Standard social-media sizes (Instagram / TikTok / Snapchat / X / YouTube).
 const aspect: Field = {
-  type: "choice", name: "aspect", label: "المقاس", default: "1:1",
-  options: [{ value: "1:1", label: "مربع 1:1" }, { value: "4:5", label: "منشور 4:5" }, { value: "9:16", label: "ستوري 9:16" }, { value: "16:9", label: "عريض 16:9" }],
+  type: "choice", name: "aspect", label: "المقاس", default: "4:5",
+  options: [
+    { value: "4:5", label: "بوست طولي 4:5 (1080×1350)" },
+    { value: "1:1", label: "بوست مربع 1:1 (1080×1080)" },
+    { value: "9:16", label: "ستوري 9:16 (1080×1920)" },
+    { value: "16:9", label: "عريض 16:9 (1920×1080)" },
+  ],
+};
+const carouselAspect: Field = {
+  type: "choice", name: "aspect", label: "المقاس", default: "4:5",
+  options: [{ value: "4:5", label: "طولي 4:5 (1080×1350)" }, { value: "1:1", label: "مربع 1:1 (1080×1080)" }],
 };
 const videoAspect: Field = {
   type: "choice", name: "aspect", label: "المقاس", default: "9:16",
-  options: [{ value: "9:16", label: "ريلز 9:16" }, { value: "1:1", label: "مربع 1:1" }, { value: "16:9", label: "عريض 16:9" }],
+  options: [
+    { value: "9:16", label: "ريلز / تيك توك 9:16 (1080×1920)" },
+    { value: "1:1", label: "مربع 1:1 (1080×1080)" },
+    { value: "16:9", label: "يوتيوب عريض 16:9 (1920×1080)" },
+  ],
 };
 const dialects: Option[] = [
   { value: "kuwaiti", label: "كويتي" }, { value: "saudi", label: "سعودي" }, { value: "emirati", label: "إماراتي" },
@@ -41,6 +55,17 @@ export const toolSpecs: Record<string, ToolSpec> = {
       { type: "count", name: "count", label: "عدد الصور", min: 1, max: 4, default: 2 },
     ],
     units: (v) => n(v.count, 1),
+  },
+  carousel: {
+    inspire: true,
+    fields: [
+      { type: "text", name: "prompt", label: "موضوع الكاروسيل", required: true, max: 1000, rows: 3, placeholder: "مثال: 5 نصائح للعناية بالبشرة في الصيف من متجرنا" },
+      { type: "count", name: "slides", label: "عدد الشرائح", min: 3, max: 10, default: 5 },
+      { type: "choice", name: "dialect", label: "لهجة النص", default: "kuwaiti", options: dialects },
+      { type: "files", name: "images", label: "صور منتجك أو شعارك (اختياري)", accept: "image", max: 3 },
+      carouselAspect,
+    ],
+    units: (v) => n(v.slides, 5),
   },
   "product-photo": {
     fields: [
@@ -96,7 +121,8 @@ export const toolSpecs: Record<string, ToolSpec> = {
       { type: "files", name: "video", label: "الفيديو الخام", accept: "video", min: 1, max: 1, hint: "MP4 أو MOV حتى 500 ميجا و10 دقائق." },
       { type: "toggle", name: "cut_silence", label: "قص الأجزاء الصامتة", default: true },
       { type: "toggle", name: "captions", label: "ترجمة عربية مكتوبة على الفيديو", default: true },
-      { type: "choice", name: "aspect", label: "المقاس النهائي", default: "9:16", options: [{ value: "original", label: "كما هو" }, { value: "9:16", label: "ريلز 9:16" }, { value: "1:1", label: "مربع 1:1" }, { value: "16:9", label: "عريض 16:9" }] },
+      { type: "choice", name: "aspect", label: "المقاس النهائي", default: "9:16", options: [{ value: "9:16", label: "ريلز / تيك توك 9:16 (1080×1920)" }, { value: "1:1", label: "مربع 1:1 (1080×1080)" }, { value: "16:9", label: "يوتيوب عريض 16:9 (1920×1080)" }, { value: "original", label: "كما هو" }] },
+      { type: "choice", name: "target", label: "مدة الفيديو النهائي", default: "60", options: [{ value: "30", label: "30 ثانية" }, { value: "60", label: "دقيقة" }, { value: "90", label: "دقيقة ونص" }, { value: "full", label: "بدون تقصير" }] },
       { type: "line", name: "notes", label: "ملاحظات إضافية (اختياري)", max: 300 },
     ],
     // duration_seconds is read from the file in the browser; the worker re-checks it.

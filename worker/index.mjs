@@ -111,8 +111,11 @@ async function processJob(job) {
       const srt = await captions(current, dir, { provider: tool?.provider ?? "elevenlabs", model: tool?.provider_model ?? "" });
       filters.push(`subtitles=${srt}:force_style='FontName=Noto Naskh Arabic,FontSize=14,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=60,Alignment=2'`);
     }
+    // Final length the customer picked (30s / 60s / 90s); "full" keeps everything.
+    const target = Number(job.input.target);
+    const limit = Number.isFinite(target) && target > 0 && (await duration(current)) > target ? ["-t", String(target)] : [];
     const out = join(dir, "out.mp4");
-    await ff(["-i", current, ...(filters.length ? ["-vf", filters.join(",")] : []), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", out]);
+    await ff(["-i", current, ...limit, ...(filters.length ? ["-vf", filters.join(",")] : []), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", out]);
 
     const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.mp4`;
     const up = await db.storage.from("results").upload(dest, await readFile(out), { contentType: "video/mp4" });
