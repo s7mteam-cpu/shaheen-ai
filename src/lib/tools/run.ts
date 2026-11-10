@@ -70,7 +70,7 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
   };
 
   // «تعديل» on an image result: edit the previous output with the customer's instruction.
-  if (typeof v._edit_from === "string" && ["image", "carousel", "product-photo", "ad-design"].includes(job.tool_id)) {
+  if (typeof v._edit_from === "string" && ["image", "post", "carousel", "product-photo", "ad-design"].includes(job.tool_id)) {
     const admin = createAdminClient();
     const { data: signed } = await admin.storage.from("results").createSignedUrl(v._edit_from, 3600);
     const src = signed?.signedUrl ? [signed.signedUrl] : [];

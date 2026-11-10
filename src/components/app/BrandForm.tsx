@@ -5,7 +5,7 @@ import { saveBrand } from "@/app/app/brand/actions";
 
 const FONTS = [["Cairo", "كايرو"], ["Tajawal", "تجوال"], ["Almarai", "المراعي"], ["Changa", "تشانغا"], ["Amiri", "أميري"]];
 
-export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null } }) {
+export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; refs?: { path: string; url: string }[] } }) {
   const [name, setName] = useState(initial.business_name);
   const [logo, setLogo] = useState(initial.logo_url);
   const [preview, setPreview] = useState(initial.logo_preview);
@@ -13,6 +13,18 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
   const [handle, setHandle] = useState(initial.handle ?? "");
   const [font, setFont] = useState(initial.font ?? "");
   const [msg, setMsg] = useState("");
+  const [website, setWebsite] = useState(initial.website ?? "");
+  const [instagram, setInstagram] = useState(initial.instagram ?? "");
+  const [refs, setRefs] = useState(initial.refs ?? []);
+  async function addRefs(files: FileList | null) {
+    for (const file of Array.from(files ?? []).slice(0, 6 - refs.length)) {
+      const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "image", type: file.type, size: file.size, name: file.name }) });
+      const d = await r.json();
+      if (!r.ok) { setMsg(d.error); return; }
+      await createClient().storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
+      setRefs((x) => [...x, { path: d.path, url: URL.createObjectURL(file) }]);
+    }
+  }
 
   async function upload(file?: File) {
     if (!file) return;
@@ -23,7 +35,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
     setLogo(d.path); setPreview(URL.createObjectURL(file));
   }
   async function save() {
-    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font });
+    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path) });
     setMsg(r.ok ? "تم الحفظ. بتنطبق هويتك على كل تصميم جديد." : "تعذّر الحفظ.");
   }
 
@@ -56,6 +68,26 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
         <div className="flex flex-wrap gap-2">
           <button type="button" aria-pressed={!font} onClick={() => setFont("")} className="chip">يختاره شاهين</button>
           {FONTS.map(([id, l]) => <button key={id} type="button" aria-pressed={font === id} onClick={() => setFont(id)} className="chip" style={{ fontFamily: id }}>{l}</button>)}
+        </div>
+      </div>
+      <div className="flex flex-col gap-4 rounded-2xl bg-tint p-4">
+        <div><span className="label">ستايلك المفضّل</span><p className="text-[13px] text-subtle">شاهين يتعلّم منها أسلوبك، ويصمّم لك بنفس الإحساس.</p></div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">موقعك الإلكتروني</span><input dir="ltr" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={200} className="field" placeholder="example.com" /></label>
+          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">حسابك على إنستغرام</span><input dir="ltr" value={instagram} onChange={(e) => setInstagram(e.target.value)} maxLength={120} className="field" placeholder="@yourbrand" /></label>
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-[14px] font-semibold">ارفع 3-6 صور من أحلى بوستاتك <span className="font-normal text-subtle">(سكرين شوت من إنستغرام يكفي)</span></span>
+          <div className="flex flex-wrap gap-2.5">
+            {refs.map((r, i) => (
+              <div key={r.path} className="relative h-20 w-16 overflow-hidden rounded-lg bg-white">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={r.url} alt="" className="h-full w-full object-cover" />
+                <button type="button" aria-label="حذف" onClick={() => setRefs(refs.filter((_, j) => j !== i))} className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-[11px] text-white">✕</button>
+              </div>
+            ))}
+            {refs.length < 6 && <label className="grid h-20 w-16 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-field bg-white text-[22px] text-subtle">+<input type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" onChange={(e) => addRefs(e.target.files)} /></label>}
+          </div>
         </div>
       </div>
       {msg && <p role="status" className="text-sm text-navy-700">{msg}</p>}

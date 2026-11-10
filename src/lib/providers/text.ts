@@ -52,3 +52,20 @@ export async function aiJson<T>(system: string, user: string, maxTokens = 1500, 
   const s = a === -1 ? o : o === -1 ? a : Math.min(a, o);
   return JSON.parse(text.slice(s, Math.max(text.lastIndexOf("]"), text.lastIndexOf("}")) + 1)) as T;
 }
+
+/** Claude with images (style references, the customer's photos). Images are passed by URL; returns parsed JSON. */
+export async function claudeVisionJson<T>(system: string, text: string, images: { url: string; label: string }[], maxTokens = 8000, model = "claude-sonnet-5-5"): Promise<T> {
+  const content: unknown[] = [];
+  for (const im of images) { content.push({ type: "text", text: im.label }); content.push({ type: "image", source: { type: "url", url: im.url } }); }
+  content.push({ type: "text", text });
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model, max_tokens: maxTokens, system: `${system}\nأجب بـ JSON صالح فقط بدون أي نص آخر.`, messages: [{ role: "user", content }] }),
+  });
+  if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const data = (await res.json()) as { content: { text?: string }[] };
+  const out = data.content.map((c) => c.text ?? "").join("");
+  const o = out.indexOf("{");
+  return JSON.parse(out.slice(o, out.lastIndexOf("}") + 1)) as T;
+}

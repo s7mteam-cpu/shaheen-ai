@@ -46,6 +46,8 @@ const dialects: Option[] = [
 const n = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : Number(v) || d);
 
 export const toolSpecs: Record<string, ToolSpec> = {
+  // Posts are made in the design studio (/api/design); this entry only enables «تعديل» on finished images.
+  post: { fields: [], units: () => 1 },
   image: {
     inspire: true,
     fields: [
