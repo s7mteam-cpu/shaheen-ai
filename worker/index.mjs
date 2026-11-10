@@ -16,7 +16,7 @@ const run = promisify(execFile);
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const MAX_SECONDS = 600;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const setProgress = (id, p) => db.from("jobs").update({ progress: Math.max(0, Math.min(100, Math.round(p))) }).eq("id", id).then(() => {}, () => {});
+const setProgress = (id, p) => db.from("jobs").update({ progress: Math.max(0, Math.min(100, Math.round(p))), updated_at: new Date().toISOString() }).eq("id", id).then(() => {}, () => {});
 
 async function ff(args) { return run("ffmpeg", ["-hide_banner", "-y", ...args], { maxBuffer: 64 * 1024 * 1024 }); }
 async function duration(file) {
@@ -155,6 +155,7 @@ async function renderMotion(job) {
       composition, serveUrl, codec: "h264", crf: 20, x264Preset: "veryfast", outputLocation: out, inputProps: props,
       concurrency: Number(process.env.RENDER_CONCURRENCY) || null,
       onProgress: ({ progress }) => { const p = 3 + progress * 92; if (p - last >= 4) { last = p; setProgress(job.id, p); } },
+      chromiumOptions: { gl: "swangle" },
     });
     await setProgress(job.id, 97);
     const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.mp4`;
@@ -172,6 +173,25 @@ async function renderMotion(job) {
 }
 
 console.log("Shaheen video worker started");
+
+// Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
+async function recoverStale(minutes) {
+  const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
+  const { data: stale } = await db.from("jobs").select("id,input").in("tool_id", ["video-editing", "motion-video"]).eq("status", "running").lt("updated_at", cutoff);
+  for (const j of stale ?? []) {
+    const attempts = Number(j.input?.attempts ?? 0) + 1;
+    if (attempts >= 2) {
+      await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: new Date().toISOString() }).eq("id", j.id);
+      await db.rpc("refund_job", { p_job: j.id });
+      console.log("gave up", j.id);
+    } else {
+      await db.from("jobs").update({ status: "queued", progress: 0, input: { ...j.input, attempts }, updated_at: new Date().toISOString() }).eq("id", j.id);
+      console.log("re-queued", j.id);
+    }
+  }
+}
+await recoverStale(0); // one worker: anything "running" at start-up was interrupted
+setInterval(() => recoverStale(15).catch(() => {}), 60_000);
 for (;;) {
   const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input").in("tool_id", ["video-editing", "motion-video"]).eq("status", "queued").order("created_at").limit(1);
   const job = jobs?.[0];
