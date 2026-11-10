@@ -26,8 +26,8 @@ export default async function Account({ searchParams }: { searchParams: Promise<
     <div className="flex max-w-5xl flex-col gap-6">
       <h1 className="text-[28px] font-bold text-navy-900">الحساب والاشتراك</h1>
       {error === "plan" && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">هذه الباقة غير جاهزة للدفع بعد. تواصل مع الدعم.</p>}
-      <div role="tablist" aria-label="أقسام الحساب" className="card flex gap-1 self-start rounded-2xl p-1">
-        {tabs.map(([id, l]) => <Link key={id} role="tab" aria-selected={tab === id} href={`/app/account?tab=${id}`} className={`rounded-xl px-5 py-2.5 text-[15px] font-semibold ${tab === id ? "bg-navy-800 text-white" : "text-muted"}`}>{l}</Link>)}
+      <div role="tablist" aria-label="أقسام الحساب" className="card flex w-full gap-1 rounded-2xl p-1 sm:w-auto sm:self-start">
+        {tabs.map(([id, l]) => <Link key={id} role="tab" aria-selected={tab === id} href={`/app/account?tab=${id}`} className={`flex-1 whitespace-nowrap rounded-xl px-3 py-2.5 text-center text-[15px] font-semibold sm:flex-none sm:px-5 ${tab === id ? "bg-navy-800 text-white" : "text-muted"}`}>{l}</Link>)}
       </div>
 
       {tab === "sub" && (
@@ -76,20 +76,25 @@ export default async function Account({ searchParams }: { searchParams: Promise<
       )}
 
       {tab === "inv" && (
-        <section className="card overflow-x-auto p-2">
-          <table className="w-full min-w-[520px] text-[15px]">
-            <thead><tr className="text-right text-[13px] text-subtle"><th className="p-3.5 font-semibold">التاريخ</th><th className="p-3.5 font-semibold">المبلغ</th><th className="p-3.5 font-semibold">الحالة</th><th className="p-3.5"><span className="sr-only">تحميل</span></th></tr></thead>
-            <tbody>
+        <section className="card p-2">
+          {invoices.length ? (
+            <ul>
               {invoices.map((i) => (
-                <tr key={i.id} className="border-t border-[#EDF1F6]">
-                  <td className="p-3.5">{new Date(i.date * 1000).toLocaleDateString("ar-KW")}</td><td className="p-3.5" dir="ltr">{i.amount}</td>
-                  <td className="p-3.5"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-bold text-emerald-800">{i.status === "paid" ? "مدفوعة" : i.status}</span></td>
-                  <td className="p-3.5">{i.pdf && <a href={i.pdf} className="font-semibold text-navy-700">PDF</a>}</td>
-                </tr>
+                <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-[#EDF1F6] p-3.5 first:border-0">
+                  <span className="flex flex-col gap-1">
+                    <span className="font-semibold text-navy-900" dir="ltr">{i.amount}</span>
+                    <span className="text-[13px] text-subtle">{new Date(i.date * 1000).toLocaleDateString("ar-KW")}</span>
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-bold text-emerald-800">{i.status === "paid" ? "مدفوعة" : i.status}</span>
+                    {i.pdf && <a href={i.pdf} className="font-semibold text-navy-700">تحميل PDF</a>}
+                  </span>
+                </li>
               ))}
-            </tbody>
-          </table>
-          {!invoices.length && <p className="p-6 text-center text-subtle">ما فيه فواتير للحين.</p>}
+            </ul>
+          ) : (
+            <p className="p-6 text-center text-subtle">ما فيه فواتير للحين.</p>
+          )}
         </section>
       )}
 
