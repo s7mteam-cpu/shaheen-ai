@@ -28,6 +28,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
     const p = params.get("prompt");
     if (p) for (const k of ["prompt", "text", "script"]) if (k in v) { v[k] = p; break; }
     if ("voice" in v && voices[0]) v.voice = voices[0].id;
+    if ("vo_voice" in v && voices[0]) v.vo_voice = voices[0].id;
     return v;
   });
   const [uploads, setUploads] = useState<Record<string, Upload[]>>({});

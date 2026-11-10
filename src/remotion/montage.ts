@@ -26,14 +26,52 @@ export type MontageSpec = {
   zooms: Zoom[];
   intro: { on: boolean; title: string; subtitle: string };
   outro: { on: boolean; title: string; subtitle: string };
-  music?: { url: string; name: string } | null;
+  music?: { url: string; name: string; path?: string } | null;
   // Pro touches (optional so older drafts keep working)
   transition?: Transition;                                       // at every cut / clip change
   logo?: { path: string; url: string; on: boolean; pos: Corner } | null;
   emojis?: Emoji[];
   sfx?: boolean;                                                  // whoosh on titles/cuts, pop on emojis
   progress?: boolean;                                             // thin progress bar on top
+  broll?: BRoll[];                                                // extra shots shown over the speech
+  subs2?: { lang: string; on: boolean; lines: { s: number; e: number; t: string }[] } | null; // second-language subtitles
+  face?: { t: number; x: number; y: number }[];                  // face track (source seconds, 0..1) for auto-reframe
+  track?: boolean;                                                // follow the face when cropping
+  grade?: Grade;                                                  // colour look
+  autoBright?: number;                                            // brightness fix measured on the footage (1 = none)
+  videoVolume?: number;                                           // original sound level 0..1
+  vo?: { path: string; url: string; on: boolean; words: Word[] } | null; // voice-over (words in output seconds of the video part)
 };
+export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic";
+export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["warm", "دافئ"], ["cinematic", "سينمائي"]];
+
+/** CSS filter for a look (+ the measured brightness fix). */
+export function gradeFilter(m: MontageSpec) {
+  const b = m.autoBright ?? 1;
+  switch (m.grade ?? "none") {
+    case "natural": return `brightness(${b * 1.02}) contrast(1.06) saturate(1.12)`;
+    case "vivid": return `brightness(${b * 1.03}) contrast(1.1) saturate(1.35)`;
+    case "warm": return `brightness(${b * 1.03}) contrast(1.05) saturate(1.15) sepia(0.14) hue-rotate(-6deg)`;
+    case "cinematic": return `brightness(${b * 0.98}) contrast(1.16) saturate(0.88)`;
+    default: return b !== 1 ? `brightness(${b})` : "none";
+  }
+}
+
+/** Smoothed face centre at a source time (falls back to the middle). */
+export function faceAt(m: MontageSpec, t: number) {
+  const f = m.face ?? [];
+  if (!m.track || !f.length) return { x: 0.5, y: 0.4 };
+  const near = f.filter((p) => Math.abs(p.t - t) <= 1.2);
+  if (!near.length) {
+    const prev = [...f].reverse().find((p) => p.t <= t) ?? f[0];
+    return { x: prev.x, y: prev.y };
+  }
+  let wx = 0, wy = 0, w = 0;
+  for (const p of near) { const k = 1.3 - Math.abs(p.t - t); wx += p.x * k; wy += p.y * k; w += k; }
+  return { x: wx / w, y: wy / w };
+}
+export type BRoll = { path: string; url: string; at: number; dur: number }; // image, output seconds (video part)
+export const SUB_LANGS = [{ id: "en", label: "English" }, { id: "fr", label: "Français" }, { id: "ur", label: "اردو" }, { id: "hi", label: "हिन्दी" }, { id: "tl", label: "Filipino" }];
 
 export const EMOJIS = ["🔥", "💡", "✅", "❤️", "👏", "😍", "🤲", "⭐", "💰", "🎯", "⚡", "👇", "📌", "🙏", "😂", "😮"];
 
@@ -66,9 +104,9 @@ export function toOutput(segments: Seg[], t: number) {
 
 /** Words placed on the output timeline, grouped into short caption lines. */
 export function captionLines(m: MontageSpec) {
-  const placed: { t: string; s: number; e: number }[] = [];
+  const placed: { t: string; s: number; e: number }[] = m.vo?.on ? [...m.vo.words] : [];
   let off = 0;
-  for (const g of m.segments) {
+  if (!m.vo?.on) for (const g of m.segments) {
     for (const w of m.words) if (w.s >= g.s - 0.02 && w.e <= g.e + 0.08) placed.push({ t: w.t, s: off + (w.s - g.s), e: off + (Math.min(w.e, g.e) - g.s) });
     off += g.e - g.s;
   }

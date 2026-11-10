@@ -16,7 +16,7 @@ const FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 type Body = { jobId?: string; spec?: MontageSpec; instruction?: string; prompt?: string; seconds?: number };
 
 /** Only the parts the customer may change; cuts, words and the source stay as the worker planned them. */
-function sanitize(base: MontageSpec, s: Partial<MontageSpec>): MontageSpec {
+function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): MontageSpec {
   const len = videoSeconds(base);
   return {
     ...base,
@@ -33,12 +33,24 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>): MontageSpec {
     zooms: (Array.isArray(s.zooms) ? s.zooms : base.zooms).slice(0, 15).map((z) => ({ at: clamp(Number(z.at) || 0, 0, len), dur: clamp(Number(z.dur) || 2, 0.5, 6), scale: clamp(Number(z.scale) || 1.15, 1.02, 1.35) })),
     intro: { on: !!(s.intro?.on ?? base.intro.on), title: String(s.intro?.title ?? base.intro.title).slice(0, 60), subtitle: String(s.intro?.subtitle ?? base.intro.subtitle).slice(0, 60) },
     outro: { on: !!(s.outro?.on ?? base.outro.on), title: String(s.outro?.title ?? base.outro.title).slice(0, 60), subtitle: String(s.outro?.subtitle ?? base.outro.subtitle).slice(0, 60) },
-    music: s.music === undefined ? base.music ?? null : s.music,
+    music: s.music === undefined ? base.music ?? null : s.music === null ? null : base.music?.path && s.music.name === base.music.name ? { ...base.music, url: "" } : s.music,
+    face: base.face ?? [],
+    track: typeof s.track === "boolean" ? s.track && (base.face ?? []).length > 0 : base.track ?? false,
+    grade: ["none", "natural", "vivid", "warm", "cinematic"].includes(String(s.grade)) ? s.grade : base.grade ?? "none",
+    autoBright: base.autoBright ?? 1,
+    videoVolume: typeof s.videoVolume === "number" ? clamp(s.videoVolume, 0, 1) : base.videoVolume ?? 1,
+    vo: base.vo ? { ...base.vo, url: "", on: s.vo ? !!s.vo.on : base.vo.on } : null,
     transition: ["none", "flash", "zoom"].includes(String(s.transition)) ? s.transition : base.transition ?? "none",
     logo: base.logo ? { ...base.logo, url: "", on: s.logo?.on ?? base.logo.on, pos: ["tl", "tr", "bl", "br"].includes(String(s.logo?.pos)) ? s.logo!.pos : base.logo.pos } : null,
     emojis: (Array.isArray(s.emojis) ? s.emojis : base.emojis ?? []).slice(0, 12).map((x) => ({ e: String(x.e ?? "").slice(0, 4), at: clamp(Number(x.at) || 0, 0, Math.max(0, len - 0.3)), dur: clamp(Number(x.dur) || 1.5, 0.6, 4) })).filter((x) => x.e),
     sfx: typeof s.sfx === "boolean" ? s.sfx : base.sfx ?? false,
     progress: typeof s.progress === "boolean" ? s.progress : base.progress ?? false,
+    broll: (Array.isArray(s.broll) ? s.broll : base.broll ?? [])
+      .filter((b) => typeof b.path === "string" && (b.path.startsWith(`${userId}/`) || (base.broll ?? []).some((x) => x.path === b.path)))
+      .slice(0, 12).map((b) => ({ path: b.path, url: "", at: clamp(Number(b.at) || 0, 0, Math.max(0, len - 1)), dur: clamp(Number(b.dur) || 2.5, 1, 6) })),
+    subs2: s.subs2 === null ? null : s.subs2 ?? base.subs2
+      ? { lang: String((s.subs2 ?? base.subs2)!.lang).slice(0, 5), on: !!(s.subs2 ?? base.subs2)!.on, lines: ((s.subs2 ?? base.subs2)!.lines ?? []).slice(0, 400).map((l) => ({ s: Number(l.s) || 0, e: Number(l.e) || 0, t: String(l.t ?? "").slice(0, 200) })) }
+      : null,
   };
 }
 
@@ -70,21 +82,44 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     const denied = await charge();
     if (denied) return denied;
     try {
-      const current = sanitize(base, body.spec);
+      const current = sanitize(base, body.spec, user.id);
       const said = captionLines(current).map((l) => `[${l[0].s.toFixed(1)}] ${l.map((w) => w.t).join(" ")}`).join("\n").slice(0, 6000);
       const c = await config("video-editing");
       const via = c.provider === "google" ? { provider: "gemini", model: "gemini-2.5-pro" } : { provider: "claude", model: "claude-sonnet-5-5" };
       const raw = await aiJson<Partial<MontageSpec>>(
-        "أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (none|flash|zoom), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), logo{on,pos: tl|tr|bl|br}. العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: karaoke, box, minimal. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top).",
-        `مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
+        "أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (none|flash|zoom), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), logo{on,pos: tl|tr|bl|br}, grade (none|natural|vivid|warm|cinematic ستايل الألوان), videoVolume (0..1 صوت الفيديو الأصلي، 0 صامت). العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: karaoke, box, minimal. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top).",
+        `مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, grade: current.grade, videoVolume: current.videoVolume, logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
         6000, via);
-      const spec = sanitize(current, raw);
+      const spec = sanitize(current, { ...raw, broll: current.broll, subs2: current.subs2 }, user.id);
       await admin.from("jobs").update({ input: { ...job.input, spec: { ...spec, src: "" } } }).eq("id", job.id);
       return NextResponse.json({ spec: { ...spec, src: "", words: [] } });
     } catch (e) {
       console.error("montage revise", e);
       await refund("revise");
       return NextResponse.json({ error: "ما ضبط التعديل، ورجّعنا لك الريش. جرّب تكتبه بطريقة ثانية." }, { status: 502 });
+    }
+  }
+
+  if (action === "translate") {
+    const lang = String((body as { lang?: string }).lang ?? "en").slice(0, 5);
+    const names: Record<string, string> = { en: "English", fr: "French", ur: "Urdu", hi: "Hindi", tl: "Filipino (Tagalog)" };
+    if (!names[lang] || !body.spec) return NextResponse.json({ error: "اختر اللغة." }, { status: 400 });
+    const denied = await charge();
+    if (denied) return denied;
+    try {
+      const current = sanitize(base, body.spec, user.id);
+      const lines = captionLines(current);
+      const src = lines.map((l, i) => `${i + 1}. ${l.map((w) => w.t).join(" ")}`).join("\n");
+      const out = await aiJson<string[]>(
+        `You translate Arabic (often Gulf dialect) video subtitles into natural, short ${names[lang]} subtitles. Keep meaning, not word order. One translation per numbered line, same count and order. Return a JSON array of strings only.`,
+        src, 8000, { provider: "claude", model: "claude-haiku-5-5" });
+      const subs2 = { lang, on: true, lines: lines.map((l, i) => ({ s: l[0].s, e: l[l.length - 1].e, t: String(out[i] ?? "").slice(0, 200) })).filter((x) => x.t) };
+      await admin.from("jobs").update({ input: { ...job.input, spec: { ...base, subs2 } } }).eq("id", job.id);
+      return NextResponse.json({ subs2 });
+    } catch (e) {
+      console.error("montage translate", e);
+      await refund("translate");
+      return NextResponse.json({ error: "ما ضبطت الترجمة، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
     }
   }
 
@@ -106,7 +141,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
 
   if (action === "export") {
     if (!body.spec) return NextResponse.json({ error: "ما فيه فيديو." }, { status: 400 });
-    const spec = sanitize(base, body.spec);
+    const spec = sanitize(base, body.spec, user.id);
     const own = (u?: string) => !!u && /\/storage\/v1\/object\/sign\/results\//.test(u) && u.includes(`/${user.id}/`);
     const lib = await admin.from("site_content").select("value").eq("key", "motion_music").maybeSingle();
     const tracks = ((lib.data?.value as { items?: { url: string }[] })?.items ?? []).map((t) => t.url);

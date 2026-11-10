@@ -13,7 +13,7 @@ export default async function Brand() {
   return (
     <div className="flex flex-col gap-5">
       <div><h1 className="text-[28px] font-bold text-navy-900">هويتي التجارية</h1><p className="mt-1 text-muted">ارفع شعارك وألوانك مرة وحدة، وشاهين يستخدمها في كل تصميم وفيديو.</p></div>
-      <BrandForm initial={{ business_name: data?.business_name ?? "", logo_url: data?.logo_url ?? null, logo_preview: preview, colors: data?.colors ?? [] }} />
+      <BrandForm initial={{ business_name: data?.business_name ?? "", logo_url: data?.logo_url ?? null, logo_preview: preview, colors: data?.colors ?? [], handle: data?.handle ?? "", font: data?.font ?? "" }} />
     </div>
   );
 }

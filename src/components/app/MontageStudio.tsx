@@ -11,9 +11,10 @@ import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
-import { EMOJIS, MFPS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type MontageSpec, type Transition } from "@/remotion/montage";
+import { EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
+import { createClient } from "@/lib/supabase/client";
 
 type Track = { name: string; mood?: string; url: string };
 
@@ -30,7 +31,9 @@ const transitions: [Transition, string][] = [["none", "بدون"], ["zoom", "ز�
 const corners: [Corner, string][] = [["tl", "فوق يسار"], ["tr", "فوق يمين"], ["bl", "تحت يسار"], ["br", "تحت يمين"]];
 const colorLabels = { text: "لون النص", accent: "اللون المميز", bg: "لون البطاقات" } as const;
 
-export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: string; initial: MontageSpec; editCost: number; tracks: Track[] }) {
+type Kit = { colors: string[]; font: string | null; handle: string | null; name: string | null } | null;
+
+export function MontageStudio({ jobId, initial, editCost, tracks, kit = null }: { jobId: string; initial: MontageSpec; editCost: number; tracks: Track[]; kit?: Kit }) {
   const key = `montage:${jobId}`;
   const [spec, setSpec] = useState<MontageSpec>(initial);
   const [mounted, setMounted] = useState(false);
@@ -45,9 +48,19 @@ export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: str
   // Keep the draft between visits (the video link is always the fresh one from the server).
   useEffect(() => {
     setMounted(true);
-    try { const s = localStorage.getItem(key); if (s) { const d = JSON.parse(s); setSpec({ ...d, src: initial.src, logo: d.logo && initial.logo ? { ...d.logo, url: initial.logo.url } : initial.logo }); } } catch {}
-  }, [key, initial.src, initial.logo]);
+    try {
+      const s = localStorage.getItem(key);
+      if (s) {
+        const d = JSON.parse(s) as MontageSpec;
+        const urls = new Map((initial.broll ?? []).map((b) => [b.path, b.url]));
+        // links expire: take fresh ones from the server, keep the customer's edits
+        setSpec({ ...d, src: initial.src, logo: d.logo && initial.logo ? { ...d.logo, url: initial.logo.url } : initial.logo, broll: (d.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? b.url })), vo: initial.vo ? { ...initial.vo, on: d.vo?.on ?? initial.vo.on } : null, music: d.music?.path && initial.music?.path === d.music.path ? initial.music : d.music });
+      }
+    } catch {}
+  }, [key, initial.src, initial.logo, initial.broll, initial.music, initial.vo]);
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify({ ...spec, src: "" })); } catch {} }, [key, spec]);
+  const [lang, setLang] = useState(initial.subs2?.lang ?? "en");
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!sent || render.status === "done" || render.status === "failed") return;
@@ -84,6 +97,38 @@ export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: str
   const nowAt = () => Math.max(0, Math.min(videoSeconds(spec) - 0.5, ((player.current?.getCurrentFrame() ?? 0) - introFrames(spec)) / MFPS));
   const addEmoji = (e: string) => setSpec({ ...spec, emojis: [...(spec.emojis ?? []), { e, at: +nowAt().toFixed(2), dur: 1.5 }].sort((a, b) => a.at - b.at) });
   const removeEmoji = (i: number) => setSpec({ ...spec, emojis: (spec.emojis ?? []).filter((_, j) => j !== i) });
+  /** Brand kit → colours, font and contact line. */
+  function applyBrand() {
+    if (!kit) return;
+    const hex = kit.colors.filter((c) => /^#[0-9a-f]{6}$/i.test(c));
+    const lum = (h: string) => { const n = parseInt(h.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };
+    const sat = (h: string) => { const n = parseInt(h.slice(1), 16); const c = [n >> 16, (n >> 8) & 255, n & 255]; return Math.max(...c) - Math.min(...c); };
+    const accent = [...hex].sort((a, b) => sat(b) - sat(a))[0] ?? spec.colors.accent;
+    const bg = [...hex].sort((a, b) => lum(a) - lum(b))[0] ?? spec.colors.bg;
+    setSpec({
+      ...spec, colors: { ...spec.colors, accent, bg }, font: kit.font || spec.font,
+      intro: { ...spec.intro, title: spec.intro.title || kit.name || "" },
+      outro: { ...spec.outro, on: true, subtitle: kit.handle || spec.outro.subtitle },
+      logo: spec.logo ? { ...spec.logo, on: true } : spec.logo,
+    });
+  }
+  const removeBroll = (i: number) => setSpec({ ...spec, broll: (spec.broll ?? []).filter((_, j) => j !== i) });
+
+  /** Upload a photo and show it at the moment the player is paused on. */
+  async function addBroll(file: File) {
+    setUploading(true); setError(null);
+    try {
+      const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "image", type: file.type, size: file.size, name: file.name }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      const supabase = createClient();
+      const up = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
+      if (up.error) throw new Error("تعذّر رفع الصورة.");
+      const signed = await supabase.storage.from("uploads").createSignedUrl(d.path, 60 * 60 * 6);
+      const at = +nowAt().toFixed(2);
+      setSpec((sp) => ({ ...sp, broll: [...(sp.broll ?? []), { path: d.path, url: signed.data?.signedUrl ?? "", at, dur: 2.5 }].sort((a, b) => a.at - b.at) }));
+    } catch (e) { setError((e as Error).message || "تعذّر رفع الصورة."); } finally { setUploading(false); }
+  }
 
   if (sent) {
     return (
@@ -222,10 +267,65 @@ export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: str
           <div className="flex flex-wrap gap-1.5">{EMOJIS.map((e) => <button key={e} type="button" onClick={() => addEmoji(e)} aria-label={`أضف ${e}`} className="rounded-xl border border-line bg-white px-2.5 py-1.5 text-[20px] hover:border-gold-500">{e}</button>)}</div>
         </Card>
 
+        <Card title="الصورة والصوت" icon="🎨">
+          <Sub>ستايل الألوان والإضاءة {spec.autoBright && spec.autoBright > 1 ? "(صحّحنا إضاءة الفيديو الغامق تلقائياً)" : ""}</Sub>
+          <div className="flex flex-wrap gap-2">{GRADES.map(([g, l]) => <button key={g} type="button" aria-pressed={(spec.grade ?? "none") === g} onClick={() => setSpec({ ...spec, grade: g })} className="chip">{l}</button>)}</div>
+          {(spec.face ?? []).length > 0 && (
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
+              <span className="font-semibold">🎯 تتبّع الوجه (القص يلحق الشخص)</span>
+              <input type="checkbox" checked={!!spec.track} onChange={(e) => setSpec({ ...spec, track: e.target.checked })} className="h-5 w-5" />
+            </label>
+          )}
+          {spec.vo && (
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
+              <span className="font-semibold">🎙️ التعليق الصوتي</span>
+              <input type="checkbox" checked={spec.vo.on} onChange={(e) => setSpec({ ...spec, vo: { ...spec.vo!, on: e.target.checked } })} className="h-5 w-5" />
+            </label>
+          )}
+          <Sub>صوت الفيديو الأصلي</Sub>
+          <div className="flex flex-wrap gap-2">
+            {([[1, "كامل"], [0.25, "منخفض"], [0, "صامت"]] as const).map(([v, l]) => <button key={l} type="button" aria-pressed={Math.abs((spec.videoVolume ?? 1) - v) < 0.14} onClick={() => setSpec({ ...spec, videoVolume: v })} className="chip">{l}</button>)}
+          </div>
+          {kit && <button type="button" onClick={applyBrand} className="btn border border-gold-500 bg-gold-500/10 py-2.5 text-[14px] font-semibold text-navy-900">🏷️ طبّق هويتي التجارية (الألوان، الخط، الشعار، الحساب)</button>}
+        </Card>
+
+        <Card title="صور إضافية فوق الكلام" icon="🖼️">
+          {(spec.broll ?? []).length > 0 ? (
+            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {(spec.broll ?? []).map((b, i) => (
+                <li key={b.path + i} className="relative overflow-hidden rounded-xl border border-line bg-tint">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {b.url && <img src={b.url} alt="" className="aspect-square w-full object-cover" />}
+                  <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 text-[11px] text-white" dir="ltr">{b.at.toFixed(1)}s</span>
+                  <button type="button" onClick={() => removeBroll(i)} aria-label="حذف الصورة" className="absolute left-1 top-1 rounded-full bg-white/90 px-2 text-red-700">×</button>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-[13px] text-subtle">ما فيه صور إضافية. أضف صور منتجاتك أو محلك وبتطلع فوق الكلام.</p>}
+          <label className={`btn border border-dashed border-field bg-white py-2.5 text-[14px] ${uploading ? "opacity-60" : "cursor-pointer"}`}>
+            {uploading ? "جاري رفع الصورة…" : "＋ أضف صورة عند اللحظة اللي واقف عليها بالفيديو"}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) addBroll(f); e.target.value = ""; }} />
+          </label>
+        </Card>
+
+        <Card title="ترجمة بلغة ثانية" icon="🌍">
+          {spec.subs2 ? (
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
+              <span className="font-semibold">إظهار ترجمة {SUB_LANGS.find((l) => l.id === spec.subs2!.lang)?.label} تحت الكلام</span>
+              <input type="checkbox" checked={spec.subs2.on} onChange={(e) => setSpec({ ...spec, subs2: { ...spec.subs2!, on: e.target.checked } })} className="h-5 w-5" />
+            </label>
+          ) : <p className="text-[13px] text-subtle">أضف ترجمة تحت الكلام العربي، توصل لجمهور أكبر.</p>}
+          <div className="flex flex-wrap gap-2">{SUB_LANGS.map((l) => <button key={l.id} type="button" aria-pressed={lang === l.id} onClick={() => setLang(l.id)} className="chip">{l.label}</button>)}</div>
+          <button type="button" disabled={!!busy} className="btn btn-primary self-start px-5 py-2.5"
+            onClick={async () => { const d = await call<{ subs2: NonNullable<MontageSpec["subs2"]> }>("translate", { spec: { ...spec, src: "" }, lang }); if (d) setSpec((sp) => ({ ...sp, subs2: d.subs2 })); }}>
+            {busy === "translate" ? "جاري الترجمة…" : `ترجم الكلام (${editCost} ريشة)`}
+          </button>
+        </Card>
+
         <Card title="تعديل متقدّم (بالوصف)" icon="✨">
           <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} className="field" placeholder="مثال: زيد عناوين للأفكار الأساسية، وكبّر أكثر على الجمل القوية، وخلّ الألوان أحمر وأسود" />
           <button type="button" disabled={!instruction.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
-            onClick={async () => { const d = await call<{ spec: MontageSpec }>("revise", { spec: { ...spec, src: "", words: [] }, instruction }); if (d) { setSpec({ ...d.spec, src: spec.src, words: spec.words, segments: spec.segments, logo: d.spec.logo ? { ...d.spec.logo, url: spec.logo?.url ?? "" } : null }); setInstruction(""); } }}>
+            onClick={async () => { const d = await call<{ spec: MontageSpec }>("revise", { spec: { ...spec, src: "", words: [], face: [] }, instruction }); if (d) { const urls = new Map((spec.broll ?? []).map((b) => [b.path, b.url])); setSpec({ ...d.spec, src: spec.src, words: spec.words, segments: spec.segments, face: spec.face, logo: d.spec.logo ? { ...d.spec.logo, url: spec.logo?.url ?? "" } : null, broll: (d.spec.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? "" })), subs2: spec.subs2, vo: spec.vo, music: d.spec.music?.path && spec.music?.path === d.spec.music.path ? spec.music : d.spec.music }); setInstruction(""); } }}>
             {busy === "revise" ? "جاري التعديل…" : `طبّق التعديل (${editCost} ريشة)`}
           </button>
           <p className="text-[12px] text-subtle">يعدّل العناوين والتكبير والإيموجي والانتقالات والمؤثرات والألوان والخط والبطاقات ومكان الترجمة. القصّ نفسه يبقى مثل ما هو.</p>

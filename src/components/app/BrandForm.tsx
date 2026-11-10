@@ -3,11 +3,15 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { saveBrand } from "@/app/app/brand/actions";
 
-export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[] } }) {
+const FONTS = [["Cairo", "كايرو"], ["Tajawal", "تجوال"], ["Almarai", "المراعي"], ["Changa", "تشانغا"], ["Amiri", "أميري"]];
+
+export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null } }) {
   const [name, setName] = useState(initial.business_name);
   const [logo, setLogo] = useState(initial.logo_url);
   const [preview, setPreview] = useState(initial.logo_preview);
   const [colors, setColors] = useState(initial.colors.length ? initial.colors : ["#0B2A4A", "#C9A45C", "#FFFFFF"]);
+  const [handle, setHandle] = useState(initial.handle ?? "");
+  const [font, setFont] = useState(initial.font ?? "");
   const [msg, setMsg] = useState("");
 
   async function upload(file?: File) {
@@ -19,7 +23,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
     setLogo(d.path); setPreview(URL.createObjectURL(file));
   }
   async function save() {
-    const r = await saveBrand({ business_name: name, logo_url: logo, colors });
+    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font });
     setMsg(r.ok ? "تم الحفظ. بتنطبق هويتك على كل تصميم جديد." : "تعذّر الحفظ.");
   }
 
@@ -44,6 +48,14 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
             </label>
           ))}
           {colors.length < 5 && <button type="button" onClick={() => setColors([...colors, "#999999"])} className="btn btn-outline px-3 text-sm">+ لون</button>}
+        </div>
+      </div>
+      <div className="flex flex-col gap-2"><label htmlFor="bh" className="label">حسابك أو رقم التواصل <span className="font-normal text-subtle">(يطلع بنهاية الفيديوهات)</span></label><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder="مثال: @aldeira.kw أو 9999 9999" /></div>
+      <div className="flex flex-col gap-2">
+        <span className="label">خط الهوية</span>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" aria-pressed={!font} onClick={() => setFont("")} className="chip">يختاره شاهين</button>
+          {FONTS.map(([id, l]) => <button key={id} type="button" aria-pressed={font === id} onClick={() => setFont(id)} className="chip" style={{ fontFamily: id }}>{l}</button>)}
         </div>
       </div>
       {msg && <p role="status" className="text-sm text-navy-700">{msg}</p>}

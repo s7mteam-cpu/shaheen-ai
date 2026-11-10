@@ -118,7 +118,12 @@ export const toolSpecs: Record<string, ToolSpec> = {
   },
   "video-editing": {
     fields: [
-      { type: "files", name: "video", label: "الفيديو (أو عدة لقطات)", accept: "video", min: 1, max: 6, hint: "ارفع فيديو واحد أو لين 6 لقطات، وشاهين يركّبهم ورا بعض بالترتيب. المجموع لين 10 دقائق." },
+      { type: "files", name: "video", label: "الفيديو (أو عدة لقطات)", accept: "video", min: 1, max: 10, hint: "ارفع فيديو واحد أو لين 10 لقطات (أكل، منتجات، محل…)، وشاهين يختار أحلاها ويركّبها. المجموع لين 10 دقائق." },
+      { type: "files", name: "broll", label: "صور إضافية تطلع فوق الكلام (اختياري)", accept: "image", max: 8, hint: "صور منتجاتك أو محلك، وشاهين يحطها بالمكان المناسب من الكلام." },
+      { type: "text", name: "voiceover", label: "تعليق صوتي بصوت خليجي (اختياري)", max: 1500, rows: 3, placeholder: "اكتب الكلام اللي تبي ينقال فوق اللقطات، مثال: هلا بكم في مطعم الديرة، أطيب مشاوي على الفحم…" },
+      { type: "toggle", name: "auto_vo", label: "خل شاهين يكتب التعليق الصوتي من اللقطات", default: false },
+      { type: "voice", name: "vo_voice", label: "صوت التعليق" },
+      { type: "toggle", name: "use_brand", label: "استخدم هويتي التجارية (الشعار، الألوان، الخط، الحساب)", default: true },
       { type: "toggle", name: "cut_silence", label: "قص الأجزاء الصامتة", default: true },
       { type: "toggle", name: "captions", label: "ترجمة عربية متحركة كلمة كلمة", default: true },
       { type: "choice", name: "aspect", label: "المقاس النهائي", default: "9:16", options: [{ value: "9:16", label: "ريلز / تيك توك 9:16 (1080×1920)" }, { value: "1:1", label: "مربع 1:1 (1080×1080)" }, { value: "16:9", label: "يوتيوب عريض 16:9 (1920×1080)" }, { value: "original", label: "كما هو" }] },

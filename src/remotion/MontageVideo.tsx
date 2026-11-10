@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, Audio, Easing, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { MFPS, captionLines, cutTimes, introFrames, outroFrames, videoSeconds, type MontageSpec } from "./montage";
+import { MFPS, captionLines, cutTimes, faceAt, gradeFilter, introFrames, outroFrames, videoSeconds, type MontageSpec, type Seg } from "./montage";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 
@@ -49,16 +49,14 @@ function Footage({ m }: { m: MontageSpec }) {
   }
   let off = 0;
   return (
-    <AbsoluteFill style={{ transform: `scale(${scale})`, transformOrigin: "50% 38%" }}>
+    <AbsoluteFill style={{ transform: `scale(${scale})`, transformOrigin: "50% 38%", filter: gradeFilter(m) }}>
       {m.segments.map((g, i) => {
         const from = Math.round(off * MFPS);
         const len = Math.max(1, Math.round((g.e - g.s) * MFPS));
         off += g.e - g.s;
         return (
           <Sequence key={i} from={from} durationInFrames={len} layout="none">
-            <AbsoluteFill>
-              <OffthreadVideo src={m.src} trimBefore={Math.round(g.s * MFPS)} trimAfter={Math.round(g.e * MFPS) + 1} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            </AbsoluteFill>
+            <SegmentVideo m={m} g={g} />
           </Sequence>
         );
       })}
@@ -70,11 +68,12 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
   const frame = useCurrentFrame();
   const t = frame / MFPS;
   const lines = React.useMemo(() => captionLines(m), [m]);
-  const line = lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.25);
-  if (!line) return null;
+  const line = m.captions.on ? lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.25) : undefined;
+  const second = m.subs2?.on ? m.subs2.lines.find((l) => t >= l.s - 0.05 && t <= l.e + 0.25) : undefined;
+  if (!line && !second) return null;
   const st = m.captions.style;
   const size = (st === "minimal" ? 52 : 70) * u;
-  const appear = interpolate(t, [line[0].s - 0.05, line[0].s + 0.1], [0.85, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const appear = line ? interpolate(t, [line[0].s - 0.05, line[0].s + 0.1], [0.85, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
   return (
     <AbsoluteFill style={{
       alignItems: "center",
@@ -82,7 +81,7 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
       paddingBottom: m.captions.pos === "middle" || m.captions.pos === "top" ? 0 : "22%",
       paddingTop: m.captions.pos === "top" ? "26%" : m.captions.pos === "middle" ? "18%" : 0,
     }}>
-      <div style={{
+      {line && <div style={{
         display: "flex", flexWrap: "wrap", justifyContent: "center", columnGap: "0.3em", maxWidth: "86%", textAlign: "center",
         fontSize: size, fontWeight: 800, lineHeight: 1.35, transform: `scale(${appear})`,
         ...(st === "box" ? { background: "rgba(0,0,0,.62)", padding: `${14 * u}px ${28 * u}px`, borderRadius: 22 * u } : {}),
@@ -101,7 +100,35 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
             }}>{w.t}</span>
           );
         })}
-      </div>
+      </div>}
+      {second && (
+        <div dir="auto" style={{ marginTop: 14 * u, maxWidth: "86%", textAlign: "center", color: "#fff", fontSize: 42 * u, fontWeight: 600, lineHeight: 1.3, fontFamily: "Inter, Arial, sans-serif", background: "rgba(0,0,0,.5)", padding: `${8 * u}px ${18 * u}px`, borderRadius: 14 * u }}>{second.t}</div>
+      )}
+    </AbsoluteFill>
+  );
+}
+
+/** Extra shots over the speech: full screen with a slow push-in, soft fade in/out. */
+function BRollLayer({ m }: { m: MontageSpec }) {
+  return (
+    <>
+      {(m.broll ?? []).filter((b) => b.url).map((b, i) => {
+        const len = Math.max(6, Math.round(b.dur * MFPS));
+        return (
+          <Sequence key={i} from={Math.round(b.at * MFPS)} durationInFrames={len} layout="none">
+            <BRollShot url={b.url} len={len} />
+          </Sequence>
+        );
+      })}
+    </>
+  );
+}
+function BRollShot({ url, len }: { url: string; len: number }) {
+  const f = useCurrentFrame();
+  const o = Math.min(interpolate(f, [0, 6], [0, 1], { extrapolateRight: "clamp" }), interpolate(f, [len - 6, len], [1, 0], { extrapolateLeft: "clamp" }));
+  return (
+    <AbsoluteFill style={{ opacity: o, background: "#000" }}>
+      <Img src={url} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${interpolate(f, [0, len], [1, 1.1])})` }} />
     </AbsoluteFill>
   );
 }
@@ -128,6 +155,18 @@ function Titles({ m, u }: { m: MontageSpec; u: number }) {
         );
       })}
     </>
+  );
+}
+
+/** One kept piece of footage; the crop follows the speaker's face when tracking is on. */
+function SegmentVideo({ m, g }: { m: MontageSpec; g: Seg }) {
+  const t = g.s + useCurrentFrame() / MFPS;
+  const f = faceAt(m, t);
+  return (
+    <AbsoluteFill>
+      <OffthreadVideo src={m.src} trimBefore={Math.round(g.s * MFPS)} trimAfter={Math.round(g.e * MFPS) + 1} volume={m.videoVolume ?? 1}
+        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${(f.x * 100).toFixed(1)}% ${(Math.min(0.6, Math.max(0.2, f.y)) * 100).toFixed(1)}%` }} />
+    </AbsoluteFill>
   );
 }
 
@@ -208,15 +247,17 @@ export function MontageVideo(m: MontageSpec) {
       {intro > 0 && <Sequence durationInFrames={intro}><Card title={m.intro.title} subtitle={m.intro.subtitle} m={m} u={u} len={intro} /></Sequence>}
       <Sequence from={intro} durationInFrames={vid}>
         <Footage m={m} />
+        {m.vo?.on && m.vo.url && <Audio src={m.vo.url} volume={1} />}
         <Flashes m={m} />
-        {m.captions.on && <Captions m={m} u={u} />}
+        <BRollLayer m={m} />
+        {(m.captions.on || m.subs2?.on) && <Captions m={m} u={u} />}
         <Emojis m={m} u={u} />
         <Titles m={m} u={u} />
         <Logo m={m} u={u} />
         <Sfx m={m} />
       </Sequence>
       {outro > 0 && <Sequence from={intro + vid} durationInFrames={outro}><Card title={m.outro.title} subtitle={m.outro.subtitle} m={m} u={u} len={outro} /></Sequence>}
-      {m.music?.url && <Audio src={m.music.url} volume={0.12} />}
+      {m.music?.url && <Audio src={m.music.url} volume={(m.videoVolume ?? 1) < 0.5 ? 0.55 : 0.12} />}
       <ProgressBar m={m} u={u} frames={intro + vid + outro} />
     </AbsoluteFill>
   );

@@ -71,5 +71,13 @@ async function montage(jobId: string, tool: ToolRow, content: Content) {
   const { data: signed } = await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6);
   if (!signed?.signedUrl) return <p className="card p-6 text-center">ما لقينا الفيديو الأصلي. ارفعه مرة ثانية.</p>;
   const logoUrl = spec.logo?.path ? (await createAdminClient().storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" : "";
-  return <MontageStudio jobId={data.id} initial={{ ...spec, src: signed.signedUrl, logo: spec.logo ? { ...spec.logo, url: logoUrl } : null }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
+  const brollPaths = (spec.broll ?? []).map((b) => b.path);
+  const brollUrls = brollPaths.length ? (await createAdminClient().storage.from("uploads").createSignedUrls(brollPaths, 60 * 60 * 6)).data ?? [] : [];
+  const broll = (spec.broll ?? []).map((b, i) => ({ ...b, url: brollUrls[i]?.signedUrl ?? "" }));
+  const sign = async (p?: string) => (p ? (await createAdminClient().storage.from("results").createSignedUrl(p, 60 * 60 * 6)).data?.signedUrl ?? "" : "");
+  const music = spec.music?.path ? { ...spec.music, url: await sign(spec.music.path) } : spec.music ?? null;
+  const vo = spec.vo ? { ...spec.vo, url: await sign(spec.vo.path) } : null;
+  const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name").maybeSingle();
+  const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null } : null;
+  return <MontageStudio kit={kit} jobId={data.id} initial={{ ...spec, src: signed.signedUrl, logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
 }
