@@ -4,6 +4,9 @@ import { Suspense } from "react";
 import { ToolRunner } from "@/components/app/ToolRunner";
 import { MotionStart } from "@/components/app/MotionStart";
 import { MotionStudio } from "@/components/app/MotionStudio";
+import { MontageStudio } from "@/components/app/MontageStudio";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { MontageSpec } from "@/remotion/montage";
 import { createClient } from "@/lib/supabase/server";
 import type { MotionSpec } from "@/remotion/spec";
 import { getContent, getSessionProfile, getTools } from "@/lib/data";
@@ -31,7 +34,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         <h1 className="mt-1.5 text-[28px] font-bold text-navy-900">{tool.name}</h1>
         <p className="mt-1 text-muted">{tool.description}</p>
       </div>
-      {id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content) : <Suspense>
+      {id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -57,4 +60,15 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
   }
   const { data: kit } = await supabase.from("brand_kits").select("business_name").maybeSingle();
   return <MotionStart costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} />;
+}
+
+/** Smart montage: once the worker planned the edit, the customer edits it live here. */
+async function montage(jobId: string, tool: ToolRow, content: Content) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
+  const spec = (data?.input as { spec?: MontageSpec } | null)?.spec;
+  if (!data || data.status !== "draft" || !spec) return null;
+  const { data: signed } = await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6);
+  if (!signed?.signedUrl) return <p className="card p-6 text-center">ما لقينا الفيديو الأصلي. ارفعه مرة ثانية.</p>;
+  return <MontageStudio jobId={data.id} initial={{ ...spec, src: signed.signedUrl }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
 }

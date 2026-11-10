@@ -1,4 +1,5 @@
 "use client";
+import { Progress } from "@/components/app/Progress";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -14,7 +15,7 @@ type Props = {
   recent: Work[];
 };
 type Upload = { path: string; name: string; preview?: string };
-type JobView = { id: string; status: string; error?: string | null; files: WorkFile[] };
+type JobView = { id: string; status: string; error?: string | null; files: WorkFile[]; progress?: number };
 
 const accepts = { image: "image/png,image/jpeg,image/webp", video: "video/mp4,video/quicktime,video/webm", audio: "audio/*" };
 
@@ -51,6 +52,8 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
     const j = (await r.json()) as JobView;
     setJob(j);
     if (j.status === "done" || j.status === "failed") { if (poll.current) clearInterval(poll.current); router.refresh(); }
+    // Smart montage: the plan is ready → open the live editor.
+    if (j.status === "draft") { if (poll.current) clearInterval(poll.current); router.replace(`/app/tools/${tool.id}?job=${id}`); router.refresh(); }
   }
   function watch(id: string) {
     if (poll.current) clearInterval(poll.current);
@@ -240,8 +243,8 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
           {!job && <div className="flex aspect-video items-center justify-center rounded-2xl bg-tint text-sm text-subtle">النتيجة بتظهر هنا</div>}
           {job && (job.status === "queued" || job.status === "running") && (
             <div className="flex aspect-video flex-col items-center justify-center gap-3 rounded-2xl bg-tint text-sm text-navy-700">
-              <span className="h-8 w-8 animate-spin rounded-full border-[3px] border-navy-700 border-t-transparent" />
-              {tool.id.includes("video") ? "الفيديو قيد التنفيذ، ياخذ من دقيقة لعدة دقائق. تقدر تطلع، وبتلقاه في أعمالي." : "جارٍ التنفيذ…"}
+              <div className="w-full max-w-sm px-4"><Progress value={job.progress ?? (job.status === "running" ? 30 : 5)} label={tool.id === "video-editing" ? "جاري تحليل الفيديو وتجهيز المونتاج…" : "جارٍ التنفيذ…"} /></div>
+              {tool.id.includes("video") && <span className="px-4 text-center">ياخذ من دقيقة لعدة دقائق. تقدر تطلع، وبتلقاه في أعمالي.</span>}
             </div>
           )}
           {job?.status === "failed" && <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">ما نجح الطلب، ورجّعنا لك الريش. جرّب مرة ثانية أو عدّل الوصف.</p>}

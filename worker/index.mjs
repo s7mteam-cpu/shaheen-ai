@@ -1,7 +1,8 @@
-// Shaheen video worker
-// 1) "video-editing": cut silences → Arabic captions → resize → trim → upload.
-// 2) "motion-video": renders the customer's motion-graphics design with Remotion → MP4 → upload.
-// Run anywhere with ffmpeg (Railway, Fly.io, a small VPS). Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ELEVENLABS_API_KEY
+// Shaheen video worker (Railway). Renders with Remotion, listens with ElevenLabs, plans with Claude.
+// 1) "motion-video" (queued + spec)          → render the motion-graphics design → MP4.
+// 2) "video-editing" (queued, no spec yet)   → smart montage analysis: transcript + AI edit plan → "draft" (customer edits it live).
+// 3) "video-editing" (queued + render: true) → render the edited montage → MP4.
+// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY (optional: smarter plans), RENDER_CONCURRENCY
 import { createClient } from "@supabase/supabase-js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -16,138 +17,191 @@ const run = promisify(execFile);
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const MAX_SECONDS = 600;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const setProgress = (id, p) => db.from("jobs").update({ progress: Math.max(0, Math.min(100, Math.round(p))), updated_at: new Date().toISOString() }).eq("id", id).then(() => {}, () => {});
+const now = () => new Date().toISOString();
+const setProgress = (id, p) => db.from("jobs").update({ progress: Math.max(0, Math.min(100, Math.round(p))), updated_at: now() }).eq("id", id).then(() => {}, () => {});
 
 async function ff(args) { return run("ffmpeg", ["-hide_banner", "-y", ...args], { maxBuffer: 64 * 1024 * 1024 }); }
-async function duration(file) {
-  const { stdout } = await run("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file]);
-  return Number(stdout.trim());
+async function probe(file) {
+  const { stdout } = await run("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:stream_tags=rotate:format=duration", "-of", "json", file]);
+  const j = JSON.parse(stdout);
+  const s = j.streams?.[0] ?? {};
+  const rot = Math.abs(Number(s.tags?.rotate ?? 0));
+  const [w, h] = rot === 90 || rot === 270 ? [s.height, s.width] : [s.width, s.height];
+  return { duration: Number(j.format?.duration ?? 0), width: Number(w) || 1080, height: Number(h) || 1920 };
 }
 
-async function cutSilence(input, out, dir) {
-  const { stderr } = await ff(["-i", input, "-af", "silencedetect=noise=-32dB:d=0.6", "-f", "null", "-"]);
-  const starts = [...stderr.matchAll(/silence_start: ([\d.]+)/g)].map((m) => Number(m[1]));
-  const ends = [...stderr.matchAll(/silence_end: ([\d.]+)/g)].map((m) => Number(m[1]));
-  const total = await duration(input);
-  const keep = []; let cursor = 0;
-  starts.forEach((s, i) => { if (s - cursor > 0.15) keep.push([cursor, s + 0.1]); cursor = Math.max(cursor, (ends[i] ?? total) - 0.1); });
-  if (total - cursor > 0.15) keep.push([cursor, total]);
-  if (keep.length <= 1) return input;
-  const parts = keep.map(([a, b], i) => `[0:v]trim=${a}:${b},setpts=PTS-STARTPTS[v${i}];[0:a]atrim=${a}:${b},asetpts=PTS-STARTPTS[a${i}];`).join("");
-  const concat = keep.map((_, i) => `[v${i}][a${i}]`).join("") + `concat=n=${keep.length}:v=1:a=1[v][a]`;
-  await writeFile(join(dir, "graph.txt"), parts + concat);
-  await ff(["-i", input, "-filter_complex_script", join(dir, "graph.txt"), "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", out]);
+async function fail(job, e) {
+  console.error("failed", job.id, e);
+  await db.from("jobs").update({ status: "failed", error: String(e?.message ?? e).slice(0, 500), updated_at: now() }).eq("id", job.id);
+  await db.rpc("refund_job", { p_job: job.id });
+}
+
+// ---------- Listening: word-level Arabic transcript ----------
+async function transcribe(video, dir) {
+  const audio = join(dir, "audio.mp3");
+  await ff(["-i", video, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "64k", audio]);
+  const form = new FormData();
+  form.append("model_id", "scribe_v1");
+  form.append("timestamps_granularity", "word");
+  form.append("file", new Blob([await readFile(audio)]), "audio.mp3");
+  const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", { method: "POST", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "" }, body: form });
+  if (!res.ok) throw new Error(`scribe ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  return ((await res.json()).words ?? []).filter((w) => w.type === "word").map((w) => ({ t: w.text, s: +w.start.toFixed(2), e: +w.end.toFixed(2) }));
+}
+
+function sentences(words) {
+  const out = []; let cur = [];
+  for (const w of words) {
+    if (cur.length && (w.s - cur[cur.length - 1].e > 0.7)) { out.push(cur); cur = []; }
+    cur.push(w);
+    if (/[.!؟?]$/.test(w.t) || cur.length >= 18) { out.push(cur); cur = []; }
+  }
+  if (cur.length) out.push(cur);
+  return out.map((c) => ({ s: c[0].s, e: c[c.length - 1].e, text: c.map((w) => w.t).join(" ") }));
+}
+
+// ---------- Directing: AI edit plan ----------
+const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال ميديا الخليجية. عندك نص فيديو مع توقيت كل جملة بالثواني (من الفيديو الأصلي).
+مهمتك: خطة مونتاج JSON فقط، بالشكل:
+{
+ "hook": {"s":0,"e":0} أو null   // أقوى جملة قصيرة (2-6 ثواني) تنعرض بالبداية لتشد المشاهد
+ "keep": [{"s":0,"e":0}]          // المقاطع اللي تنحفظ بالترتيب الزمني، احذف الأخطاء والتكرار والتأتأة والكلام الضعيف
+ "titles": [{"text":"","at":0,"dur":2.5,"pos":"top"}]   // عناوين متحركة قصيرة جداً (2-5 كلمات) عند أهم الأفكار، "at" بتوقيت الفيديو الأصلي
+ "zooms": [{"at":0,"dur":2,"scale":1.15}]               // تكبير عند الجمل المهمة، scale بين 1.08 و1.25
+ "intro": {"on":true,"title":"","subtitle":""},          // بطاقة افتتاحية قصيرة
+ "outro": {"on":true,"title":"","subtitle":""},          // بطاقة ختامية (دعوة للمتابعة/التواصل)
+ "colors": {"text":"#FFFFFF","accent":"#hex","bg":"#hex"},
+ "font": "Cairo|Tajawal|Almarai|Changa|Amiri",
+ "caption_style": "karaoke|box|minimal"
+}
+القواعد: التزم بالمدة المطلوبة تقريباً. لا تقص جملة من نصها. العناوين من كلام الفيديو نفسه أو تلخيص دقيق له، بدون اختراع معلومات.
+نفّذ وصف العميل بدقة إذا ذكره. حسابات أو أرقام تواصل فقط إذا ذكرها العميل.`;
+
+async function claudePlan(user) {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: process.env.MONTAGE_MODEL || "claude-sonnet-5-5", max_tokens: 6000, system: PLAN_SYSTEM + "\nأجب بـ JSON صالح فقط.", messages: [{ role: "user", content: user }] }),
+  });
+  if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const text = (await res.json()).content.map((c) => c.text ?? "").join("");
+  return JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+}
+
+const hex = (v, d) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/** Split ranges where nobody speaks for a while (silence cut), keep a little air around words. */
+function speechIslands(seg, words) {
+  const inside = words.filter((w) => w.s >= seg.s - 0.05 && w.e <= seg.e + 0.1);
+  if (!inside.length) return [];
+  const out = []; let start = inside[0].s, last = inside[0].e;
+  for (const w of inside.slice(1)) {
+    if (w.s - last > 0.6) { out.push({ s: Math.max(seg.s, start - 0.12), e: Math.min(seg.e, last + 0.18) }); start = w.s; }
+    last = w.e;
+  }
+  out.push({ s: Math.max(seg.s, start - 0.12), e: Math.min(seg.e, last + 0.18) });
   return out;
 }
 
-function srtTime(t) {
-  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = Math.floor(t % 60), ms = Math.round((t % 1) * 1000);
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
+/** Source time → output time over the given segments (first match), or null if cut. */
+function toOutput(segments, t) {
+  let off = 0;
+  for (const g of segments) { if (t >= g.s && t <= g.e) return off + (t - g.s); off += g.e - g.s; }
+  return null;
 }
 
-async function captionsGoogle(audio, dir, model) {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [
-      { inlineData: { mimeType: "audio/mp3", data: (await readFile(audio)).toString("base64") } },
-      { text: "Transcribe this Arabic audio exactly as spoken (keep the dialect). Return ONLY a valid SRT subtitle file, max 6 words per subtitle, accurate timestamps." },
-    ] }] }),
-  });
-  if (!res.ok) throw new Error(`gemini ${res.status}`);
-  const data = await res.json();
-  const srt = (data.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").replace(/^```(srt)?\n?|```$/g, "").trim();
-  const file = join(dir, "subs.srt");
-  await writeFile(file, srt + "\n");
-  return file;
-}
-
-async function captions(input, dir, cfg) {
-  const audio = join(dir, "audio.mp3");
-  await ff(["-i", input, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "64k", audio]);
-  if (cfg.provider === "google") return captionsGoogle(audio, dir, cfg.model || "gemini-2.5-flash");
-  const form = new FormData();
-  form.append("model_id", cfg.model || "scribe_v1");
-  form.append("timestamps_granularity", "word");
-  form.append("file", new Blob([await readFile(audio)]), "audio.mp3");
-  const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", { method: "POST", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY }, body: form });
-  if (!res.ok) throw new Error(`scribe ${res.status}`);
-  const words = ((await res.json()).words ?? []).filter((w) => w.type === "word");
-  const lines = []; let cur = [];
-  for (const w of words) {
-    cur.push(w);
-    if (cur.length >= 6 || /[.!؟?،,]$/.test(w.text)) { lines.push(cur); cur = []; }
-  }
-  if (cur.length) lines.push(cur);
-  const srt = lines.map((l, i) => `${i + 1}\n${srtTime(l[0].start)} --> ${srtTime(l[l.length - 1].end)}\n${l.map((w) => w.text).join(" ")}\n`).join("\n");
-  const file = join(dir, "subs.srt");
-  await writeFile(file, srt);
-  return file;
-}
-
-function scaleFilter(aspect) {
-  const map = { "9:16": [1080, 1920], "1:1": [1080, 1080], "16:9": [1920, 1080] };
-  const s = map[aspect];
-  if (!s) return null;
-  return `scale=${s[0]}:${s[1]}:force_original_aspect_ratio=increase,crop=${s[0]}:${s[1]}`;
-}
-
-async function processJob(job) {
-  const dir = await mkdtemp(join(tmpdir(), "shaheen-"));
+async function analyzeMontage(job) {
+  const dir = await mkdtemp(join(tmpdir(), "montage-"));
   try {
     const [path] = job.input.video ?? [];
     const { data: file, error } = await db.storage.from("uploads").download(path);
     if (error) throw new Error(`download: ${error.message}`);
-    let current = join(dir, "in.mp4");
-    await writeFile(current, Buffer.from(await file.arrayBuffer()));
+    const video = join(dir, "in.mp4");
+    await writeFile(video, Buffer.from(await file.arrayBuffer()));
+    await setProgress(job.id, 10);
 
-    const secs = await duration(current);
-    if (secs > MAX_SECONDS) throw new Error("VIDEO_TOO_LONG");
+    const meta = await probe(video);
+    if (meta.duration > MAX_SECONDS) throw new Error("VIDEO_TOO_LONG");
     const paidMinutes = Math.max(1, Math.ceil(Number(job.input.duration_seconds ?? 60) / 60));
-    if (Math.ceil(secs / 60) > paidMinutes + 1) throw new Error("DURATION_MISMATCH");
+    if (Math.ceil(meta.duration / 60) > paidMinutes + 1) throw new Error("DURATION_MISMATCH");
 
-    await setProgress(job.id, 15);
-    if (job.input.cut_silence) current = await cutSilence(current, join(dir, "cut.mp4"), dir);
+    const words = await transcribe(video, dir);
+    await setProgress(job.id, 45);
 
-    await setProgress(job.id, 40);
-    const filters = [];
-    const sf = scaleFilter(job.input.aspect);
-    if (sf) filters.push(sf);
-    if (job.input.captions) {
-      const { data: tool } = await db.from("tools").select("provider,provider_model").eq("id", "video-editing").single();
-      const srt = await captions(current, dir, { provider: tool?.provider ?? "elevenlabs", model: tool?.provider_model ?? "" });
-      filters.push(`subtitles=${srt}:force_style='FontName=Noto Naskh Arabic,FontSize=14,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=60,Alignment=2'`);
+    const full = job.input.target === "full" || !(Number(job.input.target) > 0);
+    const target = full ? meta.duration : Number(job.input.target);
+    const { data: kit } = await db.from("brand_kits").select("business_name,colors").eq("user_id", job.user_id).maybeSingle();
+    const brandColors = (kit?.colors ?? []).filter((c) => /^#[0-9a-f]{6}$/i.test(c ?? ""));
+    const lines = sentences(words).map((x) => `[${x.s.toFixed(1)}-${x.e.toFixed(1)}] ${x.text}`).join("\n");
+
+    let plan = null;
+    try {
+      plan = await claudePlan(
+        `طول الفيديو: ${meta.duration.toFixed(1)} ثانية. المدة المطلوبة: ${full ? "بدون تقصير" : `${target} ثانية تقريباً`}.\n` +
+        `وصف العميل: ${job.input.notes || "مونتاج احترافي جذاب للريلز"}\n` +
+        `اسم النشاط: ${kit?.business_name || "غير محدد"}${brandColors.length ? `، ألوان الهوية: ${brandColors.join(", ")}` : ""}\n\nالنص:\n${lines || "(لا يوجد كلام واضح)"}`);
+    } catch (e) { console.error("plan fallback", job.id, e); }
+    await setProgress(job.id, 75);
+
+    // Kept ranges (chronological) → silence cut → optional hook in front → requested length.
+    const fix = (g) => ({ s: clamp(Number(g?.s) || 0, 0, meta.duration), e: clamp(Number(g?.e) || 0, 0, meta.duration) });
+    let keep = (Array.isArray(plan?.keep) && plan.keep.length ? plan.keep.map(fix) : [{ s: 0, e: meta.duration }]).filter((g) => g.e - g.s >= 0.3).sort((a, b) => a.s - b.s);
+    if (job.input.cut_silence !== false && words.length) keep = keep.flatMap((g) => speechIslands(g, words));
+    if (!keep.length) keep = [{ s: 0, e: meta.duration }];
+    const h = plan?.hook ? fix(plan.hook) : null;
+    const hook = h && h.e - h.s >= 1 && h.e - h.s <= 8 ? h : null;
+    let segments = hook ? [hook, ...keep] : keep;
+    if (!full) {
+      let left = target; const cut = [];
+      for (const g of segments) { if (left <= 0.3) break; const len = Math.min(g.e - g.s, left); cut.push({ s: g.s, e: g.s + len }); left -= len; }
+      segments = cut;
     }
-    // Final length the customer picked (30s / 60s / 90s); "full" keeps everything.
-    const target = Number(job.input.target);
-    const limit = Number.isFinite(target) && target > 0 && (await duration(current)) > target ? ["-t", String(target)] : [];
-    await setProgress(job.id, 70);
-    const out = join(dir, "out.mp4");
-    await ff(["-i", current, ...limit, ...(filters.length ? ["-vf", filters.join(",")] : []), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", out]);
+    segments = segments.map((g) => ({ s: +g.s.toFixed(2), e: +g.e.toFixed(2) }));
+    const total = segments.reduce((a, g) => a + g.e - g.s, 0);
 
-    const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.mp4`;
-    const up = await db.storage.from("results").upload(dest, await readFile(out), { contentType: "video/mp4" });
-    if (up.error) throw new Error(`upload: ${up.error.message}`);
-    await db.from("jobs").update({ status: "done", progress: 100, output: { files: [{ path: dest, type: "video/mp4" }] }, updated_at: new Date().toISOString() }).eq("id", job.id);
-    console.log("done", job.id);
+    // Titles/zooms come in source time: place them on the body (after the hook), else wherever they appear.
+    const body = hook ? segments.slice(1) : segments;
+    const hookLen = hook ? segments[0].e - segments[0].s : 0;
+    const place = (arr, map) => (Array.isArray(arr) ? arr : []).slice(0, 12).flatMap((x) => {
+      const inBody = toOutput(body, Number(x.at));
+      const at = inBody !== null ? inBody + hookLen : toOutput(segments, Number(x.at));
+      return at === null || at > total - 0.5 ? [] : [map(x, +at.toFixed(2))];
+    });
+
+    const aspect = ["9:16", "1:1", "16:9"].includes(job.input.aspect) ? job.input.aspect : meta.width > meta.height ? "16:9" : "9:16";
+    const spec = {
+      src: "", srcPath: path, srcW: meta.width, srcH: meta.height, aspect,
+      font: ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(plan?.font) ? plan.font : "Cairo",
+      colors: { text: hex(plan?.colors?.text, "#FFFFFF"), accent: hex(plan?.colors?.accent, brandColors[0] ?? "#C9A45C"), bg: hex(plan?.colors?.bg, brandColors[1] ?? "#0B2A4A") },
+      captions: { on: job.input.captions !== false, style: ["karaoke", "box", "minimal"].includes(plan?.caption_style) ? plan.caption_style : "karaoke" },
+      segments, words,
+      titles: place(plan?.titles, (x, at) => ({ text: String(x.text ?? "").slice(0, 60), at, dur: clamp(Number(x.dur) || 2.5, 1.2, 5), pos: x.pos === "center" ? "center" : "top" })).filter((x) => x.text),
+      zooms: place(plan?.zooms, (x, at) => ({ at, dur: clamp(Number(x.dur) || 2, 0.8, 5), scale: clamp(Number(x.scale) || 1.15, 1.05, 1.3) })),
+      intro: { on: !!plan?.intro?.on, title: String(plan?.intro?.title || kit?.business_name || "").slice(0, 60), subtitle: String(plan?.intro?.subtitle ?? "").slice(0, 60) },
+      outro: { on: !!plan?.outro?.on, title: String(plan?.outro?.title || "تابعنا للمزيد").slice(0, 60), subtitle: String(plan?.outro?.subtitle ?? "").slice(0, 60) },
+      music: null,
+    };
+    if (spec.intro.on && !spec.intro.title) spec.intro.on = false;
+
+    await db.from("jobs").update({ status: "draft", progress: 100, input: { ...job.input, spec }, updated_at: now() }).eq("id", job.id);
+    console.log("montage planned", job.id, segments.length, "segments", plan ? "(ai)" : "(basic)");
   } catch (e) {
-    console.error("failed", job.id, e);
-    await db.from("jobs").update({ status: "failed", error: String(e?.message ?? e).slice(0, 500), updated_at: new Date().toISOString() }).eq("id", job.id);
-    await db.rpc("refund_job", { p_job: job.id });
+    await fail(job, e);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
 }
 
-// Bundle the motion-graphics composition once at start-up.
+// ---------- Rendering (motion + montage) ----------
 const here = dirname(fileURLToPath(import.meta.url));
 const serveUrl = await bundle({ entryPoint: join(here, "remotion", "entry.tsx") });
 
-async function renderMotion(job) {
-  const dir = await mkdtemp(join(tmpdir(), "motion-"));
+async function render(job, compositionId, props) {
+  const dir = await mkdtemp(join(tmpdir(), "render-"));
   try {
-    const props = job.input.spec;
-    const composition = await selectComposition({ serveUrl, id: "Motion", inputProps: props });
+    const composition = await selectComposition({ serveUrl, id: compositionId, inputProps: props });
     const out = join(dir, "out.mp4");
     let last = 0;
     await setProgress(job.id, 3);
@@ -161,15 +215,20 @@ async function renderMotion(job) {
     const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.mp4`;
     const up = await db.storage.from("results").upload(dest, await readFile(out), { contentType: "video/mp4" });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
-    await db.from("jobs").update({ status: "done", progress: 100, output: { files: [{ path: dest, type: "video/mp4" }] }, updated_at: new Date().toISOString() }).eq("id", job.id);
-    console.log("motion done", job.id);
+    await db.from("jobs").update({ status: "done", progress: 100, output: { files: [{ path: dest, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
+    console.log("rendered", compositionId, job.id);
   } catch (e) {
-    console.error("motion failed", job.id, e);
-    await db.from("jobs").update({ status: "failed", error: String(e?.message ?? e).slice(0, 500), updated_at: new Date().toISOString() }).eq("id", job.id);
-    await db.rpc("refund_job", { p_job: job.id });
+    await fail(job, e);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+async function renderMontage(job) {
+  const spec = job.input.spec;
+  const { data } = await db.storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 3);
+  if (!data?.signedUrl) return fail(job, new Error("source video missing"));
+  return render(job, "Montage", { ...spec, src: data.signedUrl });
 }
 
 console.log("Shaheen video worker started");
@@ -181,22 +240,26 @@ async function recoverStale(minutes) {
   for (const j of stale ?? []) {
     const attempts = Number(j.input?.attempts ?? 0) + 1;
     if (attempts >= 2) {
-      await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: new Date().toISOString() }).eq("id", j.id);
+      await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: now() }).eq("id", j.id);
       await db.rpc("refund_job", { p_job: j.id });
       console.log("gave up", j.id);
     } else {
-      await db.from("jobs").update({ status: "queued", progress: 0, input: { ...j.input, attempts }, updated_at: new Date().toISOString() }).eq("id", j.id);
+      await db.from("jobs").update({ status: "queued", progress: 0, input: { ...j.input, attempts }, updated_at: now() }).eq("id", j.id);
       console.log("re-queued", j.id);
     }
   }
 }
 await recoverStale(3); // interrupted jobs stop updating; a job another instance is still rendering keeps updated_at fresh
 setInterval(() => recoverStale(15).catch(() => {}), 60_000);
+
 for (;;) {
   const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input").in("tool_id", ["video-editing", "motion-video"]).eq("status", "queued").order("created_at").limit(1);
   const job = jobs?.[0];
-  if (!job) { await sleep(5000); continue; }
+  if (!job) { await sleep(4000); continue; }
   // claim it (only one worker wins)
-  const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: new Date().toISOString() }).eq("id", job.id).eq("status", "queued").select("id");
-  if (claimed?.length) await (job.tool_id === "motion-video" ? renderMotion(job) : processJob(job));
+  const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
+  if (!claimed?.length) continue;
+  if (job.tool_id === "motion-video") await render(job, "Motion", job.input.spec);
+  else if (job.input.render && job.input.spec) await renderMontage(job);
+  else await analyzeMontage(job);
 }

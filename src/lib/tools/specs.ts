@@ -120,10 +120,10 @@ export const toolSpecs: Record<string, ToolSpec> = {
     fields: [
       { type: "files", name: "video", label: "الفيديو الخام", accept: "video", min: 1, max: 1, hint: "MP4 أو MOV حتى 500 ميجا و10 دقائق." },
       { type: "toggle", name: "cut_silence", label: "قص الأجزاء الصامتة", default: true },
-      { type: "toggle", name: "captions", label: "ترجمة عربية مكتوبة على الفيديو", default: true },
+      { type: "toggle", name: "captions", label: "ترجمة عربية متحركة كلمة كلمة", default: true },
       { type: "choice", name: "aspect", label: "المقاس النهائي", default: "9:16", options: [{ value: "9:16", label: "ريلز / تيك توك 9:16 (1080×1920)" }, { value: "1:1", label: "مربع 1:1 (1080×1080)" }, { value: "16:9", label: "يوتيوب عريض 16:9 (1920×1080)" }, { value: "original", label: "كما هو" }] },
       { type: "choice", name: "target", label: "مدة الفيديو النهائي", default: "60", options: [{ value: "30", label: "30 ثانية" }, { value: "60", label: "دقيقة" }, { value: "90", label: "دقيقة ونص" }, { value: "full", label: "بدون تقصير" }] },
-      { type: "line", name: "notes", label: "ملاحظات إضافية (اختياري)", max: 300 },
+      { type: "text", name: "notes", label: "شو تبي بالمونتاج؟ (اختياري)", max: 600, rows: 3, placeholder: "مثال: ابدأ بهوك قوي من أقوى جملة، حط عناوين متحركة للأفكار المهمة، كبّر على وجهي بالجمل المهمة، وخلّ الألوان ذهبي وكحلي" },
     ],
     // duration_seconds is read from the file in the browser; the worker re-checks it.
     units: (v) => Math.max(1, Math.ceil(n(v.duration_seconds, 60) / 60)),
