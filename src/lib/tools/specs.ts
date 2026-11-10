@@ -109,6 +109,24 @@ export const toolSpecs: Record<string, ToolSpec> = {
     ],
     units: () => 1,
   },
+  "product-video": {
+    fields: [
+      { type: "files", name: "images", label: "صورة المنتج", accept: "image", min: 1, max: 1, hint: "صورة واضحة للمنتج (عطر، كاسة، عباية، علبة…). كل ما كانت الصورة أوضح، طلع الفيديو أحلى." },
+      {
+        type: "choice", name: "scene", label: "أجواء الفيديو", default: "luxury",
+        options: [
+          { value: "luxury", label: "فخامة: إضاءة ذهبية ودخان" }, { value: "studio", label: "استوديو: لفّة هادئة حول المنتج" },
+          { value: "splash", label: "انتعاش: رذاذ وقطرات" }, { value: "nature", label: "طبيعة وضوء شمس" },
+          { value: "lifestyle", label: "استخدام حقيقي: بيد شخص" }, { value: "fabric", label: "أزياء: قماش يتحرك مع الهوا" },
+        ],
+      },
+      { type: "line", name: "notes", label: "شو تبي يصير بالفيديو؟ (اختياري)", max: 300, placeholder: "مثال: العطر على رخام، والكاميرا تقرّب ببطء، وورد يطيح حوله" },
+      { type: "choice", name: "duration", label: "المدة", default: "8", options: [{ value: "5", label: "5 ثواني" }, { value: "8", label: "8 ثواني" }, { value: "10", label: "10 ثواني" }] },
+      { type: "choice", name: "aspect", label: "المقاس", default: "9:16", options: [{ value: "9:16", label: "ريلز / ستوري 9:16" }, { value: "16:9", label: "عريض 16:9" }] },
+      { type: "toggle", name: "sound", label: "موسيقى ومؤثرات صوتية", default: true },
+    ],
+    units: (v) => Math.ceil(n(v.duration, 8) / 5),
+  },
   "avatar-video": {
     fields: [
       { type: "files", name: "images", label: "صورة الشخصية", accept: "image", min: 1, max: 1, hint: "صورة واضحة للوجه من الأمام. استخدم صورتك أو صورة لديك حق استخدامها." },

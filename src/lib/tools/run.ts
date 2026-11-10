@@ -1,8 +1,8 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { falImages, falQueue, falRun } from "@/lib/providers/fal";
-import { aiJson, speechReady } from "@/lib/providers/text";
-import { geminiImage, geminiSpeech } from "@/lib/providers/google";
+import { aiJson, claudeVisionJson, speechReady } from "@/lib/providers/text";
+import { geminiImage, geminiSpeech, omniStart } from "@/lib/providers/google";
 import { toolProviders } from "@/lib/providers/registry";
 import { cloneVoice, deleteVoice, music, tts, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveFromUrl, saveResult, signedUploadUrls } from "@/lib/providers/storage";
@@ -182,6 +182,31 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
         prompt: "Natural, friendly presenter talking to camera.",
       }, `${site()}/api/webhooks/fal?job=${job.id}&key=${process.env.WORKER_SECRET}`);
       await admin.from("jobs").update({ provider_request_id: reqId, status: "running" }).eq("id", job.id);
+      return null;
+    }
+
+    case "product-video": {
+      // Claude looks at the product and writes a cinematic shot; Gemini Omni animates the photo.
+      const [img] = await signedUploadUrls(files(v, "images"));
+      const scenes: Record<string, string> = {
+        luxury: "luxury commercial: warm golden rim light, soft drifting smoke, dark elegant backdrop, slow cinematic push-in",
+        studio: "clean studio product shot: seamless soft background, the camera slowly orbits around the product, soft reflections",
+        splash: "refreshing commercial: water droplets and splashes in slow motion, crisp bright light, condensation",
+        nature: "natural setting: soft sunlight through leaves, gentle breeze, shallow depth of field",
+        lifestyle: "lifestyle commercial: a hand naturally picks up and uses the product, warm realistic home light",
+        fabric: "fashion commercial: the fabric flows and moves gracefully in a gentle wind, soft fashion lighting",
+      };
+      const brief = await claudeVisionJson<{ prompt: string }>(
+        "You are a commercial video director. Write one English prompt for an image-to-video model that animates the attached product photo into a premium ad shot.",
+        `Scene style: ${scenes[String(v.scene)] ?? scenes.luxury}.\nCustomer notes (may be Arabic): ${String(v.notes ?? "") || "none"}.\n` +
+        `Rules: use the image as the first frame; keep the product exactly identical (shape, label, logo, colours, text on it); one smooth continuous shot; realistic physics; no added text, captions, watermarks or people's faces unless requested; ` +
+        `${v.sound === false ? "silent, no audio." : "subtle elegant background music and fitting sound effects, no speech."} Duration ${v.duration} seconds. Return JSON {"prompt": "..."}.`,
+        [{ url: img, label: "Product photo" }], 800, "claude-sonnet-5-5");
+      const { model } = await config("product-video");
+      const aspect = v.aspect === "16:9" ? "16:9" : "9:16";
+      const r = await omniStart(model || "gemini-omni-1.2-flash", brief.prompt, img, aspect, Number(v.duration) || 8);
+      if ("bytes" in r && r.bytes) return [{ path: await saveResult(job.user_id, job.id, r.bytes, "video/mp4", "mp4"), type: "video/mp4" }];
+      await createAdminClient().from("jobs").update({ provider_request_id: `gomni:${(r as { fileId: string }).fileId}`, status: "running" }).eq("id", job.id);
       return null;
     }
 

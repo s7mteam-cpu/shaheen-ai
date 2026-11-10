@@ -86,3 +86,46 @@ export async function veoCheck(operation: string): Promise<{ url: string } | nul
   if (!uri) throw new Error("google: no video");
   return { url: `${uri}${uri.includes("?") ? "&" : "?"}key=${key()}` };
 }
+
+/** Find the first video item ({uri} or {data}) anywhere in an Interactions API response. */
+function findVideo(o: unknown): { uri?: string; data?: string } | null {
+  if (!o || typeof o !== "object") return null;
+  const r = o as Record<string, unknown>;
+  if (r.type === "video" && (typeof r.uri === "string" || typeof r.data === "string")) return { uri: r.uri as string | undefined, data: r.data as string | undefined };
+  for (const v of Object.values(r)) {
+    const f = Array.isArray(v) ? v.map(findVideo).find(Boolean) : findVideo(v);
+    if (f) return f;
+  }
+  return null;
+}
+
+/**
+ * Start a Gemini Omni video from a first-frame image (Interactions API, URI delivery).
+ * Returns either the finished video bytes (when the model answers inline) or a file id to poll.
+ */
+export async function omniStart(model: string, prompt: string, imageUrl: string, aspect: "9:16" | "16:9", seconds: number, resolution = "1080p") {
+  const img = await toInline(imageUrl);
+  const r = await post<Record<string, unknown>>("interactions", {
+    model,
+    input: [
+      { type: "image", data: img.inlineData!.data, mime_type: img.inlineData!.mimeType },
+      { type: "text", text: prompt },
+    ],
+    response_format: { type: "video", delivery: "uri", aspect_ratio: aspect, duration: `${Math.min(15, Math.max(3, Math.round(seconds)))}s`, resolution },
+  });
+  const v = findVideo(r);
+  if (v?.data) return { bytes: Buffer.from(v.data, "base64") };
+  if (!v?.uri) throw new Error(`google: no video in response (${String((r as { status?: string }).status ?? "")})`);
+  const id = v.uri.split("?")[0].replace(/:download$/, "").split("/").filter(Boolean).pop()!;
+  return { fileId: id };
+}
+
+/** Poll an Omni video file. null while processing; a download URL when ready. */
+export async function omniCheck(fileId: string): Promise<{ url: string } | null> {
+  const res = await fetch(`${API}/files/${fileId}`, { headers: { "x-goog-api-key": key() } });
+  if (!res.ok) throw new Error(`google ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const f = (await res.json()) as { state?: string; error?: { message?: string } };
+  if (f.state === "FAILED") throw new Error(f.error?.message || "google: video failed");
+  if (f.state !== "ACTIVE") return null;
+  return { url: `${API}/files/${fileId}:download?alt=media&key=${key()}` };
+}
