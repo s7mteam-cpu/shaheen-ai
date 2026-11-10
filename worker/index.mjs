@@ -93,16 +93,41 @@ async function makeMusic(prompt, seconds) {
 }
 
 // ---------- Voice-over: Gulf voice with word timings ----------
-async function voiceOver(text, voiceId, model = "eleven_multilingual_v2", s = null) {
+const speakable = (t) => t.replace(/\r/g, "").replace(/[…]+|\.{3,}/g, "، ").replace(/\s*\n+\s*/g, (m) => (m.includes("\n\n") ? ". " : "، ")).replace(/([.،!؟?])\s*[،,]\s*/g, "$1 ").replace(/\s{2,}/g, " ").trim();
+// Keep in sync with SPEECH_PROMPT in src/lib/providers/text.ts
+const SPEECH_PROMPT = `أنت محرر نصوص للتعليق الصوتي بالذكاء الاصطناعي. جهّز النص عشان الصوت ينطقه بسلاسة، وحافظ على لهجة الكاتب:
+- إذا النص فصحى: خلّه فصحى، وصحّح الإملاء والترقيم فقط.
+- إذا النص لهجة (كويتية أو خليجية أو غيرها): خلّه بنفس اللهجة والكلمات، لكن اكتبه بإملاء "أبيض" واضح قريب من الفصحى: كاف المخاطبة "ك" وليس "ج" أو "چ" (ذوقك، عبايتك)، والكلمات الصعبة الكتابة بأقرب شكل مقروء (ويانا ← ويّانا).
+- نفس المعنى والطول تقريباً، بدون إضافة أو حذف معلومات.
+- فقرة واحدة بجمل قصيرة، فواصل ونقاط فقط، بدون نقاط ثلاث أو أسطر جديدة أو رموز أو إيموجي.
+- الأرقام بالحروف. شكّل فقط الكلمات اللي ممكن تنقرأ غلط (مثل: تميّزك).
+أعد النص فقط بدون أي شرح.`;
+
+async function speechReady(text) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key || !text.trim()) return text;
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: "claude-haiku-5-5", max_tokens: 1500, system: SPEECH_PROMPT, messages: [{ role: "user", content: text }] }),
+    });
+    if (!res.ok) throw new Error(`claude ${res.status}`);
+    const out = ((await res.json()).content?.[0]?.text ?? "").trim();
+    return out || text;
+  } catch (e) { console.error("speechReady", e.message); return text; }
+}
+
+async function voiceOver(text, voiceId, model = "eleven_v4", s = null) {
   const n = (v, d) => (typeof v === "number" && v >= 0 && v <= 2 ? v : d);
   const vs = s ? { stability: n(s.stability, 0.5), similarity_boost: n(s.similarity, 0.75), style: n(s.style, 0), speed: n(s.speed, 1), use_speaker_boost: s.speaker_boost ?? true } : null;
   const call = (model) => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "", "content-type": "application/json" },
-    body: JSON.stringify({ text, model_id: model, ...(vs ? { voice_settings: vs } : {}) }),
+    body: JSON.stringify({ text: speakable(text), model_id: model, ...(/^eleven_(v3|v4|flash_v2_5|turbo_v2_5)/.test(model) ? { language_code: "ar" } : {}), ...(vs ? { voice_settings: vs } : {}) }),
   });
-  // Multilingual v2 = clear, stable Arabic (what the ElevenLabs site uses for most library voices)
+  // Eleven v4 + Arabic (like the ElevenLabs site); fallback Multilingual v2
   let res = await call(model);
-  if (!res.ok) res = await call(model === "eleven_multilingual_v2" ? "eleven_v3" : "eleven_multilingual_v2");
+  if (!res.ok) res = await call(model === "eleven_multilingual_v2" ? "eleven_v4" : "eleven_multilingual_v2");
   if (!res.ok) throw new Error(`tts ${res.status}: ${(await res.text()).slice(0, 160)}`);
   const d = await res.json();
   const a = d.alignment ?? d.normalized_alignment;
@@ -122,7 +147,7 @@ async function writeScript(shots, notes, seconds, brand) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({ model: process.env.MONTAGE_MODEL || "claude-sonnet-5-5", max_tokens: 1200,
-      system: "أنت كاتب إعلانات خليجي. تكتب تعليق صوتي قصير بلهجة كويتية/خليجية طبيعية لفيديو سوشال ميديا، يوصف اللي يبين باللقطات بدون مبالغة أو معلومات مخترعة (لا أسعار ولا عروض إلا إذا ذكرها العميل)، ويبدأ بجملة تشد وينتهي بدعوة. أعد النص فقط بدون أي شرح.",
+      system: "أنت كاتب إعلانات خليجي. تكتب تعليق صوتي قصير بلهجة خليجية طبيعية لفيديو سوشال ميديا، بجمل قصيرة واضحة تنقرأ بسلاسة (فقرة واحدة، فواصل ونقاط فقط، بدون نقاط ثلاث أو أسطر جديدة، وبإملاء خليجي مبسّط: كاف المخاطب ك وليس ج)، يوصف اللي يبين باللقطات بدون مبالغة أو معلومات مخترعة (لا أسعار ولا عروض إلا إذا ذكرها العميل)، ويبدأ بجملة تشد وينتهي بدعوة. أعد النص فقط بدون أي شرح.",
       messages: [{ role: "user", content: [
         ...shots.flatMap((f) => [{ type: "text", text: `[لقطة عند ${f.t}s]` }, { type: "image", source: { type: "base64", media_type: "image/jpeg", data: f.data } }]),
         { type: "text", text: `المدة تقريباً ${seconds} ثانية (حوالي ${Math.round(seconds * 2.2)} كلمة).${brand ? ` اسم النشاط: ${brand}.` : ""}\nوصف العميل: ${notes || "إعلان جذاب"}` },
@@ -277,6 +302,7 @@ async function analyzeMontage(job) {
     if (wantVo) {
       try {
         let text = String(job.input.voiceover ?? "").trim();
+        if (text) text = await speechReady(text);
         if (!text) text = await writeScript(shots, job.input.notes, full ? Math.min(60, meta.duration) : target, kit?.business_name);
         if (text) {
           const { data: vc } = await db.from("site_content").select("value").eq("key", "voices").maybeSingle();
