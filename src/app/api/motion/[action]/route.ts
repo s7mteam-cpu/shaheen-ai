@@ -7,7 +7,7 @@ import { saveResult, signedResultUrls } from "@/lib/providers/storage";
 import { brandHint, config, voiceById } from "@/lib/tools/run";
 import { ICONS, normalise, type Aspect, type MotionSpec } from "@/remotion/spec";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const SYSTEM = `أنت مخرج موشن جرافيك خليجي محترف. تحوّل فكرة العميل إلى فيديو قصير للسوشال ميديا مكوّن من مشاهد.
 أنواع المشاهد المتاحة فقط (type):
@@ -45,6 +45,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     return NextResponse.json({ error: error.message.includes("INSUFFICIENT") ? "رصيدك من الريش ما يكفي." : "تعذّر خصم الرصيد." }, { status: 402 });
   }
   const writer = async () => { const c = await config("motion-video"); return { provider: c.provider === "gemini" ? "gemini" : "claude", model: c.model }; };
+  // Arabic JSON is token-heavy: give room, and retry once if the answer comes back cut or malformed.
+  async function writeJson(user: string) {
+    const via = await writer();
+    try { return await aiJson<Partial<MotionSpec>>(SYSTEM, user, 8000, via); }
+    catch (first) { console.error("motion json retry", first); return await aiJson<Partial<MotionSpec>>(SYSTEM, user + "\nمهم: أعد JSON صالح ومكتمل فقط، ونصوص قصيرة.", 8000, via); }
+  }
 
   // ---- New video: write the scenes ----
   if (action === "script") {
@@ -61,16 +67,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (denied) { await admin.from("jobs").delete().eq("id", job.id); return denied; }
 
     try {
-      const raw = await aiJson<Partial<MotionSpec>>(SYSTEM,
+      const raw = await writeJson(
         `الفكرة: ${idea}\nاسم النشاط: ${body.brand || "غير محدد"}\nاللهجة: ${body.dialect || "خليجية"}\nالمدة: ${seconds} ثانية، عدد المشاهد: ${sceneCount(seconds)}.\n${await brandHint(user.id)}\n` +
-        `أعد JSON بالشكل: { "font": "...", "brand": "اسم النشاط أو اتركه فارغاً", "colors": {...}, "scenes": [...] }`, 2500, await writer());
+        `أعد JSON بالشكل: { "font": "...", "brand": "اسم النشاط أو اتركه فارغاً", "colors": {...}, "scenes": [...] }`);
       const spec = normalise(raw, { aspect, seconds });
       if (!body.brand && !raw.brand) spec.brand = undefined;
       await admin.from("jobs").update({ input: { idea, seconds, aspect, spec } }).eq("id", job.id);
       return NextResponse.json({ jobId: job.id });
     } catch (e) {
       console.error("motion script", e);
-      await admin.from("jobs").update({ status: "failed", error: "script" }).eq("id", job.id);
+      await admin.from("jobs").update({ status: "failed", error: `script: ${e instanceof Error ? e.message : String(e)}`.slice(0, 500) }).eq("id", job.id);
       await admin.rpc("refund_job", { p_job: job.id });
       return NextResponse.json({ error: "ما قدرنا نكتب الفيديو الحين، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
     }
@@ -90,8 +96,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (denied) return denied;
     try {
       const current = { ...body.spec, music: undefined, voice: undefined };
-      const raw = await aiJson<Partial<MotionSpec>>(SYSTEM,
-        `هذا الفيديو الحالي:\n${JSON.stringify(current)}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي. المدة ${base.seconds} ثانية. أعد JSON كامل بنفس الشكل.`, 2500, await writer());
+      const raw = await writeJson(
+        `هذا الفيديو الحالي:\n${JSON.stringify(current)}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي. المدة ${base.seconds} ثانية. أعد JSON كامل بنفس الشكل.`);
       const spec = keepMedia(normalise({ ...raw, brand: raw.brand ?? current.brand }, base), body.spec);
       await admin.from("jobs").update({ input: { ...job.input, spec } }).eq("id", job.id);
       return NextResponse.json({ spec });
