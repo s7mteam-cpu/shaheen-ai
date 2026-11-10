@@ -5,6 +5,10 @@ import { ToolRunner } from "@/components/app/ToolRunner";
 import { MotionStart } from "@/components/app/MotionStart";
 import { MotionStudio } from "@/components/app/MotionStudio";
 import { MontageStudio } from "@/components/app/MontageStudio";
+import { DesignStart } from "@/components/app/DesignStart";
+import { DesignStudio } from "@/components/app/DesignStudio";
+import { DESIGN_TOOLS, designImages, withUrls, type DesignSpec } from "@/design/spec";
+import { signedResultUrls } from "@/lib/providers/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MontageSpec } from "@/remotion/montage";
 import { createClient } from "@/lib/supabase/server";
@@ -34,7 +38,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         <h1 className="mt-1.5 text-[28px] font-bold text-navy-900">{tool.name}</h1>
         <p className="mt-1 text-muted">{tool.description}</p>
       </div>
-      {id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -80,4 +84,35 @@ async function montage(jobId: string, tool: ToolRow, content: Content) {
   const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name").maybeSingle();
   const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null } : null;
   return <MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed.signedUrl, logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
+}
+
+/** Posts, carousels and ads: the info form, or the live design studio for one of the user's designs. */
+async function design(jobId: string | undefined, tool: ToolRow, balance: number) {
+  const supabase = await createClient();
+  if (jobId) {
+    const { data } = await supabase.from("jobs").select("id,status,input,output").eq("id", jobId).maybeSingle();
+    const spec = (data?.input as { spec?: DesignSpec } | null)?.spec;
+    if (data && spec) {
+      if (data.status === "queued" || data.status === "running") {
+        return <p className="card p-6 text-center">التصميم قيد التصدير، تلقاه بعد لحظات في <Link href="/app/works" className="font-semibold text-navy-700 underline">أعمالي</Link>.</p>;
+      }
+      const admin = createAdminClient();
+      const urls: Record<string, string> = {};
+      const imgs = designImages(spec);
+      for (const bucket of ["uploads", "results"] as const) {
+        const paths = imgs.filter((i) => i.bucket === bucket).map((i) => i.path);
+        if (!paths.length) continue;
+        const { data: signed } = await admin.storage.from(bucket).createSignedUrls(paths, 60 * 60 * 6);
+        (signed ?? []).forEach((x, i) => { if (x.signedUrl) urls[`${bucket}:${paths[i]}`] = x.signedUrl; });
+      }
+      const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name,logo_url").maybeSingle();
+      const logoUrl = kitRow?.logo_url ? (await admin.storage.from("uploads").createSignedUrl(kitRow.logo_url, 60 * 60 * 6)).data?.signedUrl ?? "" : "";
+      const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null, logo: kitRow.logo_url ? { path: kitRow.logo_url as string, bucket: "uploads" as const, url: logoUrl } : null } : null;
+      const files = data.status === "done" ? ((data.output as { files?: { path: string }[] } | null)?.files ?? []) : [];
+      const done = files.length ? (await signedResultUrls(files.map((f) => f.path))).map((url) => ({ url })) : undefined;
+      return <DesignStudio key={data.id} jobId={data.id} toolId={tool.id} initial={withUrls(spec, urls)} editCost={tool.edit_cost ?? 2} kit={kit} done={done} />;
+    }
+  }
+  const { data: kitInd } = await supabase.from("brand_kits").select("industry").maybeSingle();
+  return <DesignStart toolId={tool.id} cost={tool.credit_cost} balance={balance} industry={(kitInd?.industry as string | null) ?? null} />;
 }

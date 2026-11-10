@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     input = built.input;
   }
   if (toolId === "motion-video") return NextResponse.json({ error: "استخدم استوديو الموشن جرافيك." }, { status: 400 });
+  if (["post", "carousel", "ad-design"].includes(toolId) && !parent) return NextResponse.json({ error: "استخدم استوديو التصميم." }, { status: 400 });
   const spec = toolSpecs[toolId];
   if (!spec) return NextResponse.json({ error: "أداة غير معروفة." }, { status: 400 });
 
