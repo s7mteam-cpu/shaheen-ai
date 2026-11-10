@@ -4,5 +4,5 @@ values ('product-video','google','فيديو المنتج','ارفع صورة م
 on conflict (id) do nothing;
 
 update public.tools t set sort_order = v.ord
-from (values ('post',1),('carousel',2),('ad-design',3),('motion-video',4),('product-video',5),('video-editing',6),('image',7),('product-photo',8),('avatar-video',9),('voice',10),('nasheed',11)) as v(id,ord)
+from (values ('post',1),('carousel',2),('ad-design',3),('motion-video',4),('video-editing',5),('product-video',6),('image',7),('product-photo',8),('avatar-video',9),('voice',10),('nasheed',11)) as v(id,ord)
 where t.id = v.id;
