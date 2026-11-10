@@ -186,7 +186,7 @@ function Classic(c: Ctx) {
             <div style={{ display: "grid", gridTemplateColumns: `repeat(${list.length}, 1fr)`, gap: 22, marginTop: 18 * c.k }}>
               {list.map((it, i) => (
                 <div key={i} style={{ background: c.soft, border: `2px solid ${c.line}`, borderRadius: 26, padding: `${28 * c.k}px 26px` }}>
-                  <div style={{ width: 68 * c.k, height: 68 * c.k, borderRadius: 18, background: c.accent, display: "grid", placeItems: "center", marginBottom: 20 * c.k }}>
+                  <div style={{ width: 68 * c.k, height: 68 * c.k, borderRadius: 18, background: c.spec.icons === "3d" ? "transparent" : c.accent, display: "grid", placeItems: "center", marginBottom: 20 * c.k }}>
                     <DIcon name={it.icon ?? "check"} size={34 * c.k} color={c.onAccent} />
                   </div>
                   <b style={{ display: "block", fontSize: fit(it.text, 30 * c.k, 22, 0.75), fontWeight: 800, lineHeight: 1.35, color: c.ink }}>{it.text}</b>
@@ -379,7 +379,7 @@ function Point(c: Ctx) {
       <div style={{ position: "absolute", inset: `${PAD * c.k}px ${PAD}px`, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><BrandRow c={c} /></div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 30 * c.k }}>
-          <div style={{ width: 120 * c.k, height: 120 * c.k, borderRadius: 32, background: c.accent, display: "grid", placeItems: "center" }}>
+          <div style={{ width: 120 * c.k, height: 120 * c.k, borderRadius: 32, background: c.spec.icons === "3d" ? "transparent" : c.accent, display: "grid", placeItems: "center" }}>
             <DIcon name={icon ?? "lightbulb"} size={62 * c.k} color={c.onAccent} />
           </div>
           <Kicker c={c} />
@@ -521,7 +521,7 @@ export function DesignSlide({ spec, index }: DesignProps) {
   };
   const L = RENDER[s.layout] ?? Classic;
   return (
-    <IconStyleContext.Provider value={spec.icons ?? "line"}>
+    <IconStyleContext.Provider value={{ style: spec.icons ?? "line", images: Object.fromEntries(Object.entries(spec.icon3d ?? {}).filter(([, v]) => v?.url).map(([k, v]) => [k, v.url])) }}>
     <div dir="rtl" lang="ar" style={{ position: "relative", width: W, height: H, overflow: "hidden", fontFamily: `"${spec.font}", "Cairo", sans-serif`, background: bg }}>
       {!["cta", "photo", "split", "bento"].includes(s.layout) && <Deco c={c} />}
       <div style={{ position: "absolute", inset: 0 }}>{L(c)}</div>

@@ -17,7 +17,7 @@ import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag"
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
 import {
-  DECO_IDS, DECO_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum,
+  usedIcons, DECO_IDS, DECO_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum,
   type DAspect, type DColors, type DImg, type DItem, type DesignSpec, type LayoutId, type Slide,
 } from "@/design/spec";
 
@@ -243,6 +243,20 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           <div className="flex flex-wrap gap-2">
             {ICON_STYLES.map(([id, l]) => <button key={id} type="button" aria-pressed={(spec.icons ?? "line") === id} onClick={() => setSpec({ ...spec, icons: id })} className="chip">{l}</button>)}
           </div>
+          {spec.icons === "3d" && (() => {
+            const need = usedIcons(spec).filter((id) => !spec.icon3d?.[id]);
+            return (
+              <div className="flex flex-col gap-2 rounded-2xl bg-tint p-3 text-[14px]">
+                {need.length > 0
+                  ? <span>{Object.keys(spec.icon3d ?? {}).length ? `فيه ${need.length} أيقونات جديدة ما انرسمت.` : "الأيقونات الـ 3D تنرسم بالذكاء الاصطناعي بألوان تصميمك."}</span>
+                  : <span>✓ الأيقونات الـ 3D جاهزة. إذا غيّرت الألوان، ارسمها من جديد.</span>}
+                <button type="button" disabled={!!busy} onClick={async () => {
+                  const d = await call<{ icon3d: Record<string, DImg> }>("icons3d", { spec }, "icons3d");
+                  if (d) setSpec((p) => ({ ...p, icon3d: { ...(p.icon3d ?? {}), ...d.icon3d } }));
+                }} className="btn btn-primary self-start px-4 py-2 text-sm">{busy === "icons3d" ? "جاري الرسم… (دقيقة تقريباً)" : `✨ ${need.length ? "ارسم" : "أعد رسم"} الأيقونات 3D (${editCost} ريشة)`}</button>
+              </div>
+            );
+          })()}
           <Sub>الخط</Sub>
           <div className="flex flex-wrap gap-2">
             {DFONTS.map((f) => <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} className="chip" style={{ fontFamily: f.id }}>{f.label}</button>)}

@@ -1,4 +1,5 @@
 import React, { createContext, useContext } from "react";
+import { Img } from "remotion";
 import {
   Award, Baby, BookOpen, Brush, Building2, Cake, Calendar, Camera, Car, ChartColumn, Check, ChefHat, Clock, Coffee, Crown,
   Droplet, Dumbbell, Flame, Flower2, Gem, Gift, Globe, GraduationCap, Headset, Heart, House, Image, Laptop, Leaf, Lightbulb,
@@ -7,6 +8,7 @@ import {
   User, Users, Utensils, Video, Wallet, Wifi, Zap, type LucideIcon,
 } from "lucide-react";
 import type { IconId } from "./spec";
+export { ICON_EN } from "./icon-names";
 
 export const ICONS: Record<IconId, { C: LucideIcon; label: string }> = {
   check: { C: Check, label: "صح" }, star: { C: Star, label: "نجمة" }, heart: { C: Heart, label: "قلب" }, sparkles: { C: Sparkles, label: "لمعة" },
@@ -38,15 +40,16 @@ export const EMOJI: Record<IconId, string> = {
   crown: "👑", smile: "😊", stethoscope: "🩺", pill: "💊", dumbbell: "🏋️", palette: "🎨", brush: "💅", laptop: "💻", "phone-mobile": "📱", globe: "🌐",
   wifi: "📶", baby: "👶", paw: "🐾", flower: "🌸", wallet: "👛", headset: "🎧",
 };
-export type IconStyle = "line" | "duo" | "emoji";
-export const ICON_STYLES: [IconStyle, string][] = [["line", "خطّية"], ["duo", "معبّاة"], ["emoji", "ملوّنة طبيعية"]];
-export const IconStyleContext = createContext<IconStyle>("line");
+export type IconStyle = "line" | "duo" | "emoji" | "3d";
+export const ICON_STYLES: [IconStyle, string][] = [["line", "خطّية"], ["duo", "معبّاة"], ["emoji", "ملوّنة طبيعية"], ["3d", "3D احترافية"]];
+export const IconStyleContext = createContext<{ style: IconStyle; images?: Record<string, string> }>({ style: "line" });
 export const EMOJI_FONT = `"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
 
 export function DIcon({ name, size, color, stroke = 1.8 }: { name?: string; size: number; color: string; stroke?: number }) {
-  const style = useContext(IconStyleContext);
+  const { style, images } = useContext(IconStyleContext);
   const id = (name && name in ICONS ? name : "sparkles") as IconId;
+  if (style === "3d" && images?.[id]) return <Img src={images[id]} style={{ width: size * 1.6, height: size * 1.6, objectFit: "contain", flex: "none", margin: -size * 0.3 }} />;
   if (style === "emoji") return <span style={{ fontSize: size * 0.92, lineHeight: 1, fontFamily: EMOJI_FONT, flex: "none", display: "inline-block", width: size, textAlign: "center" }}>{EMOJI[id]}</span>;
   const C = ICONS[id].C;
-  return <C size={size} color={color} strokeWidth={stroke} absoluteStrokeWidth={false} fill={style === "duo" ? color : "none"} fillOpacity={style === "duo" ? 0.22 : undefined} style={{ flex: "none" }} />;
+  return <C size={size} color={color} strokeWidth={stroke} absoluteStrokeWidth={false} fill={style === "duo" || style === "3d" ? color : "none"} fillOpacity={style === "duo" || style === "3d" ? 0.22 : undefined} style={{ flex: "none" }} />;
 }

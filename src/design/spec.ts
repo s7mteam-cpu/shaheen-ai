@@ -37,7 +37,8 @@ export type DesignSpec = {
   slides: Slide[];
   caption?: string;
   deco?: Deco;
-  icons?: "line" | "duo" | "emoji";
+  icons?: "line" | "duo" | "emoji" | "3d";
+  icon3d?: Record<string, DImg>;   // AI-made 3D icons by icon id (when icons = "3d")
 };
 export const DECO_IDS = ["none", "circles", "grid", "dots", "blob", "arc", "lines", "corner"] as const;
 export type Deco = (typeof DECO_IDS)[number];
@@ -164,13 +165,14 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
     slides: slides.length ? slides : [normaliseSlide({ title: "عنوانك هنا" })],
     caption: typeof raw.caption === "string" ? raw.caption.trim().slice(0, 2200) || undefined : undefined,
     deco: (DECO_IDS as readonly string[]).includes(String(raw.deco)) ? (raw.deco as Deco) : "circles",
-    icons: raw.icons === "duo" || raw.icons === "emoji" ? raw.icons : "line",
+    icons: raw.icons === "duo" || raw.icons === "emoji" || raw.icons === "3d" ? raw.icons : "line",
+    icon3d: Object.fromEntries(Object.entries((raw.icon3d ?? {}) as Record<string, unknown>).filter(([k]) => (ICON_IDS as readonly string[]).includes(k)).map(([k, v]) => [k, img(v)]).filter(([, v]) => v)) as Record<string, DImg>,
   };
 }
 
 /** Image references in a spec (to sign on load / in the worker). */
 export function designImages(s: DesignSpec): DImg[] {
-  const out: DImg[] = [];
+  const out: DImg[] = Object.values(s.icon3d ?? {});
   if (s.brand.logo) out.push(s.brand.logo);
   for (const sl of s.slides) { if (sl.photo) out.push(sl.photo); if (sl.person?.photo) out.push(sl.person.photo); }
   return out;
@@ -179,7 +181,18 @@ export function designImages(s: DesignSpec): DImg[] {
 /** Same spec with fresh URLs for every image (by path). */
 export function withUrls(s: DesignSpec, urls: Record<string, string>): DesignSpec {
   const u = (i?: DImg | null) => (i ? { ...i, url: urls[`${i.bucket}:${i.path}`] ?? i.url } : i ?? null);
-  return { ...s, brand: { ...s.brand, logo: u(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, photo: u(sl.photo), person: sl.person ? { ...sl.person, photo: u(sl.person.photo) } : sl.person })) };
+  const icon3d = Object.fromEntries(Object.entries(s.icon3d ?? {}).map(([k, v]) => [k, u(v)!]));
+  return { ...s, icon3d, brand: { ...s.brand, logo: u(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, photo: u(sl.photo), person: sl.person ? { ...sl.person, photo: u(sl.person.photo) } : sl.person })) };
 }
 
 export const DESIGN_TOOLS: Record<string, DKind> = { post: "post", carousel: "carousel", "ad-design": "ads" };
+
+/** Icon ids a design actually shows (for the 3D icon set). */
+export function usedIcons(s: DesignSpec): string[] {
+  const ids = new Set<string>();
+  for (const sl of s.slides) {
+    for (const it of [...(sl.items ?? []), ...(sl.meta ?? [])]) if (it.icon) ids.add(it.icon);
+    if (sl.layout === "point") ids.add(sl.items?.[0]?.icon ?? "lightbulb");
+  }
+  return [...ids].slice(0, 9);
+}
