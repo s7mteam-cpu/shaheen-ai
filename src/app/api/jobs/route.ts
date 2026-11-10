@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     if ("error" in built) return NextResponse.json({ error: built.error }, { status: 400 });
     input = built.input;
   }
+  if (toolId === "motion-video") return NextResponse.json({ error: "استخدم استوديو الموشن جرافيك." }, { status: 400 });
   const spec = toolSpecs[toolId];
   if (!spec) return NextResponse.json({ error: "أداة غير معروفة." }, { status: 400 });
 

@@ -2,7 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { falImages, falQueue, falRun } from "@/lib/providers/fal";
 import { aiJson } from "@/lib/providers/text";
-import { geminiImage, geminiSpeech, veoStart } from "@/lib/providers/google";
+import { geminiImage, geminiSpeech } from "@/lib/providers/google";
 import { toolProviders } from "@/lib/providers/registry";
 import { cloneVoice, deleteVoice, music, tts } from "@/lib/providers/elevenlabs";
 import { saveFromUrl, saveResult, signedUploadUrls } from "@/lib/providers/storage";
@@ -25,7 +25,7 @@ const moods: Record<string, string> = {
   macro: "extreme macro close-up showing texture and detail, shallow depth of field",
 };
 
-async function brandHint(userId: string) {
+export async function brandHint(userId: string) {
   const { data } = await createAdminClient().from("brand_kits").select("business_name,colors").eq("user_id", userId).maybeSingle();
   if (!data) return "";
   const colors = (data.colors ?? []).filter(Boolean).join(", ");
@@ -33,14 +33,14 @@ async function brandHint(userId: string) {
 }
 
 /** The provider + model the admin picked for this tool (falls back to the tool's first allowed provider). */
-async function config(toolId: string) {
+export async function config(toolId: string) {
   const { data } = await createAdminClient().from("tools").select("provider,provider_model").eq("id", toolId).single();
   const allowed = toolProviders[toolId] ?? {};
   const provider = (data?.provider && data.provider in allowed ? data.provider : Object.keys(allowed)[0]) as keyof typeof allowed;
   return { provider, model: data?.provider_model || allowed[provider] || "" };
 }
 
-async function voiceById(id: string) {
+export async function voiceById(id: string) {
   const { data } = await createAdminClient().from("site_content").select("value").eq("key", "voices").maybeSingle();
   const list = ((data?.value as { items?: { id: string; google_voice?: string }[] })?.items) ?? [];
   const v = list.find((x) => x.id === id) ?? list[0];
@@ -165,25 +165,8 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
       return out;
     }
 
-    case "motion-video": {
-      const imgs = await signedUploadUrls(files(v, "images"));
-      const { provider, model: base } = await config("motion-video");
-      if (provider === "google") {
-        const op = await veoStart(base, `${v.prompt}. Cinematic commercial, smooth camera motion. ${brand}`, imgs[0], String(v.aspect), Number(v.duration));
-        await createAdminClient().from("jobs").update({ provider_request_id: `google:${op}`, status: "running" }).eq("id", job.id);
-        return null;
-      }
-      const endpoint = imgs.length ? base.replace("text-to-video", "image-to-video") : base;
-      const reqId = await falQueue(endpoint, {
-        prompt: `${v.prompt}. Cinematic commercial, smooth camera motion. ${brand}`,
-        duration: String(v.duration),
-        aspect_ratio: v.aspect,
-        ...(imgs.length ? { image_url: imgs[0] } : {}),
-      }, `${site()}/api/webhooks/fal?job=${job.id}&key=${process.env.WORKER_SECRET}`);
-      await createAdminClient().from("jobs").update({ provider_request_id: reqId, status: "running" }).eq("id", job.id);
-      return null;
-    }
-
+    case "motion-video":
+      throw new Error("motion-video runs in the studio (/api/motion)");
     case "avatar-video": {
       // 1) voice with ElevenLabs  2) talking video from image + audio on fal
       const audio = await tts(String(v.script), (await voiceById(String(v.voice))).eleven);

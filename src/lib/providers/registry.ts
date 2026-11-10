@@ -13,9 +13,9 @@ export const providerInfo: Record<ProviderId, { name: string; env: string; site:
 export const toolProviders: Record<string, Partial<Record<ProviderId, string>>> = {
   image: { fal: "fal-ai/nano-banana-2", google: "gemini-3-pro-image-preview" },
   carousel: { fal: "fal-ai/nano-banana-pro", google: "gemini-3-pro-image-preview" },
+  "motion-video": { claude: "claude-sonnet-5-5", gemini: "gemini-2.5-pro" }, // writes the scenes; the worker renders
   "product-photo": { fal: "fal-ai/nano-banana-pro/edit", google: "gemini-3-pro-image-preview" },
   "ad-design": { fal: "fal-ai/nano-banana-pro", google: "gemini-3-pro-image-preview" },
-  "motion-video": { fal: "fal-ai/kling-video/v2.5-turbo/pro/text-to-video", google: "veo-3.1-fast-generate-preview" },
   "avatar-video": { fal: "fal-ai/kling-video/ai-avatar/v2/standard" },
   "video-editing": { elevenlabs: "scribe_v1", google: "gemini-2.5-flash" },
   voice: { elevenlabs: "eleven_v3", google: "gemini-2.5-flash-preview-tts" },

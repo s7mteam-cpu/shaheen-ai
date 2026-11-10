@@ -40,6 +40,8 @@ export type SiteContent = {
   footer: { tagline: string; company: string; whatsapp: string; email: string; instagram: string };
   legal: { terms: string; privacy: string; refund: string };
   voices: { items: { id: string; name: string; note: string; google_voice?: string }[] };
+  /** Background-music library for the motion studio (royalty-free tracks you uploaded). */
+  motion_music: { items: { name: string; mood?: string; url: string }[] };
   ai: { copy_provider: string; copy_model: string; chat_provider: string; chat_model: string };
   managed_service: { enabled: boolean; title: string; price_kwd: string; period: string; features: string[]; cta: string; whatsapp: string; whatsapp_message: string; thanks: string };
 };
@@ -53,7 +55,7 @@ export const defaultPlans: Plan[] = [
 export const defaultTools: Tool[] = [
   { id: "image", provider: "fal", name: "إنشاء بوست", description: "اكتب ما تتخيله، أو ارفع صورتك واطلب التعديل: خلفية جديدة، إزالة عنصر، تحسين جودة.", category: "image", icon: "sparkles", credit_cost: 2, edit_cost: 2, cost_unit: "صورة", provider_model: "fal-ai/nano-banana-2", is_enabled: true, sort_order: 1 },
   { id: "carousel", provider: "fal", name: "كاروسيل إنستغرام", description: "سلسلة شرائح متناسقة بعناوين عربية، تشرح فكرة أو منتج خطوة بخطوة.", category: "image", icon: "layers", credit_cost: 2, edit_cost: 2, cost_unit: "شريحة", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 2 },
-  { id: "motion-video", provider: "fal", name: "إنشاء فيديو موشن جرافيك", description: "ريلز بحركة سينمائية ونصوص وموسيقى خلفية، بهويتك وألوانك.", category: "video", icon: "film", credit_cost: 9, edit_cost: 5, cost_unit: "10 ثوانٍ", provider_model: "fal-ai/kling-video/v2.5-turbo/pro/text-to-video", is_enabled: true, sort_order: 3 },
+  { id: "motion-video", provider: "claude", name: "إنشاء فيديو موشن جرافيك", description: "فيديو موشن جرافيك بنصوص عربية صحيحة، تعدّل ألوانه ونصوصه وخطه مباشرة، مع موسيقى وتعليق صوتي.", category: "video", icon: "film", credit_cost: 3, edit_cost: 3, cost_unit: "15 ثانية", provider_model: null, is_enabled: true, sort_order: 3 },
   { id: "video-editing", provider: "elevenlabs", name: "مونتاج الفيديو", description: "ارفع فيديوك الخام، ونقصّ الأجزاء الفاضية ونضيف ترجمة عربية ونجهّزه لكل منصة.", category: "video", icon: "scissors", credit_cost: 4, edit_cost: 3, cost_unit: "دقيقة", provider_model: null, is_enabled: true, sort_order: 4 },
   { id: "avatar-video", provider: "fal", name: "فيديو بشخصية واقعية", description: "شخصية تقدّم منتجك وتتكلم بلهجة جمهورك، بدون تصوير ولا ممثلين.", category: "video", icon: "user", credit_cost: 15, edit_cost: 5, cost_unit: "فيديو", provider_model: "fal-ai/kling-video/ai-avatar/v2/standard", is_enabled: true, sort_order: 5 },
   { id: "ad-design", provider: "fal", name: "تصميم الإعلانات", description: "زاوية تسويقية ونص إعلاني وصورة لكل إعلان، جاهزة للنشر على السوشال ميديا.", category: "image", icon: "megaphone", credit_cost: 3, edit_cost: 2, cost_unit: "إعلان", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 6 },
@@ -118,6 +120,7 @@ export const defaultContent: SiteContent = {
     whatsapp_message: "السلام عليكم، أبي أشترك في باقة الإدارة الكاملة للسوشال ميديا من شاهين.",
     thanks: "وصلنا طلبك ✓ سيتم التواصل معكم في أسرع وقت.",
   },
+  motion_music: { items: [] },
   // ElevenLabs voice ids. Replace with Gulf-dialect voices from the ElevenLabs voice library via /admin.
   voices: {
     items: [

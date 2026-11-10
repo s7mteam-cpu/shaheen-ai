@@ -13,6 +13,7 @@ export function Media({ f, className = "" }: { f: WorkFile; className?: string }
 }
 
 const status: Record<string, [string, string]> = {
+  draft: ["مسودة — كمّل التعديل", "bg-tint text-navy-700"],
   queued: ["في الانتظار", "bg-gold-100 text-navy-900"],
   running: ["قيد التنفيذ", "bg-tint text-navy-700"],
   done: ["جاهز", "bg-emerald-50 text-emerald-800"],

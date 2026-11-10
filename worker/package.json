@@ -2,6 +2,18 @@
   "name": "shaheen-video-worker",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node index.mjs" },
-  "dependencies": { "@supabase/supabase-js": "^2.45.0" }
+  "scripts": { "start": "node worker/index.mjs" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "remotion": "4.0.542",
+    "@remotion/bundler": "4.0.542",
+    "@remotion/renderer": "4.0.542",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "@fontsource/cairo": "^5.2.0",
+    "@fontsource/tajawal": "^5.2.0",
+    "@fontsource/almarai": "^5.2.0",
+    "@fontsource/changa": "^5.2.0",
+    "@fontsource/amiri": "^5.2.0"
+  }
 }

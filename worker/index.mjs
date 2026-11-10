@@ -1,12 +1,16 @@
-// Shaheen video-editing worker
-// Picks queued "video-editing" jobs, then: cut silences → Arabic captions (ElevenLabs Scribe) → resize → upload.
+// Shaheen video worker
+// 1) "video-editing": cut silences → Arabic captions → resize → trim → upload.
+// 2) "motion-video": renders the customer's motion-graphics design with Remotion → MP4 → upload.
 // Run anywhere with ffmpeg (Railway, Fly.io, a small VPS). Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ELEVENLABS_API_KEY
 import { createClient } from "@supabase/supabase-js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { bundle } from "@remotion/bundler";
+import { renderMedia, selectComposition } from "@remotion/renderer";
 
 const run = promisify(execFile);
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -131,12 +135,37 @@ async function processJob(job) {
   }
 }
 
+// Bundle the motion-graphics composition once at start-up.
+const here = dirname(fileURLToPath(import.meta.url));
+const serveUrl = await bundle({ entryPoint: join(here, "remotion", "entry.tsx") });
+
+async function renderMotion(job) {
+  const dir = await mkdtemp(join(tmpdir(), "motion-"));
+  try {
+    const props = job.input.spec;
+    const composition = await selectComposition({ serveUrl, id: "Motion", inputProps: props });
+    const out = join(dir, "out.mp4");
+    await renderMedia({ composition, serveUrl, codec: "h264", crf: 20, x264Preset: "veryfast", outputLocation: out, inputProps: props, concurrency: Number(process.env.RENDER_CONCURRENCY) || null });
+    const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.mp4`;
+    const up = await db.storage.from("results").upload(dest, await readFile(out), { contentType: "video/mp4" });
+    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    await db.from("jobs").update({ status: "done", output: { files: [{ path: dest, type: "video/mp4" }] }, updated_at: new Date().toISOString() }).eq("id", job.id);
+    console.log("motion done", job.id);
+  } catch (e) {
+    console.error("motion failed", job.id, e);
+    await db.from("jobs").update({ status: "failed", error: String(e?.message ?? e).slice(0, 500), updated_at: new Date().toISOString() }).eq("id", job.id);
+    await db.rpc("refund_job", { p_job: job.id });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 console.log("Shaheen video worker started");
 for (;;) {
-  const { data: jobs } = await db.from("jobs").select("id,user_id,input").eq("tool_id", "video-editing").eq("status", "queued").order("created_at").limit(1);
+  const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input").in("tool_id", ["video-editing", "motion-video"]).eq("status", "queued").order("created_at").limit(1);
   const job = jobs?.[0];
   if (!job) { await sleep(5000); continue; }
   // claim it (only one worker wins)
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: new Date().toISOString() }).eq("id", job.id).eq("status", "queued").select("id");
-  if (claimed?.length) await processJob(job);
+  if (claimed?.length) await (job.tool_id === "motion-video" ? renderMotion(job) : processJob(job));
 }
