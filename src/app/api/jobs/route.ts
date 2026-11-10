@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ارفع عينة صوتك." }, { status: 400 });
   }
   // Uploaded files must belong to this user
-  for (const k of ["images", "video", "sample"]) {
+  for (const k of ["images", "video", "sample", "broll"]) {
     const list = Array.isArray(input[k]) ? (input[k] as string[]) : [];
     if (list.some((p) => !p.startsWith(`${user.id}/`))) return NextResponse.json({ error: "ملف غير مسموح." }, { status: 400 });
   }

@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { falImages, falQueue, falRun } from "@/lib/providers/fal";
-import { aiJson } from "@/lib/providers/text";
+import { aiJson, speechReady } from "@/lib/providers/text";
 import { geminiImage, geminiSpeech } from "@/lib/providers/google";
 import { toolProviders } from "@/lib/providers/registry";
 import { cloneVoice, deleteVoice, music, tts, type VoiceSettings } from "@/lib/providers/elevenlabs";
@@ -206,8 +206,9 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
       }
       try {
         const vv = await voiceById(voiceId);
-        const audio = await tts(String(v.text), voiceId, vv.model || (provider === "elevenlabs" && vm && vm !== "music" ? vm : undefined), vv.settings);
-        return [{ path: await saveResult(job.user_id, job.id, audio, "audio/mpeg", "mp3"), type: "audio/mpeg" }];
+        const say = v.polish === false ? String(v.text) : await speechReady(String(v.text));
+        const audio = await tts(say, voiceId, vv.model || (provider === "elevenlabs" && vm && vm !== "music" ? vm : undefined), vv.settings);
+        return [{ path: await saveResult(job.user_id, job.id, audio, "audio/mpeg", "mp3"), type: "audio/mpeg", caption: say !== String(v.text) ? `النص اللي انقرأ: ${say}` : undefined }];
       } finally {
         if (cloned) await deleteVoice(cloned); // we don't keep customers' voices
       }

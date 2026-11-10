@@ -43,9 +43,9 @@ export function ShaheenChat({ name }: { name?: string }) {
   return (
     <>
       {!open && (
-        <button type="button" onClick={() => setOpen(true)} className="fixed bottom-5 left-5 z-40 flex items-center gap-2 rounded-full bg-navy-800 py-2.5 pe-5 ps-2.5 text-[15px] font-bold text-white shadow-[0_10px_30px_-10px_rgba(11,42,74,0.6)] ring-1 ring-gold-500/50 hover:bg-navy-700">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-950"><Image src="/brand/eagle.png" alt="" width={26} height={26} /></span>
-          كلّم شاهين
+        <button type="button" onClick={() => setOpen(true)} aria-label="كلّم شاهين" className="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full bg-navy-800 p-2 text-[15px] font-bold text-white shadow-[0_10px_30px_-10px_rgba(11,42,74,0.6)] ring-1 ring-gold-500/50 hover:bg-navy-700 sm:bottom-5 sm:left-5 sm:py-2.5 sm:pe-5 sm:ps-2.5">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-navy-950 sm:h-9 sm:w-9"><Image src="/brand/eagle.png" alt="" width={26} height={26} /></span>
+          <span className="hidden sm:inline">كلّم شاهين</span>
         </button>
       )}
       {open && (

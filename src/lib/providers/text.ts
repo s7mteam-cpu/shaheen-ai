@@ -28,6 +28,24 @@ export async function aiChat(purpose: Purpose | { provider: string; model: strin
   return data.content.map((c) => c.text ?? "").join("").trim();
 }
 
+/** Rewrites any Arabic (heavy dialect spelling included) into clear "white Gulf" that voices read smoothly. Falls back to the original text. */
+export const SPEECH_PROMPT = `أنت محرر نصوص للتعليق الصوتي بالذكاء الاصطناعي. جهّز النص عشان الصوت ينطقه بسلاسة، وحافظ على لهجة الكاتب:
+- إذا النص فصحى: خلّه فصحى، وصحّح الإملاء والترقيم فقط.
+- إذا النص لهجة (كويتية أو خليجية أو غيرها): خلّه بنفس اللهجة والكلمات، لكن اكتبه بإملاء "أبيض" واضح قريب من الفصحى: كاف المخاطبة "ك" وليس "ج" أو "چ" (ذوقك، عبايتك)، والكلمات الصعبة الكتابة بأقرب شكل مقروء (ويانا ← ويّانا).
+- نفس المعنى والطول تقريباً، بدون إضافة أو حذف معلومات.
+- فقرة واحدة بجمل قصيرة، فواصل ونقاط فقط، بدون نقاط ثلاث أو أسطر جديدة أو رموز أو إيموجي.
+- الأرقام بالحروف. شكّل فقط الكلمات اللي ممكن تنقرأ غلط (مثل: تميّزك).
+أعد النص فقط بدون أي شرح.`;
+
+export async function speechReady(text: string) {
+  const t = text.trim();
+  if (!t) return t;
+  try {
+    const out = await aiChat({ provider: "claude", model: "claude-haiku-5-5" }, SPEECH_PROMPT, [{ role: "user", content: t }], 1500);
+    return out.trim().slice(0, 2500) || t;
+  } catch (e) { console.error("speechReady", e); return t; }
+}
+
 export async function aiJson<T>(system: string, user: string, maxTokens = 1500, via?: { provider: string; model: string }): Promise<T> {
   const text = await aiChat(via ?? "copy", `${system}\nأجب بـ JSON صالح فقط بدون أي نص آخر.`, [{ role: "user", content: user }], maxTokens);
   const a = text.indexOf("["), o = text.indexOf("{");

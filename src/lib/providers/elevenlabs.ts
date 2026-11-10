@@ -8,8 +8,21 @@ async function check(res: Response) {
   return res;
 }
 
-// Multilingual v2 = the clearest, most stable Arabic (same as the ElevenLabs site for most library voices).
-export const DEFAULT_TTS = "eleven_multilingual_v2";
+// Same as the ElevenLabs site: Eleven v4 with the language fixed to Arabic (fallback: Multilingual v2).
+export const DEFAULT_TTS = "eleven_v4";
+const FALLBACK_TTS = "eleven_multilingual_v2";
+const takesLanguage = (m: string) => /^eleven_(v3|v4|flash_v2_5|turbo_v2_5)/.test(m);
+
+/** Text the voice reads smoothly: one flowing paragraph, pauses as commas, no "…" or stray line breaks. */
+export function speakable(text: string) {
+  return text
+    .replace(/\r/g, "")
+    .replace(/[…]+|\.{3,}/g, "، ")
+    .replace(/\s*\n+\s*/g, (m) => (m.includes("\n\n") ? ". " : "، "))
+    .replace(/([.،!؟?])\s*[،,]\s*/g, "$1 ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 /** Same sliders as the ElevenLabs site (0..1), saved per voice in /admin → content → voices → "settings". */
 export type VoiceSettings = { stability?: number; similarity?: number; style?: number; speed?: number; speaker_boost?: boolean };
@@ -23,21 +36,21 @@ export async function tts(text: string, voiceId: string, model = DEFAULT_TTS, se
   const call = (m: string) => fetch(`${API}/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": key(), "content-type": "application/json" },
-    body: JSON.stringify({ text, model_id: m, ...(voiceSettings(settings) ? { voice_settings: voiceSettings(settings) } : {}) }),
+    body: JSON.stringify({ text: speakable(text), model_id: m, ...(takesLanguage(m) ? { language_code: "ar" } : {}), ...(voiceSettings(settings) ? { voice_settings: voiceSettings(settings) } : {}) }),
   }).then(check);
   // Some voices/plans don't support every model: fall back to the multilingual model.
   try { return (await call(model)).arrayBuffer(); }
-  catch (e) { const alt = model === DEFAULT_TTS ? "eleven_v3" : DEFAULT_TTS; console.error("tts fallback", e); return (await call(alt)).arrayBuffer(); }
+  catch (e) { const alt = model === FALLBACK_TTS ? DEFAULT_TTS : FALLBACK_TTS; console.error("tts fallback", e); return (await call(alt)).arrayBuffer(); }
 }
 
 /** Speech + word timings (seconds), for captions that follow the voice. */
 export async function ttsTimed(text: string, voiceId: string, model = DEFAULT_TTS, settings?: VoiceSettings) {
   const call = (m: string) => fetch(`${API}/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST", headers: { "xi-api-key": key(), "content-type": "application/json" },
-    body: JSON.stringify({ text, model_id: m, ...(voiceSettings(settings) ? { voice_settings: voiceSettings(settings) } : {}) }),
+    body: JSON.stringify({ text: speakable(text), model_id: m, ...(takesLanguage(m) ? { language_code: "ar" } : {}), ...(voiceSettings(settings) ? { voice_settings: voiceSettings(settings) } : {}) }),
   });
   let res = await call(model);
-  if (!res.ok) res = await call(model === DEFAULT_TTS ? "eleven_v3" : DEFAULT_TTS);
+  if (!res.ok) res = await call(model === FALLBACK_TTS ? DEFAULT_TTS : FALLBACK_TTS);
   await check(res);
   const d = (await res.json()) as { audio_base64: string; alignment?: Align; normalized_alignment?: Align };
   const a = d.alignment ?? d.normalized_alignment;

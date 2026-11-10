@@ -137,6 +137,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
     fields: [
       { type: "text", name: "text", label: "النص", required: true, max: 2500, rows: 6 },
       { type: "voice", name: "voice", label: "الصوت" },
+      { type: "toggle", name: "polish", label: "جهّز النص للنطق (خليجي أبيض واضح)", default: true, hint: "شاهين يعدّل الإملاء والوقفات عشان الصوت يطلع طبيعي، بنفس المعنى." },
       { type: "toggle", name: "clone", label: "استخدم صوتي (استنساخ)", default: false, hint: "ارفع تسجيل لصوتك من 30 ثانية إلى دقيقتين." },
       { type: "files", name: "sample", label: "عينة صوتك", accept: "audio", max: 1 },
       { type: "consent", name: "consent", label: "أملك حق استخدام هذا الصوت وأوافق على الشروط.", showIf: { field: "clone", truthy: true } },

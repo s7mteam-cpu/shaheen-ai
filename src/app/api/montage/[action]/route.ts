@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
-import { aiJson } from "@/lib/providers/text";
+import { aiJson, speechReady } from "@/lib/providers/text";
 import { music, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveResult, signedResultUrls } from "@/lib/providers/storage";
 import { config } from "@/lib/tools/run";
@@ -15,7 +15,6 @@ const FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 
 type Body = { jobId?: string; spec?: MontageSpec; instruction?: string; prompt?: string; seconds?: number; text?: string; voice?: string; dialect?: string };
 
-const DIALECTS: Record<string, string> = { kuwaiti: "اللهجة الكويتية", gulf: "اللهجة الخليجية العامة", saudi: "اللهجة السعودية (النجدية)", emirati: "اللهجة الإماراتية", qatari: "اللهجة القطرية", msa: "العربية الفصحى المبسطة", egyptian: "اللهجة المصرية", levantine: "اللهجة الشامية" };
 
 /** Only the parts the customer may change; cuts, words and the source stay as the worker planned them. */
 function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): MontageSpec {
@@ -131,14 +130,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     const denied = await charge();
     if (denied) return denied;
     try {
-      // 1) optional: rewrite in the chosen dialect
-      let say = text;
-      const dialect = DIALECTS[String(body.dialect)];
-      if (dialect) {
-        say = (await aiJson<{ text: string }>(
-          `أنت كاتب تعليق صوتي. حوّل النص إلى ${dialect} بشكل طبيعي وسلس للنطق، بنفس المعنى وتقريباً نفس الطول، بدون إضافة معلومات. أعد JSON: {"text": "..."}`,
-          text, 2000, { provider: "claude", model: "claude-haiku-5-5" })).text?.trim().slice(0, 1500) || text;
-      }
+      // 1) ready for speech: clear "white Gulf" spelling and smooth pauses
+      const say = await speechReady(text);
       // 2) record it with word timings
       const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
       const voices = ((vc?.value as { items?: { id: string; model?: string; settings?: VoiceSettings }[] })?.items ?? []);

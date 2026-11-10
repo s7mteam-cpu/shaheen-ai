@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
-import { aiJson } from "@/lib/providers/text";
+import { aiJson, speechReady } from "@/lib/providers/text";
 import { music, tts } from "@/lib/providers/elevenlabs";
 import { saveResult, signedResultUrls } from "@/lib/providers/storage";
 import { brandHint, config, voiceById } from "@/lib/tools/run";
@@ -120,7 +120,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         const text = String(body.text ?? "").trim().slice(0, 1500);
         if (!text) return NextResponse.json({ error: "اكتب نص التعليق." }, { status: 400 });
         const vv = await voiceById(String(body.voice ?? ""));
-        audio = await tts(text, vv.eleven, vv.model, vv.settings);
+        audio = await tts(await speechReady(text), vv.eleven, vv.model, vv.settings);
       }
       const path = await saveResult(user.id, job.id, audio, "audio/mpeg", "mp3");
       const [url] = await signedResultUrls([path], 60 * 60 * 24 * 7);
