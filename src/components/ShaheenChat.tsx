@@ -12,14 +12,15 @@ export function ShaheenChat({ name }: { name?: string }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const end = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try { const s = sessionStorage.getItem(KEY); if (s) setMsgs(JSON.parse(s)); } catch {}
   }, []);
   useEffect(() => {
     try { sessionStorage.setItem(KEY, JSON.stringify(msgs.slice(-30))); } catch {}
-    end.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll only inside the chat box (never the page), and only while it is open.
+    if (open && list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [msgs, open]);
 
   async function send(e?: React.FormEvent) {
@@ -59,7 +60,7 @@ export function ShaheenChat({ name }: { name?: string }) {
               <button type="button" aria-label="إغلاق" onClick={() => setOpen(false)} className="rounded-lg px-2 text-2xl leading-none hover:bg-white/10">×</button>
             </div>
           </header>
-          <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-4" aria-live="polite">
+          <div ref={list} className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-4" aria-live="polite">
             <div className="max-w-[85%] self-start rounded-2xl rounded-tr-sm bg-white p-3 text-[15px] leading-7 shadow-sm">
               هلا{name ? ` ${name}` : ""} 👋 أنا شاهين. أقدر أساعدك تستخدم الأدوات، أكتب معك وصف أفضل، أو أحل أي مشكلة في حسابك.
             </div>
@@ -70,7 +71,6 @@ export function ShaheenChat({ name }: { name?: string }) {
               <div key={i} className={`max-w-[85%] whitespace-pre-line rounded-2xl p-3 text-[15px] leading-7 ${m.role === "user" ? "self-end rounded-tl-sm bg-navy-800 text-white" : "self-start rounded-tr-sm bg-white shadow-sm"}`}>{m.content}</div>
             ))}
             {busy && <div className="self-start rounded-2xl bg-white px-4 py-3 text-sm text-subtle shadow-sm">شاهين يكتب…</div>}
-            <div ref={end} />
           </div>
           <form onSubmit={send} className="flex items-end gap-2 border-t border-line p-3">
             <label htmlFor="chat-input" className="sr-only">رسالتك</label>
