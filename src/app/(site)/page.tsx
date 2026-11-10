@@ -15,32 +15,32 @@ export default async function Home() {
     <main>
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <Circuit className="pointer-events-none absolute -left-10 top-5 w-[520px] opacity-35" />
-        <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-14 px-6 pb-16 pt-20">
-          <div className="flex min-w-0 flex-[1_1_460px] flex-col gap-6">
-            <span className="inline-flex items-center gap-2 self-start rounded-full border border-[#D3DDEA] bg-tint px-3.5 py-2 text-sm font-semibold text-navy-700">
+        <Circuit className="pointer-events-none absolute -left-10 top-5 hidden w-[520px] opacity-35 md:block" />
+        <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-14 px-6 pb-12 pt-12 md:pb-16 md:pt-20">
+          <div className="flex min-w-0 flex-[1_1_460px] flex-col items-center gap-6 text-center md:items-start md:text-start">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#D3DDEA] bg-tint px-3.5 py-2 text-sm font-semibold text-navy-700">
               <span className="h-2 w-2 rounded-full bg-gold-500" />{c.hero.badge}
             </span>
-            <h1 className="relative isolate text-4xl font-bold leading-tight text-navy-900 md:text-[56px]">
+            <h1 className="relative isolate text-[40px] font-extrabold leading-[1.25] text-navy-900 md:text-[60px]">
               {c.hero.title}{" "}
               <span className="relative whitespace-nowrap text-navy-700">
                 {c.hero.highlight}
                 <span aria-hidden className="absolute inset-x-0 bottom-1 -z-10 h-3 rounded-md bg-gold-500/35" />
               </span>
             </h1>
-            <p className="max-w-xl text-lg leading-8 text-muted">{c.hero.subtitle}</p>
-            <div className="flex flex-wrap gap-3">
+            <p className="max-w-xl text-[19px] font-medium leading-8 text-ink/80 md:text-xl md:leading-9">{c.hero.subtitle}</p>
+            <div className="flex w-full max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
               <a href="#pricing" className="btn btn-primary px-7 py-4 text-[17px]">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
               <a href="#tools" className="btn btn-outline px-6 py-4 text-[17px] font-semibold">{c.hero.cta_secondary}</a>
             </div>
-            <ul className="flex flex-wrap gap-5 text-sm text-muted">
+            <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted md:justify-start">
               {c.hero.points.map((p) => (
                 <li key={p} className="inline-flex items-center gap-1.5"><Icon name="check" size={16} className="text-navy-700" strokeWidth={2.2} />{p}</li>
               ))}
             </ul>
           </div>
 
-          <div className="flex min-w-0 flex-[1_1_420px] justify-center">
+          <div className="hidden min-w-0 flex-[1_1_420px] justify-center md:flex">
             {c.hero.image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={c.hero.image} alt="" className="w-full max-w-[520px] rounded-3xl shadow-[0_30px_60px_-30px_rgba(11,42,74,0.4)]" />
