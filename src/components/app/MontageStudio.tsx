@@ -11,10 +11,11 @@ import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
-import { EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type MontageSpec, type Transition } from "@/remotion/montage";
+import { TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
+import { LogoCropper } from "@/components/app/LogoCropper";
 import { createClient } from "@/lib/supabase/client";
 
 type Track = { name: string; mood?: string; url: string };
@@ -28,7 +29,7 @@ const Card = ({ title, icon, children }: { title: string; icon?: string; childre
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 const styles: [CaptionStyle, string][] = [["karaoke", "كلمة كلمة ملوّنة"], ["box", "داخل صندوق"], ["minimal", "بسيطة"]];
 const positions: [CaptionPos, string][] = [["bottom", "تحت"], ["middle", "بالوسط"], ["top", "فوق"]];
-const transitions: [Transition, string][] = [["none", "بدون"], ["zoom", "زووم سريع"], ["flash", "وميض أبيض"]];
+const transitions: [Transition, string][] = [["none", "بدون"], ["whip", "سحبة سريعة"], ["blur", "تمويه ناعم"], ["zoom", "زووم سريع"], ["flash", "وميض أبيض"]];
 const corners: [Corner, string][] = [["tl", "فوق يسار"], ["tr", "فوق يمين"], ["bl", "تحت يسار"], ["br", "تحت يمين"]];
 const colorLabels = { text: "لون النص", accent: "اللون المميز", bg: "لون البطاقات" } as const;
 
@@ -135,6 +136,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   }
   const removeBroll = (i: number) => setSpec({ ...spec, broll: (spec.broll ?? []).filter((_, j) => j !== i) });
 
+  const [cropFile, setCropFile] = useState<File | null>(null);
   /** The customer's logo, added or replaced right here. */
   async function addLogo(file: File) {
     setUploading(true); setError(null);
@@ -193,13 +195,15 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start">
+    <>
+    {cropFile && <LogoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); addLogo(f); }} />}
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:items-start">
       <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-bold text-navy-900">معاينة مباشرة</h2>
           <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{seconds} ثانية</span>
         </div>
-        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? 380 : "100%" }}>
+        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 11rem) * 0.5625))" : "100%" }}>
           {mounted ? (
             <Player ref={player} component={MontageVideo} inputProps={spec} durationInFrames={totalFrames(spec)} fps={MFPS}
               compositionWidth={width} compositionHeight={height} style={{ width: "100%" }} controls acknowledgeRemotionLicense />
@@ -282,6 +286,15 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           <Sub>الانتقال عند كل قطع</Sub>
           <div className="flex flex-wrap gap-2">{transitions.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.transition ?? "none") === v} onClick={() => setSpec({ ...spec, transition: v })} className="chip">{l}</button>)}</div>
 
+          <Sub>ستايل النصوص على الفيديو</Sub>
+          <div className="flex flex-wrap gap-2">{TITLE_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={spec.titles.length > 0 && spec.titles.every((t) => (t.style ?? "pill") === v)} onClick={() => setSpec({ ...spec, titles: spec.titles.map((t) => ({ ...t, style: v })) })} className="chip">{l}</button>)}</div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3"><span className="font-semibold">حركة سينمائية بطيئة</span>
+              <input type="checkbox" checked={!!spec.drift} onChange={(e) => setSpec({ ...spec, drift: e.target.checked })} className="h-5 w-5" /></label>
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3"><span className="font-semibold">حواف داكنة (فينييت)</span>
+              <input type="checkbox" checked={!!spec.vignette} onChange={(e) => setSpec({ ...spec, vignette: e.target.checked })} className="h-5 w-5" /></label>
+          </div>
+
           <Sub>شعار نشاطك</Sub>
           {spec.logo ? (
             <>
@@ -294,10 +307,10 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                 <button type="button" aria-pressed={!!spec.logo.box} onClick={() => setSpec({ ...spec, logo: { ...spec.logo!, box: spec.logo!.box ?? DEFAULT_LOGO_BOX } })} className="chip">✋ تحريك وتكبير حر</button>
               </div>}
               {spec.logo.on && spec.logo.box && <LogoSize box={spec.logo.box} onChange={(b) => setSpec({ ...spec, logo: { ...spec.logo!, box: b } })} />}
-              <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">تغيير الشعار<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && addLogo(e.target.files[0])} /></label>
+              <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">تغيير الشعار<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} /></label>
             </>
           ) : (
-            <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">⬆️ ارفع شعارك<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && addLogo(e.target.files[0])} /></label>
+            <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">⬆️ ارفع شعارك<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} /></label>
           )}
 
           <Sub>إيموجي</Sub>
@@ -443,5 +456,6 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         </button>
       </div>
     </div>
+    </>
   );
 }

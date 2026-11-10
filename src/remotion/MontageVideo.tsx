@@ -47,16 +47,26 @@ function Footage({ m }: { m: MontageSpec }) {
   if (m.transition === "zoom") {
     for (const c of cutTimes(m)) if (t >= c && t < c + 0.3) scale *= interpolate(t, [c, c + 0.3], [1.14, 1], { easing: ease });
   }
+  let shift = 0, blur = 0;
+  if (m.transition === "whip" || m.transition === "blur") {
+    for (const c of cutTimes(m)) {
+      if (t >= c - 0.12 && t < c + 0.22) {
+        const k = t < c ? interpolate(t, [c - 0.12, c], [0, 1]) : interpolate(t, [c, c + 0.22], [1, 0], { easing: ease });
+        blur = Math.max(blur, k * (m.transition === "whip" ? 14 : 18));
+        if (m.transition === "whip") shift = (t < c ? -1 : 1) * k * 12;
+      }
+    }
+  }
   let off = 0;
   return (
-    <AbsoluteFill style={{ transform: `scale(${scale})`, transformOrigin: "50% 38%", filter: gradeFilter(m) }}>
+    <AbsoluteFill style={{ transform: `translateX(${shift}%) scale(${scale})`, transformOrigin: "50% 38%", filter: [gradeFilter(m), blur ? `blur(${blur}px)` : ""].filter((x) => x && x !== "none").join(" ") || "none" }}>
       {m.segments.map((g, i) => {
         const from = Math.round(off * MFPS);
         const len = Math.max(1, Math.round((g.e - g.s) * MFPS));
         off += g.e - g.s;
         return (
           <Sequence key={i} from={from} durationInFrames={len} premountFor={MFPS}>
-            <SegmentVideo m={m} g={g} />
+            <SegmentVideo m={m} g={g} i={i} />
           </Sequence>
         );
       })}
@@ -135,16 +145,59 @@ function BRollShot({ url, len }: { url: string; len: number }) {
 
 function Titles({ m, u }: { m: MontageSpec; u: number }) {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width } = useVideoConfig();
   const t = frame / MFPS;
   return (
     <>
       {m.titles.map((ti, i) => {
         if (t < ti.at - 0.1 || t > ti.at + ti.dur + 0.4) return null;
-        const p = spring({ frame: frame - Math.round(ti.at * MFPS), fps, config: { damping: 14, mass: 0.7 } });
+        const f0 = Math.round(ti.at * MFPS);
+        const p = spring({ frame: frame - f0, fps, config: { damping: 14, mass: 0.7 } });
         const out = interpolate(t, [ti.at + ti.dur, ti.at + ti.dur + 0.35], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+        const style = ti.style ?? "pill";
+        const centre = ti.pos === "center";
+        const shadow = `0 ${4 * u}px ${24 * u}px rgba(0,0,0,.55)`;
+        if (style === "kinetic") {
+          // word by word pop, the key word in the accent colour
+          const words = ti.text.split(/\s+/);
+          return (
+            <AbsoluteFill key={i} style={{ alignItems: "center", justifyContent: centre ? "center" : "flex-start", paddingTop: centre ? 0 : "16%", opacity: out }}>
+              <div style={{ width: "86%", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `${4 * u}px ${18 * u}px`, direction: "rtl" }}>
+                {words.map((w, k) => {
+                  const q = spring({ frame: frame - f0 - k * 3, fps, config: { damping: 11, mass: 0.5 } });
+                  const hot = !!ti.hl && ti.hl.split(/\s+/).includes(w);
+                  return <span key={k} style={{ fontSize: Math.min(124 * u, (width * 0.86) / Math.max(4, ti.text.length * 0.42)), fontWeight: 800, lineHeight: 1.15, color: hot ? m.colors.accent : m.colors.text, textShadow: shadow, display: "inline-block", opacity: Math.min(1, q), transform: `translateY(${(1 - Math.min(1, q)) * 40 * u}px) scale(${0.7 + 0.3 * Math.min(1.05, q)})` }}>{w}</span>;
+                })}
+              </div>
+              {ti.sub && <div style={{ marginTop: 18 * u, fontSize: 40 * u, fontWeight: 600, color: m.colors.text, opacity: interpolate(frame - f0, [10, 20], [0, 0.9], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }), textShadow: shadow }}>{ti.sub}</div>}
+            </AbsoluteFill>
+          );
+        }
+        if (style === "editorial") {
+          const line = interpolate(frame - f0, [0, 14], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+          return (
+            <AbsoluteFill key={i} style={{ alignItems: "center", justifyContent: centre ? "center" : "flex-start", paddingTop: centre ? 0 : "14%", opacity: out }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 * u, width: "84%", textAlign: "center" }}>
+                {ti.sub && <div style={{ fontSize: 34 * u, fontWeight: 700, letterSpacing: 1, color: m.colors.accent, textShadow: shadow, opacity: line }}>{ti.sub}</div>}
+                <div style={{ fontSize: 86 * u, fontWeight: 800, lineHeight: 1.2, color: m.colors.text, textShadow: shadow, clipPath: `inset(0 0 ${(1 - Math.min(1, p)) * 100}% 0)`, transform: `translateY(${(1 - Math.min(1, p)) * 30 * u}px)` }}>{ti.text}</div>
+                <div style={{ width: 200 * u * line, height: 7 * u, borderRadius: 9, background: m.colors.accent }} />
+              </div>
+            </AbsoluteFill>
+          );
+        }
+        if (style === "lower") {
+          const x = interpolate(frame - f0, [0, 12], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+          return (
+            <AbsoluteFill key={i} style={{ justifyContent: "flex-end", alignItems: "flex-start", padding: `0 ${60 * u}px 30%`, opacity: out }}>
+              <div style={{ transform: `translateX(${x * 130}%)`, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                <div style={{ background: m.colors.accent, color: m.colors.bg, fontSize: 54 * u, fontWeight: 800, padding: `${12 * u}px ${28 * u}px`, borderRadius: `${14 * u}px ${14 * u}px ${14 * u}px 0` }}>{ti.text}</div>
+                {ti.sub && <div style={{ background: "rgba(0,0,0,.72)", color: "#fff", fontSize: 34 * u, fontWeight: 600, padding: `${8 * u}px ${24 * u}px`, borderRadius: `0 0 ${12 * u}px ${12 * u}px` }}>{ti.sub}</div>}
+              </div>
+            </AbsoluteFill>
+          );
+        }
         return (
-          <AbsoluteFill key={i} style={{ alignItems: "center", justifyContent: ti.pos === "center" ? "center" : "flex-start", paddingTop: ti.pos === "center" ? 0 : "13%" }}>
+          <AbsoluteFill key={i} style={{ alignItems: "center", justifyContent: centre ? "center" : "flex-start", paddingTop: centre ? 0 : "13%" }}>
             <div style={{
               maxWidth: "84%", textAlign: "center", padding: `${18 * u}px ${36 * u}px`, borderRadius: 24 * u,
               background: m.colors.accent, color: m.colors.bg, fontSize: 62 * u, fontWeight: 800, lineHeight: 1.3,
@@ -159,11 +212,14 @@ function Titles({ m, u }: { m: MontageSpec; u: number }) {
 }
 
 /** One kept piece of footage; the crop follows the speaker's face when tracking is on. */
-function SegmentVideo({ m, g }: { m: MontageSpec; g: Seg }) {
-  const t = g.s + useCurrentFrame() / MFPS;
+function SegmentVideo({ m, g, i }: { m: MontageSpec; g: Seg; i: number }) {
+  const frame = useCurrentFrame();
+  const t = g.s + frame / MFPS;
   const f = faceAt(m, t);
+  const k = Math.min(1, frame / Math.max(1, (g.e - g.s) * MFPS));
+  const drift = m.drift ? (i % 2 ? 1.07 - 0.07 * k : 1 + 0.07 * k) : 1;
   return (
-    <AbsoluteFill>
+    <AbsoluteFill style={{ transform: drift !== 1 ? `scale(${drift})` : undefined }}>
       <OffthreadVideo src={m.src} trimBefore={Math.round(g.s * MFPS)} trimAfter={Math.max(Math.round(g.s * MFPS) + 1, Math.round(g.e * MFPS))} volume={m.videoVolume ?? 1}
         style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${(f.x * 100).toFixed(1)}% ${(Math.min(0.6, Math.max(0.2, f.y)) * 100).toFixed(1)}%` }} />
     </AbsoluteFill>
@@ -256,6 +312,7 @@ export function MontageVideo(m: MontageSpec) {
       {intro > 0 && <Sequence durationInFrames={intro}><Card title={m.intro.title} subtitle={m.intro.subtitle} m={m} u={u} len={intro} /></Sequence>}
       <Sequence from={intro} durationInFrames={vid}>
         <Footage m={m} />
+        {m.vignette && <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.5) 100%)" }} />}
         {m.vo?.on && m.vo.url && <Audio src={m.vo.url} volume={1} />}
         <Flashes m={m} />
         <BRollLayer m={m} />

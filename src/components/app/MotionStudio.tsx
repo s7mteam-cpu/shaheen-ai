@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MotionVideo } from "@/remotion/MotionVideo";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
+import { LogoCropper } from "@/components/app/LogoCropper";
 import { uploadImage } from "@/components/app/DesignStart";
 import { COLOR_LABELS, FONTS, FPS, dimensions, narration, setText, textFields, type Colors, type MotionSpec } from "@/remotion/spec";
 
@@ -55,6 +56,12 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
   const preview = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  async function uploadLogo(f: File) {
+    setBusy("logo"); setError(null);
+    try { const u = await uploadImage(f); setSpec((p) => ({ ...p, logo: { path: u.path, url: u.preview, on: true, box: p.logo?.box ?? DEFAULT_LOGO_BOX } })); }
+    catch (err) { setError((err as Error).message); } finally { setBusy(null); }
+  }
   useEffect(() => setMounted(true), []);
 
   // Keep the draft between visits.
@@ -113,14 +120,16 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start">
+    <>
+    {cropFile && <LogoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); uploadLogo(f); }} />}
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:items-start">
       {/* Live preview */}
       <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-bold text-navy-900">معاينة مباشرة</h2>
           <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{spec.seconds} ثانية</span>
         </div>
-        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-navy-900 shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? 380 : "100%" }}>
+        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-navy-900 shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 11rem) * 0.5625))" : "100%" }}>
           {mounted ? <Player
             component={MotionVideo}
             inputProps={spec}
@@ -148,12 +157,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
           <div className="flex flex-wrap items-center gap-3">
             {spec.logo?.url && <img src={spec.logo.url} alt="الشعار" className="h-12 max-w-[120px] rounded-lg bg-tint object-contain p-1" />}
             <label className="btn btn-outline cursor-pointer px-4 py-2 text-sm">{spec.logo ? "تغيير الشعار" : "⬆️ ارفع شعارك"}
-              <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={async (e) => {
-                const f = e.target.files?.[0]; if (!f) return;
-                setBusy("logo"); setError(null);
-                try { const u = await uploadImage(f); setSpec((p) => ({ ...p, logo: { path: u.path, url: u.preview, on: true, box: p.logo?.box ?? DEFAULT_LOGO_BOX } })); }
-                catch (err) { setError((err as Error).message); } finally { setBusy(null); }
-              }} /></label>
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} /></label>
             {!spec.logo && kitLogo && <button type="button" onClick={() => setSpec({ ...spec, logo: { ...kitLogo, on: true, box: DEFAULT_LOGO_BOX } })} className="btn btn-outline px-4 py-2 text-sm">✨ استخدم شعار هويتي</button>}
             {spec.logo && <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={spec.logo.on} onChange={(e) => setSpec({ ...spec, logo: { ...spec.logo!, on: e.target.checked } })} className="h-4 w-4 accent-navy-700" />اعرض الشعار</label>}
           </div>
@@ -260,5 +264,6 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
         </button>
       </div>
     </div>
+    </>
   );
 }

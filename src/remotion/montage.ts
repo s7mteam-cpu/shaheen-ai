@@ -3,11 +3,13 @@ import { dimensions, type Aspect } from "./spec";
 
 export type Word = { t: string; s: number; e: number };          // source seconds
 export type Seg = { s: number; e: number };                       // kept source range, in output order
-export type Title = { text: string; at: number; dur: number; pos: "top" | "center" }; // output seconds (video part)
+export type TitleStyle = "kinetic" | "pill" | "lower" | "editorial";
+export type Title = { text: string; at: number; dur: number; pos: "top" | "center"; style?: TitleStyle; hl?: string; sub?: string }; // output seconds (video part)
+export const TITLE_STYLES: [TitleStyle, string][] = [["kinetic", "حركي كبير"], ["editorial", "مجلّة"], ["pill", "شارة ملوّنة"], ["lower", "شريط سفلي"]];
 export type Zoom = { at: number; dur: number; scale: number };    // output seconds (video part)
 export type CaptionStyle = "karaoke" | "box" | "minimal";
 export type CaptionPos = "bottom" | "middle" | "top";
-export type Transition = "none" | "flash" | "zoom";
+export type Transition = "none" | "flash" | "zoom" | "whip" | "blur";
 export type Corner = "tl" | "tr" | "bl" | "br";
 export type Emoji = { e: string; at: number; dur: number }; // output seconds (video part)
 
@@ -41,6 +43,8 @@ export type MontageSpec = {
   autoBright?: number;                                            // brightness fix measured on the footage (1 = none)
   videoVolume?: number;                                           // original sound level 0..1
   vo?: { path: string; url: string; on: boolean; words: Word[]; text?: string; voice?: string } | null; // voice-over (words in output seconds of the video part)
+  drift?: boolean;                                                // slow cinematic push-in on every shot
+  vignette?: boolean;                                             // soft dark edges
 };
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["warm", "دافئ"], ["cinematic", "سينمائي"]];
