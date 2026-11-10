@@ -11,7 +11,7 @@ import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
-import { MFPS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionStyle, type MontageSpec } from "@/remotion/montage";
+import { MFPS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type MontageSpec } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
 
@@ -25,6 +25,7 @@ const Card = ({ title, icon, children }: { title: string; icon?: string; childre
 );
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 const styles: [CaptionStyle, string][] = [["karaoke", "كلمة كلمة ملوّنة"], ["box", "داخل صندوق"], ["minimal", "بسيطة"]];
+const positions: [CaptionPos, string][] = [["bottom", "تحت"], ["middle", "بالوسط"], ["top", "فوق"]];
 const colorLabels = { text: "لون النص", accent: "اللون المميز", bg: "لون البطاقات" } as const;
 
 export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: string; initial: MontageSpec; editCost: number; tracks: Track[] }) {
@@ -127,6 +128,11 @@ export function MontageStudio({ jobId, initial, editCost, tracks }: { jobId: str
             <span className="font-semibold">إظهار الترجمة على الفيديو</span>
             <input type="checkbox" checked={spec.captions.on} onChange={(e) => setSpec({ ...spec, captions: { ...spec.captions, on: e.target.checked } })} className="h-5 w-5" />
           </label>
+          {spec.captions.on && <>
+            <Sub>مكان الترجمة</Sub>
+            <div className="flex flex-wrap gap-2">{positions.map(([p, l]) => <button key={p} type="button" aria-pressed={(spec.captions.pos ?? "bottom") === p} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, pos: p } })} className="chip">{l}</button>)}</div>
+            <Sub>شكل الترجمة</Sub>
+          </>}
           {spec.captions.on && <div className="flex flex-wrap gap-2">{styles.map(([s, l]) => <button key={s} type="button" aria-pressed={spec.captions.style === s} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, style: s } })} className="chip">{l}</button>)}</div>}
         </Card>
 

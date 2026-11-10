@@ -72,7 +72,8 @@ const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال م
  "outro": {"on":true,"title":"","subtitle":""},          // بطاقة ختامية (دعوة للمتابعة/التواصل)
  "colors": {"text":"#FFFFFF","accent":"#hex","bg":"#hex"},
  "font": "Cairo|Tajawal|Almarai|Changa|Amiri",
- "caption_style": "karaoke|box|minimal"
+ "caption_style": "karaoke|box|minimal",
+ "caption_pos": "bottom|middle|top"   // مكان الترجمة، الافتراضي bottom
 }
 القواعد: التزم بالمدة المطلوبة تقريباً. لا تقص جملة من نصها. العناوين من كلام الفيديو نفسه أو تلخيص دقيق له، بدون اختراع معلومات.
 نفّذ وصف العميل بدقة إذا ذكره. حسابات أو أرقام تواصل فقط إذا ذكرها العميل.`;
@@ -175,7 +176,7 @@ async function analyzeMontage(job) {
       src: "", srcPath: path, srcW: meta.width, srcH: meta.height, aspect,
       font: ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(plan?.font) ? plan.font : "Cairo",
       colors: { text: hex(plan?.colors?.text, "#FFFFFF"), accent: hex(plan?.colors?.accent, brandColors[0] ?? "#C9A45C"), bg: hex(plan?.colors?.bg, brandColors[1] ?? "#0B2A4A") },
-      captions: { on: job.input.captions !== false, style: ["karaoke", "box", "minimal"].includes(plan?.caption_style) ? plan.caption_style : "karaoke" },
+      captions: { on: job.input.captions !== false, style: ["karaoke", "box", "minimal"].includes(plan?.caption_style) ? plan.caption_style : "karaoke", pos: ["bottom", "middle", "top"].includes(plan?.caption_pos) ? plan.caption_pos : "bottom" },
       segments, words,
       titles: place(plan?.titles, (x, at) => ({ text: String(x.text ?? "").slice(0, 60), at, dur: clamp(Number(x.dur) || 2.5, 1.2, 5), pos: x.pos === "center" ? "center" : "top" })).filter((x) => x.text),
       zooms: place(plan?.zooms, (x, at) => ({ at, dur: clamp(Number(x.dur) || 2, 0.8, 5), scale: clamp(Number(x.scale) || 1.15, 1.05, 1.3) })),

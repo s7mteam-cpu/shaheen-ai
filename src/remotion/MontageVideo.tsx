@@ -73,7 +73,12 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
   const size = (st === "minimal" ? 52 : 70) * u;
   const appear = interpolate(t, [line[0].s - 0.05, line[0].s + 0.1], [0.85, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
-    <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", paddingBottom: "22%" }}>
+    <AbsoluteFill style={{
+      alignItems: "center",
+      justifyContent: m.captions.pos === "middle" ? "center" : m.captions.pos === "top" ? "flex-start" : "flex-end",
+      paddingBottom: m.captions.pos === "middle" || m.captions.pos === "top" ? 0 : "22%",
+      paddingTop: m.captions.pos === "top" ? "26%" : m.captions.pos === "middle" ? "18%" : 0,
+    }}>
       <div style={{
         display: "flex", flexWrap: "wrap", justifyContent: "center", columnGap: "0.3em", maxWidth: "86%", textAlign: "center",
         fontSize: size, fontWeight: 800, lineHeight: 1.35, transform: `scale(${appear})`,

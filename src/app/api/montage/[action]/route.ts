@@ -22,7 +22,11 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>): MontageSpec {
     ...base,
     font: FONTS.includes(String(s.font)) ? String(s.font) : base.font,
     colors: { text: hex(s.colors?.text, base.colors.text), accent: hex(s.colors?.accent, base.colors.accent), bg: hex(s.colors?.bg, base.colors.bg) },
-    captions: { on: s.captions?.on ?? base.captions.on, style: ["karaoke", "box", "minimal"].includes(String(s.captions?.style)) ? s.captions!.style : base.captions.style },
+    captions: {
+      on: s.captions?.on ?? base.captions.on,
+      style: ["karaoke", "box", "minimal"].includes(String(s.captions?.style)) ? s.captions!.style : base.captions.style,
+      pos: ["bottom", "middle", "top"].includes(String(s.captions?.pos)) ? s.captions!.pos : base.captions.pos ?? "bottom",
+    },
     titles: (Array.isArray(s.titles) ? s.titles : base.titles).slice(0, 15).map((t) => ({
       text: String(t.text ?? "").slice(0, 60), at: clamp(Number(t.at) || 0, 0, Math.max(0, len - 0.5)), dur: clamp(Number(t.dur) || 2.5, 1, 6), pos: t.pos === "center" ? "center" as const : "top" as const,
     })).filter((t) => t.text),
@@ -66,7 +70,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const c = await config("video-editing");
       const via = c.provider === "google" ? { provider: "gemini", model: "gemini-2.5-pro" } : { provider: "claude", model: "claude-sonnet-5-5" };
       const raw = await aiJson<Partial<MontageSpec>>(
-        "أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style}, titles[{text,at,dur,pos}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}. العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: karaoke, box, minimal.",
+        "أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}. العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: karaoke, box, minimal. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top).",
         `مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
         6000, via);
       const spec = sanitize(current, raw);

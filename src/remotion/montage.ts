@@ -6,6 +6,7 @@ export type Seg = { s: number; e: number };                       // kept source
 export type Title = { text: string; at: number; dur: number; pos: "top" | "center" }; // output seconds (video part)
 export type Zoom = { at: number; dur: number; scale: number };    // output seconds (video part)
 export type CaptionStyle = "karaoke" | "box" | "minimal";
+export type CaptionPos = "bottom" | "middle" | "top";
 
 export type MontageSpec = {
   src: string;          // signed URL (refreshed on every load / render)
@@ -15,7 +16,7 @@ export type MontageSpec = {
   aspect: Aspect;
   font: string;
   colors: { text: string; accent: string; bg: string };
-  captions: { on: boolean; style: CaptionStyle };
+  captions: { on: boolean; style: CaptionStyle; pos?: CaptionPos };
   segments: Seg[];
   words: Word[];
   titles: Title[];
