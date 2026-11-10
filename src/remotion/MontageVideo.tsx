@@ -55,7 +55,7 @@ function Footage({ m }: { m: MontageSpec }) {
         const len = Math.max(1, Math.round((g.e - g.s) * MFPS));
         off += g.e - g.s;
         return (
-          <Sequence key={i} from={from} durationInFrames={len} layout="none">
+          <Sequence key={i} from={from} durationInFrames={len} premountFor={MFPS}>
             <SegmentVideo m={m} g={g} />
           </Sequence>
         );
@@ -164,7 +164,7 @@ function SegmentVideo({ m, g }: { m: MontageSpec; g: Seg }) {
   const f = faceAt(m, t);
   return (
     <AbsoluteFill>
-      <OffthreadVideo src={m.src} trimBefore={Math.round(g.s * MFPS)} trimAfter={Math.round(g.e * MFPS) + 1} volume={m.videoVolume ?? 1}
+      <OffthreadVideo src={m.src} trimBefore={Math.round(g.s * MFPS)} trimAfter={Math.max(Math.round(g.s * MFPS) + 1, Math.round(g.e * MFPS))} volume={m.videoVolume ?? 1}
         style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${(f.x * 100).toFixed(1)}% ${(Math.min(0.6, Math.max(0.2, f.y)) * 100).toFixed(1)}%` }} />
     </AbsoluteFill>
   );
@@ -201,7 +201,16 @@ function Emojis({ m, u }: { m: MontageSpec; u: number }) {
 }
 
 function Logo({ m, u }: { m: MontageSpec; u: number }) {
+  const { width: W, height: H } = useVideoConfig();
   if (!m.logo?.on || !m.logo.url) return null;
+  const b = m.logo.box;
+  if (b) {
+    return (
+      <div style={{ position: "absolute", left: b.x * W, top: b.y * H, width: b.w * W, height: b.w * W, transform: "translate(-50%, -50%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Img src={m.logo.url} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: `drop-shadow(0 ${4 * u}px ${12 * u}px rgba(0,0,0,.45))` }} />
+      </div>
+    );
+  }
   const pos = m.logo.pos;
   const side = 60 * u;
   return (

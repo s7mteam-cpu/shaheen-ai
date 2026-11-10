@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { DesignView } from "@/components/app/DesignView";
 import { uploadImage } from "@/components/app/DesignStart";
 import { Progress } from "@/components/app/Progress";
+import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
 import { DIcon, ICONS } from "@/design/icons";
 import {
   DECO_IDS, DECO_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum,
@@ -194,13 +195,14 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] lg:items-start">
       {/* Live preview */}
-      <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24">
+      <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-bold text-navy-900">معاينة مباشرة</h2>
           {spec.slides.length > 1 && <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{cur + 1} / {spec.slides.length}</span>}
         </div>
-        <div className="mx-auto w-full overflow-hidden rounded-2xl shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? 340 : 460 }}>
+        <div className="relative mx-auto w-full overflow-hidden rounded-2xl shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? 340 : 460 }}>
           <DesignView spec={spec} index={cur} />
+          {spec.brand.box && spec.brand.showLogo && spec.brand.logo && <LogoDrag box={spec.brand.box} onChange={(box) => setSpec((p) => ({ ...p, brand: { ...p.brand, box } }))} />}
         </div>
         {spec.slides.length > 1 || max > 1 ? (
           <>
@@ -335,7 +337,9 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
             {spec.brand.logo?.url && (<img src={spec.brand.logo.url} alt="الشعار" className="h-12 max-w-[120px] rounded-lg bg-tint object-contain p-1" />)}
             <label className="btn btn-outline cursor-pointer px-4 py-2 text-sm">{spec.brand.logo ? "تغيير الشعار" : "⬆️ ارفع شعار"}<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => upload(e.target.files?.[0], (logo) => setSpec({ ...spec, brand: { ...spec.brand, logo, showLogo: true } }))} /></label>
             {spec.brand.logo && <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={spec.brand.showLogo} onChange={(e) => setSpec({ ...spec, brand: { ...spec.brand, showLogo: e.target.checked } })} className="h-4 w-4 accent-navy-700" />اعرض الشعار</label>}
+            {spec.brand.logo && spec.brand.showLogo && <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!spec.brand.box} onChange={(e) => setSpec({ ...spec, brand: { ...spec.brand, box: e.target.checked ? DEFAULT_LOGO_BOX : null } })} className="h-4 w-4 accent-navy-700" />تحريك وتكبير حر</label>}
           </div>
+          {spec.brand.box && spec.brand.logo && spec.brand.showLogo && <LogoSize box={spec.brand.box} onChange={(box) => setSpec({ ...spec, brand: { ...spec.brand, box } })} />}
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">اسم النشاط</span><input value={spec.brand.name ?? ""} maxLength={50} onChange={(e) => setSpec({ ...spec, brand: { ...spec.brand, name: e.target.value } })} className="field py-2.5" /></label>
             <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">الحساب أو الرقم</span><input dir="auto" value={spec.brand.handle ?? ""} maxLength={60} onChange={(e) => setSpec({ ...spec, brand: { ...spec.brand, handle: e.target.value } })} className="field py-2.5" /></label>

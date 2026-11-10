@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 import "@fontsource/tajawal/arabic-500.css";
 import "@fontsource/tajawal/arabic-800.css";
 import "@fontsource/almarai/arabic-400.css";
@@ -12,6 +13,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MotionVideo } from "@/remotion/MotionVideo";
 import { Progress } from "@/components/app/Progress";
+import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
+import { uploadImage } from "@/components/app/DesignStart";
 import { COLOR_LABELS, FONTS, FPS, dimensions, narration, setText, textFields, type Colors, type MotionSpec } from "@/remotion/spec";
 
 type Track = { name: string; mood?: string; url: string };
@@ -25,8 +28,8 @@ const Card = ({ title, icon, children }: { title: string; icon?: string; childre
 );
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 
-export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = false }: {
-  jobId: string; initial: MotionSpec; editCost: number; tracks: Track[]; voices: Voice[]; demo?: boolean;
+export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = false, kitLogo }: {
+  jobId: string; initial: MotionSpec; editCost: number; tracks: Track[]; voices: Voice[]; demo?: boolean; kitLogo?: { path: string; url: string } | null;
 }) {
   const [spec, setSpec] = useState<MotionSpec>(initial);
   const [tab, setTab] = useState<"lib" | "ai">(tracks.length ? "lib" : "ai");
@@ -56,7 +59,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
 
   // Keep the draft between visits.
   const key = `motion:${jobId}`;
-  useEffect(() => { try { const s = localStorage.getItem(key); if (s) setSpec(JSON.parse(s)); } catch {} }, [key]);
+  useEffect(() => { try { const s = localStorage.getItem(key); if (s) { const d = JSON.parse(s) as MotionSpec; setSpec(d.logo && kitLogo && d.logo.path === kitLogo.path ? { ...d, logo: { ...d.logo, url: kitLogo.url } } : d); } } catch {} }, [key, kitLogo]);
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(spec)); } catch {} }, [key, spec]);
 
   const { width, height } = dimensions(spec.aspect);
@@ -112,12 +115,12 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start">
       {/* Live preview */}
-      <div className="flex flex-col gap-3 lg:sticky lg:top-24">
+      <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-bold text-navy-900">معاينة مباشرة</h2>
           <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{spec.seconds} ثانية</span>
         </div>
-        <div dir="ltr" className="mx-auto w-full overflow-hidden rounded-3xl bg-navy-900 shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? 380 : "100%" }}>
+        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-navy-900 shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? 380 : "100%" }}>
           {mounted ? <Player
             component={MotionVideo}
             inputProps={spec}
@@ -131,11 +134,33 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
             autoPlay
             acknowledgeRemotionLicense
           /> : <div style={{ aspectRatio: `${width} / ${height}` }} />}
+          {spec.logo?.on && (
+            <div className="pointer-events-none absolute inset-x-0 top-0" style={{ aspectRatio: `${width} / ${height}` }}>
+              <LogoDrag box={spec.logo.box} onChange={(b) => setSpec((p) => (p.logo ? { ...p, logo: { ...p.logo, box: b } } : p))} />
+            </div>
+          )}
         </div>
         <p className="text-center text-[13px] text-subtle">أي تعديل تسويه يبان بالفيديو على طول.</p>
       </div>
 
       <div className="flex min-w-0 flex-col gap-5">
+        <Card title="الشعار" icon="🏷️">
+          <div className="flex flex-wrap items-center gap-3">
+            {spec.logo?.url && <img src={spec.logo.url} alt="الشعار" className="h-12 max-w-[120px] rounded-lg bg-tint object-contain p-1" />}
+            <label className="btn btn-outline cursor-pointer px-4 py-2 text-sm">{spec.logo ? "تغيير الشعار" : "⬆️ ارفع شعارك"}
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={async (e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                setBusy("logo"); setError(null);
+                try { const u = await uploadImage(f); setSpec((p) => ({ ...p, logo: { path: u.path, url: u.preview, on: true, box: p.logo?.box ?? DEFAULT_LOGO_BOX } })); }
+                catch (err) { setError((err as Error).message); } finally { setBusy(null); }
+              }} /></label>
+            {!spec.logo && kitLogo && <button type="button" onClick={() => setSpec({ ...spec, logo: { ...kitLogo, on: true, box: DEFAULT_LOGO_BOX } })} className="btn btn-outline px-4 py-2 text-sm">✨ استخدم شعار هويتي</button>}
+            {spec.logo && <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={spec.logo.on} onChange={(e) => setSpec({ ...spec, logo: { ...spec.logo!, on: e.target.checked } })} className="h-4 w-4 accent-navy-700" />اعرض الشعار</label>}
+          </div>
+          {spec.logo?.on && <LogoSize box={spec.logo.box} onChange={(b) => setSpec({ ...spec, logo: { ...spec.logo!, box: b } })} />}
+          {busy === "logo" && <p className="text-[14px] text-subtle">جاري الرفع…</p>}
+        </Card>
+
         <Card title="تعديلات سريعة" icon="✏️">
           <Sub>الألوان</Sub>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">

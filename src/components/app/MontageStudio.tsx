@@ -14,6 +14,7 @@ import { MontageVideo } from "@/remotion/MontageVideo";
 import { EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
+import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
 import { createClient } from "@/lib/supabase/client";
 
 type Track = { name: string; mood?: string; url: string };
@@ -54,7 +55,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         const d = JSON.parse(s) as MontageSpec;
         const urls = new Map((initial.broll ?? []).map((b) => [b.path, b.url]));
         // links expire: take fresh ones from the server, keep the customer's edits
-        setSpec({ ...d, src: initial.src, logo: d.logo && initial.logo ? { ...d.logo, url: initial.logo.url } : initial.logo, broll: (d.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? b.url })), vo: initial.vo ? { ...initial.vo, on: d.vo?.on ?? initial.vo.on } : null, music: d.music?.path && initial.music?.path === d.music.path ? initial.music : d.music });
+        setSpec({ ...d, src: initial.src, logo: d.logo ? (initial.logo && initial.logo.path === d.logo.path ? { ...d.logo, url: initial.logo.url } : d.logo) : initial.logo, broll: (d.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? b.url })), vo: initial.vo ? { ...initial.vo, on: d.vo?.on ?? initial.vo.on } : null, music: d.music?.path && initial.music?.path === d.music.path ? initial.music : d.music });
       }
     } catch {}
   }, [key, initial.src, initial.logo, initial.broll, initial.music, initial.vo]);
@@ -134,6 +135,21 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   }
   const removeBroll = (i: number) => setSpec({ ...spec, broll: (spec.broll ?? []).filter((_, j) => j !== i) });
 
+  /** The customer's logo, added or replaced right here. */
+  async function addLogo(file: File) {
+    setUploading(true); setError(null);
+    try {
+      const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "image", type: file.type, size: file.size, name: file.name }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      const supabase = createClient();
+      const up = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
+      if (up.error) throw new Error("تعذّر رفع الشعار.");
+      const signed = await supabase.storage.from("uploads").createSignedUrl(d.path, 60 * 60 * 6);
+      setSpec((sp) => ({ ...sp, logo: { path: d.path, url: signed.data?.signedUrl ?? "", on: true, pos: sp.logo?.pos ?? "tr", box: sp.logo?.box ?? DEFAULT_LOGO_BOX } }));
+    } catch (e) { setError((e as Error).message || "تعذّر رفع الشعار."); } finally { setUploading(false); }
+  }
+
   /** Upload a photo and show it at the moment the player is paused on. */
   async function addBroll(file: File) {
     setUploading(true); setError(null);
@@ -178,16 +194,21 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start">
-      <div className="flex flex-col gap-3 lg:sticky lg:top-24">
+      <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-bold text-navy-900">معاينة مباشرة</h2>
           <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{seconds} ثانية</span>
         </div>
-        <div dir="ltr" className="mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? 380 : "100%" }}>
+        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? 380 : "100%" }}>
           {mounted ? (
             <Player ref={player} component={MontageVideo} inputProps={spec} durationInFrames={totalFrames(spec)} fps={MFPS}
               compositionWidth={width} compositionHeight={height} style={{ width: "100%" }} controls acknowledgeRemotionLicense />
           ) : <div style={{ aspectRatio: `${width} / ${height}` }} />}
+          {spec.logo?.on && spec.logo.box && (
+            <div className="pointer-events-none absolute inset-x-0 top-0" style={{ aspectRatio: `${width} / ${height}` }}>
+              <LogoDrag box={spec.logo.box} onChange={(b) => setSpec((p) => (p.logo ? { ...p, logo: { ...p.logo, box: b } } : p))} />
+            </div>
+          )}
         </div>
         <p className="text-center text-[13px] text-subtle">شاهين قصّ الفيديو وحط الهوك والعناوين. عدّل اللي تبيه وشوف التغيير على طول.</p>
       </div>
@@ -268,9 +289,16 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                 <span className="font-semibold">إظهار الشعار بالزاوية</span>
                 <input type="checkbox" checked={spec.logo.on} onChange={(e) => setSpec({ ...spec, logo: { ...spec.logo!, on: e.target.checked } })} className="h-5 w-5" />
               </label>
-              {spec.logo.on && <div className="flex flex-wrap gap-2">{corners.map(([c, l]) => <button key={c} type="button" aria-pressed={spec.logo!.pos === c} onClick={() => setSpec({ ...spec, logo: { ...spec.logo!, pos: c } })} className="chip">{l}</button>)}</div>}
+              {spec.logo.on && <div className="flex flex-wrap gap-2">
+                {corners.map(([c, l]) => <button key={c} type="button" aria-pressed={!spec.logo!.box && spec.logo!.pos === c} onClick={() => setSpec({ ...spec, logo: { ...spec.logo!, pos: c, box: null } })} className="chip">{l}</button>)}
+                <button type="button" aria-pressed={!!spec.logo.box} onClick={() => setSpec({ ...spec, logo: { ...spec.logo!, box: spec.logo!.box ?? DEFAULT_LOGO_BOX } })} className="chip">✋ تحريك وتكبير حر</button>
+              </div>}
+              {spec.logo.on && spec.logo.box && <LogoSize box={spec.logo.box} onChange={(b) => setSpec({ ...spec, logo: { ...spec.logo!, box: b } })} />}
+              <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">تغيير الشعار<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && addLogo(e.target.files[0])} /></label>
             </>
-          ) : <p className="text-[13px] text-subtle">ارفع شعارك من <Link href="/app/brand" className="font-semibold text-navy-700 underline">هويتي التجارية</Link> وبيطلع بالمونتاجات الجاية.</p>}
+          ) : (
+            <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">⬆️ ارفع شعارك<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && addLogo(e.target.files[0])} /></label>
+          )}
 
           <Sub>إيموجي</Sub>
           {(spec.emojis ?? []).length > 0 && (

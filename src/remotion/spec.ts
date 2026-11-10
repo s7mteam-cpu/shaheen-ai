@@ -22,6 +22,7 @@ export type MotionSpec = {
   scenes: Scene[];
   music?: { url: string; name: string } | null;
   voice?: { url: string; text: string } | null;
+  logo?: { path: string; url: string; on: boolean; box: { x: number; y: number; w: number } } | null;
 };
 
 export const FPS = 30;

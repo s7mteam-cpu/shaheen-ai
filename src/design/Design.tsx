@@ -30,7 +30,7 @@ function Photo({ img, style, c }: { img?: DImg | null; style?: React.CSSProperti
 
 function Logo({ c, size = 64, dark = false }: { c: Ctx; size?: number; dark?: boolean }) {
   const b = c.spec.brand;
-  if (b.showLogo && b.logo?.url) return <Img src={b.logo.url} style={{ height: size, maxWidth: size * 3.2, objectFit: "contain", display: "block" }} />;
+  if (b.showLogo && b.logo?.url && !b.box) return <Img src={b.logo.url} style={{ height: size, maxWidth: size * 3.2, objectFit: "contain", display: "block" }} />;
   if (!b.name) return null;
   return (
     <div style={{ width: size, height: size, borderRadius: "50%", background: dark ? c.bg : c.ink, color: dark ? c.ink : c.bg, display: "grid", placeItems: "center", fontSize: size * 0.52, fontWeight: 800, flex: "none" }}>
@@ -41,8 +41,8 @@ function Logo({ c, size = 64, dark = false }: { c: Ctx; size?: number; dark?: bo
 
 function BrandRow({ c, color }: { c: Ctx; color?: string }) {
   const b = c.spec.brand;
-  if (!b.name && !(b.showLogo && b.logo?.url)) return <div />;
-  const hasImg = b.showLogo && !!b.logo?.url;
+  const hasImg = b.showLogo && !!b.logo?.url && !b.box;
+  if (!b.name && !hasImg) return <div />;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 30 * c.k, fontWeight: 800, color: color ?? c.ink }}>
       <Logo c={c} size={hasImg ? 70 * c.k : 58 * c.k} />
@@ -524,6 +524,11 @@ export function DesignSlide({ spec, index }: DesignProps) {
     <div dir="rtl" lang="ar" style={{ position: "relative", width: W, height: H, overflow: "hidden", fontFamily: `"${spec.font}", "Cairo", sans-serif`, background: bg }}>
       {!["cta", "photo", "split", "bento"].includes(s.layout) && <Deco c={c} />}
       <div style={{ position: "absolute", inset: 0 }}>{L(c)}</div>
+      {spec.brand.box && spec.brand.showLogo && spec.brand.logo?.url && (
+        <div style={{ position: "absolute", left: spec.brand.box.x * W, top: spec.brand.box.y * H, width: spec.brand.box.w * W, height: spec.brand.box.w * W, transform: "translate(-50%, -50%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Img src={spec.brand.logo.url} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+        </div>
+      )}
     </div>
   );
 }

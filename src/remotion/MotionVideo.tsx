@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Audio, Easing, Sequence, interpolate, random, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Easing, Sequence, interpolate, random, spring, useCurrentFrame, useVideoConfig, Img } from "remotion";
 import { MIcon } from "./icons";
 import { timeline, type Colors, type MotionSpec, type Scene } from "./spec";
 
@@ -223,6 +223,11 @@ export function MotionVideo(spec: MotionSpec) {
           <SceneView s={scene} x={{ c, u, len, brand: spec.brand, wide: width > height }} />
         </Sequence>
       ))}
+      {spec.logo?.on && spec.logo.url && (
+        <div style={{ position: "absolute", left: spec.logo.box.x * width, top: spec.logo.box.y * height, width: spec.logo.box.w * width, height: spec.logo.box.w * width, transform: "translate(-50%, -50%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Img src={spec.logo.url} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+        </div>
+      )}
       {spec.music?.url && <Audio src={spec.music.url} volume={spec.voice?.url ? 0.12 : 0.8} />}
       {spec.voice?.url && <Audio src={spec.voice.url} />}
     </AbsoluteFill>

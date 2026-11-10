@@ -33,7 +33,7 @@ export type DesignSpec = {
   aspect: DAspect;
   font: string;
   colors: DColors;
-  brand: { name?: string; handle?: string; logo?: DImg | null; showLogo: boolean };
+  brand: { name?: string; handle?: string; logo?: DImg | null; showLogo: boolean; box?: { x: number; y: number; w: number } | null };
   slides: Slide[];
   caption?: string;
   deco?: Deco;
@@ -110,6 +110,14 @@ export function mix(a: string, b: string, t: number) {
   return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
 }
 
+/** Free logo placement (fractions of the frame), or null for the layout's own spot. */
+export const box = (v: unknown) => {
+  const o = v as { x?: unknown; y?: unknown; w?: unknown } | null;
+  const n = (x: unknown, a: number, b: number) => (typeof x === "number" && Number.isFinite(x) ? Math.min(b, Math.max(a, x)) : null);
+  if (!o) return null;
+  const x = n(o.x, 0, 1), y = n(o.y, 0, 1), w = n(o.w, 0.04, 0.8);
+  return x === null || y === null || w === null ? null : { x, y, w };
+};
 const img = (v: unknown): DImg | null => {
   const o = v as DImg | null;
   return o && typeof o.path === "string" && (o.bucket === "uploads" || o.bucket === "results") ? { path: o.path, bucket: o.bucket, url: typeof o.url === "string" ? o.url : "" } : null;
@@ -151,7 +159,7 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
     aspect: (Object.keys(DSIZE) as DAspect[]).includes(raw.aspect as DAspect) ? (raw.aspect as DAspect) : base.aspect,
     font: DFONTS.some((f) => f.id === raw.font) ? (raw.font as string) : "Cairo",
     colors: { bg: hex(c.bg, "#F3ECE2"), ink: hex(c.ink, "#1E1B18"), accent: hex(c.accent, "#B4532F"), soft: hex(c.soft, "#FBF7F1") },
-    brand: { name: opt(b?.name, 50), handle: opt(b?.handle, 60), logo: img(b?.logo), showLogo: b?.showLogo !== false },
+    brand: { name: opt(b?.name, 50), handle: opt(b?.handle, 60), logo: img(b?.logo), showLogo: b?.showLogo !== false, box: box(b?.box) },
     slides: slides.length ? slides : [normaliseSlide({ title: "عنوانك هنا" })],
     caption: typeof raw.caption === "string" ? raw.caption.trim().slice(0, 2200) || undefined : undefined,
     deco: (DECO_IDS as readonly string[]).includes(String(raw.deco)) ? (raw.deco as Deco) : "circles",

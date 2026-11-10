@@ -29,7 +29,7 @@ export type MontageSpec = {
   music?: { url: string; name: string; path?: string } | null;
   // Pro touches (optional so older drafts keep working)
   transition?: Transition;                                       // at every cut / clip change
-  logo?: { path: string; url: string; on: boolean; pos: Corner } | null;
+  logo?: { path: string; url: string; on: boolean; pos: Corner; box?: { x: number; y: number; w: number } | null } | null;
   emojis?: Emoji[];
   sfx?: boolean;                                                  // whoosh on titles/cuts, pop on emojis
   progress?: boolean;                                             // thin progress bar on top
