@@ -163,7 +163,7 @@ const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال م
 {
  "hook": {"s":0,"e":0} أو null   // أقوى جملة قصيرة (2-6 ثواني) تنعرض بالبداية لتشد المشاهد
  "keep": [{"s":0,"e":0}]          // المقاطع اللي تنحفظ بالترتيب الزمني، احذف الأخطاء والتكرار والتأتأة والكلام الضعيف
- "titles": [{"text":"","at":0,"dur":2.5,"pos":"top"}]   // عناوين متحركة قصيرة جداً (2-5 كلمات) عند أهم الأفكار، "at" بتوقيت الفيديو الأصلي
+ "titles": [{"text":"","at":0,"dur":2.5,"pos":"top","style":"kinetic","hl":"","sub":""}]   // نصوص على الفيديو، "at" بتوقيت الفيديو الأصلي. text قصير (2-6 كلمات). style: kinetic (كلمات تنط وحدة ورا وحدة، للهوك والجمل القوية) أو editorial (عنوان أنيق مع سطر صغير sub فوقه وخط ملوّن، للمعلومات) أو lower (شريط جانبي للأسماء والأسعار والأماكن) أو pill (شارة). hl: كلمة أو كلمتين من text تتلوّن باللون المميز. sub: سطر صغير اختياري
  "zooms": [{"at":0,"dur":2,"scale":1.15}]               // تكبير عند الجمل المهمة، scale بين 1.08 و1.25
  "intro": {"on":true,"title":"","subtitle":""},          // بطاقة افتتاحية قصيرة
  "outro": {"on":true,"title":"","subtitle":""},          // بطاقة ختامية (دعوة للمتابعة/التواصل)
@@ -171,7 +171,9 @@ const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال م
  "font": "Cairo|Tajawal|Almarai|Changa|Amiri",
  "caption_style": "karaoke|box|minimal",
  "caption_pos": "bottom|middle|top",  // مكان الترجمة، الافتراضي bottom
- "transition": "none|flash|zoom",     // تأثير عند كل قطع أو انتقال بين اللقطات
+ "transition": "none|flash|zoom|whip|blur",  // انتقال عند كل قطع: whip (سحبة سريعة عصرية) أو blur (تمويه ناعم) أو zoom أو flash
+ "drift": true,                        // حركة تكبير بطيئة سينمائية على كل لقطة (ممتازة للقطات الصامتة والمنتجات)
+ "vignette": false,                    // حواف داكنة خفيفة (للستايل السينمائي والفاخر)
  "broll": [{"i":1,"at":0,"dur":2.5}],  // إذا فيه صور إضافية: رقم الصورة ووقت ظهورها (بتوقيت الفيديو الأصلي) عند الكلام المرتبط فيها، لا تغطي الهوك
  "grade": "none|natural|vivid|warm|cinematic",  // ستايل الألوان المناسب للمحتوى (الأكل: vivid أو warm)
  "original_audio": "keep|low|mute",   // صوت الفيديو الأصلي: keep إذا فيه كلام مهم، low إذا أصوات المكان حلوة، mute إذا ضجيج
@@ -179,7 +181,12 @@ const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال م
  "emojis": [{"e":"🔥","at":0,"dur":1.5}]  // إيموجي قليلة (3-6) عند لحظات مناسبة، "at" بتوقيت الفيديو الأصلي. للمحتوى الديني أو الجاد استخدم إيموجي محترمة قليلة (🤲 💡 ✅) أو لا شيء
 }
 إذا وصلتك صور من الفيديو (مع توقيتها): استخدمها لتفهم المحتوى، واختر أحلى اللقطات وأوضحها، واكتب عناوين تصف اللي يبين بالصورة (مثلاً اسم الطبق أو المنتج) بدون مبالغة.
-إذا ما فيه كلام (مقاطع منتجات أو مطعم أو محل): اختر من كل لقطة أجمل 2-4 ثواني، ونوّع، وخلّ الإيقاع سريع وجذاب، وأضف عناوين قصيرة ودعوة بالنهاية.
+أسلوبك أسلوب مونتير ريلز محترف 2026:
+- أول 1.5 ثانية لازم تشد: أقوى لقطة أو جملة + نص kinetic كبير.
+- الإيقاع: لقطات الكلام تمشي مع الجمل، واللقطات الصامتة 1.5-3 ثواني كل وحدة. لا تكرر نفس اللقطة.
+- النصوص تكون مقروءة ومو زحمة: نص واحد بالشاشة بنفس الوقت، وكل نص يبقى 2-3.5 ثانية.
+- نوّع أساليب النصوص بذكاء (kinetic للهوك، editorial للمعلومات، lower للسعر أو المكان أو الاسم).
+إذا ما فيه كلام ولا تعليق صوتي (مقاطع خام لمنتج أو مطعم أو محل أو مشروع): أنت اللي تحكي القصة بالنصوص. اختر من كل لقطة أجمل 2-3 ثواني، وحط نص على كل لقطة تقريباً بالوسط (pos: center) يشرح أو يسوّق بناءً على وصف العميل واللي يبين بالصور، بتسلسل: خطّاف ← مزايا أو معلومات ← دعوة بالنهاية (مع الحساب إذا موجود). drift: true، وموسيقى مناسبة.
 القواعد: التزم بالمدة المطلوبة تقريباً. لا تقص جملة من نصها. العناوين من كلام الفيديو نفسه أو تلخيص دقيق له، بدون اختراع معلومات.
 نفّذ وصف العميل بدقة إذا ذكره. حسابات أو أرقام تواصل فقط إذا ذكرها العميل.`;
 
@@ -320,6 +327,7 @@ async function analyzeMontage(job) {
     await setProgress(job.id, 60);
     const voLines = vo ? sentences(vo.words).map((x) => `[${x.s.toFixed(1)}-${x.e.toFixed(1)}] ${x.text}`).join("\n") : "";
 
+    const cards = job.input.cards === true;
     let plan = null;
     try {
       plan = await claudePlan(
@@ -329,6 +337,7 @@ async function analyzeMontage(job) {
         (brollPaths.length ? `صور إضافية متاحة للعرض فوق الكلام: ${brollPaths.length} (مرقمة من 1). وزّعها على لحظات مناسبة.\n` : "") +
         `اسم النشاط: ${kit?.business_name || "غير محدد"}${brandColors.length ? `، ألوان الهوية: ${brandColors.join(", ")}` : ""}${kit?.handle ? `، الحساب/التواصل: ${kit.handle}` : ""}\n` +
         `اللقطات بالفيديو (بالثواني): ${clipRanges.map((c, i) => `لقطة ${i + 1}: ${c.s}-${c.e}`).join("، ")}\n` +
+        (cards ? "" : "مهم: العميل ما يبي بطاقات بخلفية من عندك: intro.on و outro.on = false. الدعوة بالنهاية تكون نص فوق آخر لقطة.\n") +
         `${speech ? "" : "تنبيه: ما فيه كلام واضح بالفيديو، اعتمد على الصور.\n"}` +
         (vo ? `\nمهم: فيه تعليق صوتي مدته ${vo.duration.toFixed(1)} ثانية بيغطي الفيديو كامل (التوقيت هنا بتوقيت الفيديو النهائي):\n${voLines}\n` +
           `اختر "keep" بالترتيب اللي يطابق كل جملة باللقطة المناسبة لها، ومجموع مددها ≈ ${vo.duration.toFixed(1)} ثانية. ` +
@@ -391,12 +400,18 @@ async function analyzeMontage(job) {
         : { text: hex(plan?.colors?.text, "#FFFFFF"), accent: hex(plan?.colors?.accent, "#C9A45C"), bg: hex(plan?.colors?.bg, "#0B2A4A") },
       captions: { on: job.input.captions !== false, style: ["karaoke", "box", "minimal"].includes(plan?.caption_style) ? plan.caption_style : "karaoke", pos: ["bottom", "middle", "top"].includes(plan?.caption_pos) ? plan.caption_pos : "bottom" },
       segments, words,
-      titles: place(plan?.titles, (x, at) => ({ text: String(x.text ?? "").slice(0, 60), at, dur: clamp(Number(x.dur) || 2.5, 1.2, 5), pos: x.pos === "center" ? "center" : "top" })).filter((x) => x.text),
+      titles: place(plan?.titles, (x, at) => ({
+        text: String(x.text ?? "").slice(0, 60), at, dur: clamp(Number(x.dur) || 2.5, 1.2, 5), pos: x.pos === "center" || (!speech && !vo) ? "center" : "top",
+        style: ["kinetic", "editorial", "lower", "pill"].includes(x.style) ? x.style : "kinetic",
+        ...(x.hl ? { hl: String(x.hl).slice(0, 30) } : {}), ...(x.sub ? { sub: String(x.sub).slice(0, 50) } : {}),
+      })).filter((x) => x.text).sort((a, b) => a.at - b.at).filter((x, i, all) => i === 0 || x.at >= all[i - 1].at + 1.2),
+      drift: typeof plan?.drift === "boolean" ? plan.drift : !speech,
+      vignette: !!plan?.vignette || plan?.grade === "cinematic",
       zooms: place(plan?.zooms, (x, at) => ({ at, dur: clamp(Number(x.dur) || 2, 0.8, 5), scale: clamp(Number(x.scale) || 1.15, 1.05, 1.3) })),
-      intro: { on: !!plan?.intro?.on, title: String(plan?.intro?.title || kit?.business_name || "").slice(0, 60), subtitle: String(plan?.intro?.subtitle ?? "").slice(0, 60) },
-      outro: { on: !!plan?.outro?.on || (!speech && !!kit), title: String(plan?.outro?.title || "تابعنا للمزيد").slice(0, 60), subtitle: String(plan?.outro?.subtitle || kit?.handle || "").slice(0, 60) },
+      intro: { on: cards && !!plan?.intro?.on, title: String(plan?.intro?.title || kit?.business_name || "").slice(0, 60), subtitle: String(plan?.intro?.subtitle ?? "").slice(0, 60) },
+      outro: { on: cards && (!!plan?.outro?.on || (!speech && !!kit)), title: String(plan?.outro?.title || "تابعنا للمزيد").slice(0, 60), subtitle: String(plan?.outro?.subtitle || kit?.handle || "").slice(0, 60) },
       music: null,
-      transition: ["none", "flash", "zoom"].includes(plan?.transition) ? plan.transition : local.length > 1 ? "zoom" : "none",
+      transition: ["none", "flash", "zoom", "whip", "blur"].includes(plan?.transition) ? plan.transition : local.length > 1 ? "whip" : "none",
       logo: kit?.logo_url ? { path: kit.logo_url, url: "", on: true, pos: "tl" } : null,
       face, track: face.length >= 3 && meta.width > meta.height * 1.05 && aspect !== "16:9",
       grade: ["none", "natural", "vivid", "warm", "cinematic"].includes(plan?.grade) ? plan.grade : "natural",
@@ -416,6 +431,11 @@ async function analyzeMontage(job) {
     brollPaths.forEach((_, i) => { if (!used.has(i)) placedB.push({ i, at: hookLen + ((i + 1) * (total - hookLen)) / (brollPaths.length + 1), dur: 2.5 }); });
     spec.broll = placedB.filter((x) => x.at < total - 1).map((x) => ({ path: brollPaths[x.i], url: "", at: +x.at.toFixed(2), dur: x.dur })).sort((a, b) => a.at - b.at);
     if (spec.intro.on && !spec.intro.title) spec.intro.on = false;
+    // No cards: the closing call-to-action goes on the last shot instead (unless the AI already wrote one there).
+    if (!cards && total > 4 && !spec.titles.some((x) => x.at >= total - 3.5)) {
+      const cta = String(plan?.outro?.title || "تابعنا للمزيد").slice(0, 40), sub = String(plan?.outro?.subtitle || kit?.handle || "").slice(0, 50);
+      spec.titles.push({ text: cta, at: +(total - 3).toFixed(2), dur: 2.8, pos: "center", style: "editorial", ...(sub ? { sub } : {}) });
+    }
 
     if (!speech || plan?.music_prompt) {
       try {
