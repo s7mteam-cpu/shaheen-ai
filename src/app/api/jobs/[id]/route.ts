@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { saveFromUrl, signedResultUrls } from "@/lib/providers/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { veoCheck } from "@/lib/providers/google";
+import { omniCheck, veoCheck } from "@/lib/providers/google";
 import { failJob, finishJob } from "@/lib/server/jobs";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -16,9 +16,10 @@ export async function GET(_: Request, { params }: Ctx) {
   if (!job) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
 
   // Google Veo has no webhook: check the operation while the user waits.
-  if (job.status === "running" && job.provider_request_id?.startsWith("google:")) {
+  if (job.status === "running" && (job.provider_request_id?.startsWith("google:") || job.provider_request_id?.startsWith("gomni:"))) {
     try {
-      const done = await veoCheck(job.provider_request_id.slice(7));
+      const rid = job.provider_request_id;
+      const done = rid.startsWith("gomni:") ? await omniCheck(rid.slice(6)) : await veoCheck(rid.slice(7));
       if (done) {
         const saved = await saveFromUrl(job.user_id, job.id, done.url);
         await finishJob(job.id, [{ path: saved.path, type: saved.type.startsWith("video") ? saved.type : "video/mp4" }]);

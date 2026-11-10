@@ -7,6 +7,7 @@ import { MotionStudio } from "@/components/app/MotionStudio";
 import { MontageStudio } from "@/components/app/MontageStudio";
 import { DesignStart } from "@/components/app/DesignStart";
 import { DesignStudio } from "@/components/app/DesignStudio";
+import { ReopenCard } from "@/components/app/ReopenCard";
 import { DESIGN_TOOLS, designImages, withUrls, type DesignSpec } from "@/design/spec";
 import { signedResultUrls } from "@/lib/providers/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -62,6 +63,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
       const logo = spec.logo?.path ? { ...spec.logo, url: (await admin.storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" } : spec.logo ?? null;
       return <MotionStudio jobId={data.id} initial={{ ...spec, logo }} editCost={tool.edit_cost ?? 3} tracks={tracks} voices={content.voices.items} kitLogo={kitLogo} />;
     }
+    if (data && data.status === "done" && spec) return await reopen(data.id, "motion-video", tool);
     if (data && data.status !== "draft") {
       return <p className="card p-6 text-center">هذا الفيديو انرسل للتصدير، تلقاه في <Link href="/app/works" className="font-semibold text-navy-700 underline">أعمالي</Link>.</p>;
     }
@@ -75,6 +77,7 @@ async function montage(jobId: string, tool: ToolRow, content: Content) {
   const supabase = await createClient();
   const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
   const spec = (data?.input as { spec?: MontageSpec } | null)?.spec;
+  if (data?.status === "done" && spec?.segments) return await reopen(data.id, "video-editing", tool);
   if (!data || data.status !== "draft" || !spec) return null;
   const { data: signed } = await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6);
   if (!signed?.signedUrl) return <p className="card p-6 text-center">ما لقينا الفيديو الأصلي. ارفعه مرة ثانية.</p>;
@@ -119,4 +122,12 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number)
   }
   const { data: kitInd } = await supabase.from("brand_kits").select("industry").maybeSingle();
   return <DesignStart toolId={tool.id} cost={tool.credit_cost} balance={balance} industry={(kitInd?.industry as string | null) ?? null} />;
+}
+
+/** A finished studio video: watch / download, or reopen it for more edits (costs one edit). */
+async function reopen(jobId: string, toolId: string, tool: ToolRow) {
+  const { data } = await (await createClient()).from("jobs").select("output").eq("id", jobId).single();
+  const path = (data?.output as { files?: { path: string }[] } | null)?.files?.[0]?.path;
+  const [url] = path ? await signedResultUrls([path]) : [];
+  return <ReopenCard jobId={jobId} url={url} cost={tool.edit_cost ?? 3} toolId={toolId} />;
 }
