@@ -1,4 +1,4 @@
-import React from "react";
+import React, { createContext, useContext } from "react";
 import {
   Award, Baby, BookOpen, Brush, Building2, Cake, Calendar, Camera, Car, ChartColumn, Check, ChefHat, Clock, Coffee, Crown,
   Droplet, Dumbbell, Flame, Flower2, Gem, Gift, Globe, GraduationCap, Headset, Heart, House, Image, Laptop, Leaf, Lightbulb,
@@ -28,7 +28,25 @@ export const ICONS: Record<IconId, { C: LucideIcon; label: string }> = {
   wallet: { C: Wallet, label: "محفظة" }, headset: { C: Headset, label: "دعم" },
 };
 
+/** Colourful, "real" icons: the same ids drawn as colour emoji. */
+export const EMOJI: Record<IconId, string> = {
+  check: "✅", star: "⭐", heart: "❤️", sparkles: "✨", zap: "⚡", clock: "⏰", calendar: "📅", "map-pin": "📍", phone: "📞", message: "💬",
+  gift: "🎁", bag: "🛍️", cart: "🛒", tag: "🏷️", percent: "💯", trending: "📈", chart: "📊", shield: "🛡️", award: "🏅", trophy: "🏆",
+  users: "👥", user: "👤", graduation: "🎓", book: "📚", lightbulb: "💡", target: "🎯", rocket: "🚀", camera: "📸", image: "🖼️", video: "🎬",
+  mic: "🎤", music: "🎵", coffee: "☕", utensils: "🍽️", chef: "👨‍🍳", pizza: "🍕", cake: "🍰", leaf: "🌿", sun: "☀️", moon: "🌙",
+  droplet: "💧", flame: "🔥", home: "🏠", building: "🏢", car: "🚗", plane: "✈️", truck: "🚚", scissors: "✂️", shirt: "👗", gem: "💎",
+  crown: "👑", smile: "😊", stethoscope: "🩺", pill: "💊", dumbbell: "🏋️", palette: "🎨", brush: "💅", laptop: "💻", "phone-mobile": "📱", globe: "🌐",
+  wifi: "📶", baby: "👶", paw: "🐾", flower: "🌸", wallet: "👛", headset: "🎧",
+};
+export type IconStyle = "line" | "duo" | "emoji";
+export const ICON_STYLES: [IconStyle, string][] = [["line", "خطّية"], ["duo", "معبّاة"], ["emoji", "ملوّنة طبيعية"]];
+export const IconStyleContext = createContext<IconStyle>("line");
+export const EMOJI_FONT = `"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+
 export function DIcon({ name, size, color, stroke = 1.8 }: { name?: string; size: number; color: string; stroke?: number }) {
-  const C = (ICONS[name as IconId] ?? ICONS.sparkles).C;
-  return <C size={size} color={color} strokeWidth={stroke} absoluteStrokeWidth={false} style={{ flex: "none" }} />;
+  const style = useContext(IconStyleContext);
+  const id = (name && name in ICONS ? name : "sparkles") as IconId;
+  if (style === "emoji") return <span style={{ fontSize: size * 0.92, lineHeight: 1, fontFamily: EMOJI_FONT, flex: "none", display: "inline-block", width: size, textAlign: "center" }}>{EMOJI[id]}</span>;
+  const C = ICONS[id].C;
+  return <C size={size} color={color} strokeWidth={stroke} absoluteStrokeWidth={false} fill={style === "duo" ? color : "none"} fillOpacity={style === "duo" ? 0.22 : undefined} style={{ flex: "none" }} />;
 }

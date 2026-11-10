@@ -37,6 +37,7 @@ export type DesignSpec = {
   slides: Slide[];
   caption?: string;
   deco?: Deco;
+  icons?: "line" | "duo" | "emoji";
 };
 export const DECO_IDS = ["none", "circles", "grid", "dots", "blob", "arc", "lines", "corner"] as const;
 export type Deco = (typeof DECO_IDS)[number];
@@ -163,6 +164,7 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
     slides: slides.length ? slides : [normaliseSlide({ title: "عنوانك هنا" })],
     caption: typeof raw.caption === "string" ? raw.caption.trim().slice(0, 2200) || undefined : undefined,
     deco: (DECO_IDS as readonly string[]).includes(String(raw.deco)) ? (raw.deco as Deco) : "circles",
+    icons: raw.icons === "duo" || raw.icons === "emoji" ? raw.icons : "line",
   };
 }
 

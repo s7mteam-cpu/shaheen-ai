@@ -1,7 +1,7 @@
 import React from "react";
 import { Img } from "remotion";
 import { ArrowLeft, ChevronLeft, Quote } from "lucide-react";
-import { DIcon } from "./icons";
+import { DIcon, IconStyleContext } from "./icons";
 import { DSIZE, mix, onColor, type DImg, type DItem, type DesignSpec, type Slide } from "./spec";
 
 /** One slide of a post / carousel / ad, drawn at full size (1080 wide). Used by the studio preview and the worker. */
@@ -521,6 +521,7 @@ export function DesignSlide({ spec, index }: DesignProps) {
   };
   const L = RENDER[s.layout] ?? Classic;
   return (
+    <IconStyleContext.Provider value={spec.icons ?? "line"}>
     <div dir="rtl" lang="ar" style={{ position: "relative", width: W, height: H, overflow: "hidden", fontFamily: `"${spec.font}", "Cairo", sans-serif`, background: bg }}>
       {!["cta", "photo", "split", "bento"].includes(s.layout) && <Deco c={c} />}
       <div style={{ position: "absolute", inset: 0 }}>{L(c)}</div>
@@ -530,6 +531,7 @@ export function DesignSlide({ spec, index }: DesignProps) {
         </div>
       )}
     </div>
+    </IconStyleContext.Provider>
   );
 }
 

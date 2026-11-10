@@ -15,7 +15,7 @@ import { uploadImage } from "@/components/app/DesignStart";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
 import { LogoCropper } from "@/components/app/LogoCropper";
-import { DIcon, ICONS } from "@/design/icons";
+import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
 import {
   DECO_IDS, DECO_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum,
   type DAspect, type DColors, type DImg, type DItem, type DesignSpec, type LayoutId, type Slide,
@@ -238,6 +238,10 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           <Sub>زخرفة الخلفية</Sub>
           <div className="flex flex-wrap gap-2">
             {DECO_IDS.map((id) => <button key={id} type="button" aria-pressed={(spec.deco ?? "circles") === id} onClick={() => setSpec({ ...spec, deco: id })} className="chip">{DECO_LABELS[id]}</button>)}
+          </div>
+          <Sub>أسلوب الأيقونات</Sub>
+          <div className="flex flex-wrap gap-2">
+            {ICON_STYLES.map(([id, l]) => <button key={id} type="button" aria-pressed={(spec.icons ?? "line") === id} onClick={() => setSpec({ ...spec, icons: id })} className="chip">{l}</button>)}
           </div>
           <Sub>الخط</Sub>
           <div className="flex flex-wrap gap-2">
