@@ -190,7 +190,7 @@ async function recoverStale(minutes) {
     }
   }
 }
-await recoverStale(0); // one worker: anything "running" at start-up was interrupted
+await recoverStale(3); // interrupted jobs stop updating; a job another instance is still rendering keeps updated_at fresh
 setInterval(() => recoverStale(15).catch(() => {}), 60_000);
 for (;;) {
   const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input").in("tool_id", ["video-editing", "motion-video"]).eq("status", "queued").order("created_at").limit(1);
