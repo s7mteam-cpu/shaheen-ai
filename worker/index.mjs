@@ -86,7 +86,7 @@ async function brightness(video) {
 async function makeMusic(prompt, seconds) {
   const res = await fetch("https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128", {
     method: "POST", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "", "content-type": "application/json" },
-    body: JSON.stringify({ prompt: `Instrumental only, no vocals. ${prompt}`, music_length_ms: Math.round(Math.min(120, Math.max(10, seconds)) * 1000) }),
+    body: JSON.stringify({ prompt: /hum|همهم|a cappella|vocal/i.test(prompt) ? `Wordless soft vocal humming only, no lyrics, no instruments, no drums. ${prompt}` : `Instrumental only, no vocals. ${prompt}`, music_length_ms: Math.round(Math.min(120, Math.max(10, seconds)) * 1000) }),
   });
   if (!res.ok) throw new Error(`music ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
@@ -147,7 +147,7 @@ const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال م
  "broll": [{"i":1,"at":0,"dur":2.5}],  // إذا فيه صور إضافية: رقم الصورة ووقت ظهورها (بتوقيت الفيديو الأصلي) عند الكلام المرتبط فيها، لا تغطي الهوك
  "grade": "none|natural|vivid|warm|cinematic",  // ستايل الألوان المناسب للمحتوى (الأكل: vivid أو warm)
  "original_audio": "keep|low|mute",   // صوت الفيديو الأصلي: keep إذا فيه كلام مهم، low إذا أصوات المكان حلوة، mute إذا ضجيج
- "music_prompt": "",                  // إذا ما فيه كلام: وصف إنجليزي قصير لموسيقى خلفية مناسبة، وإلا ""
+ "music_prompt": "",                  // إذا ما فيه كلام أو فيه تعليق صوتي: وصف إنجليزي قصير لموسيقى خلفية مناسبة (إذا طلب العميل همهمة اكتب: soft female vocal humming)، وإلا ""
  "emojis": [{"e":"🔥","at":0,"dur":1.5}]  // إيموجي قليلة (3-6) عند لحظات مناسبة، "at" بتوقيت الفيديو الأصلي. للمحتوى الديني أو الجاد استخدم إيموجي محترمة قليلة (🤲 💡 ✅) أو لا شيء
 }
 إذا وصلتك صور من الفيديو (مع توقيتها): استخدمها لتفهم المحتوى، واختر أحلى اللقطات وأوضحها، واكتب عناوين تصف اللي يبين بالصورة (مثلاً اسم الطبق أو المنتج) بدون مبالغة.
@@ -370,7 +370,7 @@ async function analyzeMontage(job) {
       grade: ["none", "natural", "vivid", "warm", "cinematic"].includes(plan?.grade) ? plan.grade : "natural",
       autoBright: light < 60 ? 1.22 : light < 85 ? 1.12 : 1,
       videoVolume: vo ? (speech ? 0.12 : 0.2) : plan?.original_audio === "mute" ? 0 : plan?.original_audio === "low" || !speech ? 0.25 : 1,
-      vo: vo ? { path: vo.path, url: "", on: true, words: vo.words } : null,
+      vo: vo ? { path: vo.path, url: "", on: true, words: vo.words, text: vo.text, voice: job.input.vo_voice ?? "" } : null,
       emojis: place(plan?.emojis, (x, at) => ({ e: String(x.e ?? "").slice(0, 4), at, dur: clamp(Number(x.dur) || 1.5, 0.8, 3) })).filter((x) => x.e).slice(0, 8),
       sfx: true,
       progress: true,

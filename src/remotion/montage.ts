@@ -40,7 +40,7 @@ export type MontageSpec = {
   grade?: Grade;                                                  // colour look
   autoBright?: number;                                            // brightness fix measured on the footage (1 = none)
   videoVolume?: number;                                           // original sound level 0..1
-  vo?: { path: string; url: string; on: boolean; words: Word[] } | null; // voice-over (words in output seconds of the video part)
+  vo?: { path: string; url: string; on: boolean; words: Word[]; text?: string; voice?: string } | null; // voice-over (words in output seconds of the video part)
 };
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["warm", "دافئ"], ["cinematic", "سينمائي"]];

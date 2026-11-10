@@ -33,7 +33,9 @@ const colorLabels = { text: "لون النص", accent: "اللون المميز"
 
 type Kit = { colors: string[]; font: string | null; handle: string | null; name: string | null } | null;
 
-export function MontageStudio({ jobId, initial, editCost, tracks, kit = null }: { jobId: string; initial: MontageSpec; editCost: number; tracks: Track[]; kit?: Kit }) {
+const DIALECTS: [string, string][] = [["asis", "مثل ما كتبت"], ["kuwaiti", "كويتي"], ["gulf", "خليجي"], ["saudi", "سعودي"], ["emirati", "إماراتي"], ["qatari", "قطري"], ["msa", "فصحى"], ["egyptian", "مصري"], ["levantine", "شامي"]];
+
+export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, voices = [] }: { jobId: string; initial: MontageSpec; editCost: number; tracks: Track[]; kit?: Kit; voices?: { id: string; name: string; note?: string }[] }) {
   const key = `montage:${jobId}`;
   const [spec, setSpec] = useState<MontageSpec>(initial);
   const [mounted, setMounted] = useState(false);
@@ -61,6 +63,9 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null }: 
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify({ ...spec, src: "" })); } catch {} }, [key, spec]);
   const [lang, setLang] = useState(initial.subs2?.lang ?? "en");
   const [uploading, setUploading] = useState(false);
+  const [voText, setVoText] = useState(initial.vo?.text ?? "");
+  const [voVoice, setVoVoice] = useState(initial.vo?.voice || voices[0]?.id || "");
+  const [dialect, setDialect] = useState("asis");
 
   useEffect(() => {
     if (!sent || render.status === "done" || render.status === "failed") return;
@@ -287,6 +292,28 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null }: 
             {([[1, "كامل"], [0.25, "منخفض"], [0, "صامت"]] as const).map(([v, l]) => <button key={l} type="button" aria-pressed={Math.abs((spec.videoVolume ?? 1) - v) < 0.14} onClick={() => setSpec({ ...spec, videoVolume: v })} className="chip">{l}</button>)}
           </div>
           {kit && <button type="button" onClick={applyBrand} className="btn border border-gold-500 bg-gold-500/10 py-2.5 text-[14px] font-semibold text-navy-900">🏷️ طبّق هويتي التجارية (الألوان، الخط، الشعار، الحساب)</button>}
+        </Card>
+
+        <Card title="التعليق الصوتي" icon="🎙️">
+          <p className="text-[13px] text-subtle">{spec.vo ? "عدّل الكلام، أو غيّر الصوت واللهجة، وأعد التسجيل. الفيديو والترجمة بيتظبطون على الصوت الجديد." : "أضف تعليق صوتي فوق الفيديو: اكتب الكلام واختر الصوت."}</p>
+          <textarea value={voText} onChange={(e) => setVoText(e.target.value)} rows={5} maxLength={1500} className="field" placeholder="اكتب الكلام اللي تبي ينقال…" />
+          {voices.length > 0 && (
+            <label className="flex flex-col gap-1"><span className="text-[12px] text-subtle">الصوت</span>
+              <select value={voVoice} onChange={(e) => setVoVoice(e.target.value)} className="field">{voices.map((v) => <option key={v.id} value={v.id}>{v.name}{v.note ? ` · ${v.note}` : ""}</option>)}</select></label>
+          )}
+          <Sub>اللهجة</Sub>
+          <div className="flex flex-wrap gap-2">{DIALECTS.map(([d, l]) => <button key={d} type="button" aria-pressed={dialect === d} onClick={() => setDialect(d)} className="chip">{l}</button>)}</div>
+          {dialect !== "asis" && <p className="text-[12px] text-subtle">شاهين بيحوّل كلامك لهذي اللهجة قبل التسجيل.</p>}
+          <button type="button" disabled={!voText.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
+            onClick={async () => {
+              const d = await call<{ spec: MontageSpec; url: string; text: string }>("voice", { spec: { ...spec, src: "", words: [], face: [] }, text: voText, voice: voVoice, dialect });
+              if (d) {
+                setSpec((sp) => ({ ...sp, segments: d.spec.segments, videoVolume: d.spec.videoVolume, vo: { ...d.spec.vo!, url: d.url } }));
+                setVoText(d.text); setDialect("asis");
+              }
+            }}>
+            {busy === "voice" ? "جاري التسجيل…" : `${spec.vo ? "🔁 أعد تسجيل الصوت" : "🎙️ سجّل التعليق"} (${editCost} ريشة)`}
+          </button>
         </Card>
 
         <Card title="صور إضافية فوق الكلام" icon="🖼️">

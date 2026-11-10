@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson } from "@/lib/providers/text";
-import { music } from "@/lib/providers/elevenlabs";
+import { music, ttsTimed } from "@/lib/providers/elevenlabs";
 import { saveResult, signedResultUrls } from "@/lib/providers/storage";
 import { config } from "@/lib/tools/run";
 import { captionLines, videoSeconds, type MontageSpec } from "@/remotion/montage";
@@ -13,7 +13,9 @@ const hex = (v: unknown, d: string) => (typeof v === "string" && /^#[0-9a-f]{6}$
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 
-type Body = { jobId?: string; spec?: MontageSpec; instruction?: string; prompt?: string; seconds?: number };
+type Body = { jobId?: string; spec?: MontageSpec; instruction?: string; prompt?: string; seconds?: number; text?: string; voice?: string; dialect?: string };
+
+const DIALECTS: Record<string, string> = { kuwaiti: "اللهجة الكويتية", gulf: "اللهجة الخليجية العامة", saudi: "اللهجة السعودية (النجدية)", emirati: "اللهجة الإماراتية", qatari: "اللهجة القطرية", msa: "العربية الفصحى المبسطة", egyptian: "اللهجة المصرية", levantine: "اللهجة الشامية" };
 
 /** Only the parts the customer may change; cuts, words and the source stay as the worker planned them. */
 function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): MontageSpec {
@@ -123,12 +125,56 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     }
   }
 
+  if (action === "voice") {
+    const text = String(body.text ?? "").trim().slice(0, 1500);
+    if (!text || !body.spec) return NextResponse.json({ error: "اكتب نص التعليق." }, { status: 400 });
+    const denied = await charge();
+    if (denied) return denied;
+    try {
+      // 1) optional: rewrite in the chosen dialect
+      let say = text;
+      const dialect = DIALECTS[String(body.dialect)];
+      if (dialect) {
+        say = (await aiJson<{ text: string }>(
+          `أنت كاتب تعليق صوتي. حوّل النص إلى ${dialect} بشكل طبيعي وسلس للنطق، بنفس المعنى وتقريباً نفس الطول، بدون إضافة معلومات. أعد JSON: {"text": "..."}`,
+          text, 2000, { provider: "claude", model: "claude-haiku-5-5" })).text?.trim().slice(0, 1500) || text;
+      }
+      // 2) record it with word timings
+      const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
+      const voices = ((vc?.value as { items?: { id: string }[] })?.items ?? []);
+      const voiceId = voices.some((v) => v.id === body.voice) ? String(body.voice) : voices[0]?.id ?? "pNInz6obpgDQGcFmaJgB";
+      const v = await ttsTimed(say, voiceId);
+      if (!v.words.length) throw new Error("no words");
+      const path = await saveResult(user.id, job.id, v.audio, "audio/mpeg", "mp3");
+      const [url] = await signedResultUrls([path], 60 * 60 * 24);
+      // 3) footage length follows the new voice: trim, or repeat shots when it got longer
+      const current = sanitize(base, body.spec, user.id);
+      const src = current.segments.length ? current.segments : base.segments;
+      const segs: { s: number; e: number }[] = [];
+      let have = 0, i = 0;
+      while (have < v.duration - 0.05 && i < 200) {
+        const g = src[i % src.length];
+        const len = Math.min(g.e - g.s, v.duration - have);
+        if (len > 0.2) { segs.push({ s: g.s, e: +(g.s + len).toFixed(2) }); have += len; }
+        i++;
+      }
+      const spec: MontageSpec = { ...current, segments: segs.length ? segs : src, vo: { path, url: "", on: true, words: v.words, text: say, voice: voiceId }, videoVolume: Math.min(current.videoVolume ?? 1, 0.15) };
+      await admin.from("jobs").update({ input: { ...job.input, spec: { ...spec, src: "" } } }).eq("id", job.id);
+      return NextResponse.json({ spec: { ...spec, src: "", words: [], face: [] }, url, text: say });
+    } catch (e) {
+      console.error("montage voice", e);
+      await refund("voice");
+      return NextResponse.json({ error: "ما ضبط تسجيل الصوت، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
+    }
+  }
+
   if (action === "music") {
     const denied = await charge();
     if (denied) return denied;
     try {
       const prompt = String(body.prompt ?? "").slice(0, 300);
-      const audio = await music(`Soft instrumental background music to sit under speech in a social media video, no vocals, low energy peaks. ${prompt}`, clamp(Math.round(Number(body.seconds) || 30), 10, 120));
+      const hum = /hum|همهم|همهمة/i.test(prompt);
+      const audio = await music(hum ? `Soft wordless vocal humming only, no lyrics, no instruments, no drums, gentle background under speech. ${prompt}` : `Soft instrumental background music to sit under speech in a social media video, no vocals, low energy peaks. ${prompt}`, clamp(Math.round(Number(body.seconds) || 30), 10, 120));
       const path = await saveResult(user.id, job.id, audio, "audio/mpeg", "mp3");
       const [url] = await signedResultUrls([path], 60 * 60 * 24 * 7);
       return NextResponse.json({ url });
