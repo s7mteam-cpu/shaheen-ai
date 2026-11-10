@@ -25,6 +25,8 @@ const SYSTEM = `أنت مدير فني ومصمم سوشال ميديا خليج
 - الألوان: إذا للعميل ألوان هوية استخدمها ووزّع الأدوار: bg خلفية، ink لون النص (تباين عالي مع bg)، accent لون مميز للتأكيد والأزرار، soft سطح البطاقات (قريب من bg). إذا ما فيه، اختر لوحة راقية تناسب المجال (مطاعم دافئة، طبي هادئ، فخامة داكن وذهبي، أطفال مبهج...) وتجنّب التدرجات البنفسجية والنيون والكليشيهات.
 - الخط من: Cairo, Tajawal, Almarai, Changa, Amiri (Amiri للفخامة والتراث فقط).
 - deco زخرفة الخلفية من: ${DECO_IDS.join(", ")}.
+- icons أسلوب الأيقونات: line (خطّية أنيقة، الافتراضي للستايل الراقي والبسيط)، duo (معبّاة بلون خفيف، عصرية)، emoji (أيقونات ملوّنة طبيعية، للستايل المبهج والزاهي والأطفال والأكل والعروض). إذا طلب العميل أيقونات طبيعية أو ملوّنة استخدم emoji.
+- إذا طلب العميل ستايل معيّن (ألوان زاهية، فخم، بسيط، داكن...) نفّذه بالألوان والتخطيط والزخرفة والأيقونات.
 - النصوص بلهجة مطلوبة وبإملاء صحيح، وجمل تسويقية قوية وقصيرة.
 
 التخطيطات (layout) وما يستخدمه كل واحد:
@@ -141,7 +143,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         (site ? `من موقع العميل (لتعرف نشاطه وأسلوب كلامه):\n${site}\n` : "") +
         (industryById(body.industry) ? `${industryBrief(industryById(body.industry)!)}\n` : "") +
         `\nمعلومات العميل:\n${info}\n\n` +
-        `أعد JSON: { "font", "deco", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "caption", "slides": [ {layout, ...الحقول, "photo", "imagePrompt", "caption"} ] }`,
+        `أعد JSON: { "font", "deco", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "caption", "slides": [ {layout, ...الحقول, "photo", "imagePrompt", "caption"} ] }`,
         images, 9000);
 
       // photos: customer uploads by index, AI photos generated in parallel (max 4)
