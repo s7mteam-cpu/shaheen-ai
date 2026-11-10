@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, selectComposition } from "@remotion/renderer";
+import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 
 const run = promisify(execFile);
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -490,15 +490,59 @@ async function renderMontage(job) {
   return render(job, "Montage", { ...spec, src: data.signedUrl, logo, broll, music, vo });
 }
 
+// ---------- Design studio: one PNG per slide ----------
+const DESIGN_TOOLS = ["post", "carousel", "ad-design"];
+async function renderDesign(job) {
+  const dir = await mkdtemp(join(tmpdir(), "design-"));
+  try {
+    const spec = structuredClone(job.input.spec);
+    const sign = async (img) => {
+      if (!img?.path || !String(img.path).startsWith(`${job.user_id}/`)) return null;
+      const { data } = await db.storage.from(img.bucket === "results" ? "results" : "uploads").createSignedUrl(img.path, 60 * 60);
+      return data?.signedUrl ? { ...img, url: data.signedUrl } : null;
+    };
+    spec.brand.logo = await sign(spec.brand.logo);
+    for (const s of spec.slides) {
+      s.photo = await sign(s.photo);
+      if (s.person) s.person.photo = await sign(s.person.photo);
+    }
+    await setProgress(job.id, 5);
+    const files = [];
+    for (const [index, s] of spec.slides.entries()) {
+      const props = { spec, index };
+      const composition = await selectComposition({ serveUrl, id: "Design", inputProps: props });
+      const out = join(dir, `${index}.png`);
+      await renderStill({ composition, serveUrl, output: out, inputProps: props, imageFormat: "png", chromiumOptions: { gl: "swangle" } });
+      const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.png`;
+      const up = await db.storage.from("results").upload(dest, await readFile(out), { contentType: "image/png" });
+      if (up.error) throw new Error(`upload: ${up.error.message}`);
+      const caption = spec.kind === "carousel" ? (index === 0 ? spec.caption : undefined) : s.caption;
+      files.push({ path: dest, type: "image/png", ...(caption ? { caption } : {}) });
+      await setProgress(job.id, 5 + ((index + 1) / spec.slides.length) * 90);
+    }
+    await db.from("jobs").update({ status: "done", progress: 100, output: { files }, updated_at: now() }).eq("id", job.id);
+    console.log("design rendered", job.id, files.length);
+  } catch (e) {
+    // Export is free and repeatable: put the design back in the studio instead of refunding.
+    console.error("design render", job.id, e?.message ?? e);
+    await db.from("jobs").update({ status: "draft", progress: 0, error: String(e?.message ?? e).slice(0, 500), updated_at: now() }).eq("id", job.id);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 console.log("Shaheen video worker started");
 
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
 async function recoverStale(minutes) {
   const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
-  const { data: stale } = await db.from("jobs").select("id,input").in("tool_id", ["video-editing", "motion-video"]).eq("status", "running").lt("updated_at", cutoff);
-  for (const j of stale ?? []) {
+  const { data: videos } = await db.from("jobs").select("id,tool_id,input").in("tool_id", ["video-editing", "motion-video"]).eq("status", "running").lt("updated_at", cutoff);
+  const { data: designs } = await db.from("jobs").select("id,tool_id,input").in("tool_id", DESIGN_TOOLS).eq("input->>render", "true").eq("status", "running").lt("updated_at", cutoff);
+  for (const j of [...(videos ?? []), ...(designs ?? [])]) {
     const attempts = Number(j.input?.attempts ?? 0) + 1;
-    if (attempts >= 2) {
+    if (attempts >= 2 && DESIGN_TOOLS.includes(j.tool_id)) {
+      await db.from("jobs").update({ status: "draft", progress: 0, error: "WORKER_RESTARTED", input: { ...j.input, attempts: 0 }, updated_at: now() }).eq("id", j.id);
+    } else if (attempts >= 2) {
       await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: now() }).eq("id", j.id);
       await db.rpc("refund_job", { p_job: j.id });
       console.log("gave up", j.id);
@@ -512,13 +556,16 @@ await recoverStale(3); // interrupted jobs stop updating; a job another instance
 setInterval(() => recoverStale(15).catch(() => {}), 60_000);
 
 for (;;) {
-  const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input").in("tool_id", ["video-editing", "motion-video"]).eq("status", "queued").order("created_at").limit(1);
-  const job = jobs?.[0];
+  const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", ["video-editing", "motion-video"]).eq("status", "queued").order("created_at").limit(1);
+  const { data: designs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", DESIGN_TOOLS).eq("status", "queued").eq("input->>render", "true").order("updated_at").limit(1);
+  // Designs are quick stills: they go first so customers don't wait behind long videos.
+  const job = designs?.[0] ?? jobs?.[0];
   if (!job) { await sleep(4000); continue; }
   // claim it (only one worker wins)
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
   if (!claimed?.length) continue;
-  if (job.tool_id === "motion-video") await render(job, "Motion", job.input.spec);
+  if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
+  else if (job.tool_id === "motion-video") await render(job, "Motion", job.input.spec);
   else if (job.input.render && job.input.spec) await renderMontage(job);
   else await analyzeMontage(job);
 }

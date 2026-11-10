@@ -4,6 +4,10 @@ import "@fontsource/cairo/arabic-400.css";
 import "@fontsource/cairo/arabic-600.css";
 import "@fontsource/cairo/arabic-700.css";
 import "@fontsource/cairo/arabic-800.css";
+import "@fontsource/cairo/arabic-900.css";
+import "@fontsource/cairo/latin-400.css";
+import "@fontsource/cairo/latin-700.css";
+import "@fontsource/cairo/latin-800.css";
 import "@fontsource/tajawal/arabic-500.css";
 import "@fontsource/tajawal/arabic-800.css";
 import "@fontsource/almarai/arabic-400.css";
@@ -12,7 +16,9 @@ import "@fontsource/changa/arabic-500.css";
 import "@fontsource/changa/arabic-700.css";
 import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
-import { Composition, registerRoot } from "remotion";
+import { Composition, Still, registerRoot } from "remotion";
+import { DesignStill } from "../../src/design/Design";
+import { DSIZE, type DesignSpec } from "../../src/design/spec";
 import { MotionVideo } from "../../src/remotion/MotionVideo";
 import { FPS, SAMPLE, dimensions, type MotionSpec } from "../../src/remotion/spec";
 import { MontageVideo } from "../../src/remotion/MontageVideo";
@@ -44,6 +50,17 @@ function Root() {
       calculateMetadata={({ props }) => {
         const p = props as unknown as MontageSpec;
         return { durationInFrames: totalFrames(p), ...dimensions(p.aspect) };
+      }}
+    />
+    <Still
+      id="Design"
+      component={DesignStill as unknown as React.FC<Record<string, unknown>>}
+      width={1080}
+      height={1350}
+      defaultProps={{} as Record<string, unknown>}
+      calculateMetadata={({ props }) => {
+        const p = props as unknown as { spec: DesignSpec };
+        return DSIZE[p.spec?.aspect ?? "4:5"];
       }}
     />
     </>

@@ -12,6 +12,7 @@ WORKDIR /app
 COPY worker/package.json ./package.json
 RUN npm install --omit=dev && node -e "import('@remotion/renderer').then((m) => m.ensureBrowser())"
 COPY src/remotion ./src/remotion
+COPY src/design ./src/design
 COPY public/sfx ./public/sfx
 COPY worker ./worker
 CMD ["node", "worker/index.mjs"]
