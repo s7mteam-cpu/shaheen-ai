@@ -31,7 +31,11 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     },
     titles: (Array.isArray(s.titles) ? s.titles : base.titles).slice(0, 15).map((t) => ({
       text: String(t.text ?? "").slice(0, 60), at: clamp(Number(t.at) || 0, 0, Math.max(0, len - 0.5)), dur: clamp(Number(t.dur) || 2.5, 1, 6), pos: t.pos === "center" ? "center" as const : "top" as const,
+      style: (["kinetic", "pill", "lower", "editorial"] as const).find((x) => x === t.style) ?? "pill",
+      hl: t.hl ? String(t.hl).slice(0, 30) : undefined, sub: t.sub ? String(t.sub).slice(0, 50) : undefined,
     })).filter((t) => t.text),
+    drift: typeof s.drift === "boolean" ? s.drift : base.drift ?? false,
+    vignette: typeof s.vignette === "boolean" ? s.vignette : base.vignette ?? false,
     zooms: (Array.isArray(s.zooms) ? s.zooms : base.zooms).slice(0, 15).map((z) => ({ at: clamp(Number(z.at) || 0, 0, len), dur: clamp(Number(z.dur) || 2, 0.5, 6), scale: clamp(Number(z.scale) || 1.15, 1.02, 1.35) })),
     intro: { on: !!(s.intro?.on ?? base.intro.on), title: String(s.intro?.title ?? base.intro.title).slice(0, 60), subtitle: String(s.intro?.subtitle ?? base.intro.subtitle).slice(0, 60) },
     outro: { on: !!(s.outro?.on ?? base.outro.on), title: String(s.outro?.title ?? base.outro.title).slice(0, 60), subtitle: String(s.outro?.subtitle ?? base.outro.subtitle).slice(0, 60) },
@@ -42,7 +46,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     autoBright: base.autoBright ?? 1,
     videoVolume: typeof s.videoVolume === "number" ? clamp(s.videoVolume, 0, 1) : base.videoVolume ?? 1,
     vo: s.vo === null ? null : base.vo ? { ...base.vo, url: "", on: s.vo ? !!s.vo.on : base.vo.on } : null,
-    transition: ["none", "flash", "zoom"].includes(String(s.transition)) ? s.transition : base.transition ?? "none",
+    transition: ["none", "flash", "zoom", "whip", "blur"].includes(String(s.transition)) ? s.transition : base.transition ?? "none",
     logo: (() => {
       // the customer may add their own logo in the studio (an upload of theirs), move and resize it
       const path = s.logo?.path && userId && s.logo.path.startsWith(`${userId}/`) ? s.logo.path : base.logo?.path;
@@ -96,8 +100,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const c = await config("video-editing");
       const via = c.provider === "google" ? { provider: "gemini", model: "gemini-2.5-pro" } : { provider: "claude", model: "claude-sonnet-5-5" };
       const raw = await aiJson<Partial<MontageSpec>>(
-        "أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (none|flash|zoom), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), logo{on,pos: tl|tr|bl|br}, grade (none|natural|vivid|warm|cinematic ستايل الألوان), videoVolume (0..1 صوت الفيديو الأصلي، 0 صامت). العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: karaoke, box, minimal. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top).",
-        `مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, grade: current.grade, videoVolume: current.videoVolume, logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
+        "أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos,style: kinetic|editorial|pill|lower, hl (كلمة تتلوّن), sub (سطر صغير)}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (none|flash|zoom|whip|blur), drift (true/false حركة تكبير بطيئة سينمائية), vignette (true/false حواف داكنة), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), logo{on,pos: tl|tr|bl|br}, grade (none|natural|vivid|warm|cinematic ستايل الألوان), videoVolume (0..1 صوت الفيديو الأصلي، 0 صامت). العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: karaoke, box, minimal. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top).",
+        `مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, drift: current.drift, vignette: current.vignette, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, grade: current.grade, videoVolume: current.videoVolume, logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
         6000, via);
       const spec = sanitize(current, { ...raw, broll: current.broll, subs2: current.subs2 }, user.id);
       await admin.from("jobs").update({ input: { ...job.input, spec: { ...spec, src: "" } } }).eq("id", job.id);
