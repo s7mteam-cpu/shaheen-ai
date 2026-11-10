@@ -82,11 +82,14 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
         const { error: upErr } = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
-        if (upErr) throw new Error("تعذّر رفع الملف.");
+        if (upErr) throw new Error(/size|large|413/i.test(upErr.message) ? "الملف أكبر من المسموح. صغّر حجمه وحاول مرة ثانية." : "تعذّر رفع الملف.");
         if (f.accept === "video") {
           const secs = await new Promise<number>((res) => {
             const el = document.createElement("video");
-            el.preload = "metadata"; el.onloadedmetadata = () => res(el.duration || 60); el.onerror = () => res(60);
+            // some phones' videos never report their length in the browser: never wait more than 6 seconds
+            const done = (v: number) => { clearTimeout(t); res(Number.isFinite(v) && v > 0 ? v : 60); };
+            const t = setTimeout(() => done(60), 6000);
+            el.preload = "metadata"; el.muted = true; el.onloadedmetadata = () => done(el.duration); el.onerror = () => done(60);
             el.src = URL.createObjectURL(file);
           });
           // several clips: the paid length is their total
