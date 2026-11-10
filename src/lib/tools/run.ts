@@ -4,7 +4,7 @@ import { falImages, falQueue, falRun } from "@/lib/providers/fal";
 import { aiJson } from "@/lib/providers/text";
 import { geminiImage, geminiSpeech } from "@/lib/providers/google";
 import { toolProviders } from "@/lib/providers/registry";
-import { cloneVoice, deleteVoice, music, tts } from "@/lib/providers/elevenlabs";
+import { cloneVoice, deleteVoice, music, tts, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveFromUrl, saveResult, signedUploadUrls } from "@/lib/providers/storage";
 import type { Values } from "@/lib/tools/specs";
 
@@ -42,9 +42,10 @@ export async function config(toolId: string) {
 
 export async function voiceById(id: string) {
   const { data } = await createAdminClient().from("site_content").select("value").eq("key", "voices").maybeSingle();
-  const list = ((data?.value as { items?: { id: string; google_voice?: string }[] })?.items) ?? [];
+  const list = ((data?.value as { items?: { id: string; google_voice?: string; model?: string; settings?: VoiceSettings }[] })?.items) ?? [];
   const v = list.find((x) => x.id === id) ?? list[0];
-  return { eleven: v?.id ?? "pNInz6obpgDQGcFmaJgB", google: v?.google_voice || "Kore" };
+  // optional per-voice model (admin → content → voices → "model"), else the clear Multilingual v2
+  return { eleven: v?.id ?? "pNInz6obpgDQGcFmaJgB", google: v?.google_voice || "Kore", model: v?.model || undefined, settings: v?.settings };
 }
 
 /**
@@ -169,7 +170,8 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
       throw new Error("motion-video runs in the studio (/api/motion)");
     case "avatar-video": {
       // 1) voice with ElevenLabs  2) talking video from image + audio on fal
-      const audio = await tts(String(v.script), (await voiceById(String(v.voice))).eleven);
+      const vv = await voiceById(String(v.voice));
+      const audio = await tts(String(v.script), vv.eleven, vv.model, vv.settings);
       const audioPath = await saveResult(job.user_id, job.id, audio, "audio/mpeg", "mp3");
       const admin = createAdminClient();
       const { data: audioUrl } = await admin.storage.from("results").createSignedUrl(audioPath, 3600);
@@ -203,7 +205,8 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
         cloned = voiceId = await cloneVoice(`shaheen-${job.user_id.slice(0, 8)}-${job.id.slice(0, 6)}`, sample);
       }
       try {
-        const audio = await tts(String(v.text), voiceId, provider === "elevenlabs" && vm && vm !== "music" ? vm : "eleven_v3");
+        const vv = await voiceById(voiceId);
+        const audio = await tts(String(v.text), voiceId, vv.model || (provider === "elevenlabs" && vm && vm !== "music" ? vm : undefined), vv.settings);
         return [{ path: await saveResult(job.user_id, job.id, audio, "audio/mpeg", "mp3"), type: "audio/mpeg" }];
       } finally {
         if (cloned) await deleteVoice(cloned); // we don't keep customers' voices

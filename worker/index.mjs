@@ -93,13 +93,16 @@ async function makeMusic(prompt, seconds) {
 }
 
 // ---------- Voice-over: Gulf voice with word timings ----------
-async function voiceOver(text, voiceId) {
+async function voiceOver(text, voiceId, model = "eleven_multilingual_v2", s = null) {
+  const n = (v, d) => (typeof v === "number" && v >= 0 && v <= 2 ? v : d);
+  const vs = s ? { stability: n(s.stability, 0.5), similarity_boost: n(s.similarity, 0.75), style: n(s.style, 0), speed: n(s.speed, 1), use_speaker_boost: s.speaker_boost ?? true } : null;
   const call = (model) => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "", "content-type": "application/json" },
-    body: JSON.stringify({ text, model_id: model }),
+    body: JSON.stringify({ text, model_id: model, ...(vs ? { voice_settings: vs } : {}) }),
   });
-  let res = await call("eleven_v3");
-  if (!res.ok) res = await call("eleven_multilingual_v2");
+  // Multilingual v2 = clear, stable Arabic (what the ElevenLabs site uses for most library voices)
+  let res = await call(model);
+  if (!res.ok) res = await call(model === "eleven_multilingual_v2" ? "eleven_v3" : "eleven_multilingual_v2");
   if (!res.ok) throw new Error(`tts ${res.status}: ${(await res.text()).slice(0, 160)}`);
   const d = await res.json();
   const a = d.alignment ?? d.normalized_alignment;
@@ -279,7 +282,8 @@ async function analyzeMontage(job) {
           const { data: vc } = await db.from("site_content").select("value").eq("key", "voices").maybeSingle();
           const voices = vc?.value?.items ?? [];
           const voiceId = voices.some((v) => v.id === job.input.vo_voice) ? job.input.vo_voice : voices[0]?.id ?? "pNInz6obpgDQGcFmaJgB";
-          const v = await voiceOver(text, voiceId);
+          const vInfo = voices.find((x) => x.id === voiceId);
+          const v = await voiceOver(text, voiceId, vInfo?.model || undefined, vInfo?.settings ?? null);
           const vpath = `${job.user_id}/${job.id}/voiceover-${Date.now()}.mp3`;
           const up = await db.storage.from("results").upload(vpath, v.audio, { contentType: "audio/mpeg" });
           if (up.error) throw new Error(up.error.message);

@@ -8,25 +8,36 @@ async function check(res: Response) {
   return res;
 }
 
-export async function tts(text: string, voiceId: string, model = "eleven_v3") {
+// Multilingual v2 = the clearest, most stable Arabic (same as the ElevenLabs site for most library voices).
+export const DEFAULT_TTS = "eleven_multilingual_v2";
+
+/** Same sliders as the ElevenLabs site (0..1), saved per voice in /admin → content → voices → "settings". */
+export type VoiceSettings = { stability?: number; similarity?: number; style?: number; speed?: number; speaker_boost?: boolean };
+export function voiceSettings(s?: VoiceSettings) {
+  if (!s) return undefined;
+  const n = (v: unknown, d: number) => (typeof v === "number" && v >= 0 && v <= 2 ? v : d);
+  return { stability: n(s.stability, 0.5), similarity_boost: n(s.similarity, 0.75), style: n(s.style, 0), speed: n(s.speed, 1), use_speaker_boost: s.speaker_boost ?? true };
+}
+
+export async function tts(text: string, voiceId: string, model = DEFAULT_TTS, settings?: VoiceSettings) {
   const call = (m: string) => fetch(`${API}/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": key(), "content-type": "application/json" },
-    body: JSON.stringify({ text, model_id: m }),
+    body: JSON.stringify({ text, model_id: m, ...(voiceSettings(settings) ? { voice_settings: voiceSettings(settings) } : {}) }),
   }).then(check);
   // Some voices/plans don't support every model: fall back to the multilingual model.
   try { return (await call(model)).arrayBuffer(); }
-  catch (e) { if (model === "eleven_multilingual_v2") throw e; console.error("tts fallback", e); return (await call("eleven_multilingual_v2")).arrayBuffer(); }
+  catch (e) { const alt = model === DEFAULT_TTS ? "eleven_v3" : DEFAULT_TTS; console.error("tts fallback", e); return (await call(alt)).arrayBuffer(); }
 }
 
 /** Speech + word timings (seconds), for captions that follow the voice. */
-export async function ttsTimed(text: string, voiceId: string) {
+export async function ttsTimed(text: string, voiceId: string, model = DEFAULT_TTS, settings?: VoiceSettings) {
   const call = (m: string) => fetch(`${API}/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST", headers: { "xi-api-key": key(), "content-type": "application/json" },
-    body: JSON.stringify({ text, model_id: m }),
+    body: JSON.stringify({ text, model_id: m, ...(voiceSettings(settings) ? { voice_settings: voiceSettings(settings) } : {}) }),
   });
-  let res = await call("eleven_v3");
-  if (!res.ok) res = await call("eleven_multilingual_v2");
+  let res = await call(model);
+  if (!res.ok) res = await call(model === DEFAULT_TTS ? "eleven_v3" : DEFAULT_TTS);
   await check(res);
   const d = (await res.json()) as { audio_base64: string; alignment?: Align; normalized_alignment?: Align };
   const a = d.alignment ?? d.normalized_alignment;

@@ -18,7 +18,7 @@ export const toolProviders: Record<string, Partial<Record<ProviderId, string>>> 
   "ad-design": { fal: "fal-ai/nano-banana-pro", google: "gemini-3-pro-image-preview" },
   "avatar-video": { fal: "fal-ai/kling-video/ai-avatar/v2/standard" },
   "video-editing": { elevenlabs: "scribe_v1", google: "gemini-2.5-flash" },
-  voice: { elevenlabs: "eleven_v3", google: "gemini-2.5-flash-preview-tts" },
+  voice: { elevenlabs: "eleven_multilingual_v2", google: "gemini-2.5-flash-preview-tts" },
   nasheed: { elevenlabs: "music" },
 };
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson } from "@/lib/providers/text";
-import { music, ttsTimed } from "@/lib/providers/elevenlabs";
+import { music, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveResult, signedResultUrls } from "@/lib/providers/storage";
 import { config } from "@/lib/tools/run";
 import { captionLines, videoSeconds, type MontageSpec } from "@/remotion/montage";
@@ -141,9 +141,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       }
       // 2) record it with word timings
       const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
-      const voices = ((vc?.value as { items?: { id: string }[] })?.items ?? []);
+      const voices = ((vc?.value as { items?: { id: string; model?: string; settings?: VoiceSettings }[] })?.items ?? []);
       const voiceId = voices.some((v) => v.id === body.voice) ? String(body.voice) : voices[0]?.id ?? "pNInz6obpgDQGcFmaJgB";
-      const v = await ttsTimed(say, voiceId);
+      const vInfo = voices.find((x) => x.id === voiceId);
+      const v = await ttsTimed(say, voiceId, vInfo?.model || undefined, vInfo?.settings);
       if (!v.words.length) throw new Error("no words");
       const path = await saveResult(user.id, job.id, v.audio, "audio/mpeg", "mp3");
       const [url] = await signedResultUrls([path], 60 * 60 * 24);

@@ -119,7 +119,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       } else {
         const text = String(body.text ?? "").trim().slice(0, 1500);
         if (!text) return NextResponse.json({ error: "اكتب نص التعليق." }, { status: 400 });
-        audio = await tts(text, (await voiceById(String(body.voice ?? ""))).eleven);
+        const vv = await voiceById(String(body.voice ?? ""));
+        audio = await tts(text, vv.eleven, vv.model, vv.settings);
       }
       const path = await saveResult(user.id, job.id, audio, "audio/mpeg", "mp3");
       const [url] = await signedResultUrls([path], 60 * 60 * 24 * 7);

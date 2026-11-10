@@ -223,7 +223,7 @@ export function MotionVideo(spec: MotionSpec) {
           <SceneView s={scene} x={{ c, u, len, brand: spec.brand, wide: width > height }} />
         </Sequence>
       ))}
-      {spec.music?.url && <Audio src={spec.music.url} volume={spec.voice?.url ? 0.25 : 0.8} />}
+      {spec.music?.url && <Audio src={spec.music.url} volume={spec.voice?.url ? 0.12 : 0.8} />}
       {spec.voice?.url && <Audio src={spec.voice.url} />}
     </AbsoluteFill>
   );

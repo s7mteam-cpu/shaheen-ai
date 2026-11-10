@@ -257,7 +257,8 @@ export function MontageVideo(m: MontageSpec) {
         <Sfx m={m} />
       </Sequence>
       {outro > 0 && <Sequence from={intro + vid} durationInFrames={outro}><Card title={m.outro.title} subtitle={m.outro.subtitle} m={m} u={u} len={outro} /></Sequence>}
-      {m.music?.url && <Audio src={m.music.url} volume={(m.videoVolume ?? 1) < 0.5 ? 0.55 : 0.12} />}
+      {/* music ducks under any voice: loud only for silent footage without a voice-over */}
+      {m.music?.url && <Audio src={m.music.url} volume={m.vo?.on ? 0.1 : (m.videoVolume ?? 1) < 0.5 ? 0.5 : 0.12} />}
       <ProgressBar m={m} u={u} frames={intro + vid + outro} />
     </AbsoluteFill>
   );
