@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { SideNav } from "@/components/app/SideNav";
+import { HomeGreeting } from "@/components/app/HomeGreeting";
 import { UserMenu } from "@/components/app/UserMenu";
 import { ShaheenChat } from "@/components/ShaheenChat";
 import { getContent, getSessionProfile, getTools } from "@/lib/data";
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <p className="bg-gold-100 px-6 py-3 text-center text-sm text-navy-900">ما عندك باقة فعّالة. <Link href="/#pricing" className="font-bold underline">اختر باقتك</Link> لتبدأ.</p>
       )}
 
+      <HomeGreeting name={profile.full_name?.split(" ")[0]} />
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6 lg:flex-row">
         <div className="lg:w-[250px] lg:shrink-0"><Suspense><SideNav isAdmin={profile.role === "admin"} support={wa} tools={tools.map((t) => ({ id: t.id, name: t.name, icon: t.icon, category: t.category }))} /></Suspense></div>
         <main className="min-w-0 flex-1">{children}</main>

@@ -1,22 +1,17 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { WorkCard } from "@/components/app/WorkCard";
-import { getSessionProfile, getTools } from "@/lib/data";
+import { getTools } from "@/lib/data";
 import { listWorks } from "@/lib/works";
 
 export const metadata = { title: "الرئيسية" };
 
 export default async function Dashboard() {
-  const [profile, tools, works] = await Promise.all([getSessionProfile(), getTools(), listWorks({ limit: 4 })]);
-  const first = profile?.full_name?.split(" ")[0];
+  const [tools, works] = await Promise.all([getTools(), listWorks({ limit: 4 })]);
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-[28px] font-bold text-navy-900">{first ? `هلا ${first} 👋` : "هلا فيك 👋"}</h1>
-        <p className="text-[16px] text-subtle">شنو تبي تسوّي اليوم؟ اختر أداة وابدأ.</p>
-      </header>
-
+      <h2 className="sr-only">الرئيسية</h2>
       <section aria-label="الأدوات" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {tools.map((t) => (
           <Link key={t.id} href={`/app/tools/${t.id}`} className="card group flex items-center gap-4 rounded-2xl p-5 transition hover:-translate-y-0.5 hover:border-gold-500">
