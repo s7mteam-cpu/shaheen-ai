@@ -5,9 +5,11 @@ import { claudeVisionJson } from "@/lib/providers/text";
 import { geminiImage } from "@/lib/providers/google";
 import { falImages, falRun } from "@/lib/providers/fal";
 import { saveFromUrl, saveResult } from "@/lib/providers/storage";
+import { keyFor, splitIconSheet } from "@/lib/providers/iconsheet";
+import { ICON_EN } from "@/design/icon-names";
 import { config } from "@/lib/tools/run";
 import { industryBrief, industryById } from "@/design/industries";
-import { ICON_IDS, LAYOUTS, LAYOUT_IDS, DECO_IDS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
+import { usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, DECO_IDS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
 
 export const maxDuration = 300;
 
@@ -25,7 +27,7 @@ const SYSTEM = `أنت مدير فني ومصمم سوشال ميديا خليج
 - الألوان: إذا للعميل ألوان هوية استخدمها ووزّع الأدوار: bg خلفية، ink لون النص (تباين عالي مع bg)، accent لون مميز للتأكيد والأزرار، soft سطح البطاقات (قريب من bg). إذا ما فيه، اختر لوحة راقية تناسب المجال (مطاعم دافئة، طبي هادئ، فخامة داكن وذهبي، أطفال مبهج...) وتجنّب التدرجات البنفسجية والنيون والكليشيهات.
 - الخط من: Cairo, Tajawal, Almarai, Changa, Amiri (Amiri للفخامة والتراث فقط).
 - deco زخرفة الخلفية من: ${DECO_IDS.join(", ")}.
-- icons أسلوب الأيقونات: line (خطّية أنيقة، الافتراضي للستايل الراقي والبسيط)، duo (معبّاة بلون خفيف، عصرية)، emoji (أيقونات ملوّنة طبيعية، للستايل المبهج والزاهي والأطفال والأكل والعروض). إذا طلب العميل أيقونات طبيعية أو ملوّنة استخدم emoji.
+- icons أسلوب الأيقونات: 3d (أيقونات ثلاثية الأبعاد احترافية بألوان الهوية، تنرسم بالذكاء الاصطناعي، الأفضل للتصاميم التسويقية العصرية إذا الصور مسموحة)، line (خطّية أنيقة، الافتراضي للستايل الراقي والبسيط)، duo (معبّاة بلون خفيف، عصرية)، emoji (أيقونات ملوّنة طبيعية، للستايل المبهج والزاهي والأطفال والأكل والعروض). إذا طلب العميل أيقونات طبيعية أو ملوّنة استخدم emoji.
 - إذا طلب العميل ستايل معيّن (ألوان زاهية، فخم، بسيط، داكن...) نفّذه بالألوان والتخطيط والزخرفة والأيقونات.
 - النصوص بلهجة مطلوبة وبإملاء صحيح، وجمل تسويقية قوية وقصيرة.
 
@@ -93,6 +95,33 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       path = (await saveFromUrl(user!.id, jobId, url)).path;
     }
     return { path, bucket: "results", url: await sign("results", path) };
+  }
+
+  /** One AI sheet of matching 3D icons (brand colours, flat key background) → a transparent PNG per icon. */
+  async function icons3d(toolId: string, jobId: string, s: DesignSpec): Promise<Record<string, DImg>> {
+    const ids = usedIcons(s);
+    if (!ids.length) throw new Error("NO_ICONS");
+    const { provider, model } = await config(toolId);
+    if (provider !== "google") throw new Error("3D icons need Gemini (admin: image provider google)");
+    const cols = ids.length <= 4 ? 2 : 3, rows = Math.ceil(ids.length / cols);
+    const key = keyFor(s.colors.accent);
+    const keyHex = key[1] === 255 ? "#00FF00 (pure green screen)" : "#FF00FF (pure magenta screen)";
+    const list = ids.map((id, i) => `${i + 1}. ${ICON_EN[id as keyof typeof ICON_EN] ?? id}`).join("\n");
+    const prompt = `A matching set of ${ids.length} premium 3D icons arranged in a precise ${cols} columns x ${rows} rows grid, reading order left to right, top to bottom:\n${list}\n` +
+      `Each grid cell holds exactly one icon, centered, about 60% of the cell, with generous empty space; nothing touches or crosses the cell borders.${ids.length < cols * rows ? " Leave the remaining cells completely empty." : ""}\n` +
+      `Style: modern glossy 3D render, soft rounded shapes, smooth clay-like materials with subtle gloss, soft studio lighting, consistent angle and lighting for every icon, high detail, professional app-icon quality. ` +
+      `Colour palette: main ${s.colors.accent}, with ${s.colors.ink} and white accents.\n` +
+      `Background: one perfectly flat solid ${keyHex} filling the whole image, no gradient, no floor, no shadows on the background, no grid lines, no borders, no text, no letters, no numbers.`;
+    const r = await geminiImage(model, prompt, [], "1:1");
+    const tiles = await splitIconSheet(r.bytes, cols, rows, key);
+    const out: Record<string, DImg> = {};
+    for (const [i, id] of ids.entries()) {
+      if (!tiles[i]?.length) continue;
+      const path = await saveResult(user!.id, jobId, tiles[i], "image/png", "png");
+      out[id] = { path, bucket: "results", url: await sign("results", path) };
+    }
+    if (!Object.keys(out).length) throw new Error("icon sheet empty");
+    return out;
   }
 
   /** Keep text readable whatever colours the AI or customer picked. */
@@ -177,6 +206,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         if (has) await admin.from("brand_kits").update({ industry: body.industry }).eq("user_id", user.id);
         else await admin.from("brand_kits").insert({ user_id: user.id, industry: body.industry });
       }
+      if (spec.icons === "3d") {
+        if (body.aiImages === false) spec.icons = "duo";
+        else {
+          try { spec.icon3d = await icons3d(toolId, job.id, spec); }
+          catch (e) { console.error("design 3d icons", e); spec.icons = "duo"; }
+        }
+      }
       // A photo layout without a photo looks empty: fall back to a text layout.
       spec = { ...spec, slides: spec.slides.map((s) => (!s.photo && (s.layout === "photo" || s.layout === "split") ? { ...s, layout: "classic" } : s)) };
 
@@ -200,7 +236,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   /** Images must be the customer's own files (or results of this job). */
   const clean = (s: DesignSpec): DesignSpec => {
     const ok = (i?: DImg | null) => (i && mine(i.path) ? i : null);
-    return { ...s, brand: { ...s.brand, logo: ok(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, photo: ok(sl.photo), person: sl.person ? { ...sl.person, photo: ok(sl.person.photo) } : null })) };
+    return { ...s, icon3d: Object.fromEntries(Object.entries(s.icon3d ?? {}).filter(([, v]) => ok(v))), brand: { ...s.brand, logo: ok(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, photo: ok(sl.photo), person: sl.person ? { ...sl.person, photo: ok(sl.person.photo) } : null })) };
   };
 
   if (action === "save") {
@@ -226,6 +262,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         const r = raw.slides?.[i] as { photo?: unknown } | undefined;
         return { ...s, photo: r?.photo === "keep" || r?.photo === undefined ? old?.photo ?? null : null, person: s.person ? { ...s.person, photo: old?.person?.photo ?? null } : null };
       });
+      next.icon3d = current.icon3d;
       return NextResponse.json({ spec: safeColors(next) });
     } catch (e) {
       console.error("design revise", e);
@@ -251,6 +288,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
       const why = me?.role === "admin" ? ` [${String(e instanceof Error ? e.message : e).slice(0, 220)}]` : "";
       return NextResponse.json({ error: `ما قدرنا نولّد الصورة، ورجّعنا لك الريش.${why}` }, { status: 502 });
+    }
+  }
+
+  if (action === "icons3d") {
+    if (!body.spec) return NextResponse.json({ error: "ما فيه تصميم." }, { status: 400 });
+    const current = normaliseDesign(body.spec as Raw, base);
+    if (!usedIcons(current).length) return NextResponse.json({ error: "التصميم ما فيه أيقونات." }, { status: 400 });
+    const denied = await charge(job.id, editCost);
+    if (denied) return denied;
+    try {
+      return NextResponse.json({ icon3d: await icons3d(job.tool_id, job.id, current) });
+    } catch (e) {
+      console.error("design icons3d", e);
+      await refund(job.id, editCost, "icons3d");
+      const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
+      const why = me?.role === "admin" ? ` [${String(e instanceof Error ? e.message : e).slice(0, 220)}]` : "";
+      return NextResponse.json({ error: `ما قدرنا نرسم الأيقونات، ورجّعنا لك الريش.${why}` }, { status: 502 });
     }
   }
 
