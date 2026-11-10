@@ -9,12 +9,14 @@ async function check(res: Response) {
 }
 
 export async function tts(text: string, voiceId: string, model = "eleven_v3") {
-  const res = await fetch(`${API}/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+  const call = (m: string) => fetch(`${API}/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": key(), "content-type": "application/json" },
-    body: JSON.stringify({ text, model_id: model }),
+    body: JSON.stringify({ text, model_id: m }),
   }).then(check);
-  return res.arrayBuffer();
+  // Some voices/plans don't support every model: fall back to the multilingual model.
+  try { return (await call(model)).arrayBuffer(); }
+  catch (e) { if (model === "eleven_multilingual_v2") throw e; console.error("tts fallback", e); return (await call("eleven_multilingual_v2")).arrayBuffer(); }
 }
 
 /** Instant voice clone from one sample. Returns the new voice id. */

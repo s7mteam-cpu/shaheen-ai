@@ -127,7 +127,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     } catch (e) {
       console.error("motion media", e);
       await admin.rpc("grant_credits", { p_user: user.id, p_amount: tool.edit_cost, p_reason: `refund: motion ${action}`, p_ref: `${job.id}:${Date.now()}` }).then(() => null, () => null);
-      return NextResponse.json({ error: "ما ضبط، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
+      // Admins see the technical reason to fix setup issues (keys, voice ids, plan limits).
+      const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
+      const why = me?.role === "admin" ? ` [${String(e instanceof Error ? e.message : e).slice(0, 220)}]` : "";
+      return NextResponse.json({ error: `ما ضبط، ورجّعنا لك الريش. حاول مرة ثانية.${why}` }, { status: 502 });
     }
   }
 
