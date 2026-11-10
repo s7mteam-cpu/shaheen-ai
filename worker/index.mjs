@@ -254,7 +254,7 @@ async function analyzeMontage(job) {
         await ff(["-i", o, "-map", "0:v", "-map", "0:a:0", "-c", "copy", o2]);
         parts.push(o2);
         const d = (await probe(o2)).duration;
-        clipRanges.push({ s: +clipStart.toFixed(2), e: +(clipStart + d).toFixed(2) }); clipStart += d;
+        clipRanges.push({ s: +clipStart.toFixed(2), e: +(clipStart + d - 0.12).toFixed(2) }); clipStart += d;
         await setProgress(job.id, 3 + Math.round((i + 1) / local.length * 7));
       }
       await writeFile(join(dir, "list.txt"), parts.map((x) => `file '${x}'`).join("\n"));
@@ -367,7 +367,9 @@ async function analyzeMontage(job) {
       for (const g of segments) { if (left <= 0.3) break; const len = Math.min(g.e - g.s, left); cut.push({ s: g.s, e: g.s + len }); left -= len; }
       segments = cut;
     }
-    segments = segments.map((g) => ({ s: +g.s.toFixed(2), e: +g.e.toFixed(2) }));
+    // Never read past the end of the footage (that shows as black frames), and drop slivers.
+    const endSafe = Math.max(0.5, meta.duration - 0.15);
+    segments = segments.map((g) => ({ s: +Math.min(g.s, endSafe - 0.3).toFixed(2), e: +Math.min(g.e, endSafe).toFixed(2) })).filter((g) => g.e - g.s >= 0.25);
     const total = segments.reduce((a, g) => a + g.e - g.s, 0);
 
     // Titles/zooms come in source time: place them on the body (after the hook), else wherever they appear.
@@ -403,7 +405,7 @@ async function analyzeMontage(job) {
       vo: vo ? { path: vo.path, url: "", on: true, words: vo.words, text: vo.text, voice: job.input.vo_voice ?? "" } : null,
       emojis: place(plan?.emojis, (x, at) => ({ e: String(x.e ?? "").slice(0, 4), at, dur: clamp(Number(x.dur) || 1.5, 0.8, 3) })).filter((x) => x.e).slice(0, 8),
       sfx: true,
-      progress: true,
+      progress: false,
       broll: [],
       subs2: null,
     };
@@ -437,7 +439,9 @@ async function analyzeMontage(job) {
 const here = dirname(fileURLToPath(import.meta.url));
 const serveUrl = await bundle({ entryPoint: join(here, "remotion", "entry.tsx"), publicDir: join(here, "..", "public") });
 
-async function render(job, compositionId, props) {
+// Memory-safe settings: long montages with many clips can exhaust RAM (the compositor gets SIGKILLed).
+const LOW_MEM = { concurrency: 1, offthreadVideoCacheSizeInBytes: 256 * 1024 * 1024, offthreadVideoThreads: 1, mediaCacheSizeInBytes: 256 * 1024 * 1024 };
+async function render(job, compositionId, props, lowMem = false) {
   const dir = await mkdtemp(join(tmpdir(), "render-"));
   try {
     const composition = await selectComposition({ serveUrl, id: compositionId, inputProps: props });
@@ -447,6 +451,8 @@ async function render(job, compositionId, props) {
     await renderMedia({
       composition, serveUrl, codec: "h264", crf: 20, x264Preset: "veryfast", outputLocation: out, inputProps: props,
       concurrency: Number(process.env.RENDER_CONCURRENCY) || null,
+      offthreadVideoCacheSizeInBytes: 768 * 1024 * 1024,
+      ...(lowMem ? LOW_MEM : {}),
       onProgress: ({ progress }) => { const p = 3 + progress * 92; if (p - last >= 4) { last = p; setProgress(job.id, p); } },
       chromiumOptions: { gl: "swangle" },
     });
@@ -455,8 +461,15 @@ async function render(job, compositionId, props) {
     const up = await db.storage.from("results").upload(dest, await readFile(out), { contentType: "video/mp4" });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.from("jobs").update({ status: "done", progress: 100, output: { files: [{ path: dest, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
-    console.log("rendered", compositionId, job.id);
+    console.log("rendered", compositionId, job.id, lowMem ? "(low memory)" : "");
   } catch (e) {
+    const msg = String(e?.message ?? e);
+    // Out of memory: try once more, slower but lean, before giving up and refunding.
+    if (!lowMem && /SIGKILL|out of memory|ENOMEM/i.test(msg)) {
+      console.log("render ran out of memory, retrying lean", job.id);
+      await rm(dir, { recursive: true, force: true });
+      return render(job, compositionId, props, true);
+    }
     await fail(job, e);
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -565,7 +578,14 @@ for (;;) {
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
   if (!claimed?.length) continue;
   if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
-  else if (job.tool_id === "motion-video") await render(job, "Motion", job.input.spec);
+  else if (job.tool_id === "motion-video") {
+    const spec = { ...job.input.spec };
+    if (spec.logo?.path) {
+      const { data } = await db.storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 3);
+      spec.logo = data?.signedUrl ? { ...spec.logo, url: data.signedUrl } : null;
+    }
+    await render(job, "Motion", spec);
+  }
   else if (job.input.render && job.input.spec) await renderMontage(job);
   else await analyzeMontage(job);
 }
