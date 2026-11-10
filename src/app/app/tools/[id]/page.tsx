@@ -56,7 +56,11 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
     const spec = (data?.input as { spec?: MotionSpec } | null)?.spec;
     if (data && data.status === "draft" && spec) {
       const tracks = content.motion_music?.items ?? [];
-      return <MotionStudio jobId={data.id} initial={spec} editCost={tool.edit_cost ?? 3} tracks={tracks} voices={content.voices.items} />;
+      const admin = createAdminClient();
+      const { data: kitRow } = await supabase.from("brand_kits").select("logo_url").maybeSingle();
+      const kitLogo = kitRow?.logo_url ? { path: kitRow.logo_url as string, url: (await admin.storage.from("uploads").createSignedUrl(kitRow.logo_url, 60 * 60 * 6)).data?.signedUrl ?? "" } : null;
+      const logo = spec.logo?.path ? { ...spec.logo, url: (await admin.storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" } : spec.logo ?? null;
+      return <MotionStudio jobId={data.id} initial={{ ...spec, logo }} editCost={tool.edit_cost ?? 3} tracks={tracks} voices={content.voices.items} kitLogo={kitLogo} />;
     }
     if (data && data.status !== "draft") {
       return <p className="card p-6 text-center">هذا الفيديو انرسل للتصدير، تلقاه في <Link href="/app/works" className="font-semibold text-navy-700 underline">أعمالي</Link>.</p>;

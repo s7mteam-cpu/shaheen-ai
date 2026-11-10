@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { box } from "@/design/spec";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson, speechReady } from "@/lib/providers/text";
@@ -42,7 +43,14 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     videoVolume: typeof s.videoVolume === "number" ? clamp(s.videoVolume, 0, 1) : base.videoVolume ?? 1,
     vo: s.vo === null ? null : base.vo ? { ...base.vo, url: "", on: s.vo ? !!s.vo.on : base.vo.on } : null,
     transition: ["none", "flash", "zoom"].includes(String(s.transition)) ? s.transition : base.transition ?? "none",
-    logo: base.logo ? { ...base.logo, url: "", on: s.logo?.on ?? base.logo.on, pos: ["tl", "tr", "bl", "br"].includes(String(s.logo?.pos)) ? s.logo!.pos : base.logo.pos } : null,
+    logo: (() => {
+      // the customer may add their own logo in the studio (an upload of theirs), move and resize it
+      const path = s.logo?.path && userId && s.logo.path.startsWith(`${userId}/`) ? s.logo.path : base.logo?.path;
+      if (!path) return null;
+      const pos = ["tl", "tr", "bl", "br"].includes(String(s.logo?.pos)) ? s.logo!.pos : base.logo?.pos ?? "tr";
+      const fb = s.logo && "box" in s.logo ? box(s.logo.box) : base.logo?.box ?? null;
+      return { path, url: "", on: s.logo?.on ?? base.logo?.on ?? true, pos, box: fb };
+    })(),
     emojis: (Array.isArray(s.emojis) ? s.emojis : base.emojis ?? []).slice(0, 12).map((x) => ({ e: String(x.e ?? "").slice(0, 4), at: clamp(Number(x.at) || 0, 0, Math.max(0, len - 0.3)), dur: clamp(Number(x.dur) || 1.5, 0.6, 4) })).filter((x) => x.e),
     sfx: typeof s.sfx === "boolean" ? s.sfx : base.sfx ?? false,
     progress: typeof s.progress === "boolean" ? s.progress : base.progress ?? false,

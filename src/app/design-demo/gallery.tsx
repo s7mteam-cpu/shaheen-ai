@@ -14,7 +14,7 @@ export function DesignGallery() {
   useEffect(() => setM(true), []);
   if (!m) return null;
   if (new URLSearchParams(location.search).get("start")) return <DesignStart toolId="post" cost={3} balance={100} />;
-  if (new URLSearchParams(location.search).get("studio")) return <DesignStudio jobId="demo" toolId="carousel" initial={SAMPLE_CAROUSEL} editCost={2} demo kit={{ colors: ["#0B2A4A", "#C9A45C", "#FFFFFF"], font: "Cairo", handle: "@shaheen", name: "شاهين", logo: null }} />;
+  if (new URLSearchParams(location.search).get("studio")) return <DesignStudio jobId="demo" toolId="carousel" initial={{ ...SAMPLE_CAROUSEL, brand: { ...SAMPLE_CAROUSEL.brand, logo: { path: "x", bucket: "uploads", url: "/dev-sample.jpg" }, box: { x: 0.85, y: 0.09, w: 0.18 } } }} editCost={2} demo kit={{ colors: ["#0B2A4A", "#C9A45C", "#FFFFFF"], font: "Cairo", handle: "@shaheen", name: "شاهين", logo: null }} />;
   const aspect = (typeof location !== "undefined" && new URLSearchParams(location.search).get("a")) || "4:5";
   const post = (layout: string): DesignSpec => ({ ...SAMPLE_POST, aspect: aspect as DesignSpec["aspect"], slides: [{ ...SAMPLE_POST.slides[0], layout: layout as never, photo: ["photo","split","bento","offer"].includes(layout) ? { path: "x", bucket: "uploads", url: "/dev-sample.jpg" } : null }] });
   const sets = [...LAYOUT_IDS.map(post), { ...SAMPLE_CAROUSEL, aspect }, { ...SAMPLE_ADS, aspect }] as DesignSpec[];
