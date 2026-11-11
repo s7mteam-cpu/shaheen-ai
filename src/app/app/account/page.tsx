@@ -57,7 +57,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
               {plans.map((p) => (
                 <form key={p.id} action={startCheckout.bind(null, p.id)} className={`card flex flex-col gap-2.5 p-5 ${p.id === plan?.id ? "border-2 border-navy-800" : ""}`}>
                   <span className="font-bold">{p.name}</span>
-                  <span className="text-sm text-muted">{Number(p.price_kwd)} د.ك · {p.credits.toLocaleString("en")} ريشة</span>
+                  <span className="text-sm text-muted">{Number(p.price_kwd)} د.ك · {p.credits.toLocaleString("en")} ريشة{(p.bonus_credits ?? 0) > 0 ? ` + ${p.bonus_credits!.toLocaleString("en")} هدية` : ""}</span>
                   {p.id === plan?.id
                     ? <span className="mt-auto rounded-xl bg-tint py-2.5 text-center text-sm font-bold text-navy-700">باقتك الحالية</span>
                     : <button className="btn btn-gold mt-auto py-2.5 text-sm">{plan ? "التبديل لهذه الباقة" : "اشترك"}</button>}

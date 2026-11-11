@@ -125,6 +125,7 @@ export default async function Home() {
                 <div className="flex items-baseline gap-2"><span className="font-latin text-5xl font-bold">{Number(p.price_kwd)}</span><span className="font-semibold">د.ك</span><span className={p.is_featured ? "text-white/75" : "text-subtle"}>/ شهرياً</span></div>
                 <ul className="flex flex-col gap-2.5 text-[15px]">
                   <li className="flex items-center gap-2"><Icon name="feather" size={16} className="text-gold-500" />{p.credits.toLocaleString("en")} ريشة كل شهر</li>
+                  {(p.bonus_credits ?? 0) > 0 && <li className={`flex items-center gap-2 font-bold ${p.is_featured ? "text-gold-500" : "text-[#9A7A35]"}`}><span aria-hidden="true" className="w-4 text-center text-[15px]">🎁</span>+ {p.bonus_credits!.toLocaleString("en")} ريشة هدية كل شهر</li>}
                   {p.features.map((f) => <li key={f} className="flex items-center gap-2"><Icon name="check" size={16} className={p.is_featured ? "text-gold-500" : "text-navy-700"} strokeWidth={2.2} />{f}</li>)}
                 </ul>
                 <Link href={`/signup?plan=${p.id}`} className={`btn mt-auto py-3.5 ${p.is_featured ? "btn-gold" : "btn-outline"}`}>اشترك في {p.name}</Link>

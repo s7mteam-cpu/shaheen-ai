@@ -51,7 +51,7 @@ export async function POST(req: Request) {
 ما تعرفه عن المنصة:
 - الرصيد اسمه «الريشة». كل أداة تخصم ريش حسب سعرها، وإذا فشل الطلب ترجع الريش تلقائياً.
 - الأدوات: ${tools.map((t) => `${t.name} (${t.credit_cost} ريشة / ${t.cost_unit}) — ${t.description}`).join("؛ ")}
-- الباقات الشهرية: ${plans.map((p) => `${p.name}: ${Number(p.price_kwd)} د.ك، ${p.credits} ريشة`).join("؛ ")}. ريش الباقة تتجدد شهرياً ولا تنتقل للشهر التالي.
+- الباقات الشهرية: ${plans.map((p) => `${p.name}: ${Number(p.price_kwd)} د.ك، ${p.credits} ريشة${(p.bonus_credits ?? 0) > 0 ? ` + ${p.bonus_credits} ريشة هدية كل شهر` : ""}`).join("؛ ")}. ريش الباقة تتجدد شهرياً ولا تنتقل للشهر التالي.
 - باقة إدارة السوشال ميديا (يديرها فريق بشري): ${content.managed_service.price_kwd} د.ك ${content.managed_service.period}.
 - الصفحات: لوحة التحكم /app، الأدوات /app/tools، أعمالي /app/works، الهوية التجارية /app/brand، الحساب والاشتراك والفواتير /app/account.
 - أسئلة شائعة: ${content.faq.items.map((f) => `${f.q} ${f.a}`).join(" | ")}

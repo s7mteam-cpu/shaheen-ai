@@ -7,6 +7,7 @@ export type Plan = {
   subtitle: string | null;
   price_kwd: number;
   credits: number;
+  bonus_credits?: number;
   features: string[];
   stripe_price_id: string | null;
   is_featured: boolean;
@@ -47,23 +48,23 @@ export type SiteContent = {
 };
 
 export const defaultPlans: Plan[] = [
-  { id: "starter", name: "البداية", subtitle: "لأصحاب المشاريع الصغيرة", price_kwd: 30, credits: 500, features: ["كل الأدوات", "هويتك التجارية على كل تصميم", "دعم فني بالعربي"], stripe_price_id: null, is_featured: false, is_active: true, sort_order: 1 },
-  { id: "shaheen", name: "الشاهين", subtitle: "للمتاجر والمشاريع النشطة", price_kwd: 60, credits: 1000, features: ["كل الأدوات", "هويتك التجارية على كل تصميم", "دعم فني بالعربي"], stripe_price_id: null, is_featured: true, is_active: true, sort_order: 2 },
-  { id: "golden", name: "الصقر الذهبي", subtitle: "للوكالات وصنّاع المحتوى", price_kwd: 90, credits: 1500, features: ["كل الأدوات", "أولوية في التنفيذ", "أولوية في الدعم الفني"], stripe_price_id: null, is_featured: false, is_active: true, sort_order: 3 },
+  { id: "starter", name: "البداية", subtitle: "لأصحاب المشاريع الصغيرة", price_kwd: 40, credits: 500, features: ["كل الأدوات", "هويتك التجارية على كل تصميم", "دعم فني بالعربي"], stripe_price_id: null, is_featured: false, is_active: true, sort_order: 1 },
+  { id: "shaheen", name: "الشاهين", subtitle: "للمتاجر والمشاريع النشطة", price_kwd: 60, credits: 800, bonus_credits: 100, features: ["كل الأدوات", "هويتك التجارية على كل تصميم", "دعم فني بالعربي"], stripe_price_id: null, is_featured: true, is_active: true, sort_order: 2 },
+  { id: "golden", name: "الصقر الذهبي", subtitle: "للوكالات وصنّاع المحتوى", price_kwd: 90, credits: 1300, bonus_credits: 500, features: ["كل الأدوات", "أولوية في التنفيذ", "أولوية في الدعم الفني"], stripe_price_id: null, is_featured: false, is_active: true, sort_order: 3 },
 ];
 
 export const defaultTools: Tool[] = [
-  { id: "post", provider: "fal", name: "إنشاء بوست", description: "تصميم بوست احترافي من معلوماتك: نصوص عربية مظبوطة، أيقونات، صورك أو صور بالذكاء الاصطناعي، وتعدّل كل شي مباشرة.", category: "image", icon: "palette", credit_cost: 3, edit_cost: 2, cost_unit: "تصميم", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 1 },
-  { id: "image", provider: "fal", name: "إنشاء صورة بالذكاء الاصطناعي", description: "اكتب ما تتخيله، أو ارفع صورتك واطلب التعديل: خلفية جديدة، إزالة عنصر، تحسين جودة.", category: "image", icon: "sparkles", credit_cost: 2, edit_cost: 2, cost_unit: "صورة", provider_model: "fal-ai/nano-banana-2", is_enabled: true, sort_order: 1 },
-  { id: "carousel", provider: "fal", name: "كاروسيل إنستغرام", description: "سلسلة شرائح متناسقة بعناوين عربية، تشرح فكرة أو منتج خطوة بخطوة.", category: "image", icon: "layers", credit_cost: 2, edit_cost: 2, cost_unit: "شريحة", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 2 },
-  { id: "motion-video", provider: "claude", name: "إنشاء فيديو موشن جرافيك", description: "فيديو موشن جرافيك بنصوص عربية صحيحة، تعدّل ألوانه ونصوصه وخطه مباشرة، مع موسيقى وتعليق صوتي.", category: "video", icon: "film", credit_cost: 3, edit_cost: 3, cost_unit: "15 ثانية", provider_model: null, is_enabled: true, sort_order: 3 },
-  { id: "video-editing", provider: "elevenlabs", name: "مونتاج الفيديو", description: "ارفع فيديوك الخام، ونقصّ الأجزاء الفاضية ونضيف ترجمة عربية ونجهّزه لكل منصة.", category: "video", icon: "scissors", credit_cost: 4, edit_cost: 3, cost_unit: "دقيقة", provider_model: null, is_enabled: true, sort_order: 4 },
-  { id: "product-video", provider: "google", name: "فيديو المنتج", description: "ارفع صورة منتجك، ونحوّلها لفيديو إعلاني واقعي: إضاءة سينمائية، حركة كاميرا، وموسيقى.", category: "video", icon: "film", credit_cost: 5, edit_cost: 5, cost_unit: "5 ثواني", provider_model: "gemini-omni-1.2-flash", is_enabled: true, sort_order: 6 },
-  { id: "avatar-video", provider: "fal", name: "فيديو بشخصية واقعية", description: "شخصية تقدّم منتجك وتتكلم بلهجة جمهورك، بدون تصوير ولا ممثلين.", category: "video", icon: "user", credit_cost: 15, edit_cost: 5, cost_unit: "فيديو", provider_model: "fal-ai/kling-video/ai-avatar/v2/standard", is_enabled: true, sort_order: 5 },
-  { id: "ad-design", provider: "fal", name: "تصميم الإعلانات", description: "زاوية تسويقية ونص إعلاني وصورة لكل إعلان، جاهزة للنشر على السوشال ميديا.", category: "image", icon: "megaphone", credit_cost: 3, edit_cost: 2, cost_unit: "إعلان", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 6 },
-  { id: "voice", provider: "elevenlabs", name: "تحويل النص إلى أصوات عربية", description: "أصوات طبيعية بأكثر من 20 لهجة، واستنساخ صوتك بموافقتك.", category: "audio", icon: "mic", credit_cost: 1, edit_cost: 1, cost_unit: "500 حرف", provider_model: null, is_enabled: true, sort_order: 7 },
-  { id: "nasheed", provider: "elevenlabs", name: "إنشاء همهمة إسلامية", description: "أناشيد بأصوات بشرية وهمهمات خلفية بدون آلات موسيقية، للمحتوى الديني والمحافظ.", category: "audio", icon: "waves", credit_cost: 3, edit_cost: 3, cost_unit: "30 ثانية", provider_model: null, is_enabled: true, sort_order: 8 },
-  { id: "product-photo", provider: "fal", name: "تصوير المنتجات", description: "صوّر منتجك بالجوال، ونحوّله لصور استوديو احترافية بخلفيات وإضاءة فاخرة.", category: "image", icon: "camera", credit_cost: 2, edit_cost: 2, cost_unit: "صورة", provider_model: "fal-ai/nano-banana-pro/edit", is_enabled: true, sort_order: 9 },
+  { id: "post", provider: "fal", name: "إنشاء بوست", description: "تصميم بوست احترافي من معلوماتك: نصوص عربية مظبوطة، أيقونات، صورك أو صور بالذكاء الاصطناعي، وتعدّل كل شي مباشرة.", category: "image", icon: "palette", credit_cost: 5, edit_cost: 2, cost_unit: "تصميم", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 1 },
+  { id: "image", provider: "fal", name: "إنشاء صورة بالذكاء الاصطناعي", description: "اكتب ما تتخيله، أو ارفع صورتك واطلب التعديل: خلفية جديدة، إزالة عنصر، تحسين جودة.", category: "image", icon: "sparkles", credit_cost: 4, edit_cost: 2, cost_unit: "صورة", provider_model: "fal-ai/nano-banana-2", is_enabled: true, sort_order: 1 },
+  { id: "carousel", provider: "fal", name: "كاروسيل إنستغرام", description: "سلسلة شرائح متناسقة بعناوين عربية، تشرح فكرة أو منتج خطوة بخطوة.", category: "image", icon: "layers", credit_cost: 3, edit_cost: 2, cost_unit: "شريحة", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 2 },
+  { id: "motion-video", provider: "claude", name: "إنشاء فيديو موشن جرافيك", description: "فيديو موشن جرافيك بنصوص عربية صحيحة، تعدّل ألوانه ونصوصه وخطه مباشرة، مع موسيقى وتعليق صوتي.", category: "video", icon: "film", credit_cost: 10, edit_cost: 5, cost_unit: "15 ثانية", provider_model: null, is_enabled: true, sort_order: 3 },
+  { id: "video-editing", provider: "elevenlabs", name: "مونتاج الفيديو", description: "ارفع فيديوك الخام، ونقصّ الأجزاء الفاضية ونضيف ترجمة عربية ونجهّزه لكل منصة.", category: "video", icon: "scissors", credit_cost: 10, edit_cost: 5, cost_unit: "دقيقة", provider_model: null, is_enabled: true, sort_order: 4 },
+  { id: "product-video", provider: "google", name: "فيديو المنتج", description: "ارفع صورة منتجك، ونحوّلها لفيديو إعلاني واقعي: إضاءة سينمائية، حركة كاميرا، وموسيقى.", category: "video", icon: "film", credit_cost: 15, edit_cost: 5, cost_unit: "5 ثواني", provider_model: "gemini-omni-1.2-flash", is_enabled: true, sort_order: 6 },
+  { id: "avatar-video", provider: "fal", name: "فيديو بشخصية واقعية", description: "شخصية تقدّم منتجك وتتكلم بلهجة جمهورك، بدون تصوير ولا ممثلين.", category: "video", icon: "user", credit_cost: 30, edit_cost: 5, cost_unit: "فيديو", provider_model: "fal-ai/kling-video/ai-avatar/v2/standard", is_enabled: true, sort_order: 5 },
+  { id: "ad-design", provider: "fal", name: "تصميم الإعلانات", description: "زاوية تسويقية ونص إعلاني وصورة لكل إعلان، جاهزة للنشر على السوشال ميديا.", category: "image", icon: "megaphone", credit_cost: 5, edit_cost: 2, cost_unit: "إعلان", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 6 },
+  { id: "voice", provider: "elevenlabs", name: "تحويل النص إلى أصوات عربية", description: "أصوات طبيعية بأكثر من 20 لهجة، واستنساخ صوتك بموافقتك.", category: "audio", icon: "mic", credit_cost: 3, edit_cost: 1, cost_unit: "500 حرف", provider_model: null, is_enabled: true, sort_order: 7 },
+  { id: "nasheed", provider: "elevenlabs", name: "إنشاء همهمة إسلامية", description: "أناشيد بأصوات بشرية وهمهمات خلفية بدون آلات موسيقية، للمحتوى الديني والمحافظ.", category: "audio", icon: "waves", credit_cost: 10, edit_cost: 3, cost_unit: "30 ثانية", provider_model: null, is_enabled: true, sort_order: 8 },
+  { id: "product-photo", provider: "fal", name: "تصوير المنتجات", description: "صوّر منتجك بالجوال، ونحوّله لصور استوديو احترافية بخلفيات وإضاءة فاخرة.", category: "image", icon: "camera", credit_cost: 6, edit_cost: 2, cost_unit: "صورة", provider_model: "fal-ai/nano-banana-pro/edit", is_enabled: true, sort_order: 9 },
 ];
 
 export const defaultContent: SiteContent = {

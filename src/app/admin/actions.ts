@@ -48,6 +48,7 @@ export async function savePlan(form: FormData) {
     subtitle: String(form.get("subtitle") || ""),
     price_kwd: Number(form.get("price_kwd")) || 0,
     credits: Number(form.get("credits")) || 0,
+    bonus_credits: Math.max(0, Number(form.get("bonus_credits")) || 0),
     features: String(form.get("features") || "").split("\n").map((s) => s.trim()).filter(Boolean),
     stripe_price_id: String(form.get("stripe_price_id") || "") || null,
     sort_order: Number(form.get("sort_order")) || 0,
