@@ -89,3 +89,15 @@ export async function music(prompt: string, seconds: number) {
   }).then(check);
   return res.arrayBuffer();
 }
+
+/** Speech → text with ElevenLabs Scribe (Arabic, Gulf dialect included). Used by the mic in «كلّم شاهين». */
+export async function transcribe(audio: Blob, filename: string) {
+  const form = new FormData();
+  form.append("model_id", "scribe_v2");
+  form.append("language_code", "ara");
+  form.append("tag_audio_events", "false");
+  form.append("file", audio, filename);
+  const res = await check(await fetch(`${API}/speech-to-text`, { method: "POST", headers: { "xi-api-key": key() }, body: form }));
+  const json = (await res.json()) as { text?: string };
+  return (json.text ?? "").trim();
+}

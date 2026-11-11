@@ -10,7 +10,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <SiteHeader signedIn={Boolean(profile)} />
       {children}
       <SiteFooter footer={content.footer} />
-      <ShaheenChat name={profile?.full_name?.split(" ")[0]} />
+      <ShaheenChat name={profile?.full_name?.split(" ")[0]} voice={!!profile} />
     </>
   );
 }

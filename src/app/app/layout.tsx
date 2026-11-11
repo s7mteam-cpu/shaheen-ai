@@ -77,7 +77,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       {needContact && <CompleteProfile name={profile.full_name ?? ""} />}
-      <ShaheenChat name={profile.full_name?.split(" ")[0]} />
+      <ShaheenChat name={profile.full_name?.split(" ")[0]} voice />
     </div>
   );
 }
