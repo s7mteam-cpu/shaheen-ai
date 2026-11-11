@@ -52,7 +52,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </form>
       )}
       <header className="sticky top-0 z-30 bg-navy-800 shadow-[0_1px_0_rgba(201,164,92,0.35)]">
-        <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
           <Link href="/app" className="flex shrink-0 items-center gap-1.5 sm:gap-2.5"><Image src="/brand/eagle.png" alt="" width={36} height={36} className="h-8 w-8 sm:h-9 sm:w-9" /><span className="text-[18px] font-bold text-gold-500 max-[379px]:hidden sm:text-xl">{T("شاهين", "Shaheen")}</span></Link>
           <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             <Link href="/app/account" aria-label={T(`رصيدك ${profile.credits} ريشة`, `Your balance: ${profile.credits} credits`)}
