@@ -51,6 +51,7 @@ export type MontageSpec = {
   panel?: "light" | "dark";                                       // look of the graphics panel in split layout
   graphics?: Graphic[];                                           // animated scenes synced to the speech
   quality?: "1080" | "4k";                                         // export size
+  domain?: string;                                                // field from the playbook (education, restaurant…)
 };
 
 /** Split = animated graphics on top (or the side) and the speaker below — the "explainer reel" look. */

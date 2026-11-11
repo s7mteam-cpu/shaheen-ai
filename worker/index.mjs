@@ -12,6 +12,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { createRequire } from "node:module";
+const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
+const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
 
 const run = promisify(execFile);
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -176,7 +179,7 @@ function cleanGraphic(x, at) {
   for (const k of Object.keys(g)) if (g[k] === undefined) delete g[k];
   return g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined ? g : null;
 }
-const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال ميديا الخليجية. عندك نص فيديو مع توقيت كل جملة بالثواني (من الفيديو الأصلي).
+const PLAN_SYSTEM = () => `أنت مونتير محترف لريلز السوشال ميديا الخليجية. عندك نص فيديو مع توقيت كل جملة بالثواني (من الفيديو الأصلي).
 مهمتك: خطة مونتاج JSON فقط، بالشكل:
 {
  "hook": {"s":0,"e":0} أو null   // أقوى جملة قصيرة (2-6 ثواني) تنعرض بالبداية لتشد المشاهد
@@ -208,14 +211,22 @@ const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال م
 - نوّع أساليب النصوص بذكاء (kinetic للهوك، editorial للمعلومات، lower للسعر أو المكان أو الاسم).
 إذا ما فيه كلام ولا تعليق صوتي (مقاطع خام لمنتج أو مطعم أو محل أو مشروع): أنت اللي تحكي القصة بالنصوص. اختر من كل لقطة أجمل 2-3 ثواني، وحط نص على كل لقطة تقريباً بالوسط (pos: center) يشرح أو يسوّق بناءً على وصف العميل واللي يبين بالصور، بتسلسل: خطّاف ← مزايا أو معلومات ← دعوة بالنهاية (مع الحساب إذا موجود). drift: true، وموسيقى مناسبة.
 القواعد: التزم بالمدة المطلوبة تقريباً. لا تقص جملة من نصها. العناوين من كلام الفيديو نفسه أو تلخيص دقيق له، بدون اختراع معلومات.
-نفّذ وصف العميل بدقة إذا ذكره. حسابات أو أرقام تواصل فقط إذا ذكرها العميل.`;
+نفّذ وصف العميل بدقة إذا ذكره. حسابات أو أرقام تواصل فقط إذا ذكرها العميل.
+أضف بالـ JSON: "domain": "id المجال من الدليل".
+
+دليل المجالات (نقطة بداية مو قيد):
+1) حدّد مجال الفيديو من الكلام ووصف العميل واسم النشاط، واختر الأقرب من القائمة (أو ادمج مجالين).
+2) طبّق ستايل المجال (الشكل، الألوان، الترجمة، الانتقال، أنواع المشاهد، الموسيقى، النبرة) إلا إذا العميل طلب غير كذا — طلب العميل دايماً أهم.
+3) كن مبدع مثل مونتير محترف: نوّع أنواع المشاهد والتأثيرات (marker, circle, underline, typewriter)، لا تكرر نفس نوع المشهد مرتين ورا بعض، واربط كل مشهد بمعنى الجملة (رقم ← counter، خطوات ← steps، مقارنة ← compare، وقت ← timer، نسبة ← donut، نمو ← line، أدوات ← flow، حكمة ← quote، دعوة ← arrow).
+4) للمحتوى الديني: احترام كامل، بدون موسيقى وبدون إيموجي مرحة.
+${PLAYBOOK_TEXT}`;
 
 async function claudePlan(user, shots = []) {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: process.env.MONTAGE_MODEL || "claude-sonnet-5-5", max_tokens: 6000, system: PLAN_SYSTEM + "\nأجب بـ JSON صالح فقط.",
+    body: JSON.stringify({ model: process.env.MONTAGE_MODEL || "claude-sonnet-5-5", max_tokens: 6000, system: PLAN_SYSTEM() + "\nأجب بـ JSON صالح فقط.",
       messages: [{ role: "user", content: [
         ...shots.flatMap((f) => [{ type: "text", text: `[صورة من الفيديو عند ${f.t}s]` }, { type: "image", source: { type: "base64", media_type: "image/jpeg", data: f.data } }]),
         { type: "text", text: user },
@@ -441,6 +452,7 @@ async function analyzeMontage(job) {
       vo: vo ? { path: vo.path, url: "", on: true, words: vo.words, text: vo.text, voice: job.input.vo_voice ?? "" } : null,
       layout: LAYOUTS_OK.includes(job.input.layout) ? job.input.layout : LAYOUTS_OK.includes(plan?.layout) && (speech || plan.layout === "full") ? plan.layout : "full",
       quality: job.input.quality === "4k" ? "4k" : "1080",
+      domain: PLAYBOOK.some((d) => d.id === plan?.domain) ? plan.domain : undefined,
       panel: "light",
       graphics: place(plan?.graphics, (x, at) => cleanGraphic(x, at)).filter(Boolean).sort((a, b) => a.at - b.at).filter((g, i, all) => i === 0 || g.at >= all[i - 1].at + 1),
       emojis: place(plan?.emojis, (x, at) => ({ e: String(x.e ?? "").slice(0, 4), at, dur: clamp(Number(x.dur) || 1.5, 0.8, 3) })).filter((x) => x.e).slice(0, 8),

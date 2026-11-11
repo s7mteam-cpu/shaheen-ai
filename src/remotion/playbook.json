@@ -1,0 +1,1063 @@
+[
+{
+"id": "education",
+"label": "تعليم ودروس",
+"keywords": [
+"درس",
+"شرح",
+"تعليم",
+"طلاب",
+"مادة",
+"امتحان",
+"معلم",
+"معلمة",
+"أكاديمية",
+"دورة"
+],
+"layout": "split",
+"grade": "natural",
+"captions": "highlight",
+"transition": "slide",
+"titles": [
+"kinetic",
+"marker"
+],
+"graphics": [
+"steps",
+"checklist",
+"compare",
+"headline",
+"quote",
+"donut"
+],
+"icons": [
+"book",
+"bulb",
+"grad",
+"brain",
+"question",
+"check"
+],
+"music": "calm curious study music, light piano and soft plucks",
+"tone": "واضح ومرتّب، فكرة وحدة بكل مشهد",
+"ideas": [
+"كل قاعدة أو مصطلح بعنوان headline مع fx: marker على الكلمة المهمة",
+"الخطوات بمشهد steps",
+"الأخطاء الشائعة compare (الغلط مقابل الصح)",
+"سؤال للمشاهد بالنهاية بمشهد icon بأيقونة question"
+]
+},
+{
+"id": "kids",
+"label": "أطفال وتعليم صغار",
+"keywords": [
+"أطفال",
+"طفل",
+"حضانة",
+"روضة",
+"حروف",
+"ألوان",
+"قصة"
+],
+"layout": "circle",
+"grade": "pop",
+"captions": "pop",
+"transition": "spin",
+"titles": [
+"kinetic",
+"pill"
+],
+"graphics": [
+"icon",
+"steps",
+"headline",
+"counter"
+],
+"icons": [
+"star",
+"heart",
+"sparkle",
+"book",
+"gift"
+],
+"music": "cheerful playful kids music, ukulele and xylophone",
+"tone": "مبهج ولطيف، جمل قصيرة جداً",
+"ideas": [
+"إيموجي لطيفة كثيرة 😍⭐🎈",
+"ألوان زاهية جداً",
+"كل كلمة جديدة بأيقونة كبيرة"
+]
+},
+{
+"id": "coach",
+"label": "تدريب وتطوير ذات",
+"keywords": [
+"نصيحة",
+"تطوير",
+"نجاح",
+"هدف",
+"عادات",
+"تحفيز",
+"مدرب",
+"كوتش",
+"إنتاجية"
+],
+"layout": "dynamic",
+"grade": "reels",
+"captions": "pop",
+"transition": "whip",
+"titles": [
+"kinetic",
+"marker"
+],
+"graphics": [
+"headline",
+"steps",
+"quote",
+"counter",
+"compare"
+],
+"icons": [
+"target",
+"rocket",
+"bolt",
+"trophy",
+"brain"
+],
+"music": "motivational cinematic build-up, deep drums",
+"tone": "قوي ومباشر بدون مبالغة",
+"ideas": [
+"الهوك بأول ثانية سؤال أو رقم صادم",
+"الأرقام counter",
+"اقتباس quote للجملة الذهبية",
+"سهم arrow بالنهاية «احفظ الفيديو»"
+]
+},
+{
+"id": "tech",
+"label": "تقنية وذكاء اصطناعي",
+"keywords": [
+"تقنية",
+"ذكاء اصطناعي",
+"تطبيق",
+"برنامج",
+"أداة",
+"موقع",
+"AI",
+"كود",
+"برمجة",
+"Claude",
+"ChatGPT"
+],
+"layout": "split",
+"grade": "cool",
+"captions": "highlight",
+"transition": "glitch",
+"titles": [
+"kinetic",
+"typewriter"
+],
+"graphics": [
+"flow",
+"timer",
+"steps",
+"icon",
+"bars"
+],
+"icons": [
+"laptop",
+"sparkle",
+"bolt",
+"brain",
+"video",
+"rocket"
+],
+"music": "modern tech electronic beat, minimal synth",
+"tone": "ذكي وسريع، يوصل الفكرة بأقل وقت",
+"ideas": [
+"سير العمل بمشهد flow (فكرة ← أداة ← نتيجة)",
+"السرعة والوقت timer",
+"أسماء الأدوات headline مع fx: typewriter"
+]
+},
+{
+"id": "finance",
+"label": "مال وأعمال واستثمار",
+"keywords": [
+"فلوس",
+"مال",
+"استثمار",
+"أسهم",
+"ربح",
+"مشروع",
+"تجارة",
+"بزنس",
+"مبيعات",
+"راتب",
+"ميزانية"
+],
+"layout": "split",
+"grade": "cinematic",
+"captions": "box",
+"transition": "slide",
+"titles": [
+"editorial",
+"marker"
+],
+"graphics": [
+"counter",
+"bars",
+"line",
+"donut",
+"compare"
+],
+"icons": [
+"money",
+"chart",
+"target",
+"shield",
+"trophy"
+],
+"music": "confident corporate music, subtle pulse",
+"tone": "رصين وواثق بالأرقام",
+"ideas": [
+"كل رقم counter أو bars",
+"النمو line",
+"النسب donut",
+"لا تبالغ بالوعود المالية"
+]
+},
+{
+"id": "restaurant",
+"label": "مطاعم",
+"keywords": [
+"مطعم",
+"أكل",
+"طبق",
+"مشاوي",
+"برجر",
+"وجبة",
+"منيو",
+"شيف",
+"طعم",
+"توصيل"
+],
+"layout": "full",
+"grade": "pop",
+"captions": "outline",
+"transition": "whip",
+"titles": [
+"kinetic",
+"lower",
+"pill"
+],
+"graphics": [
+"icon",
+"counter",
+"checklist"
+],
+"icons": [
+"bowl",
+"star",
+"heart",
+"pin",
+"clock",
+"tag"
+],
+"music": "upbeat appetizing groove, warm funky bass",
+"tone": "شهي ومغري، يوصف الطعم والريحة",
+"ideas": [
+"لقطات الأكل القريبة مع drift وزووم",
+"السعر والعرض lower أو pill",
+"الموقع وساعات العمل بالنهاية icon بأيقونة pin",
+"إيموجي 🔥😍 عند اللقطات الشهية"
+]
+},
+{
+"id": "cafe",
+"label": "كافيهات وقهوة",
+"keywords": [
+"كافيه",
+"قهوة",
+"لاتيه",
+"مشروب",
+"حلى",
+"باريستا"
+],
+"layout": "full",
+"grade": "warm",
+"captions": "minimal",
+"transition": "blur",
+"titles": [
+"editorial",
+"typewriter"
+],
+"graphics": [
+"icon",
+"headline"
+],
+"icons": [
+"drop",
+"heart",
+"pin",
+"star"
+],
+"music": "cozy lofi coffee shop music",
+"tone": "هادي وعصري",
+"ideas": [
+"لقطات بطيئة drift",
+"نصوص قليلة وأنيقة editorial",
+"ألوان دافئة"
+]
+},
+{
+"id": "sweets",
+"label": "حلويات ومخابز",
+"keywords": [
+"حلويات",
+"كيك",
+"مخبز",
+"معجنات",
+"شوكولاتة",
+"بوكس",
+"تورت"
+],
+"layout": "full",
+"grade": "sunset",
+"captions": "highlight",
+"transition": "zoom",
+"titles": [
+"kinetic",
+"pill"
+],
+"graphics": [
+"icon",
+"checklist"
+],
+"icons": [
+"gift",
+"heart",
+"star",
+"calendar"
+],
+"music": "sweet light pop music, bells",
+"tone": "حلو ولطيف ومناسبات",
+"ideas": [
+"المناسبات والطلب المسبق checklist",
+"لون وردي أو ذهبي"
+]
+},
+{
+"id": "clinic",
+"label": "طبي وعيادات",
+"keywords": [
+"عيادة",
+"دكتور",
+"طبيب",
+"أسنان",
+"علاج",
+"صحة",
+"أعراض",
+"تجميل طبي",
+"جلدية"
+],
+"layout": "card",
+"grade": "natural",
+"captions": "box",
+"transition": "dip",
+"titles": [
+"editorial",
+"lower"
+],
+"graphics": [
+"checklist",
+"compare",
+"steps",
+"donut",
+"icon"
+],
+"icons": [
+"shield",
+"heart",
+"check",
+"eye",
+"calendar"
+],
+"music": "calm reassuring ambient music",
+"tone": "مطمّن وعلمي وبسيط، بدون تخويف",
+"ideas": [
+"المعلومة الطبية compare (خرافة مقابل حقيقة)",
+"خطوات العلاج steps",
+"الحجز بالنهاية icon بأيقونة calendar",
+"لا وعود علاجية مبالغ فيها"
+]
+},
+{
+"id": "beauty",
+"label": "تجميل وصالونات",
+"keywords": [
+"صالون",
+"مكياج",
+"شعر",
+"أظافر",
+"بشرة",
+"تجميل",
+"عناية"
+],
+"layout": "full",
+"grade": "luxury",
+"captions": "minimal",
+"transition": "blur",
+"titles": [
+"editorial",
+"marker"
+],
+"graphics": [
+"compare",
+"checklist",
+"icon"
+],
+"icons": [
+"sparkle",
+"heart",
+"star",
+"calendar"
+],
+"music": "elegant soft pop, airy",
+"tone": "ناعم وأنثوي ومريح",
+"ideas": [
+"قبل وبعد compare",
+"الخدمات checklist",
+"ألوان ناعمة"
+]
+},
+{
+"id": "fashion",
+"label": "أزياء وعبايات",
+"keywords": [
+"عباية",
+"أزياء",
+"فستان",
+"قماش",
+"تشكيلة",
+"ملابس",
+"موضة"
+],
+"layout": "full",
+"grade": "luxury",
+"captions": "minimal",
+"transition": "slide",
+"titles": [
+"editorial",
+"lower"
+],
+"graphics": [
+"headline",
+"icon"
+],
+"icons": [
+"star",
+"tag",
+"sparkle"
+],
+"music": "chic fashion runway beat",
+"tone": "أنيق وفخم",
+"ideas": [
+"لقطات بطيئة drift ونصوص قليلة editorial",
+"السعر lower"
+]
+},
+{
+"id": "perfume",
+"label": "عطور وبخور وفخامة",
+"keywords": [
+"عطر",
+"عود",
+"بخور",
+"دهن",
+"فخم",
+"مجوهرات",
+"ساعات"
+],
+"layout": "full",
+"grade": "luxury",
+"captions": "minimal",
+"transition": "dip",
+"titles": [
+"editorial",
+"typewriter"
+],
+"graphics": [
+"headline",
+"quote"
+],
+"icons": [
+"sparkle",
+"star",
+"drop"
+],
+"music": "luxurious oriental ambient with oud",
+"tone": "فاخر وشاعري",
+"ideas": [
+"vignette وحركة بطيئة",
+"نصوص قليلة جداً",
+"تعتيم بين اللقطات"
+]
+},
+{
+"id": "realestate",
+"label": "عقار",
+"keywords": [
+"عقار",
+"شقة",
+"فيلا",
+"بيت",
+"أرض",
+"إيجار",
+"للبيع",
+"مساحة",
+"غرف"
+],
+"layout": "full",
+"grade": "cinematic",
+"captions": "box",
+"transition": "slide",
+"titles": [
+"lower",
+"editorial"
+],
+"graphics": [
+"checklist",
+"counter",
+"icon"
+],
+"icons": [
+"home",
+"pin",
+"money",
+"check"
+],
+"music": "elegant cinematic real estate music",
+"tone": "فخم وواثق",
+"ideas": [
+"المواصفات checklist (غرف، مساحة، موقع)",
+"المساحة أو السعر counter",
+"الموقع pin بالنهاية"
+]
+},
+{
+"id": "cars",
+"label": "سيارات وخدمات سيارات",
+"keywords": [
+"سيارة",
+"سيارات",
+"تواير",
+"كراج",
+"صيانة",
+"غسيل",
+"تلميع",
+"قطع غيار"
+],
+"layout": "full",
+"grade": "reels",
+"captions": "outline",
+"transition": "shake",
+"titles": [
+"kinetic",
+"lower"
+],
+"graphics": [
+"checklist",
+"compare",
+"counter",
+"timer"
+],
+"icons": [
+"bolt",
+"shield",
+"clock",
+"check",
+"tag"
+],
+"music": "energetic rock or trap beat",
+"tone": "سريع وقوي وموثوق",
+"ideas": [
+"قبل وبعد التلميع compare",
+"السرعة timer",
+"الضمان icon بأيقونة shield"
+]
+},
+{
+"id": "gym",
+"label": "رياضة ولياقة",
+"keywords": [
+"جيم",
+"تمرين",
+"رياضة",
+"عضلات",
+"لياقة",
+"وزن",
+"كارديو",
+"بروتين"
+],
+"layout": "dynamic",
+"grade": "reels",
+"captions": "pop",
+"transition": "shake",
+"titles": [
+"kinetic",
+"pill"
+],
+"graphics": [
+"counter",
+"steps",
+"timer",
+"checklist",
+"compare"
+],
+"icons": [
+"bolt",
+"target",
+"trophy",
+"clock",
+"heart"
+],
+"music": "high energy workout trap beat",
+"tone": "طاقة وحماس",
+"ideas": [
+"العدّات والأرقام counter",
+"مدة التمرين timer",
+"الخطوات steps",
+"هزّة عند الجمل القوية"
+]
+},
+{
+"id": "nutrition",
+"label": "تغذية وأكل صحي",
+"keywords": [
+"صحي",
+"تغذية",
+"سعرات",
+"دايت",
+"بروتين",
+"فيتامين",
+"وجبات صحية"
+],
+"layout": "split",
+"grade": "vivid",
+"captions": "highlight",
+"transition": "slide",
+"titles": [
+"kinetic",
+"marker"
+],
+"graphics": [
+"bars",
+"donut",
+"compare",
+"checklist"
+],
+"icons": [
+"leaf",
+"drop",
+"heart",
+"chart"
+],
+"music": "fresh light acoustic pop",
+"tone": "صحي وخفيف ومحفّز",
+"ideas": [
+"السعرات والمقارنات bars",
+"النسب donut",
+"الخرافات compare"
+]
+},
+{
+"id": "religion",
+"label": "ديني وقرآن ودعوة",
+"keywords": [
+"الله",
+"قرآن",
+"آية",
+"حديث",
+"دعاء",
+"صلاة",
+"رمضان",
+"ذكر",
+"إيمان",
+"الجنة"
+],
+"layout": "full",
+"grade": "luxury",
+"captions": "minimal",
+"transition": "dip",
+"titles": [
+"editorial"
+],
+"graphics": [
+"quote",
+"headline"
+],
+"icons": [
+"star",
+"heart",
+"book",
+"sparkle"
+],
+"music": "",
+"tone": "خاشع ومحترم وهادي",
+"ideas": [
+"بدون موسيقى (اترك music_prompt فاضي)",
+"الآيات والأحاديث quote بدون fx",
+"لا إيموجي إلا 🤲 أو لا شيء",
+"انتقالات هادئة dip أو none"
+]
+},
+{
+"id": "ecommerce",
+"label": "متاجر ومنتجات",
+"keywords": [
+"منتج",
+"متجر",
+"طلب",
+"خصم",
+"عرض",
+"توصيل",
+"سعر",
+"كوبون",
+"تخفيضات"
+],
+"layout": "full",
+"grade": "pop",
+"captions": "highlight",
+"transition": "whip",
+"titles": [
+"kinetic",
+"pill",
+"lower"
+],
+"graphics": [
+"counter",
+"checklist",
+"compare",
+"arrow"
+],
+"icons": [
+"cart",
+"tag",
+"gift",
+"bolt",
+"check"
+],
+"music": "upbeat catchy commercial pop",
+"tone": "مباشر وعروض واضحة",
+"ideas": [
+"الخصم counter بـ suffix ٪",
+"المزايا checklist",
+"سهم arrow «اطلب الحين» بالنهاية"
+]
+},
+{
+"id": "travel",
+"label": "سفر وسياحة",
+"keywords": [
+"سفر",
+"رحلة",
+"سياحة",
+"فندق",
+"طيران",
+"جزيرة",
+"باكج"
+],
+"layout": "full",
+"grade": "sunset",
+"captions": "karaoke",
+"transition": "whip",
+"titles": [
+"kinetic",
+"editorial"
+],
+"graphics": [
+"checklist",
+"counter",
+"icon"
+],
+"icons": [
+"pin",
+"calendar",
+"sparkle",
+"camera"
+],
+"music": "uplifting travel vlog music",
+"tone": "حماسي وحالم",
+"ideas": [
+"الباكج checklist",
+"عدد الأيام counter",
+"لقطات drift"
+]
+},
+{
+"id": "events",
+"label": "مناسبات وأعراس",
+"keywords": [
+"عرس",
+"زواج",
+"حفلة",
+"مناسبة",
+"تخرج",
+"خطوبة",
+"تنسيق"
+],
+"layout": "full",
+"grade": "sunset",
+"captions": "minimal",
+"transition": "blur",
+"titles": [
+"editorial",
+"typewriter"
+],
+"graphics": [
+"headline",
+"quote",
+"checklist"
+],
+"icons": [
+"heart",
+"sparkle",
+"gift",
+"calendar"
+],
+"music": "romantic elegant strings",
+"tone": "فرح وأناقة",
+"ideas": [
+"حركة بطيئة وانتقالات ناعمة",
+"نصوص أنيقة قليلة"
+]
+},
+{
+"id": "news",
+"label": "أخبار ومعلومات",
+"keywords": [
+"خبر",
+"عاجل",
+"تقرير",
+"إحصائية",
+"دراسة",
+"معلومة",
+"هل تعلم"
+],
+"layout": "split",
+"grade": "natural",
+"captions": "box",
+"transition": "slide",
+"titles": [
+"editorial",
+"lower"
+],
+"graphics": [
+"counter",
+"bars",
+"line",
+"donut",
+"quote"
+],
+"icons": [
+"chart",
+"pin",
+"calendar",
+"eye"
+],
+"music": "news style pulse, serious",
+"tone": "موضوعي وسريع",
+"ideas": [
+"كل رقم counter أو bars",
+"المصدر quote بالسطر sub"
+]
+},
+{
+"id": "cooking",
+"label": "طبخ ووصفات",
+"keywords": [
+"وصفة",
+"طبخ",
+"مقادير",
+"ملعقة",
+"فرن",
+"دقائق",
+"طريقة"
+],
+"layout": "split",
+"grade": "vivid",
+"captions": "highlight",
+"transition": "zoom",
+"titles": [
+"kinetic",
+"lower"
+],
+"graphics": [
+"checklist",
+"steps",
+"timer"
+],
+"icons": [
+"bowl",
+"clock",
+"check",
+"star"
+],
+"music": "happy kitchen acoustic groove",
+"tone": "ممتع وبسيط",
+"ideas": [
+"المقادير checklist",
+"الطريقة steps",
+"وقت الطبخ timer"
+]
+},
+{
+"id": "story",
+"label": "قصص وتحفيز",
+"keywords": [
+"قصة",
+"صار",
+"يوم",
+"حياتي",
+"تجربة",
+"درس تعلمته"
+],
+"layout": "full",
+"grade": "cinematic",
+"captions": "karaoke",
+"transition": "dip",
+"titles": [
+"kinetic",
+"typewriter"
+],
+"graphics": [
+"quote",
+"headline"
+],
+"icons": [
+"heart",
+"star",
+"bulb"
+],
+"music": "emotional cinematic piano",
+"tone": "مؤثر وصادق",
+"ideas": [
+"الجملة الأقوى quote",
+"حركة بطيئة وvignette"
+]
+},
+{
+"id": "personal",
+"label": "مؤثرين ويوميات",
+"keywords": [
+"يومياتي",
+"فلوق",
+"تحدي",
+"ردة فعل",
+"روتين"
+],
+"layout": "full",
+"grade": "reels",
+"captions": "pop",
+"transition": "whip",
+"titles": [
+"kinetic",
+"pill"
+],
+"graphics": [
+"headline",
+"icon",
+"arrow"
+],
+"icons": [
+"heart",
+"star",
+"bolt"
+],
+"music": "trendy upbeat tiktok beat",
+"tone": "عفوي وشبابي",
+"ideas": [
+"ترجمة pop كبيرة",
+"إيموجي كثيرة",
+"انتقالات سريعة"
+]
+},
+{
+"id": "government",
+"label": "جهات ومبادرات وخيرية",
+"keywords": [
+"مبادرة",
+"تبرع",
+"خيري",
+"وزارة",
+"تطوع",
+"حملة",
+"توعية"
+],
+"layout": "card",
+"grade": "natural",
+"captions": "box",
+"transition": "dip",
+"titles": [
+"editorial",
+"lower"
+],
+"graphics": [
+"counter",
+"checklist",
+"steps",
+"donut"
+],
+"icons": [
+"users",
+"heart",
+"shield",
+"check"
+],
+"music": "hopeful inspiring orchestral",
+"tone": "رسمي ومطمّن",
+"ideas": [
+"الأثر بالأرقام counter",
+"طريقة المشاركة steps"
+]
+},
+{
+"id": "law",
+"label": "قانون واستشارات",
+"keywords": [
+"قانون",
+"محامي",
+"قضية",
+"حقوق",
+"عقد",
+"استشارة"
+],
+"layout": "card",
+"grade": "cinematic",
+"captions": "box",
+"transition": "dip",
+"titles": [
+"editorial"
+],
+"graphics": [
+"checklist",
+"compare",
+"steps",
+"quote"
+],
+"icons": [
+"shield",
+"book",
+"check",
+"question"
+],
+"music": "serious calm corporate",
+"tone": "رصين وواضح",
+"ideas": [
+"الحقوق checklist",
+"الخطوات steps",
+"لا تعطي حكم قانوني نهائي"
+]
+}
+]
