@@ -76,7 +76,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     return NextResponse.json({ error: error.message.includes("INSUFFICIENT") ? "رصيدك من الريش ما يكفي." : "تعذّر خصم الرصيد." }, { status: 402 });
   }
   const refund = (jobId: string, amount: number, why: string) =>
-    admin.rpc("grant_credits", { p_user: user.id, p_amount: amount, p_reason: `refund: design ${why}`, p_ref: `${jobId}:${Date.now()}` }).then(() => null, () => null);
+    admin.rpc("grant_credits", { p_user: user.id, p_amount: amount, p_reason: "refund", p_ref: `design-${why}:${jobId}:${Date.now()}` }).then(() => null, () => null);
   const sign = async (bucket: string, path: string) => (await admin.storage.from(bucket).createSignedUrl(path, 60 * 60 * 6)).data?.signedUrl ?? "";
   const mine = (p?: string) => typeof p === "string" && p.startsWith(`${user.id}/`);
 

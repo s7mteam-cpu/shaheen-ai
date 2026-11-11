@@ -1,20 +1,25 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { counterResets } from "@/lib/server/overviewReset";
 
 export const dynamic = "force-dynamic";
 
 export default async function Overview() {
   const admin = createAdminClient();
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-  const [{ data: subs }, { data: plans }, { count: users }, { data: spent }, { count: failed }, { count: jobs }] = await Promise.all([
-    admin.from("subscriptions").select("plan_id,status").in("status", ["active", "trialing", "past_due"]),
+  const r = await counterResets();
+  const since = (k: keyof typeof r, base = "1970-01-01T00:00:00Z") => (r[k] && r[k]! > base ? r[k]! : base);
+  const active = ["active", "trialing", "past_due"];
+  const [{ data: subs }, { data: subsRev }, { data: plans }, { count: users }, { data: spent }, { count: failed }, { count: jobs }] = await Promise.all([
+    admin.from("subscriptions").select("plan_id,status").in("status", active).gte("updated_at", since("subs")),
+    admin.from("subscriptions").select("plan_id").in("status", active).gte("updated_at", since("revenue")),
     admin.from("plans").select("id,name,price_kwd"),
-    admin.from("profiles").select("id", { count: "exact", head: true }),
-    admin.from("credit_ledger").select("amount").eq("reason", "spend").gte("created_at", monthStart),
-    admin.from("jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("created_at", monthStart),
-    admin.from("jobs").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
+    admin.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", since("accounts")),
+    admin.from("credit_ledger").select("amount").eq("reason", "spend").gte("created_at", since("spent", monthStart)),
+    admin.from("jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("created_at", since("failed", monthStart)),
+    admin.from("jobs").select("id", { count: "exact", head: true }).gte("created_at", since("jobs", monthStart)),
   ]);
   const price = (id: string | null) => Number(plans?.find((p) => p.id === id)?.price_kwd ?? 0);
-  const mrr = (subs ?? []).reduce((s, x) => s + price(x.plan_id), 0);
+  const mrr = (subsRev ?? []).reduce((s, x) => s + price(x.plan_id), 0);
   const used = -(spent ?? []).reduce((s, x) => s + x.amount, 0);
   const byPlan = (plans ?? []).map((p) => ({ name: p.name, n: (subs ?? []).filter((s) => s.plan_id === p.id).length }));
 

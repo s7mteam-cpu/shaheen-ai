@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTools } from "@/lib/data";
 
 export type Row = {
-  id: number; amount: number; reason: string; job_id: string | null; created_at: string;
+  id: number; amount: number; reason: string; job_id: string | null; created_at: string; ref?: string | null;
   jobs: { tool_id: string; title: string | null } | null;
 };
 
@@ -21,7 +21,7 @@ const time = (d: string) => new Date(d).toLocaleTimeString("ar-KW", { hour: "num
 export async function CreditHistory({ balance }: { balance: number }) {
   const supabase = await createClient();
   const [{ data }, tools] = await Promise.all([
-    supabase.from("credit_ledger").select("id,amount,reason,job_id,created_at,jobs(tool_id,title)").order("created_at", { ascending: false }).limit(300),
+    supabase.from("credit_ledger").select("id,amount,reason,job_id,created_at,ref,jobs(tool_id,title)").order("created_at", { ascending: false }).limit(300),
     getTools(true),
   ]);
   return <CreditHistoryView rows={(data ?? []) as unknown as Row[]} tools={tools} balance={balance} />;
@@ -95,7 +95,7 @@ export function CreditHistoryView({ rows, tools, balance }: { rows: Row[]; tools
               const isEdit = r.reason === "spend" && r.job_id && firstSpend.get(r.job_id) !== r.id;
               const label = r.reason === "spend"
                 ? `${isEdit ? "تعديل: " : ""}${toolName(r.jobs?.tool_id)}`
-                : r.reason === "refund" ? `${REASON.refund} (${toolName(r.jobs?.tool_id)})` : REASON[r.reason] ?? r.reason;
+                : r.reason === "refund" ? (r.jobs ? `${REASON.refund} (${toolName(r.jobs.tool_id)})` : "استرجاع ريش") : r.reason === "renewal_reset" && r.ref?.startsWith("admin-reset") ? "تصفير الرصيد من الإدارة" : REASON[r.reason] ?? r.reason;
               return (
                 <div key={r.id} className="flex items-center justify-between gap-3 border-b border-line/60 py-3 last:border-0">
                   <div className="flex min-w-0 flex-col">

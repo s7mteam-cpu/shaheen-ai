@@ -104,7 +104,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       return NextResponse.json({ spec });
     } catch (e) {
       console.error("motion revise", e);
-      await admin.rpc("grant_credits", { p_user: user.id, p_amount: tool.edit_cost, p_reason: "refund: motion revise", p_ref: `${job.id}:${Date.now()}` }).then(() => null, () => null);
+      await admin.rpc("grant_credits", { p_user: user.id, p_amount: tool.edit_cost, p_reason: "refund", p_ref: `motion-revise:${job.id}:${Date.now()}` }).then(() => null, () => null);
       return NextResponse.json({ error: "ما ضبط التعديل، ورجّعنا لك الريش. جرّب تكتبه بطريقة ثانية." }, { status: 502 });
     }
   }
@@ -128,7 +128,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       return NextResponse.json({ url });
     } catch (e) {
       console.error("motion media", e);
-      await admin.rpc("grant_credits", { p_user: user.id, p_amount: tool.edit_cost, p_reason: `refund: motion ${action}`, p_ref: `${job.id}:${Date.now()}` }).then(() => null, () => null);
+      await admin.rpc("grant_credits", { p_user: user.id, p_amount: tool.edit_cost, p_reason: "refund", p_ref: `motion-${action}:${job.id}:${Date.now()}` }).then(() => null, () => null);
       // Admins see the technical reason to fix setup issues (keys, voice ids, plan limits).
       const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
       const why = me?.role === "admin" ? ` [${String(e instanceof Error ? e.message : e).slice(0, 220)}]` : "";

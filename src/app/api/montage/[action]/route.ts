@@ -87,7 +87,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (!error) return null;
     return NextResponse.json({ error: error.message.includes("INSUFFICIENT") ? "رصيدك من الريش ما يكفي." : "تعذّر خصم الرصيد." }, { status: 402 });
   }
-  const refund = (why: string) => admin.rpc("grant_credits", { p_user: user.id, p_amount: cost, p_reason: `refund: montage ${why}`, p_ref: `${job.id}:${Date.now()}` }).then(() => null, () => null);
+  const refund = (why: string) => admin.rpc("grant_credits", { p_user: user.id, p_amount: cost, p_reason: "refund", p_ref: `montage-${why}:${job.id}:${Date.now()}` }).then(() => null, () => null);
 
   if (action === "revise") {
     const instruction = String(body.instruction ?? "").trim().slice(0, 600);
