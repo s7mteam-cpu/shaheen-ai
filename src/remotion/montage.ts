@@ -61,7 +61,8 @@ export type Layout = "full" | "split" | "circle" | "corner" | "card" | "dynamic"
 export const LAYOUTS: [Layout, string][] = [["full", "ملء الشاشة"], ["split", "مقسومة: رسوم فوق وأنت تحت"], ["dynamic", "ذكي: تصغر لدائرة لما يطلع مشهد"], ["circle", "أنت داخل دائرة"], ["corner", "أنت بمربع صغير بالزاوية"], ["card", "أنت ببطاقة بحواف ناعمة"]];
 export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist" | "bars" | "donut" | "line" | "quote" | "arrow"
   | "definition" | "quiz" | "truefalse" | "timeline" | "cycle" | "mindmap" | "proscons" | "equation" | "fraction" | "vocab" | "pyramid" | "table" | "fillblank"
-  | "scene" | "cube" | "globe" | "text3d" | "plot" | "geometry" | "burst" | "confetti" | "dotgrid" | "sketchbars";
+  | "scene" | "cube" | "globe" | "text3d" | "plot" | "geometry" | "burst" | "confetti" | "dotgrid" | "sketchbars"
+  | "price" | "offer" | "menu" | "rating" | "testimonial" | "contact" | "specs" | "appointment" | "beforeafter" | "countdown" | "delivery" | "hours";
 export type Graphic = {
   kind: GraphicKind;
   at: number; dur: number;                 // output seconds (video part)
@@ -91,6 +92,8 @@ export const GRAPHIC_KINDS: [GraphicKind, string][] = [
   ["pyramid", "هرم"], ["table", "جدول"], ["fillblank", "املأ الفراغ"],
   ["scene", "مشهد مرسوم بالذكاء الاصطناعي"], ["cube", "مكعب ثلاثي الأبعاد"], ["globe", "كرة أرضية تدور"], ["text3d", "نص ثلاثي الأبعاد"],
   ["plot", "رسم دالة رياضية"], ["geometry", "شكل هندسي"], ["burst", "ختم وانفجار «تم»"], ["confetti", "احتفال كونفيتي"], ["dotgrid", "شبكة نقاط متحركة"], ["sketchbars", "رسم بياني مرسوم باليد"],
+  ["price", "سعر قبل وبعد"], ["offer", "شارة خصم"], ["menu", "منيو بالأسعار"], ["rating", "تقييم بالنجوم"], ["testimonial", "رأي عميل"], ["contact", "بطاقة تواصل"],
+  ["specs", "مواصفات بأيقونات"], ["appointment", "حجز موعد"], ["beforeafter", "قبل وبعد"], ["countdown", "العرض ينتهي بعد"], ["delivery", "توصيل"], ["hours", "ساعات العمل"],
 ];
 /** Board backgrounds — each lesson can look different. */
 export type BoardStyle = "soft" | "paper" | "grid" | "dots" | "notebook" | "chalk" | "blueprint" | "night" | "pastel" | "sunrise" | "sketch";
@@ -106,7 +109,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
   const c = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
   return (Array.isArray(arr) ? arr : []).slice(0, 24).map((x: Record<string, unknown>) => {
     const kind = kinds.includes(x?.kind as GraphicKind) ? (x.kind as GraphicKind) : "headline";
-    const items = Array.isArray(x?.items) ? (x.items as unknown[]).slice(0, kind === "flow" ? 3 : kind === "mindmap" || kind === "table" || kind === "proscons" ? 6 : kind === "bars" || kind === "timeline" || kind === "cycle" || kind === "pyramid" ? 5 : 4).map((i) => typeof i === "string" ? { label: i.slice(0, 40) } : { label: String((i as { label?: unknown })?.label ?? "").slice(0, 40), icon: icon((i as { icon?: unknown })?.icon), value: Number.isFinite(Number((i as { value?: unknown })?.value)) ? Number((i as { value?: unknown }).value) : undefined }).filter((i) => i.label || i.icon).map((i) => { if (i.icon === undefined) delete i.icon; if (i.value === undefined) delete i.value; return i; }) : undefined;
+    const items = Array.isArray(x?.items) ? (x.items as unknown[]).slice(0, kind === "flow" ? 3 : kind === "mindmap" || kind === "table" || kind === "proscons" || kind === "menu" || kind === "specs" || kind === "hours" ? 6 : kind === "bars" || kind === "timeline" || kind === "cycle" || kind === "pyramid" ? 5 : 4).map((i) => typeof i === "string" ? { label: i.slice(0, 40) } : { label: String((i as { label?: unknown })?.label ?? "").slice(0, 40), icon: icon((i as { icon?: unknown })?.icon), value: Number.isFinite(Number((i as { value?: unknown })?.value)) ? Number((i as { value?: unknown }).value) : undefined }).filter((i) => i.label || i.icon).map((i) => { if (i.icon === undefined) delete i.icon; if (i.value === undefined) delete i.value; return i; }) : undefined;
     const g: Graphic = {
       kind, at: +c(Number(x?.at) || 0, 0, Math.max(0, len - 0.5)).toFixed(2), dur: +c(Number(x?.dur) || 2.5, 1, 8).toFixed(2),
       text: str(x?.text, 70), hl: str(x?.hl, 30), sub: str(x?.sub, 40),
@@ -121,7 +124,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["confetti", "dotgrid", "globe", "cube", "plot", "geometry"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];

@@ -10,6 +10,7 @@ export type Field =
   | { type: "count"; name: string; label: string; min: number; max: number; default: number }
   | { type: "toggle"; name: string; label: string; default: boolean; hint?: string }
   | { type: "voice"; name: string; label: string }
+  | { type: "industry"; name: string; label: string; hint?: string }
   | { type: "consent"; name: string; label: string; showIf?: { field: string; truthy: true } };
 
 export type Values = Record<string, unknown>;
@@ -149,6 +150,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
       { type: "toggle", name: "auto_vo", label: "خل شاهين يكتب التعليق الصوتي من اللقطات", default: false },
       { type: "voice", name: "vo_voice", label: "صوت التعليق" },
       { type: "toggle", name: "use_brand", label: "استخدم هويتي التجارية (الشعار، الألوان، الخط، الحساب)", default: true },
+      { type: "industry", name: "industry", label: "مجالك", hint: "اختياري: شاهين يستخدم حزمة مجالك (مشاهد وحركات وستايلات وفيديوهات جاهزة). إذا ما اخترت، يعرف مجالك من وصفك." },
       { type: "toggle", name: "cut_silence", label: "قص الأجزاء الصامتة", default: true },
       { type: "toggle", name: "captions", label: "ترجمة عربية متحركة كلمة كلمة", default: true },
       { type: "choice", name: "aspect", label: "المقاس النهائي", default: "9:16", options: [{ value: "9:16", label: "ريلز / تيك توك 9:16 (1080×1920)" }, { value: "1:1", label: "مربع 1:1 (1080×1080)" }, { value: "16:9", label: "يوتيوب عريض 16:9 (1920×1080)" }, { value: "original", label: "كما هو" }] },

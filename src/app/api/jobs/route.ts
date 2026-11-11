@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { industryById } from "@/design/industries";
+import { packBrief, packById } from "@/remotion/packs";
+import { guessIndustry } from "@/lib/server/guessIndustry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { toolSpecs, validate, type Values } from "@/lib/tools/specs";
@@ -47,6 +50,14 @@ export async function POST(req: Request) {
   for (const k of ["images", "video", "sample", "broll"]) {
     const list = Array.isArray(input[k]) ? (input[k] as string[]) : [];
     if (list.some((p) => !p.startsWith(`${user.id}/`))) return NextResponse.json({ error: "ملف غير مسموح." }, { status: 400 });
+  }
+
+  // Montage in a chosen field: the worker gets that field's pack (scenes, looks, recipes)
+  if (toolId === "video-editing" && !parent) {
+    const ind = industryById(String(input.industry ?? "")) ?? industryById(await guessIndustry(String(input.notes ?? "")));
+    const pack = packById(ind?.id);
+    if (ind && pack) input = { ...input, industry: ind.id, pack_brief: packBrief(pack, ind.label), pack_scenes: pack.scenes };
+    else delete input.industry;
   }
 
   // Simple abuse guard: max 10 requests per minute

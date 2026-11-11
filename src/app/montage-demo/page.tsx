@@ -3,20 +3,33 @@ import { MontageStudio } from "@/components/app/MontageStudio";
 import type { MontageSpec } from "@/remotion/montage";
 
 // Local design preview only — never served in production.
-export default async function Page({ searchParams }: { searchParams: Promise<{ split?: string; dark?: string; layout?: string; cap?: string; tr?: string; board?: string; edu?: string; p3?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ split?: string; dark?: string; layout?: string; cap?: string; tr?: string; board?: string; edu?: string; p3?: string; p4?: string }> }) {
   const sp = await searchParams;
   if (process.env.NODE_ENV === "production") notFound();
   const words: MontageSpec["words"] = [];
   let t = 0.3;
   for (const w of "اليوم بنحكي عن أهم سر بالتسويق وهو إنك تفهم عميلك قبل ما تبيعه أي شي وهذا اللي بيفرق بين المحل الناجح والعادي".split(" ")) { words.push({ t: w, s: +t.toFixed(2), e: +(t + 0.42).toFixed(2) }); t += w === "عميلك" ? 1.7 : 0.5; }
-  const spec: MontageSpec = {
+  const spec = {
     src: "http://localhost:8765/src.mp4", srcPath: "x", srcW: 1280, srcH: 720, aspect: "9:16", font: "Cairo",
     colors: { text: "#FFFFFF", accent: "#C9A45C", bg: "#0B2A4A" }, captions: { on: true, style: (sp.cap as MontageSpec["captions"]["style"]) ?? "karaoke" },
     segments: [{ s: 6.2, e: 8.6 }, { s: 0.2, e: 5.8 }, { s: 7.2, e: 11.5 }], words,
     titles: [{ text: "أهم سر بالتسويق", at: 2.6, dur: 2.5, pos: "top" }], zooms: [{ at: 5.5, dur: 2, scale: 1.18 }],
     layout: (sp.layout as MontageSpec["layout"]) ?? (sp.split ? "split" : "full"), transition: (sp.tr as MontageSpec["transition"]) ?? "none", panel: sp.dark ? "dark" : "light",
     board: (sp.board as MontageSpec["board"]) ?? undefined,
-    graphics: sp.p3 ? [
+    graphics: sp.p4 ? [
+      { kind: "price", at: 0.2, dur: 1.2, text: "مشاوي مشكّلة", values: [12, 8], sub: "اليوم بس" },
+      { kind: "offer", at: 1.5, dur: 1.0, value: 30, text: "على كل المنيو", sub: "الويكند" },
+      { kind: "menu", at: 2.6, dur: 1.2, text: "المنيو", items: [{ label: "كباب", value: 3 }, { label: "تكة", value: 3.5 }, { label: "مشاوي مشكّلة", value: 8 }] },
+      { kind: "rating", at: 3.9, dur: 1.0, value: 5, suffix: "4.9", text: "تقييم الزباين" },
+      { kind: "testimonial", at: 5.0, dur: 1.0, value: 5, text: "أطيب مشاوي بالكويت", sub: "أبو فهد" },
+      { kind: "contact", at: 6.1, dur: 1.0, text: "تواصل معنا", items: [{ label: "واتساب: 99999999", icon: "chat" }, { label: "الموقع: السالمية", icon: "pin" }] },
+      { kind: "specs", at: 7.2, dur: 1.0, text: "مواصفات الشقة", items: [{ label: "غرف", value: 3, icon: "home" }, { label: "حمامات", value: 2, icon: "drop" }, { label: "متر", value: 180, icon: "chart" }, { label: "مواقف", value: 2, icon: "pin" }] },
+      { kind: "appointment", at: 8.3, dur: 1.2, text: "احجز موعدك", value: 2 },
+      { kind: "beforeafter", at: 9.6, dur: 1.0, text: "قبل وبعد التلميع", bad: "قبل", good: "بعد" },
+      { kind: "countdown", at: 10.7, dur: 0.6, text: "العرض ينتهي بعد" },
+      { kind: "delivery", at: 11.35, dur: 0.5, text: "توصيل خلال ٣٠ دقيقة" },
+      { kind: "hours", at: 11.9, dur: 0.4, text: "ساعات العمل", items: [{ label: "السبت - الخميس: 10ص - 12م" }, { label: "الجمعة: 1م - 12م" }] },
+    ] : sp.p3 ? [
       { kind: "scene", at: 0.2, dur: 1.4, url: "http://localhost:8765/scene.jpg", text: "الديوانية اليوم", hl: "اليوم", sub: "كل واحد بجواله" },
       { kind: "cube", at: 1.7, dur: 1.5, text: "أربع نقاط", items: [{ label: "سرعة", icon: "bolt" }, { label: "جودة", icon: "star" }, { label: "سعر", icon: "tag" }, { label: "ثقة", icon: "shield" }] },
       { kind: "globe", at: 3.3, dur: 1.3, text: "عملاء من كل العالم" },
@@ -52,6 +65,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       { kind: "headline", at: 11.9, dur: 0.6, text: "السر هو الثقة", hl: "الثقة", fx: "circle" },
     ],
     intro: { on: false, title: "محل الديرة", subtitle: "نصيحة اليوم" }, outro: { on: true, title: "تابعنا للمزيد", subtitle: "@aldeira.kw" }, music: null,
-  };
+  } as unknown as MontageSpec;
   return <main dir="rtl" className="mx-auto max-w-6xl p-4 sm:p-6"><MontageStudio jobId="demo" initial={spec} editCost={3} tracks={[]} /></main>;
 }

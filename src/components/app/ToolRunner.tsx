@@ -1,4 +1,5 @@
 "use client";
+import { IndustryPicker } from "@/components/app/IndustryPicker";
 import { L, LT } from "@/lib/i18n/ui";
 import { Progress } from "@/components/app/Progress";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -224,6 +225,8 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
                     {f.options.map((o) => <button key={o.value} type="button" aria-pressed={values[f.name] === o.value} onClick={() => set(f.name, o.value)} className="chip">{L(o.label)}</button>)}
                   </div>
                 )}
+
+                {f.type === "industry" && <IndustryPicker title={false} value={String(values[f.name] ?? "")} onChange={(id) => set(f.name, id)} hint={f.hint} />}
 
                 {f.type === "voice" && (
                   <select id={`f-${f.name}`} value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)} className="field">

@@ -745,6 +745,173 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
       );
       break;
     }
+    case "price": {
+      const oldV = g.values?.[0], newV = g.values?.[1] ?? g.value;
+      const strike = interpolate(f, [10, 20], [0, 1], cl);
+      const q = Math.min(1.05, pop(f, 16, 9));
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.7} th={th} />}
+          <div style={{ display: "flex", alignItems: "center", gap: 40 * s, direction: "rtl" }}>
+            {oldV !== undefined && <div style={{ position: "relative", fontSize: 90 * s, fontWeight: 800, color: th.soft }}>{oldV}<span style={{ fontSize: 40 * s }}> {g.suffix ?? "د.ك"}</span><div style={{ position: "absolute", top: "52%", right: -10 * s, width: `calc(${strike * 100}% + ${20 * s}px)`, height: 10 * s, background: th.bad, borderRadius: 9, transform: "rotate(-8deg)" }} /></div>}
+            <div style={{ padding: `${16 * s}px ${36 * s}px`, borderRadius: 30 * s, background: th.accent, color: "#0E1B2C", fontSize: 140 * s, fontWeight: 900, lineHeight: 1, transform: `scale(${q}) rotate(${(1 - Math.min(1, q)) * 8}deg)`, boxShadow: `0 ${16 * s}px ${40 * s}px rgba(0,0,0,.25)` }}>{newV ?? ""}<span style={{ fontSize: 50 * s }}> {g.suffix ?? "د.ك"}</span></div>
+          </div>
+          {g.sub && <Badge text={g.sub} f={f} delay={22} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "offer": {
+      const q = Math.min(1.08, pop(f, 0, 8));
+      const R = 190 * s;
+      const pts = Array.from({ length: 32 }, (_, i) => { const a = (i / 32) * Math.PI * 2, r = i % 2 ? R * 0.86 : R; return `${R + Math.cos(a) * r},${R + Math.sin(a) * r}`; }).join(" ");
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 26 * s }}>
+          <div style={{ position: "relative", width: R * 2, height: R * 2, transform: `scale(${q}) rotate(${interpolate(f, [0, len], [-12, 6])}deg)` }}>
+            <svg width={R * 2} height={R * 2} style={{ position: "absolute", inset: 0 }}><polygon points={pts} fill={th.bad} /></svg>
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", lineHeight: 1 }}>
+              <span style={{ fontSize: 40 * s, fontWeight: 800 }}>{g.hl || "خصم"}</span>
+              <span dir="ltr" style={{ fontSize: 130 * s, fontWeight: 900 }}>{g.value ?? 30}%</span>
+            </div>
+          </div>
+          {g.text && <Words text={g.text} f={f} size={big * 0.68} th={th} delay={10} />}
+          {g.sub && <Badge text={g.sub} f={f} delay={18} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "menu": {
+      const items = (g.items ?? []).slice(0, 6);
+      body = (
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 0, padding: `${30 * s}px ${36 * s}px`, borderRadius: 34 * s, background: th.card, border: `${3 * s}px solid ${th.line}`, direction: "rtl" }}>
+          <div style={{ textAlign: "center", fontSize: 58 * s, fontWeight: 900, color: th.accent, marginBottom: 14 * s }}>{g.text || "المنيو"}</div>
+          {items.map((it, i) => {
+            const q = interpolate(f, [6 + i * 5, 14 + i * 5], [0, 1], cl);
+            return <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 14 * s, padding: `${12 * s}px 0`, opacity: q, transform: `translateX(${(1 - q) * -40 * s}px)` }}>
+              <span style={{ fontSize: 44 * s, fontWeight: 800, color: th.text, whiteSpace: "nowrap" }}>{it.label}</span>
+              <span style={{ flex: 1, borderBottom: `${3 * s}px dotted ${th.line}`, transform: `translateY(-${8 * s}px)` }} />
+              {it.value !== undefined && <span style={{ fontSize: 44 * s, fontWeight: 900, color: th.accent, whiteSpace: "nowrap" }}>{it.value} {g.suffix ?? "د.ك"}</span>}
+            </div>;
+          })}
+        </div>
+      );
+      break;
+    }
+    case "rating":
+    case "testimonial": {
+      const stars = Math.max(1, Math.min(5, Math.round(g.value ?? 5)));
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 * s, width: "100%", ...(g.kind === "testimonial" ? { padding: `${36 * s}px ${40 * s}px`, borderRadius: 34 * s, background: th.card, border: `${3 * s}px solid ${th.line}` } : {}) }}>
+          <div style={{ display: "flex", gap: 14 * s, direction: "ltr" }}>
+            {Array.from({ length: 5 }, (_, i) => { const q = Math.min(1, pop(f, 4 + i * 4, 9)); return <div key={i} style={{ transform: `scale(${q}) rotate(${(1 - q) * 90}deg)` }}><svg width={86 * s} height={86 * s} viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5L2.5 9.3l6.6-.8z" fill={i < stars ? "#FFC83D" : th.line} /></svg></div>; })}
+          </div>
+          {g.kind === "rating" && g.suffix && <div dir="ltr" style={{ fontSize: 64 * s, fontWeight: 900, color: th.text }}>{g.suffix}</div>}
+          {g.text && <Words text={g.kind === "testimonial" ? `“${g.text}”` : g.text} hl={g.hl} f={f} size={big * (g.kind === "testimonial" ? 0.55 : 0.65)} th={th} delay={20} />}
+          {g.sub && <div style={{ fontSize: 38 * s, fontWeight: 700, color: th.soft, opacity: interpolate(f, [28, 38], [0, 1], cl) }}>— {g.sub}</div>}
+        </div>
+      );
+      break;
+    }
+    case "contact":
+    case "hours": {
+      const items = (g.items ?? []).slice(0, 6);
+      body = (
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 16 * s, direction: "rtl" }}>
+          {g.text && <div style={{ textAlign: "center", marginBottom: 8 * s }}><Words text={g.text} hl={g.hl} f={f} size={big * 0.62} th={th} /></div>}
+          {items.map((it, i) => {
+            const q = Math.min(1, pop(f, 8 + i * 6, 13));
+            const [k, v] = it.label.includes(":") ? it.label.split(/:(.+)/) : [it.label, ""];
+            return <div key={i} style={{ display: "flex", alignItems: "center", gap: 20 * s, padding: `${16 * s}px ${24 * s}px`, borderRadius: 24 * s, background: th.card, border: `${2 * s}px solid ${th.line}`, opacity: q, transform: `translateY(${(1 - q) * 30 * s}px)` }}>
+              <div style={{ width: 70 * s, height: 70 * s, borderRadius: 20 * s, flexShrink: 0, background: th.accent, display: "flex", alignItems: "center", justifyContent: "center" }}><MIcon name={it.icon ?? (g.kind === "hours" ? "clock" : "phone")} size={40 * s} color="#fff" stroke={2.2} /></div>
+              <span style={{ fontSize: 42 * s, fontWeight: 800, color: th.text }}>{k}</span>
+              {v && <span dir="auto" style={{ marginInlineStart: "auto", fontSize: 40 * s, fontWeight: 700, color: th.accent }}>{v}</span>}
+            </div>;
+          })}
+        </div>
+      );
+      break;
+    }
+    case "specs": {
+      const items = (g.items ?? []).slice(0, 6);
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24 * s, width: "100%" }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.62} th={th} />}
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length > 4 ? 3 : 2}, 1fr)`, gap: 18 * s, width: "100%", direction: "rtl" }}>
+            {items.map((it, i) => { const q = Math.min(1, pop(f, 6 + i * 5, 13)); return (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 * s, padding: `${22 * s}px ${12 * s}px`, borderRadius: 26 * s, background: th.card, border: `${2 * s}px solid ${th.line}`, transform: `scale(${q})` }}>
+                <MIcon name={it.icon ?? "check"} size={64 * s} color={th.accent} stroke={2} />
+                {it.value !== undefined && <span style={{ fontSize: 54 * s, fontWeight: 900, color: th.text, lineHeight: 1 }}>{it.value}</span>}
+                <span style={{ fontSize: 34 * s, fontWeight: 700, color: th.soft, textAlign: "center" }}>{it.label}</span>
+              </div>); })}
+          </div>
+        </div>
+      );
+      break;
+    }
+    case "appointment": {
+      const q = Math.min(1, pop(f, 0, 13));
+      const tick = Math.min(1, pop(f, Math.round(len * 0.5), 9));
+      const days = ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس"];
+      const pick = Math.max(0, Math.min(4, Math.round(g.value ?? 2)));
+      body = (
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 20 * s, padding: `${30 * s}px`, borderRadius: 34 * s, background: th.card, border: `${3 * s}px solid ${th.line}`, transform: `scale(${0.9 + 0.1 * q})`, opacity: q, direction: "rtl" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 * s, fontSize: 50 * s, fontWeight: 900, color: th.text }}><MIcon name="calendar" size={56 * s} color={th.accent} stroke={2.2} />{g.text || "احجز موعدك"}</div>
+          <div style={{ display: "flex", gap: 12 * s }}>{days.map((d, i) => <div key={d} style={{ flex: 1, padding: `${18 * s}px 0`, borderRadius: 18 * s, textAlign: "center", fontSize: 32 * s, fontWeight: 800, background: i === pick && tick > 0.1 ? th.accent : "transparent", color: i === pick && tick > 0.1 ? "#fff" : th.soft, border: `${2 * s}px solid ${th.line}`, transform: i === pick ? `scale(${1 + 0.08 * tick})` : "none" }}>{d}</div>)}</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14 * s, padding: `${16 * s}px`, borderRadius: 999, background: th.good, color: "#fff", fontSize: 42 * s, fontWeight: 900, opacity: tick, transform: `scale(${tick})` }}><MIcon name="check" size={44 * s} color="#fff" stroke={3} />{g.sub || "تم الحجز"}</div>
+        </div>
+      );
+      break;
+    }
+    case "beforeafter": {
+      const k = interpolate(f, [8, Math.max(20, len * 0.7)], [0.92, 0.08], { ...cl, easing: Easing.inOut(Easing.cubic) });
+      const W = Math.min(w * 0.9, 900 * s), H = Math.min(h * 0.7, 640 * s);
+      const half = (after: boolean) => after
+        ? <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${th.accent}, ${th.good})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 70 * s, fontWeight: 900, textAlign: "center", padding: 30 * s }}>{g.good || "بعد"}</div>
+        : <div style={{ position: "absolute", inset: 0, background: light ? "#C9CED6" : "#2A3240", filter: "grayscale(1)", display: "flex", alignItems: "center", justifyContent: "center", color: light ? "#4A5568" : "#AAB", fontSize: 70 * s, fontWeight: 900, textAlign: "center", padding: 30 * s }}>{g.bad || "قبل"}</div>;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.6} th={th} />}
+          <div style={{ position: "relative", width: W, height: H, borderRadius: 30 * s, overflow: "hidden", boxShadow: `0 ${16 * s}px ${40 * s}px rgba(0,0,0,.2)` }}>
+            {half(true)}
+            <div style={{ position: "absolute", inset: 0, clipPath: `inset(0 0 0 ${k * 100}%)` }}>{half(false)}</div>
+            <div style={{ position: "absolute", top: 0, bottom: 0, left: `${k * 100}%`, width: 8 * s, background: "#fff", transform: "translateX(-50%)" }} />
+            <div style={{ position: "absolute", top: "50%", left: `${k * 100}%`, width: 76 * s, height: 76 * s, borderRadius: 999, background: "#fff", transform: "translate(-50%,-50%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 * s, fontWeight: 900, color: "#0E1B2C" }}>⇆</div>
+          </div>
+        </div>
+      );
+      break;
+    }
+    case "countdown": {
+      const startS = Math.max(1, Math.round(g.value ?? 3 * 3600 + 59 * 60 + 59));
+      const left = Math.max(0, startS - Math.floor(f / MFPS * 37));
+      const hh = String(Math.floor(left / 3600)).padStart(2, "0"), mm = String(Math.floor((left % 3600) / 60)).padStart(2, "0"), ss = String(left % 60).padStart(2, "0");
+      const box = (v: string, l: string) => <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 * s }}><div style={{ width: 190 * s, padding: `${18 * s}px 0`, borderRadius: 26 * s, background: light ? "#16202C" : "rgba(255,255,255,.1)", color: "#fff", fontSize: 120 * s, fontWeight: 900, textAlign: "center", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{v}</div><span style={{ fontSize: 30 * s, fontWeight: 700, color: th.soft }}>{l}</span></div>;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.68} th={th} />}
+          <div dir="ltr" style={{ display: "flex", gap: 18 * s, alignItems: "flex-start", opacity: Math.min(1, pop(f, 4, 14)) }}>{box(hh, "ساعة")}<span style={{ fontSize: 100 * s, fontWeight: 900, color: th.accent }}>:</span>{box(mm, "دقيقة")}<span style={{ fontSize: 100 * s, fontWeight: 900, color: th.accent }}>:</span>{box(ss, "ثانية")}</div>
+          {g.sub && <Badge text={g.sub} f={f} delay={14} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "delivery": {
+      const W = Math.min(w * 0.9, 900 * s);
+      const k = interpolate(f, [4, Math.max(20, len - 10)], [0, 1], { ...cl, easing: Easing.inOut(Easing.quad) });
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 30 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.7} th={th} />}
+          <div style={{ position: "relative", width: W, height: 200 * s, direction: "ltr" }}>
+            <div style={{ position: "absolute", left: 0, right: 0, top: 150 * s, borderTop: `${6 * s}px dashed ${th.line}` }} />
+            <div style={{ position: "absolute", left: 0, width: `${k * 100}%`, top: 150 * s, borderTop: `${6 * s}px solid ${th.accent}` }} />
+            <div style={{ position: "absolute", right: 0, top: 70 * s, transform: "translateX(30%)" }}><MIcon name="pin" size={90 * s} color={th.accent} stroke={2.2} /></div>
+            <div style={{ position: "absolute", left: `calc(${k * 100}% - ${90 * s}px)`, top: 50 * s, fontSize: 110 * s, transform: `scaleX(-1) translateY(${Math.sin(f / 2) * 3 * s}px)` }}>🛵</div>
+          </div>
+          {g.sub && <Badge text={g.sub} f={f} delay={10} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
     default: // headline
       body = (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>

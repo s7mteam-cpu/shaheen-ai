@@ -64,6 +64,8 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
   if (jobId) {
     const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
     const spec = (data?.input as { spec?: MotionSpec } | null)?.spec;
+    // new motion videos are built on the montage engine (industry packs, 48 scene kinds)
+    if (spec && "segments" in (spec as object)) return (await montage(jobId, tool, content, "motion-video")) ?? <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
     if (data && data.status === "draft" && spec) {
       const tracks = content.motion_music?.items ?? [];
       const admin = createAdminClient();
@@ -78,7 +80,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
     }
   }
   const { data: kit } = await supabase.from("brand_kits").select("business_name").maybeSingle();
-  return <MotionStart costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} />;
+  return <MotionStart costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
 }
 
 /** Smart montage: once the worker planned the edit, the customer edits it live here. */
