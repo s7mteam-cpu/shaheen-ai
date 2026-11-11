@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <p className="bg-red-50 px-6 py-3 text-center text-sm text-red-800">حسابك موقوف مؤقتاً. تواصل مع الدعم.</p>
       )}
       {!profile.plan_id && !profile.is_suspended && (
-        <p className="bg-gold-100 px-6 py-3 text-center text-sm text-navy-900">ما عندك باقة فعّالة. <Link href="/#pricing" className="font-bold underline">اختر باقتك</Link> لتبدأ.</p>
+        <p className="bg-gold-100 px-6 py-3 text-center text-sm text-navy-900">ما عندك باقة فعّالة. <Link href="/?home=1#pricing" className="font-bold underline">اختر باقتك</Link> لتبدأ.</p>
       )}
 
       <HomeGreeting name={profile.full_name?.split(" ")[0]} />

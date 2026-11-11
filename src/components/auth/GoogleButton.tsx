@@ -1,8 +1,9 @@
 "use client";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, setRemember } from "@/lib/supabase/client";
 
-export function GoogleButton({ next = "/app" }: { next?: string }) {
+export function GoogleButton({ next = "/app", remember = true }: { next?: string; remember?: boolean }) {
   async function go() {
+    setRemember(remember);
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: "google",

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { REMEMBER_COOKIE, sessionOnly, wantsRemember } from "@/lib/supabase/remember";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -9,6 +10,7 @@ export async function middleware(request: NextRequest) {
   if (ref) response.cookies.set("shaheen_ref", ref, { maxAge: 60 * 60 * 24 * 30, path: "/" });
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return response;
+  const remember = wantsRemember(request.cookies.get(REMEMBER_COOKIE)?.value);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,7 +21,7 @@ export async function middleware(request: NextRequest) {
         setAll: (list) => {
           list.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
-          list.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          list.forEach(({ name, value, options }) => response.cookies.set(name, value, sessionOnly(options, remember)));
           if (ref) response.cookies.set("shaheen_ref", ref, { maxAge: 60 * 60 * 24 * 30, path: "/" });
         },
       },
@@ -36,7 +38,8 @@ export async function middleware(request: NextRequest) {
     url.searchParams.set("next", path);
     return NextResponse.redirect(url);
   }
-  if (user && (path === "/login" || path === "/signup")) {
+  // signed-in visitors skip the landing page and go straight into the app
+  if (user && ((path === "/" && !request.nextUrl.searchParams.has("home")) || path === "/login" || path === "/signup")) {
     const url = request.nextUrl.clone();
     url.pathname = "/app";
     url.search = "";
