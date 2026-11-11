@@ -1,5 +1,5 @@
 /** Smart montage = the customer's own footage + an edit plan (data). Player previews it, the worker renders it. */
-import { dimensions, type Aspect } from "./spec";
+import { ICONS, dimensions, type Aspect, type IconName } from "./spec";
 
 export type Word = { t: string; s: number; e: number };          // source seconds
 export type Seg = { s: number; e: number };                       // kept source range, in output order
@@ -45,7 +45,53 @@ export type MontageSpec = {
   vo?: { path: string; url: string; on: boolean; words: Word[]; text?: string; voice?: string } | null; // voice-over (words in output seconds of the video part)
   drift?: boolean;                                                // slow cinematic push-in on every shot
   vignette?: boolean;                                             // soft dark edges
+  layout?: Layout;                                                // full screen, or graphics panel + speaker (split)
+  panel?: "light" | "dark";                                       // look of the graphics panel in split layout
+  graphics?: Graphic[];                                           // animated scenes synced to the speech
 };
+
+/** Split = animated graphics on top (or the side) and the speaker below — the "explainer reel" look. */
+export type Layout = "full" | "split";
+export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist";
+export type Graphic = {
+  kind: GraphicKind;
+  at: number; dur: number;                 // output seconds (video part)
+  text?: string;                           // main line / label
+  hl?: string;                             // word(s) of text in the accent colour
+  sub?: string;                            // small badge under the text
+  value?: number;                          // timer seconds / counter target
+  suffix?: string;                         // counter suffix (٪, ألف, +…)
+  icon?: IconName;                         // icon / emoji graphic
+  emoji?: string;
+  items?: { label: string; icon?: IconName }[]; // steps, flow, checklist
+  bad?: string; good?: string;             // compare
+};
+export const GRAPHIC_KINDS: [GraphicKind, string][] = [
+  ["headline", "عنوان متحرك كبير"], ["timer", "ساعة / مؤقّت"], ["counter", "رقم يعدّ"], ["steps", "خطوات مرقّمة"],
+  ["compare", "خطأ ✗ / صح ✓"], ["icon", "أيقونة مع جملة"], ["flow", "سلسلة أيقونات بأسهم"], ["checklist", "قائمة صح"],
+];
+export { ICONS };
+
+/** Clean up graphics coming from the AI or the editor. */
+export function cleanGraphics(arr: unknown, len: number): Graphic[] {
+  const kinds = GRAPHIC_KINDS.map((k) => k[0]);
+  const icon = (v: unknown) => (ICONS as readonly string[]).includes(String(v)) ? (v as IconName) : undefined;
+  const str = (v: unknown, n: number) => (v === undefined || v === null || v === "" ? undefined : String(v).slice(0, n));
+  const c = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+  return (Array.isArray(arr) ? arr : []).slice(0, 24).map((x: Record<string, unknown>) => {
+    const kind = kinds.includes(x?.kind as GraphicKind) ? (x.kind as GraphicKind) : "headline";
+    const items = Array.isArray(x?.items) ? (x.items as unknown[]).slice(0, kind === "flow" ? 3 : 4).map((i) => typeof i === "string" ? { label: i.slice(0, 40) } : { label: String((i as { label?: unknown })?.label ?? "").slice(0, 40), icon: icon((i as { icon?: unknown })?.icon) }).filter((i) => i.label || i.icon) : undefined;
+    const g: Graphic = {
+      kind, at: +c(Number(x?.at) || 0, 0, Math.max(0, len - 0.5)).toFixed(2), dur: +c(Number(x?.dur) || 2.5, 1, 8).toFixed(2),
+      text: str(x?.text, 70), hl: str(x?.hl, 30), sub: str(x?.sub, 40),
+      value: Number.isFinite(Number(x?.value)) && x?.value !== undefined && x?.value !== null && x?.value !== "" ? c(Number(x.value), 0, 1e9) : undefined,
+      suffix: str(x?.suffix, 12), icon: icon(x?.icon), emoji: str(x?.emoji, 4), items,
+      bad: str(x?.bad, 50), good: str(x?.good, 50),
+    };
+    for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
+    return g;
+  }).filter((g) => g.text || g.items?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+}
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["warm", "دافئ"], ["cinematic", "سينمائي"]];
 
@@ -131,11 +177,23 @@ export function montageTexts(m: MontageSpec) {
   const out: { key: string; label: string; value: string }[] = [];
   if (m.intro.on) { out.push({ key: "intro.title", label: "عنوان البداية", value: m.intro.title }); out.push({ key: "intro.subtitle", label: "سطر تحت عنوان البداية", value: m.intro.subtitle }); }
   m.titles.forEach((t, i) => out.push({ key: `titles.${i}`, label: `عنوان متحرك ${i + 1}`, value: t.text }));
+  (m.graphics ?? []).forEach((g, i) => {
+    const n = `مشهد متحرك ${i + 1}`;
+    if (g.text !== undefined) out.push({ key: `graphics.${i}.text`, label: n, value: g.text });
+    if (g.bad !== undefined) out.push({ key: `graphics.${i}.bad`, label: `${n}: الغلط`, value: g.bad });
+    if (g.good !== undefined) out.push({ key: `graphics.${i}.good`, label: `${n}: الصح`, value: g.good });
+    g.items?.forEach((it, j) => out.push({ key: `graphics.${i}.items.${j}`, label: `${n}: ${j + 1}`, value: it.label }));
+  });
   if (m.outro.on) { out.push({ key: "outro.title", label: "عنوان النهاية", value: m.outro.title }); out.push({ key: "outro.subtitle", label: "تواصل / حساب", value: m.outro.subtitle }); }
   return out;
 }
 
 export function setMontageText(m: MontageSpec, key: string, value: string): MontageSpec {
+  if (key.startsWith("graphics.")) {
+    const [, a, field, b] = key.split(".");
+    const i = Number(a);
+    return { ...m, graphics: (m.graphics ?? []).map((g, j) => (j !== i ? g : field === "items" ? { ...g, items: (g.items ?? []).map((it, k) => (k === Number(b) ? { ...it, label: value } : it)) } : { ...g, [field]: value })) };
+  }
   if (key.startsWith("titles.")) { const i = Number(key.split(".")[1]); return { ...m, titles: m.titles.map((t, j) => (j === i ? { ...t, text: value } : t)) }; }
   const [part, field] = key.split(".") as ["intro" | "outro", "title" | "subtitle"];
   return { ...m, [part]: { ...m[part], [field]: value } };

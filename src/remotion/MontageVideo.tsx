@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, Audio, Easing, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { MFPS, captionLines, cutTimes, faceAt, gradeFilter, introFrames, outroFrames, videoSeconds, type MontageSpec, type Seg } from "./montage";
+import { GraphicView, panelBackground, themeFor } from "./Graphics";
+import { MFPS, captionLines, cutTimes, faceAt, gradeFilter, introFrames, outroFrames, videoSeconds, type Graphic, type MontageSpec, type Seg } from "./montage";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 
@@ -151,6 +152,7 @@ function Titles({ m, u }: { m: MontageSpec; u: number }) {
     <>
       {m.titles.map((ti, i) => {
         if (t < ti.at - 0.1 || t > ti.at + ti.dur + 0.4) return null;
+        if ((m.graphics ?? []).some((g) => t >= g.at && t < g.at + g.dur)) return null; // a graphic card owns the screen now
         const f0 = Math.round(ti.at * MFPS);
         const p = spring({ frame: frame - f0, fps, config: { damping: 14, mass: 0.7 } });
         const out = interpolate(t, [ti.at + ti.dur, ti.at + ti.dur + 0.35], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -300,27 +302,123 @@ function Sfx({ m }: { m: MontageSpec }) {
   );
 }
 
+/** What the split panel / overlay card shows now: the newest active graphic (titles count as headlines in split). */
+function activeGraphic(m: MontageSpec, t: number, withTitles: boolean): Graphic | undefined {
+  const list: Graphic[] = [...(m.graphics ?? [])];
+  if (withTitles) for (const ti of m.titles) list.push({ kind: "headline", at: ti.at, dur: ti.dur, text: ti.text, hl: ti.hl, sub: ti.sub });
+  return list.filter((g) => t >= g.at && t < g.at + g.dur).sort((a, b) => b.at - a.at)[0];
+}
+
+/** Split layout: the graphics panel. With nothing scheduled it shows the words being said, big. */
+function Panel({ m, w, h }: { m: MontageSpec; w: number; h: number }) {
+  const frame = useCurrentFrame();
+  const t = frame / MFPS;
+  const light = (m.panel ?? "light") === "light";
+  const g = activeGraphic(m, t, true);
+  const lines = React.useMemo(() => captionLines(m), [m]);
+  const th = themeFor(m, light);
+  const s = Math.min(w / 1080, h / 760);
+  let inner: React.ReactNode = null;
+  if (g) {
+    const f0 = Math.round(g.at * MFPS);
+    inner = <GraphicView key={`${g.kind}${g.at}`} g={g} m={m} f={frame - f0} len={Math.round(g.dur * MFPS)} w={w} h={h} light={light} />;
+  } else if (m.captions.on) {
+    const line = lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.35);
+    if (line) inner = (
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${70 * s}px` }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `${6 * s}px ${22 * s}px`, direction: "rtl" }}>
+          {line.map((wd, i) => {
+            const q = Math.min(1, spring({ frame: frame - Math.round(wd.s * MFPS) + 2, fps: MFPS, config: { damping: 13, mass: 0.5 } }));
+            const on = t >= wd.s && t <= wd.e + 0.05;
+            return <span key={i} style={{ fontSize: 96 * s, fontWeight: 800, lineHeight: 1.2, display: "inline-block", color: on ? th.accent : th.text, opacity: t < wd.s - 0.08 ? 0.18 : q, transform: `translateY(${(1 - q) * 24 * s}px)` }}>{wd.t}</span>;
+          })}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ position: "absolute", inset: 0, background: panelBackground(m, light), overflow: "hidden" }}>
+      <svg width={w} height={h} style={{ position: "absolute", inset: 0, opacity: light ? 0.5 : 0.35 }}>
+        <circle cx={w * 0.9} cy={h * 0.12} r={h * 0.5} fill={m.colors.accent} opacity={0.08} />
+        <circle cx={w * 0.05} cy={h * 1.05} r={h * 0.45} fill={m.colors.accent} opacity={0.06} />
+      </svg>
+      {inner}
+    </div>
+  );
+}
+
+/** Full layout: graphics appear as a frosted card over the footage. */
+function OverlayGraphics({ m }: { m: MontageSpec }) {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+  const t = frame / MFPS;
+  const g = activeGraphic(m, t, false);
+  if (!g) return null;
+  const f0 = Math.round(g.at * MFPS);
+  const len = Math.round(g.dur * MFPS);
+  const cw = width * 0.9, ch = Math.min(height * 0.34, width * 0.7);
+  const q = Math.min(1, spring({ frame: frame - f0, fps: MFPS, config: { damping: 15 } }));
+  const out = interpolate(frame - f0, [len - 8, len], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const top = m.captions.pos === "top" ? (height - ch) / 2 : height * 0.07;
+  return (
+    <div style={{ position: "absolute", left: (width - cw) / 2, top, width: cw, height: ch, borderRadius: 48 * (width / 1080), overflow: "hidden", background: "rgba(10,16,26,.74)", backdropFilter: "blur(14px)", border: "2px solid rgba(255,255,255,.12)", opacity: q * out, transform: `scale(${0.9 + 0.1 * q})`, boxShadow: "0 30px 80px rgba(0,0,0,.45)" }}>
+      <GraphicView g={g} m={m} f={frame - f0} len={len} w={cw} h={ch} light={false} />
+    </div>
+  );
+}
+
+/** Pop sound when a graphic appears. */
+function GraphicSfx({ m }: { m: MontageSpec }) {
+  if (!m.sfx) return null;
+  return <>{(m.graphics ?? []).map((g, i) => <Sequence key={i} from={Math.max(0, Math.round(g.at * MFPS) - 2)} durationInFrames={16} layout="none"><Audio src={staticFile("sfx/whoosh.mp3")} volume={0.35} /></Sequence>)}</>;
+}
+
 export function MontageVideo(m: MontageSpec) {
   const { width, height } = useVideoConfig();
   const u = Math.min(width, height) / 1080;
   const intro = introFrames(m);
   const vid = Math.max(1, Math.round(videoSeconds(m) * MFPS));
   const outro = outroFrames(m);
+  const split = m.layout === "split";
+  // 9:16 and 1:1 → panel on top, speaker below; 16:9 → panel on the left, speaker on the right.
+  const tall = height >= width;
+  const ph = Math.round(height * (height > width * 1.3 ? 0.42 : 0.46)), pw = Math.round(width * 0.5);
+  const box = tall
+    ? { panel: { left: 0, top: 0, width, height: ph }, foot: { left: 0, top: ph, width, height: height - ph }, edge: { left: 0, top: ph - 3, width, height: 6 } }
+    : { panel: { left: 0, top: 0, width: pw, height }, foot: { left: pw, top: 0, width: width - pw, height }, edge: { left: pw - 3, top: 0, width: 6, height } };
   return (
     <AbsoluteFill dir="rtl" style={{ background: "#000", fontFamily: `"${m.font}", Cairo, sans-serif` }}>
       {intro > 0 && m.sfx && <Audio src={staticFile("sfx/ding.mp3")} volume={0.35} endAt={20} />}
       {intro > 0 && <Sequence durationInFrames={intro}><Card title={m.intro.title} subtitle={m.intro.subtitle} m={m} u={u} len={intro} /></Sequence>}
       <Sequence from={intro} durationInFrames={vid}>
-        <Footage m={m} />
-        {m.vignette && <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.5) 100%)" }} />}
+        {split ? (
+          <>
+            <div style={{ position: "absolute", ...box.foot, overflow: "hidden" }}>
+              <Footage m={m} />
+              {m.vignette && <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.5) 100%)" }} />}
+              <Flashes m={m} />
+              <BRollLayer m={m} />
+              {m.subs2?.on && <Captions m={{ ...m, captions: { ...m.captions, on: false } }} u={u} />}
+            </div>
+            <div style={{ position: "absolute", ...box.panel, overflow: "hidden" }}><Panel m={m} w={box.panel.width} h={box.panel.height} /></div>
+            <div style={{ position: "absolute", ...box.edge, background: m.colors.accent }} />
+          </>
+        ) : (
+          <>
+            <Footage m={m} />
+            {m.vignette && <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.5) 100%)" }} />}
+            <Flashes m={m} />
+            <BRollLayer m={m} />
+            {(m.captions.on || m.subs2?.on) && <Captions m={m} u={u} />}
+            <OverlayGraphics m={m} />
+          </>
+        )}
         {m.vo?.on && m.vo.url && <Audio src={m.vo.url} volume={1} />}
-        <Flashes m={m} />
-        <BRollLayer m={m} />
-        {(m.captions.on || m.subs2?.on) && <Captions m={m} u={u} />}
         <Emojis m={m} u={u} />
-        <Titles m={m} u={u} />
+        {!split && <Titles m={m} u={u} />}
         <Logo m={m} u={u} />
         <Sfx m={m} />
+        <GraphicSfx m={m} />
       </Sequence>
       {outro > 0 && <Sequence from={intro + vid} durationInFrames={outro}><Card title={m.outro.title} subtitle={m.outro.subtitle} m={m} u={u} len={outro} /></Sequence>}
       {/* music ducks under any voice: loud only for silent footage without a voice-over */}

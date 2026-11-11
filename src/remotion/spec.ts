@@ -1,5 +1,5 @@
 /** Motion-graphics video = plain data. The Player draws it live, the worker renders it to MP4. */
-export const ICONS = ["check", "x", "leaf", "bread", "bowl", "heart", "star", "bolt", "clock", "phone", "chat", "gift", "cart", "tag", "chart", "shield", "sparkle", "pin", "users", "drop"] as const;
+export const ICONS = ["check", "x", "leaf", "bread", "bowl", "heart", "star", "bolt", "clock", "phone", "chat", "gift", "cart", "tag", "chart", "shield", "sparkle", "pin", "users", "drop", "book", "bulb", "video", "camera", "mic", "money", "rocket", "target", "brain", "scissors", "play", "question", "trophy", "calendar", "laptop", "grad", "eye", "lock"] as const;
 export type IconName = (typeof ICONS)[number];
 
 export type Scene =

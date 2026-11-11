@@ -12,7 +12,7 @@ import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
-import { TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type MontageSpec, type Transition } from "@/remotion/montage";
+import { GRAPHIC_KINDS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
@@ -61,6 +61,8 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       }
     } catch {}
   }, [key, initial.src, initial.logo, initial.broll, initial.music, initial.vo]);
+  // local design preview only: lets test scripts seek the player
+  useEffect(() => { if (jobId === "demo") (window as unknown as { __mp?: unknown }).__mp = player.current; });
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify({ ...spec, src: "" })); } catch {} }, [key, spec]);
   const [lang, setLang] = useState(initial.subs2?.lang ?? "en");
   const [uploading, setUploading] = useState(false);
@@ -111,6 +113,22 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   }
 
   /** Adds a title at the moment the player is paused on. */
+  /** A ready-to-edit graphic of the chosen kind at the playhead. */
+  function addGraphic(kind: GraphicKind) {
+    const f = player.current?.getCurrentFrame() ?? 0;
+    const at = +Math.max(0, Math.min(videoSeconds(spec) - 1, (f - introFrames(spec)) / MFPS)).toFixed(2);
+    const base = { kind, at, dur: 3 };
+    const g = kind === "timer" ? { ...base, text: L("في أقل من دقيقة"), hl: L("دقيقة") }
+      : kind === "counter" ? { ...base, value: 100, suffix: "٪", text: L("نتيجة مضمونة") }
+      : kind === "steps" ? { ...base, text: L("الخطوات"), items: [{ label: L("الخطوة الأولى") }, { label: L("الخطوة الثانية") }, { label: L("الخطوة الثالثة") }] }
+      : kind === "checklist" ? { ...base, text: L("تحتاج"), items: [{ label: L("فكرة واضحة") }, { label: L("أداة مناسبة") }] }
+      : kind === "compare" ? { ...base, bad: L("الطريقة القديمة"), good: L("الطريقة الصح") }
+      : kind === "icon" ? { ...base, icon: "bulb" as const, text: L("فكرة ذكية") }
+      : kind === "flow" ? { ...base, items: [{ icon: "bulb" as const, label: L("فكرتك") }, { icon: "sparkle" as const, label: L("شاهين") }, { icon: "video" as const, label: L("فيديو") }] }
+      : { ...base, text: L("عنوان كبير") };
+    setSpec({ ...spec, graphics: [...(spec.graphics ?? []), g].sort((a, b) => a.at - b.at) });
+  }
+
   function addTitle() {
     const f = player.current?.getCurrentFrame() ?? 0;
     const at = Math.max(0, Math.min(videoSeconds(spec) - 1, (f - introFrames(spec)) / MFPS));
@@ -270,6 +288,35 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                 className={`rounded-xl border px-4 py-2 text-[16px] ${spec.font === f.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink"}`}>{L(f.label)}</button>
             ))}
           </div>
+        </Card>
+
+        <Card title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
+          <Sub>{L("شكل الفيديو")}</Sub>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-pressed={(spec.layout ?? "full") === "full"} onClick={() => setSpec({ ...spec, layout: "full" })} className="chip">{L("ملء الشاشة")}</button>
+            <button type="button" aria-pressed={spec.layout === "split"} onClick={() => setSpec({ ...spec, layout: "split" })} className="chip">{L("شاشة مقسومة: رسوم فوق وأنت تحت")}</button>
+          </div>
+          {spec.layout === "split" && (
+            <div className="flex flex-wrap gap-2">
+              <button type="button" aria-pressed={(spec.panel ?? "light") === "light"} onClick={() => setSpec({ ...spec, panel: "light" })} className="chip">{L("لوحة فاتحة")}</button>
+              <button type="button" aria-pressed={spec.panel === "dark"} onClick={() => setSpec({ ...spec, panel: "dark" })} className="chip">{L("لوحة داكنة")}</button>
+            </div>
+          )}
+          <p className="text-[13px] leading-6 text-subtle">{L("المشاهد تطلع مع كلامك بالضبط. تقدر تكتب لشاهين تحت مثلاً: «لما أقول دقيقة حط ساعة فوق»، أو تضيفها بنفسك عند اللحظة اللي واقف عليها بالفيديو.")}</p>
+          <Sub>{L("المشاهد المتحركة")}</Sub>
+          <div className="flex flex-col gap-2">
+            {(spec.graphics ?? []).length === 0 && <p className="text-[13px] text-subtle">{L("ما فيه مشاهد للحين.")}</p>}
+            {(spec.graphics ?? []).map((g, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[14px]">
+                <button type="button" onClick={() => player.current?.seekTo(introFrames(spec) + Math.round(g.at * MFPS))} className="shrink-0 rounded-lg bg-tint px-2 py-1 font-mono text-[12px]" dir="ltr">{g.at.toFixed(1)}s</button>
+                <span className="shrink-0 font-semibold">{L(GRAPHIC_KINDS.find((k) => k[0] === g.kind)?.[1] ?? "")}</span>
+                <span className="min-w-0 flex-1 truncate text-subtle">{g.text ?? g.items?.map((x) => x.label).join(" · ") ?? g.good ?? ""}</span>
+                <button type="button" onClick={() => setSpec({ ...spec, graphics: (spec.graphics ?? []).filter((_, j) => j !== i) })} className="shrink-0 rounded-lg px-2 py-1 text-red-700 hover:bg-red-50">{L("حذف")}</button>
+              </div>
+            ))}
+          </div>
+          <span className="text-[13px] font-semibold text-navy-800">{L("＋ أضف مشهد عند اللحظة اللي واقف عليها:")}</span>
+          <div className="flex flex-wrap gap-2">{GRAPHIC_KINDS.map(([k, l]) => <button key={k} type="button" onClick={() => addGraphic(k)} className="chip">{L(l)}</button>)}</div>
         </Card>
 
         <Card title={L("لمسات احترافية")} icon="🎬">
