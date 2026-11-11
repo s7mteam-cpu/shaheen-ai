@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function SiteHeader({ signedIn }: { signedIn: boolean }) {
   return (
@@ -11,7 +12,8 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
             <a key={h} href={h} className="text-[15px] text-white/85 hover:text-white">{t}</a>
           ))}
         </nav>
-        <div className="flex shrink-0 items-center gap-2"> 
+        <div className="flex shrink-0 items-center gap-2">
+          <ThemeToggle />
           {signedIn ? (
             <Link href="/app" className="btn btn-gold whitespace-nowrap px-4 py-2 text-[14px] sm:px-5 sm:py-2.5 sm:text-[15px]">لوحة التحكم</Link>
           ) : (

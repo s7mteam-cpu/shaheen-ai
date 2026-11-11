@@ -41,3 +41,58 @@ body { background: #fff; color: var(--color-ink); }
 
 @keyframes sheetUp { from { transform: translateY(24px); opacity: 0 } to { transform: none; opacity: 1 } }
 @keyframes shine { from { background-position: -50% 0 } to { background-position: 150% 0 } }
+
+/* ───────────── 🌙 Dark mode (html.dark — set by ThemeToggle) ─────────────
+   Unlayered rules on purpose: they win over Tailwind's utilities only when .dark is on. */
+html.dark { color-scheme: dark; --d-bg: #0B1220; --d-surface: #121C2D; --d-sunken: #0E1726; --d-raise: #182640; --d-line: #22324A; --d-field: #2E4260; --d-text: #E6EDF6; --d-muted: #AEBBCD; --d-subtle: #8E9BB0; --d-link: #9CC3F0; }
+html.dark body { background: var(--d-bg); color: var(--d-text); }
+
+/* surfaces */
+html.dark .bg-white, html.dark .card, html.dark .btn-outline, html.dark .chip { background-color: var(--d-surface); }
+html.dark .bg-white\/90 { background-color: rgb(18 28 45 / .9); }
+html.dark .bg-canvas, html.dark .bg-\[\#F5F6F8\] { background-color: var(--d-sunken); }
+html.dark .bg-tint { background-color: var(--d-raise); }
+html.dark .bg-line { background-color: var(--d-line); }
+html.dark .field { background: var(--d-sunken); border-color: var(--d-field); color: var(--d-text); }
+html.dark .field::placeholder { color: var(--d-subtle); }
+html.dark .field:focus { border-color: var(--d-link); box-shadow: 0 0 0 3px rgb(156 195 240 / .18); }
+html.dark .chip[aria-pressed="true"] { background: var(--color-gold-500); color: var(--color-navy-950); border-color: var(--color-gold-500); }
+
+/* borders */
+html.dark .border-line, html.dark .border-\[\#EDF1F6\], html.dark .border-\[\#E6EBF2\], html.dark .border-\[\#D3DDEA\], html.dark .card, html.dark .ring-line { border-color: var(--d-line); --tw-ring-color: var(--d-line); }
+html.dark .border-line\/60, html.dark .border-line\/70 { border-color: rgb(34 50 74 / .7); }
+html.dark .border-field, html.dark .btn-outline, html.dark .chip { border-color: var(--d-field); }
+html.dark .border-navy-800\/15, html.dark .border-navy-700\/20, html.dark .border-navy-700\/40 { border-color: var(--d-field); }
+
+/* text */
+html.dark .text-navy-900, html.dark .text-navy-800, html.dark .text-ink, html.dark .btn-outline { color: var(--d-text); }
+html.dark .text-ink\/80 { color: rgb(230 237 246 / .8); }
+html.dark .text-navy-700, html.dark .hover\:text-navy-700:hover, html.dark .hover\:text-navy-800:hover { color: var(--d-link); }
+html.dark .text-muted { color: var(--d-muted); }
+html.dark .text-subtle, html.dark .placeholder\:text-subtle::placeholder { color: var(--d-subtle); }
+html.dark .text-\[\#8a6a2a\], html.dark .text-\[\#9A7A35\] { color: var(--color-gold-400); }
+/* dark text that sits on gold or on an always-dark-on-light badge keeps its color */
+html.dark .bg-gold-500.text-navy-900, html.dark .bg-gold-500.text-navy-800, html.dark .bg-gold-400.text-navy-900, html.dark .btn-gold { color: var(--color-navy-900); }
+
+/* hovers */
+html.dark .hover\:bg-tint:hover, html.dark .hover\:bg-white:hover { background-color: var(--d-raise); }
+html.dark .btn-outline:hover { border-color: var(--d-link); }
+html.dark .hover\:border-field:hover { border-color: var(--d-field); }
+html.dark .hover\:border-navy-700:hover { border-color: var(--d-link); }
+
+/* status colors (alerts, badges) */
+html.dark .bg-red-50, html.dark .bg-red-50\/60, html.dark .bg-red-50\/70, html.dark .hover\:bg-red-50:hover { background-color: rgb(239 68 68 / .13); }
+html.dark .text-red-700, html.dark .text-red-800, html.dark .text-red-900 { color: #FCA5A5; }
+html.dark .border-red-200, html.dark .border-red-300 { border-color: rgb(248 113 113 / .38); }
+html.dark .bg-emerald-50, html.dark .bg-emerald-50\/60, html.dark .bg-emerald-100 { background-color: rgb(16 185 129 / .13); }
+html.dark .text-emerald-700, html.dark .text-emerald-800, html.dark .text-emerald-900 { color: #6EE7B7; }
+html.dark .text-emerald-900\/80 { color: rgb(110 231 183 / .85); }
+html.dark .border-emerald-200 { border-color: rgb(16 185 129 / .35); }
+html.dark .bg-amber-50 { background-color: rgb(245 158 11 / .13); }
+html.dark .text-amber-900 { color: #FCD34D; }
+html.dark .bg-gold-100 { background-color: rgb(201 164 92 / .16); }
+
+/* scrollbars & images keep their look */
+html.dark ::-webkit-scrollbar-thumb { background: var(--d-field); }
+html.dark .btn-primary, html.dark .bg-navy-800.text-white:not(header) { background: var(--color-navy-600); }
+html.dark .btn-primary:hover { background: #2563A3; }

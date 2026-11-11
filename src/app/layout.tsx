@@ -8,6 +8,7 @@ import "@fontsource/cairo/latin-400.css";
 import "@fontsource/cairo/latin-600.css";
 import "@fontsource/cairo/latin-700.css";
 import "./globals.css";
+import { THEME_SCRIPT } from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
@@ -18,7 +19,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
       <body className="font-sans antialiased">{children}</body>
     </html>
   );

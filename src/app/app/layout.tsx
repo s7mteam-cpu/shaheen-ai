@@ -12,6 +12,7 @@ import { cookies } from "next/headers";
 import { stopImpersonating } from "@/app/admin/customers/actions";
 import { latestAccess } from "@/lib/server/supportAccess";
 import { NotificationBell, type Note } from "@/components/app/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CompleteProfile } from "@/components/app/CompleteProfile";
@@ -52,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               className="inline-flex items-center gap-2 rounded-full border border-gold-500/45 bg-gold-500/15 px-3.5 py-2 text-sm font-bold text-gold-500">
               <Icon name="feather" size={16} />{profile.credits.toLocaleString("en")} ريشة
             </Link>
+            <ThemeToggle />
             <NotificationBell notes={notes} />
             <UserMenu name={profile.full_name || profile.email || ""} />
           </div>
