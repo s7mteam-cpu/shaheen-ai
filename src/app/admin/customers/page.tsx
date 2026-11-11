@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { adjustCredits, setUserFlags } from "../actions";
+import { setUserFlags } from "../actions";
+import { CreditsForm, DeleteCustomer } from "@/components/admin/CustomerTools";
 
 export const dynamic = "force-dynamic";
 
-export default async function Customers({ searchParams }: { searchParams: Promise<{ q?: string; id?: string }> }) {
-  const { q = "", id } = await searchParams;
+export default async function Customers({ searchParams }: { searchParams: Promise<{ q?: string; id?: string; deleted?: string }> }) {
+  const { q = "", id, deleted } = await searchParams;
   const admin = createAdminClient();
   let query = admin.from("profiles").select("id,full_name,email,phone,credits,plan_id,role,is_suspended,created_at").order("created_at", { ascending: false }).limit(50);
   if (q) query = query.or(`email.ilike.%${q.replace(/[%,()]/g, "")}%,full_name.ilike.%${q.replace(/[%,()]/g, "")}%`);
@@ -17,6 +18,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-[26px] font-bold text-navy-900">العملاء</h1>
+      {deleted && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">انحذف حساب العميل وكل بياناته.</p>}
       <form className="flex max-w-md gap-2"><label htmlFor="q" className="sr-only">بحث</label><input id="q" name="q" defaultValue={q} placeholder="ابحث بالاسم أو البريد" className="field bg-white" /><button className="btn btn-primary px-5">بحث</button></form>
       <div className="flex flex-col gap-5 xl:flex-row">
         <section className="card min-w-0 flex-1 overflow-x-auto p-2">
@@ -38,13 +40,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
           <aside className="card flex flex-col gap-4 p-5 xl:w-[380px]">
             <h2 className="text-lg font-bold">{selected.full_name || selected.email}</h2>
             <p className="text-sm text-subtle">الرصيد الحالي: <strong className="text-navy-900">{selected.credits} ريشة</strong></p>
-            <form action={adjustCredits} className="flex flex-col gap-2">
-              <input type="hidden" name="user_id" value={selected.id} />
-              <label className="label" htmlFor="amount">إضافة أو خصم ريش (اكتب رقم سالب للخصم)</label>
-              <input id="amount" name="amount" type="number" required className="field" />
-              <input name="note" placeholder="السبب" className="field" />
-              <button className="btn btn-primary py-2.5">تنفيذ</button>
-            </form>
+            <CreditsForm key={selected.id} userId={selected.id} />
             <form action={setUserFlags} className="flex gap-2">
               <input type="hidden" name="user_id" value={selected.id} />
               <input type="hidden" name="is_suspended" value={selected.is_suspended ? "false" : "true"} />
@@ -55,6 +51,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
               <input type="hidden" name="role" value={selected.role === "admin" ? "user" : "admin"} />
               <button className="btn btn-outline flex-1 py-2.5">{selected.role === "admin" ? "إزالة صلاحية المدير" : "جعله مديراً"}</button>
             </form>
+            {selected.role !== "admin" && <DeleteCustomer key={`d-${selected.id}`} userId={selected.id} email={selected.email ?? ""} />}
             <div>
               <h3 className="mb-2 text-sm font-bold">آخر حركات الرصيد</h3>
               <ul className="flex flex-col text-sm">{(ledger ?? []).map((l, i) => <li key={i} className="flex justify-between border-b border-[#EDF1F6] py-1.5"><span>{reasonAr[l.reason] ?? l.reason}</span><span dir="ltr" className={`font-latin ${l.amount < 0 ? "text-red-700" : "text-emerald-700"}`}>{l.amount > 0 ? "+" : ""}{l.amount}</span></li>)}</ul>

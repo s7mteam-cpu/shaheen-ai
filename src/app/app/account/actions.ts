@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
+import { deleteUserCompletely } from "@/lib/server/deleteUser";
 
 const site = () => process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -72,41 +73,13 @@ export async function saveProfile(form: FormData) {
   revalidatePath("/app", "layout");
 }
 
-/** Removes every file under `prefix` (including nested job folders) from a bucket. */
-async function emptyFolder(bucket: string, prefix: string, depth = 0): Promise<void> {
-  if (depth > 3) return;
-  const store = createAdminClient().storage.from(bucket);
-  for (;;) {
-    const { data } = await store.list(prefix, { limit: 1000 });
-    if (!data?.length) return;
-    const files = data.filter((x) => x.id).map((x) => `${prefix}/${x.name}`);
-    for (const dir of data.filter((x) => !x.id)) await emptyFolder(bucket, `${prefix}/${dir.name}`, depth + 1);
-    if (!files.length) return;
-    await store.remove(files);
-    if (data.length < 1000) return;
-  }
-}
-
 /** "حذف الحساب": cancels billing, deletes the user's files and all their data. */
 export async function deleteAccount(_prev: { error?: string } | undefined, form: FormData): Promise<{ error?: string }> {
   const profile = await me();
   if (String(form.get("confirm") ?? "").trim() !== "حذف") return { error: "اكتب كلمة «حذف» للتأكيد." };
   if (profile.role === "admin") return { error: "حساب المدير لا يُحذف من هنا." };
-  const admin = createAdminClient();
-
-  if (profile.stripe_customer_id && process.env.STRIPE_SECRET_KEY) {
-    try {
-      const subs = await stripe().subscriptions.list({ customer: profile.stripe_customer_id, status: "all", limit: 20 });
-      for (const s of subs.data) if (!["canceled", "incomplete_expired"].includes(s.status)) await stripe().subscriptions.cancel(s.id);
-      await stripe().customers.del(profile.stripe_customer_id); // removes saved cards too
-    } catch { return { error: "تعذّر إلغاء اشتراكك. حاول مرة ثانية أو تواصل مع الدعم." }; }
-  }
-
-  await admin.from("profiles").update({ referred_by: null }).eq("referred_by", profile.id);
-  await Promise.all([emptyFolder("uploads", profile.id), emptyFolder("results", profile.id)]).catch(() => {});
-
-  const { error } = await admin.auth.admin.deleteUser(profile.id);
-  if (error) return { error: "تعذّر حذف الحساب. حاول مرة ثانية أو تواصل مع الدعم." };
+  const res = await deleteUserCompletely(profile);
+  if (res.error) return res;
 
   await (await createClient()).auth.signOut().catch(() => {});
   redirect("/?deleted=1");

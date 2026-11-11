@@ -1,7 +1,9 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/server/auth";
+import { deleteUserCompletely } from "@/lib/server/deleteUser";
 import { textProviders, toolProviders } from "@/lib/providers/registry";
 
 async function guard() {
@@ -58,14 +60,41 @@ export async function savePlan(form: FormData) {
   refresh();
 }
 
-export async function adjustCredits(form: FormData) {
+type Res = { ok?: string; error?: string } | undefined;
+
+/** Add or deduct ريش for a customer. A deduction never takes the balance below zero. */
+export async function adjustCredits(_prev: Res, form: FormData): Promise<Res> {
   const me = await guard();
   const user = String(form.get("user_id"));
-  const amount = Math.trunc(Number(form.get("amount")));
+  const op = form.get("op") === "sub" ? "sub" : "add";
+  const raw = Math.abs(Math.trunc(Number(form.get("amount"))));
   const note = String(form.get("note") || "").slice(0, 120);
-  if (!amount) return;
-  await createAdminClient().rpc("grant_credits", { p_user: user, p_amount: amount, p_reason: "admin", p_ref: `admin:${me.id}:${Date.now()}:${note}` });
+  if (!raw) return { error: "اكتب عدد الريش." };
+  const admin = createAdminClient();
+  const { data: p } = await admin.from("profiles").select("credits").eq("id", user).single();
+  if (!p) return { error: "العميل غير موجود." };
+  const amount = op === "sub" ? -Math.min(raw, p.credits ?? 0) : raw;
+  if (!amount) return { error: "رصيد العميل صفر، ما في شي ينخصم." };
+  const { error } = await admin.rpc("grant_credits", { p_user: user, p_amount: amount, p_reason: "admin", p_ref: `admin:${me.id}:${Date.now()}:${note}` });
+  if (error) return { error: "صار خطأ، حاول مرة ثانية." };
   revalidatePath("/admin/customers");
+  return { ok: op === "sub" ? `انخصم ${-amount} ريشة. الرصيد الآن ${(p.credits ?? 0) + amount}.` : `انضاف ${amount} ريشة. الرصيد الآن ${(p.credits ?? 0) + amount}.` };
+}
+
+/** Deletes a customer's account and everything in it. They can sign up again later as a new account. */
+export async function deleteCustomer(_prev: Res, form: FormData): Promise<Res> {
+  const me = await guard();
+  const id = String(form.get("user_id"));
+  if (id === me.id) return { error: "ما تقدر تحذف حسابك أنت من هنا." };
+  const admin = createAdminClient();
+  const { data: p } = await admin.from("profiles").select("id,email,role,stripe_customer_id").eq("id", id).single();
+  if (!p) return { error: "العميل غير موجود." };
+  if (p.role === "admin") return { error: "هذا حساب مدير. أزل صلاحية المدير أولاً." };
+  if (String(form.get("confirm") ?? "").trim().toLowerCase() !== String(p.email ?? "").toLowerCase()) return { error: "اكتب بريد العميل بالضبط للتأكيد." };
+  const res = await deleteUserCompletely(p);
+  if (res.error) return res;
+  revalidatePath("/admin/customers");
+  redirect("/admin/customers?deleted=1");
 }
 
 export async function setUserFlags(form: FormData) {
