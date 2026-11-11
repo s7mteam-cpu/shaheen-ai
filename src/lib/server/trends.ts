@@ -32,11 +32,17 @@ export async function researchGroup(group: string) {
 أعد JSON فقط: [{"title": "عنوان قصير", "insight": "وش لاحظت ولماذا ينجح (جملتين)", "instruction": "تعليمات عملية مباشرة للمصمم الآلي (جملة أو جملتين)", "scope": "all|post|ads|carousel|motion|montage|lesson", "industry": "id المجال أو ${group}", "sources": [{"title": "...", "url": "https://..."}]}] — من 3 إلى 6 اقتراحات.`;
   const ask = `ابحث الحين (${new Date().toISOString().slice(0, 10)}) عن أحدث وأقوى المحتوى لمجالات «${group}» وأعد الاقتراحات.`;
   // Works with whichever AI the site has: Claude (web search) or Gemini (Google Search). Nothing here is tied to one provider.
+  // Cheapest first: Gemini (Google Search has a free daily allowance), then Claude's small model.
+  // Set TRENDS_PROVIDER=claude in Vercel to always use Claude.
   let text: string;
-  if (process.env.ANTHROPIC_API_KEY && process.env.TRENDS_PROVIDER !== "gemini") {
-    try { text = await viaClaude(system, ask); }
-    catch (e) { if (!process.env.GEMINI_API_KEY) throw e; console.error("trends: claude failed, trying gemini", e); text = await viaGemini(system, ask); }
-  } else text = await viaGemini(system, ask);
+  const geminiFirst = !!process.env.GEMINI_API_KEY && process.env.TRENDS_PROVIDER !== "claude";
+  try { text = geminiFirst ? await viaGemini(system, ask) : await viaClaude(system, ask); }
+  catch (e) {
+    const other = geminiFirst ? !!process.env.ANTHROPIC_API_KEY : !!process.env.GEMINI_API_KEY;
+    if (!other) throw e;
+    console.error("trends: first provider failed, trying the other", e);
+    text = geminiFirst ? await viaClaude(system, ask) : await viaGemini(system, ask);
+  }
   const a = text.indexOf("["), b = text.lastIndexOf("]");
   const list = (a >= 0 && b > a ? JSON.parse(text.slice(a, b + 1)) : []) as Found[];
   return save(list, "research", group);
@@ -47,8 +53,8 @@ async function viaClaude(system: string, ask: string) {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: process.env.TRENDS_MODEL || "claude-sonnet-5-5", max_tokens: 6000, system,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }],
+      model: process.env.TRENDS_MODEL || "claude-haiku-5-5", max_tokens: 4000, system,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
       messages: [{ role: "user", content: ask }],
     }),
   });
@@ -59,7 +65,7 @@ async function viaClaude(system: string, ask: string) {
 
 async function viaGemini(system: string, ask: string) {
   if (!process.env.GEMINI_API_KEY) throw new Error("no AI key for trends (ANTHROPIC_API_KEY or GEMINI_API_KEY)");
-  const model = process.env.TRENDS_GEMINI_MODEL || "gemini-2.5-pro";
+  const model = process.env.TRENDS_GEMINI_MODEL || "gemini-2.5-flash";
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
     body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: ask }] }], tools: [{ google_search: {} }] }),

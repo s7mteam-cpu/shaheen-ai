@@ -50,7 +50,7 @@ export default async function Trends({ searchParams }: { searchParams: Promise<{
     <div className="flex max-w-5xl flex-col gap-5">
       <div>
         <h1 className="text-[26px] font-bold text-navy-900">{L("الترندات")}</h1>
-        <p className="mt-1 text-sm text-subtle">{L("كل يوم شاهين يبحث بالإنترنت عن أقوى المحتوى انتشاراً لفئة من المجالات (كل فئة تقريباً مرة بالأسبوع)، وكل جمعة يتعلم من وش يغيّرون عملاؤك. الاقتراحات توصل هنا، واللي تعتمده يدخل بتعليمات الذكاء الاصطناعي لمدة شهرين.")}</p>
+        <p className="mt-1 text-sm text-subtle">{L("كل جمعة شاهين يبحث بالإنترنت عن أقوى المحتوى انتشاراً لفئتين من المجالات (كل فئة تقريباً مرة بالشهر)، ويتعلم من وش يغيّرون عملاؤك. الاقتراحات توصل هنا، واللي تعتمده يدخل بتعليمات الذكاء الاصطناعي لمدة شهرين. البحث يستخدم Gemini أولاً (فيه حصة مجانية) وبعده نموذج Claude الصغير، عشان يوفّر رصيدك.")}</p>
       </div>
       {error && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{L("شغّل ملف v47-trends.sql بقاعدة البيانات أول.")}</p>}
       <div className="grid gap-3 sm:grid-cols-3">
