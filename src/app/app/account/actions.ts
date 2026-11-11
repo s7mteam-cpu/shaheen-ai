@@ -7,6 +7,8 @@ import { stripe } from "@/lib/stripe";
 import { deleteUserCompletely } from "@/lib/server/deleteUser";
 import { isImpersonating } from "@/lib/server/impersonation";
 import { normalizePhone } from "@/lib/phone";
+import { tapEnabled } from "@/lib/tap";
+import { startTapPayment } from "@/lib/server/tapBilling";
 
 const site = () => process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -32,6 +34,21 @@ export async function startCheckout(planId: string, form?: FormData) {
   if (form?.get("renew_ok") !== "on") redirect(`/app/subscribe?plan=${encodeURIComponent(planId)}&error=renew`);
   const profile = await me();
   const admin = createAdminClient();
+
+  // Tap (KNET + cards + Apple Pay) is used as soon as its key is in Vercel.
+  if (tapEnabled()) {
+    const { data: tapSub } = await admin.from("subscriptions").select("id,plan_id,status").eq("id", `tap_${profile.id}`).maybeSingle();
+    if (tapSub && ["active", "past_due"].includes(tapSub.status)) {
+      // Already subscribed: the new plan starts from the next month (no double charge).
+      await admin.from("subscriptions").update({ next_plan_id: planId === tapSub.plan_id ? null : planId, cancel_at_period_end: false }).eq("id", tapSub.id);
+      revalidatePath("/app/account");
+      redirect("/app/account?ok=plan");
+    }
+    let url: string;
+    try { url = await startTapPayment(profile.id, "subscribe", planId); } catch (e) { console.error(e); redirect("/app/account?error=payment"); }
+    redirect(url);
+  }
+
   const { data: plan } = await admin.from("plans").select("*").eq("id", planId).eq("is_active", true).single();
   if (!plan?.stripe_price_id) redirect("/app/account?error=plan");
   const customer = await ensureCustomer(profile);
@@ -91,4 +108,23 @@ export async function deleteAccount(_prev: { error?: string } | undefined, form:
 
   await (await createClient()).auth.signOut().catch(() => {});
   redirect("/?deleted=1");
+}
+
+/** «ادفع الحين»: renew this month (KNET link / failed card) or pay the managed package. */
+export async function payNow(kind: "renew" | "managed") {
+  if (await isImpersonating()) redirect("/app/account?error=support");
+  const profile = await me();
+  if (!tapEnabled()) redirect("/app/account?error=plan");
+  let url: string;
+  try { url = await startTapPayment(profile.id, kind); } catch (e) { console.error(e); redirect("/app/account?error=payment"); }
+  redirect(url);
+}
+
+/** Stop / resume automatic renewal (Tap subscriptions). The paid month always stays active. */
+export async function setRenewal(on: boolean) {
+  if (await isImpersonating()) redirect("/app/account?error=support");
+  const profile = await me();
+  await createAdminClient().from("subscriptions").update({ cancel_at_period_end: !on, updated_at: new Date().toISOString() }).eq("id", `tap_${profile.id}`);
+  revalidatePath("/app/account");
+  redirect(`/app/account?ok=${on ? "renew_on" : "renew_off"}`);
 }

@@ -8,15 +8,15 @@ import { CreditHistory } from "@/components/app/CreditHistory";
 import { SupportAccess } from "@/components/app/SupportAccess";
 import { ACCESS_HOURS, latestAccess } from "@/lib/server/supportAccess";
 import { isImpersonating } from "@/lib/server/impersonation";
-import { openPortal, saveProfile, startCheckout } from "./actions";
+import { openPortal, saveProfile, setRenewal, startCheckout } from "./actions";
 import { RenewConsent } from "@/components/app/RenewConsent";
 
 export const metadata = { title: "الحساب والاشتراك" };
 const tabs = [["sub", "الاشتراك"], ["inv", "الفواتير"], ["me", "بياناتي"]] as const;
-const statusAr: Record<string, string> = { active: "نشط", trialing: "تجريبي", past_due: "متأخر الدفع", canceled: "ملغي", paused: "موقوف مؤقتاً", unpaid: "غير مدفوع" };
+const statusAr: Record<string, string> = { expired: "منتهي", active: "نشط", trialing: "تجريبي", past_due: "متأخر الدفع", canceled: "ملغي", paused: "موقوف مؤقتاً", unpaid: "غير مدفوع" };
 
-export default async function Account({ searchParams }: { searchParams: Promise<{ tab?: string; error?: string }> }) {
-  const { tab = "sub", error } = await searchParams;
+export default async function Account({ searchParams }: { searchParams: Promise<{ tab?: string; error?: string; ok?: string; paid?: string }> }) {
+  const { tab = "sub", error, ok, paid } = await searchParams;
   const imp = await isImpersonating();
   const [profile, plans] = await Promise.all([getSessionProfile(), getPlans()]);
   const supabase = await createClient();
@@ -24,9 +24,13 @@ export default async function Account({ searchParams }: { searchParams: Promise<
   const plan = plans.find((p) => p.id === profile?.plan_id);
 
   let invoices: { id: string; date: number; amount: string; status: string; pdf?: string | null }[] = [];
+  if (tab === "inv") {
+    const { data: tapPaid } = await supabase.from("tap_charges").select("id,amount,currency,created_at,method").eq("user_id", profile!.id).eq("status", "CAPTURED").order("created_at", { ascending: false }).limit(24);
+    invoices = (tapPaid ?? []).map((c) => ({ id: c.id, date: new Date(c.created_at).getTime() / 1000, amount: `${Number(c.amount).toFixed(3)} ${c.currency}`, status: "paid" }));
+  }
   if (tab === "inv" && profile?.stripe_customer_id && process.env.STRIPE_SECRET_KEY) {
     const list = await stripe().invoices.list({ customer: profile.stripe_customer_id, limit: 24 });
-    invoices = list.data.map((i) => ({ id: i.id!, date: i.created, amount: `${(i.amount_paid / 1000).toFixed(3)} ${i.currency.toUpperCase()}`, status: i.status ?? "", pdf: i.invoice_pdf }));
+    invoices = [...invoices, ...list.data.map((i) => ({ id: i.id!, date: i.created, amount: `${(i.amount_paid / 1000).toFixed(3)} ${i.currency.toUpperCase()}`, status: i.status ?? "", pdf: i.invoice_pdf }))];
   }
 
   return (
@@ -36,6 +40,11 @@ export default async function Account({ searchParams }: { searchParams: Promise<
         <p className="rounded-xl bg-navy-800 px-4 py-3 text-sm text-white">🔒 أنت داخل كفريق دعم: بيانات الدفع والبطاقات والفواتير وكلمة المرور وحذف الحساب محمية ومخفية عنك.</p>
       )}
       {error === "support" && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">هذا القسم محمي، وما يقدر فريق الدعم يدخل عليه.</p>}
+      {error === "payment" && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">ما تمّت عملية الدفع، وما انخصم منك شي. جرّب مرة ثانية أو بطريقة دفع ثانية.</p>}
+      {paid === "renew" && <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">✓ وصلت دفعتك، وتجدد اشتراكك شهر كامل.</p>}
+      {ok === "plan" && <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">✓ تمام، باقتك الجديدة تبدأ من التجديد الجاي، وما ينخصم منك شي الحين.</p>}
+      {ok === "renew_off" && <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">✓ أوقفنا التجديد. اشتراكك يظل شغّال لين نهاية الشهر المدفوع، وما ينخصم منك شي بعدها.</p>}
+      {ok === "renew_on" && <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">✓ رجّعنا التجديد الشهري.</p>}
       {error === "plan" && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">هذه الباقة غير جاهزة للدفع بعد. تواصل مع الدعم.</p>}
       {tab !== "spend" && tab !== "access" && <div role="tablist" aria-label="أقسام الحساب" className="card flex w-full gap-1 overflow-x-auto rounded-2xl p-1 sm:w-auto sm:self-start">
         {tabs.map(([id, l]) => <Link key={id} role="tab" aria-selected={tab === id} href={`/app/account?tab=${id}`} className={`flex-1 whitespace-nowrap rounded-xl px-3 py-2.5 text-center text-[15px] font-semibold sm:flex-none sm:px-5 ${tab === id ? "bg-navy-800 text-white" : "text-muted"}`}>{l}</Link>)}
@@ -58,8 +67,28 @@ export default async function Account({ searchParams }: { searchParams: Promise<
             </section>
             <section className="card flex min-w-0 flex-[1_1_260px] flex-col gap-3 p-7">
               <h2 className="text-lg font-bold">طريقة الدفع والفواتير</h2>
-              <p className="text-sm text-muted">تحديث البطاقة، بيانات الفوترة، أو إلغاء الاشتراك — من بوابة الدفع الآمنة.</p>
-              <form action={openPortal} className="mt-auto"><button className="btn btn-outline w-full py-3">إدارة الدفع والاشتراك</button></form>
+              {sub?.provider === "tap" && ["active", "past_due"].includes(sub.status) ? (
+                <>
+                  {sub.pay_method === "card"
+                    ? <p className="text-sm leading-7 text-muted">💳 <b className="text-navy-900" dir="ltr">{sub.card_label ?? "بطاقة محفوظة"}</b><br />{sub.cancel_at_period_end ? "التجديد موقوف." : "يتجدد اشتراكك تلقائياً كل شهر من هذه البطاقة."}</p>
+                    : <p className="text-sm leading-7 text-muted">🏦 <b className="text-navy-900">{sub.pay_method === "knet" ? "كي نت" : "رابط دفع شهري"}</b><br />{sub.cancel_at_period_end ? "التجديد موقوف." : "كي نت ما ينخصم تلقائياً، فيوصلك إشعار فيه رابط الدفع قبل نهاية الشهر بـ3 أيام."}</p>}
+                  {sub.next_plan_id && sub.next_plan_id !== sub.plan_id && <p className="rounded-xl bg-tint px-3 py-2 text-[13px] text-navy-900">من التجديد الجاي: باقة {plans.find((p) => p.id === sub.next_plan_id)?.name ?? sub.next_plan_id}</p>}
+                  {sub.status === "past_due" && <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-800">ما وصلنا دفع هذا الشهر. ادفع خلال 3 أيام من انتهاء الشهر عشان ما يتوقف اشتراكك.</p>}
+                  <div className="mt-auto flex flex-col gap-2">
+                    {!sub.cancel_at_period_end && (sub.status === "past_due" || sub.pay_method !== "card") && <Link href="/app/pay?kind=renew" className="btn btn-gold w-full py-3">ادفع الشهر الجاي الحين</Link>}
+                    {sub.pay_method !== "card" && !sub.cancel_at_period_end && <Link href="/app/pay?kind=renew" className="text-center text-[12.5px] text-subtle">تبي تجديد تلقائي؟ ادفع مرة بالبطاقة وتنحفظ عند بوابة الدفع.</Link>}
+                    <form action={setRenewal.bind(null, Boolean(sub.cancel_at_period_end))}>
+                      <button className="btn btn-outline w-full py-3">{sub.cancel_at_period_end ? "رجّع التجديد الشهري" : "أوقف التجديد"}</button>
+                    </form>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted">تحديث البطاقة، بيانات الفوترة، أو إلغاء الاشتراك — من بوابة الدفع الآمنة.</p>
+                  {profile?.stripe_customer_id && <form action={openPortal} className="mt-auto"><button className="btn btn-outline w-full py-3">إدارة الدفع والاشتراك</button></form>}
+                  {!profile?.stripe_customer_id && <p className="mt-auto text-[13px] text-subtle">بعد ما تشترك تطلع هنا طريقة دفعك وتقدر توقف التجديد بأي وقت.</p>}
+                </>
+              )}
             </section>
           </div>
           <section className="flex flex-col gap-3">

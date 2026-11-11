@@ -37,7 +37,8 @@ export async function middleware(request: NextRequest) {
   if (isPrivate && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", path);
+    url.search = "";
+    url.searchParams.set("next", path + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
   // signed-in visitors skip the landing page and go straight into the app
@@ -51,5 +52,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|brand|icon.png|apple-icon.png|api/stripe/webhook|api/webhooks).*)"],
+  matcher: ["/((?!_next/static|_next/image|brand|icon.png|apple-icon.png|api/stripe/webhook|api/tap/webhook|api/cron|api/webhooks).*)"],
 };

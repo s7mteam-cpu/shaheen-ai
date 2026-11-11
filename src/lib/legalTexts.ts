@@ -22,7 +22,7 @@ export const TERMS_AR = `باستخدامك منصة «شاهين» ({site}) ف�
 أنت مسؤول عن صحة بياناتك وعن سرية حسابك وعن كل ما يتم من خلاله. يجب أن يكون عمرك 18 عاماً على الأقل، أو أن تستخدم المنصة بموافقة وليّ أمرك وتحت إشرافه. لا تدخل إدارة المنصة على حسابك إلا بموافقتك المكتوبة من داخل حسابك، لمدة محدودة، ويُسجَّل كل دخول.
 
 ## 3. الاشتراكات والرصيد
-الاشتراك شهري ويتجدد تلقائياً: تُخصم قيمة الباقة من بطاقتك كل شهر في نفس تاريخ الاشتراك، وتوافق على ذلك بعلامة صح قبل الدفع. تقدر توقف التجديد بأي وقت من «إدارة الدفع والاشتراك»، ويبقى اشتراكك فعّالاً حتى نهاية الشهر المدفوع.
+الاشتراك شهري، وتوافق على طريقة التجديد بعلامة صح قبل الدفع: إذا دفعت بالبطاقة أو Apple Pay تُحفظ بطاقتك لدى بوابة الدفع (لا لدينا) وتُخصم قيمة الباقة منها تلقائياً كل شهر في نفس تاريخ الاشتراك. وإذا دفعت بكي نت، لأن كي نت لا يسمح بالخصم التلقائي، يصلك إشعار فيه رابط الدفع قبل نهاية الشهر بثلاثة أيام. إذا لم يُدفع الشهر الجديد يتوقف الاشتراك بعد مهلة ثلاثة أيام، ويبقى حسابك وأعمالك محفوظة. تقدر توقف التجديد بأي وقت من صفحة الحساب، ويبقى اشتراكك فعّالاً حتى نهاية الشهر المدفوع.
 
 تستخدم الأدوات رصيد «الريش» حسب الباقة. تُوضَّح تكلفة كل أداة قبل التنفيذ، وإذا فشل الطلب يُعاد الرصيد تلقائياً. تخضع المبالغ المدفوعة لـ[سياسة الاسترجاع](/refund).
 
@@ -47,7 +47,7 @@ Shaheen is an AI content platform (designs, posts, videos, video editing, voice)
 You are responsible for accurate account details, keeping your account secure and all activity under it. You must be at least 18 years old, or use the platform with the consent and supervision of a parent or guardian. Platform administrators access your account only with your written approval given inside your account, for a limited time, and every access is logged.
 
 ## 3. Plans and credits
-Plans are monthly and renew automatically: the plan price is charged to your card every month on your subscription date, and you agree to this with a checkbox before paying. You can stop renewal at any time from “Manage payment & subscription”, and your plan stays active until the end of the paid month.
+Plans are monthly, and you agree to how renewal works with a checkbox before paying. If you pay by card or Apple Pay, your card is saved by the payment provider (not by us) and the plan price is charged to it automatically every month on your subscription date. If you pay with KNET, which does not allow automatic charges, you receive a payment link three days before the month ends. If a new month is not paid, the plan stops after a three-day grace period; your account and work are kept. You can stop renewal at any time from your account page, and your plan stays active until the end of the paid month.
 
 Tools use “feather” credits according to your plan. Each tool shows its cost before running, and credits are refunded automatically if a job fails. Payments are subject to our [refund policy](/refund).
 
@@ -169,7 +169,7 @@ export const REFUND_AR = `> **باختصار**
 > - الريش المستخدمة لا تُسترد، لأن الخدمة الرقمية تكون قد قُدّمت.
 
 ## 1. الاشتراكات والتجديد
-باقات شاهين اشتراكات شهرية تتجدد تلقائياً في نفس اليوم من كل شهر، ويُخصم سعر الباقة من طريقة الدفع المحفوظة، وتوافق على ذلك بعلامة صح قبل الدفع. مع كل تجديد يُشحن رصيدك بريش الباقة، وأي ريش هدية مرتبطة بها.
+باقات شاهين اشتراكات شهرية. عند الدفع بالبطاقة أو Apple Pay يتجدد الاشتراك تلقائياً في نفس اليوم من كل شهر ويُخصم سعر الباقة من البطاقة المحفوظة لدى بوابة الدفع، وعند الدفع بكي نت يصلك رابط دفع قبل نهاية الشهر. توافق على ذلك بعلامة صح قبل الدفع. مع كل تجديد يُشحن رصيدك بريش الباقة، وأي ريش هدية مرتبطة بها.
 
 ## 2. إلغاء الاشتراك
 تقدر تلغي التجديد بأي وقت من [الحساب والاشتراك](/app/account). بعد الإلغاء يظل اشتراكك ورصيدك فعّالين حتى نهاية الشهر المدفوع، ولا يُخصم منك أي مبلغ بعدها. الإلغاء وحده لا يعني استرداد مبلغ الشهر الحالي، إلا في الحالة الموضّحة في البند 3.
@@ -212,7 +212,7 @@ export const REFUND_EN = `> **In short**
 > - Used credits are not refundable, because the digital service has been delivered.
 
 ## 1. Subscriptions and renewal
-Shaheen plans are monthly subscriptions that renew automatically on the same day each month, charged to your saved payment method; you agree to this with a checkbox before paying. Each renewal tops up your balance with the plan's credits plus any bonus credits.
+Shaheen plans are monthly subscriptions. Paid by card or Apple Pay, they renew automatically on the same day each month from the card saved by the payment provider; paid with KNET, you receive a payment link before the month ends. You agree to this with a checkbox before paying. Each renewal tops up your balance with the plan's credits plus any bonus credits.
 
 ## 2. Cancelling
 You can cancel renewal at any time from [Account & subscription](/app/account). Your plan and credits stay active until the end of the paid month and you will not be charged again. Cancelling alone does not refund the current month, except as described in section 3.
