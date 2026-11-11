@@ -1,11 +1,18 @@
 import { CHANGELOG } from "@/lib/changelog";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-export default function Changes() {
+export const dynamic = "force-dynamic";
+
+export default async function Changes() {
+  const { data } = await createAdminClient().from("site_content").select("value").eq("key", "changelog_cleared").maybeSingle();
+  const hidden = new Set<string>(((data?.value as { versions?: string[] } | null)?.versions) ?? []);
+  const list = CHANGELOG.filter((c) => !hidden.has(c.version));
   return (
     <div className="flex max-w-3xl flex-col gap-5">
       <div><h1 className="text-[26px] font-bold text-navy-900">آخر التعديلات</h1><p className="mt-1 text-sm text-subtle">كل تحديث على المنصة، الأحدث أولاً.</p></div>
       <ol className="flex flex-col gap-4">
-        {CHANGELOG.map((c, i) => (
+        {list.length === 0 && <li className="card p-6 text-center text-subtle">القائمة فاضية. أول تحديث جاي بيطلع هنا.</li>}
+        {list.map((c, i) => (
           <li key={c.version} className={`card flex flex-col gap-3 p-5 ${i === 0 ? "border-2 border-gold-500" : ""}`}>
             <div className="flex flex-wrap items-center gap-2.5">
               <span dir="ltr" className="rounded-lg bg-navy-900 px-2.5 py-1 font-latin text-sm font-bold text-white">{c.version}</span>

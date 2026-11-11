@@ -2,20 +2,22 @@
 import { useActionState, useState } from "react";
 import { resetPlatform } from "./actions";
 
-export type Counts = { customers: number; jobs: number; moves: number; leads: number };
+export type Counts = { customers: number; jobs: number; moves: number; leads: number; subs: number };
 
 export function ResetForm({ phrase, counts }: { phrase: string; counts: Counts }) {
   const [state, action, pending] = useActionState(resetPlatform, undefined);
-  const [pick, setPick] = useState({ credits: false, jobs: false, customers: false, leads: false });
+  const [pick, setPick] = useState({ overview: false, credits: false, jobs: false, customers: false, leads: false, changelog: false });
   const [sure, setSure] = useState(false);
   const [text, setText] = useState("");
   const any = Object.values(pick).some(Boolean);
   const ready = any && sure && text.trim() === phrase;
   const opts: { key: keyof typeof pick; title: string; desc: string }[] = [
+    { key: "overview", title: "تصفير النظرة العامة", desc: `يرجّع كل أرقام «نظرة عامة» صفر: يمسح الاشتراكات (${counts.subs.toLocaleString("en")}) والإيراد وكل الطلبات والريش المستهلكة والإشعارات. (يشمل الخيارين اللي تحته تلقائياً). عدد الحسابات ما بيتصفّر إلا إذا حذفت العملاء.` },
     { key: "credits", title: "تصفير الريش (الداخل والطالع)", desc: `يمسح كل حركات الريش (${counts.moves.toLocaleString("en")} حركة): الصرف والشحن والاسترجاع والهدايا، ويصير رصيد كل الحسابات صفر. الحسابات نفسها بتظل.` },
     { key: "jobs", title: "حذف كل الأعمال والملفات", desc: `يمسح كل الأعمال (${counts.jobs.toLocaleString("en")}) والصور والفيديوهات المرفوعة والنتائج، لكل الحسابات.` },
     { key: "customers", title: "حذف حسابات العملاء كلهم", desc: `يحذف ${counts.customers.toLocaleString("en")} حساب عميل نهائياً مع اشتراكاتهم وهوياتهم وكل اللي إلهم. يقدروا يسجّلوا من جديد. حسابات المدراء ما بتنحذف.` },
     { key: "leads", title: "حذف طلبات الإدارة الكاملة", desc: `يمسح ${counts.leads.toLocaleString("en")} طلب وصل من نموذج باقة الإدارة الكاملة.` },
+    { key: "changelog", title: "مسح قائمة آخر التعديلات", desc: "يفضّي صفحة «آخر التعديلات». التحديثات الجاية بتطلع فيها من جديد." },
   ];
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -27,7 +29,7 @@ export function ResetForm({ phrase, counts }: { phrase: string; counts: Counts }
             <span className="flex flex-col gap-0.5"><span className="font-bold text-navy-900">{o.title}</span><span className="text-[13px] leading-6 text-subtle">{o.desc}</span></span>
           </label>
         ))}
-        <p className="mt-1 text-[13px] text-subtle">تصفير كامل = علّم الأربعة. الباقات والأسعار والأدوات ومحتوى الموقع وحسابات المدراء بتظل دائماً.</p>
+        <p className="mt-1 text-[13px] text-subtle">تصفير كامل = علّم الكل. الباقات والأسعار والأدوات ومحتوى الموقع وحسابات المدراء بتظل دائماً.</p>
       </fieldset>
       <div className="flex flex-col gap-3 rounded-2xl border-2 border-red-200 bg-red-50/60 p-5">
         <label className="flex cursor-pointer items-start gap-2.5 text-[15px] font-semibold text-red-900">

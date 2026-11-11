@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/server/auth";
 import { deleteUserCompletely, emptyFolder } from "@/lib/server/deleteUser";
 import { RESET_PHRASE } from "./phrase";
+import { CHANGELOG } from "@/lib/changelog";
 
 type Res = { ok?: string; error?: string } | undefined;
 
@@ -11,7 +12,10 @@ type Res = { ok?: string; error?: string } | undefined;
 export async function resetPlatform(_prev: Res, form: FormData): Promise<Res> {
   const me = await requireAdmin();
   if (!me) return { error: "غير مصرّح" };
-  const want = { credits: form.get("credits") === "on", jobs: form.get("jobs") === "on", customers: form.get("customers") === "on", leads: form.get("leads") === "on" };
+  const on = (k: string) => form.get(k) === "on";
+  const overview = on("overview");
+  // «النظرة العامة» counts work, credits and subscriptions, so zeroing it clears all three.
+  const want = { credits: on("credits") || overview, jobs: on("jobs") || overview, customers: on("customers"), leads: on("leads"), overview, changelog: on("changelog") };
   if (!Object.values(want).some(Boolean)) return { error: "اختر شي واحد على الأقل تصفّره." };
   if (String(form.get("confirm") ?? "").trim() !== RESET_PHRASE || form.get("sure") !== "on") return { error: `علّم مربع «أفهم» واكتب «${RESET_PHRASE}» بالضبط.` };
 
@@ -44,6 +48,18 @@ export async function resetPlatform(_prev: Res, form: FormData): Promise<Res> {
     await admin.from("credit_ledger").delete().not("id", "is", null);
     await admin.from("profiles").update({ credits: 0 }).not("id", "is", null);
     done.push("تصفّرت حركات الريش وكل الأرصدة");
+  }
+
+  if (want.overview) {
+    await admin.from("subscriptions").delete().not("user_id", "is", null);
+    await admin.from("profiles").update({ plan_id: null }).not("id", "is", null);
+    await admin.from("notifications").delete().not("id", "is", null).then(() => null, () => null);
+    done.push("تصفّرت النظرة العامة (الاشتراكات والإيراد والطلبات)");
+  }
+
+  if (want.changelog) {
+    await admin.from("site_content").upsert({ key: "changelog_cleared", value: { versions: CHANGELOG.map((c) => c.version) }, updated_at: new Date().toISOString() });
+    done.push("انمسحت قائمة آخر التعديلات");
   }
 
   if (want.leads) {
