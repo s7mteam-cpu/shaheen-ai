@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordPayment } from "@/lib/server/payments";
-import { createCharge, getCharge, methodOf, tapPhone, tokenFromSavedCard, type TapCharge } from "@/lib/tap";
+import { createCharge, getCharge, methodOf, tapPhone, tapTestMode, tokenFromSavedCard, type TapCharge } from "@/lib/tap";
 import { getContent } from "@/lib/data";
 
 /**
@@ -106,8 +106,9 @@ export async function processTapCharge(chargeId: string, known?: TapCharge) {
   if (!claimed?.length) return { kind, status: c.status, userId };
 
   const when = new Date().toISOString().slice(0, 10);
+  const test = tapTestMode() ? "🧪 تجربة — " : "";   // test payments are easy to spot (and delete) in «المالية»
   if (kind === "managed") {
-    await recordPayment({ ref: `tap:${c.id}`, source: "tap", description: "باقة الإدارة الكاملة", customerId: userId, amount: c.amount, currency: "KWD", method: METHOD_AR[method] ?? method, receivedOn: when });
+    await recordPayment({ ref: `tap:${c.id}`, source: "tap", description: `${test}باقة الإدارة الكاملة`, customerId: userId, amount: c.amount, currency: "KWD", method: METHOD_AR[method] ?? method, receivedOn: when });
     return { kind, status: c.status, userId };
   }
   if (!userId || !meta.plan_id) return { kind, status: c.status, userId };
@@ -136,7 +137,7 @@ export async function processTapCharge(chargeId: string, known?: TapCharge) {
   await admin.rpc("renew_credits", { p_user: userId, p_plan: meta.plan_id, p_invoice: `tap:${c.id}` });
   const { data: plan } = await admin.from("plans").select("name").eq("id", meta.plan_id).maybeSingle();
   await recordPayment({
-    ref: `tap:${c.id}`, source: "tap", description: `${kind === "renew" ? "تجديد" : "اشتراك"} ${plan?.name ?? meta.plan_id}`,
+    ref: `tap:${c.id}`, source: "tap", description: `${test}${kind === "renew" ? "تجديد" : "اشتراك"} ${plan?.name ?? meta.plan_id}`,
     customerId: userId, amount: c.amount, currency: "KWD", method: METHOD_AR[method] ?? method, receivedOn: when,
   });
   return { kind, status: c.status, userId };

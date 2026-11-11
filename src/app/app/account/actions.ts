@@ -7,7 +7,7 @@ import { stripe } from "@/lib/stripe";
 import { deleteUserCompletely } from "@/lib/server/deleteUser";
 import { isImpersonating } from "@/lib/server/impersonation";
 import { normalizePhone } from "@/lib/phone";
-import { tapEnabled } from "@/lib/tap";
+import { tapOpenFor } from "@/lib/tap";
 import { startTapPayment } from "@/lib/server/tapBilling";
 
 const site = () => process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -36,7 +36,7 @@ export async function startCheckout(planId: string, form?: FormData) {
   const admin = createAdminClient();
 
   // Tap (KNET + cards + Apple Pay) is used as soon as its key is in Vercel.
-  if (tapEnabled()) {
+  if (tapOpenFor(profile.role)) {
     const { data: tapSub } = await admin.from("subscriptions").select("id,plan_id,status").eq("id", `tap_${profile.id}`).maybeSingle();
     if (tapSub && ["active", "past_due"].includes(tapSub.status)) {
       // Already subscribed: the new plan starts from the next month (no double charge).
@@ -114,7 +114,7 @@ export async function deleteAccount(_prev: { error?: string } | undefined, form:
 export async function payNow(kind: "renew" | "managed") {
   if (await isImpersonating()) redirect("/app/account?error=support");
   const profile = await me();
-  if (!tapEnabled()) redirect("/app/account?error=plan");
+  if (!tapOpenFor(profile.role)) redirect("/app/account?error=plan");
   let url: string;
   try { url = await startTapPayment(profile.id, kind); } catch (e) { console.error(e); redirect("/app/account?error=payment"); }
   redirect(url);

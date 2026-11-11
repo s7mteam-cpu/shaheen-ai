@@ -3,14 +3,14 @@ import { redirect } from "next/navigation";
 import { payNow } from "@/app/app/account/actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getContent, getSessionProfile } from "@/lib/data";
-import { tapEnabled } from "@/lib/tap";
+import { tapOpenFor, tapTestMode } from "@/lib/tap";
 
 /** The link in the monthly reminder (KNET) and in «باقة الإدارة الكاملة»: shows what will be paid, then goes to Tap. */
 export default async function Pay({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
   const { kind = "renew" } = await searchParams;
   const profile = await getSessionProfile();
   if (!profile) redirect("/login");
-  if (!tapEnabled()) redirect("/app/account");
+  if (!tapOpenFor(profile.role)) redirect("/app/account");
   const admin = createAdminClient();
 
   let title: string, amount: number, note: string;
@@ -38,6 +38,7 @@ export default async function Pay({ searchParams }: { searchParams: Promise<{ ki
         <span className="text-2xl font-bold text-navy-900">{amount} د.ك</span>
         <p className="text-sm leading-7 text-muted">{note}</p>
         <p className="rounded-xl bg-tint p-3 text-[13px] leading-6 text-navy-900">تقدر تدفع بـ<b>كي نت</b> أو <b>فيزا / ماستر كارد</b> أو <b>Apple Pay</b> من صفحة الدفع الآمنة. بيانات بطاقتك عند بوابة الدفع، وما تنحفظ عندنا.</p>
+        {tapTestMode() && <p className="rounded-xl bg-amber-50 p-3 text-[13px] font-semibold text-amber-900">🧪 وضع التجربة: الدفع هنا تجريبي ببطاقات Tap التجريبية، وما ينخصم أي مبلغ حقيقي.</p>}
         <button className="btn btn-gold py-3">كمّل للدفع الآمن</button>
         <Link href="/app/account" className="text-center text-sm text-subtle">رجوع</Link>
       </form>

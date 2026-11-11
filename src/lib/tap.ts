@@ -9,6 +9,8 @@ const API = "https://api.tap.company/v2";
 
 export const tapEnabled = () => Boolean(process.env.TAP_SECRET_KEY);
 export const tapTestMode = () => (process.env.TAP_SECRET_KEY ?? "").startsWith("sk_test");
+/** With a test key (sk_test_…) only the admin team sees Tap, so real customers can never "pay" with a test card and get free credits. */
+export const tapOpenFor = (role?: string | null) => tapEnabled() && (!tapTestMode() || role === "admin" || role === "staff");
 
 export type TapCharge = {
   id: string;
