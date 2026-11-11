@@ -23,13 +23,38 @@ export function panelBackground(m: MontageSpec, light: boolean) {
 
 const pop = (f: number, delay = 0, damping = 12) => spring({ frame: f - delay, fps: MFPS, config: { damping, mass: 0.6 } });
 
-function Words({ text, hl, f, size, th, delay = 0 }: { text: string; hl?: string; f: number; size: number; th: Theme; delay?: number }) {
+export function Words({ text, hl, f, size, th, delay = 0, fx }: { text: string; hl?: string; f: number; size: number; th: Theme; delay?: number; fx?: Graphic["fx"] }) {
   const hot = new Set((hl ?? "").split(/\s+/).filter(Boolean));
+  if (fx === "typewriter") {
+    const n = Math.floor(interpolate(f, [delay, delay + text.length * 1.4], [0, text.length], cl));
+    const caret = Math.floor(f / 8) % 2 === 0;
+    return (
+      <div style={{ direction: "rtl", textAlign: "center", fontSize: size, fontWeight: 800, lineHeight: 1.2, color: th.text }}>
+        {text.slice(0, n).split(/(\s+)/).map((w, k) => <span key={k} style={{ color: hot.has(w) ? th.accent : th.text }}>{w}</span>)}
+        <span style={{ display: "inline-block", width: size * 0.08, height: size * 0.9, marginInlineStart: size * 0.06, background: th.accent, verticalAlign: "middle", opacity: n < text.length || caret ? 1 : 0 }} />
+      </div>
+    );
+  }
+  const words = text.split(/\s+/).filter(Boolean);
+  const after = delay + words.length * 3 + 6;
   return (
     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `${size * 0.05}px ${size * 0.24}px`, direction: "rtl", textAlign: "center" }}>
-      {text.split(/\s+/).filter(Boolean).map((w, k) => {
+      {words.map((w, k) => {
         const q = Math.min(1, pop(f, delay + k * 3, 11));
-        return <span key={k} style={{ display: "inline-block", fontSize: size, fontWeight: 800, lineHeight: 1.18, color: hot.has(w) ? th.accent : th.text, opacity: q, transform: `translateY(${(1 - q) * size * 0.35}px) scale(${0.75 + 0.25 * q})` }}>{w}</span>;
+        const isHot = hot.has(w);
+        const draw = interpolate(f, [after, after + 12], [0, 1], { ...cl, easing: ease });
+        return (
+          <span key={k} style={{ position: "relative", display: "inline-block", fontSize: size, fontWeight: 800, lineHeight: 1.18, color: isHot && fx !== "marker" ? th.accent : th.text, opacity: q, transform: `translateY(${(1 - q) * size * 0.35}px) scale(${0.75 + 0.25 * q})`, zIndex: 1 }}>
+            {isHot && fx === "marker" && <span style={{ position: "absolute", zIndex: -1, right: -size * 0.08, bottom: size * 0.08, height: size * 0.42, width: `calc(${draw * 100}% + ${size * 0.16 * draw}px)`, background: th.accent, opacity: 0.55, borderRadius: size * 0.08, transform: "skewX(-8deg)" }} />}
+            {isHot && fx === "underline" && <span style={{ position: "absolute", right: 0, bottom: -size * 0.04, height: size * 0.1, width: `${draw * 100}%`, background: th.accent, borderRadius: 99 }} />}
+            {isHot && fx === "circle" && (
+              <svg viewBox="0 0 100 60" preserveAspectRatio="none" style={{ position: "absolute", inset: `${-size * 0.18}px ${-size * 0.3}px`, width: `calc(100% + ${size * 0.6}px)`, height: `calc(100% + ${size * 0.36}px)`, overflow: "visible" }}>
+                <path d="M88 12 C70 0 20 2 8 18 C-4 36 22 58 55 56 C90 54 104 32 86 14" fill="none" stroke={th.accent} strokeWidth={3.2} strokeLinecap="round" vectorEffect="non-scaling-stroke" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - draw} style={{ strokeWidth: size * 0.06 }} />
+              </svg>
+            )}
+            {w}
+          </span>
+        );
       })}
     </div>
   );
@@ -175,10 +200,101 @@ export function GraphicView({ g, m, f, len, w, h, light }: { g: Graphic; m: Mont
       );
       break;
     }
+    case "bars": {
+      const items = (g.items ?? []).slice(0, 5);
+      const max = Math.max(1, ...items.map((i) => i.value ?? 0));
+      const H = 300 * s;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24 * s, width: "100%" }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.6} th={th} />}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 34 * s, height: H + 90 * s, direction: "rtl", borderBottom: `${4 * s}px solid ${th.line}` }}>
+            {items.map((it, i) => {
+              const k = interpolate(f, [6 + i * 5, 26 + i * 5], [0, 1], { ...cl, easing: ease });
+              const v = it.value ?? 0;
+              const best = v === max;
+              return (
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 * s, width: 120 * s }}>
+                  <div style={{ fontSize: 40 * s, fontWeight: 900, color: best ? th.accent : th.text, opacity: k }}>{Math.round(v * k).toLocaleString("en-US")}{g.suffix ?? ""}</div>
+                  <div style={{ width: 92 * s, height: Math.max(6 * s, (H * v * k) / max), borderRadius: `${18 * s}px ${18 * s}px 0 0`, background: best ? th.accent : light ? "#1A2433" : "rgba(255,255,255,.35)" }} />
+                  <div style={{ fontSize: 32 * s, fontWeight: 700, color: th.soft, textAlign: "center", lineHeight: 1.15, height: 0, overflow: "visible", whiteSpace: "nowrap" }}>{it.label}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ height: 30 * s }} />
+        </div>
+      );
+      break;
+    }
+    case "donut": {
+      const v = Math.max(0, Math.min(100, g.value ?? 0));
+      const R = 140 * s, sw = 36 * s, C = 2 * Math.PI * (R - sw / 2);
+      const k = interpolate(f, [4, 34], [0, 1], { ...cl, easing: ease });
+      body = (
+        <div style={{ display: "flex", alignItems: "center", gap: 50 * s, direction: "rtl" }}>
+          <div style={{ position: "relative", width: R * 2, height: R * 2, flexShrink: 0 }}>
+            <svg width={R * 2} height={R * 2}>
+              <circle cx={R} cy={R} r={R - sw / 2} fill="none" stroke={th.line} strokeWidth={sw} />
+              <circle cx={R} cy={R} r={R - sw / 2} fill="none" stroke={th.accent} strokeWidth={sw} strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - (v / 100) * k)} transform={`rotate(-90 ${R} ${R})`} />
+            </svg>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 92 * s, fontWeight: 900, color: th.text, direction: "ltr" }}>{Math.round(v * k)}%</div>
+          </div>
+          {g.text && <div style={{ flex: 1, minWidth: 0 }}><Words text={g.text} hl={g.hl} f={f} size={big * 0.68} th={th} delay={8} /></div>}
+        </div>
+      );
+      break;
+    }
+    case "line": {
+      const vals = g.values?.length ? g.values : [2, 3, 2.6, 4, 5.2, 7];
+      const W = 760 * s, H = 300 * s;
+      const mx = Math.max(...vals), mn = Math.min(0, ...vals);
+      const pts = vals.map((v, i) => [(i / Math.max(1, vals.length - 1)) * W, H - ((v - mn) / Math.max(1e-6, mx - mn)) * H] as const);
+      const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+      const k = interpolate(f, [4, 36], [0, 1], { ...cl, easing: ease });
+      const last = pts[pts.length - 1];
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 26 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.62} th={th} />}
+          <svg width={W + 40 * s} height={H + 40 * s} style={{ overflow: "visible", direction: "ltr" }}>
+            <g transform={`translate(${20 * s},${20 * s})`}>
+              {[0, 0.5, 1].map((y) => <line key={y} x1={0} x2={W} y1={H * y} y2={H * y} stroke={th.line} strokeWidth={2 * s} />)}
+              <path d={`${d} L${W},${H} L0,${H} Z`} fill={th.accent} opacity={0.14 * k} />
+              <path d={d} fill="none" stroke={th.accent} strokeWidth={12 * s} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - k} />
+              <circle cx={last[0]} cy={last[1]} r={18 * s * Math.min(1, Math.max(0, (k - 0.85) / 0.15))} fill={th.accent} />
+            </g>
+          </svg>
+        </div>
+      );
+      break;
+    }
+    case "quote": {
+      const q = Math.min(1, pop(f, 0, 14));
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 * s, width: "100%" }}>
+          <div style={{ fontSize: 220 * s, lineHeight: 0.6, height: 110 * s, color: th.accent, fontWeight: 900, opacity: q, transform: `scale(${q})` }}>”</div>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.7} th={th} delay={4} fx={g.fx} />}
+          {g.sub && <div style={{ marginTop: 14 * s, fontSize: 38 * s, fontWeight: 700, color: th.soft, opacity: interpolate(f, [16, 26], [0, 1], cl) }}>— {g.sub}</div>}
+        </div>
+      );
+      break;
+    }
+    case "arrow": {
+      const k = interpolate(f, [2, 18], [0, 1], { ...cl, easing: ease });
+      const bob = Math.sin(f / 5) * 12 * s * k;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.8} th={th} fx={g.fx} />}
+          <svg width={160 * s} height={200 * s} viewBox="0 0 80 100" style={{ transform: `translateY(${bob}px)`, opacity: k }}>
+            <path d="M40 6 C42 40 38 60 40 88 M18 66 L40 90 L62 66" fill="none" stroke={th.accent} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - k} />
+          </svg>
+        </div>
+      );
+      break;
+    }
     default: // headline
       body = (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          {g.text && <Words text={g.text} hl={g.hl} f={f} size={Math.min(big * 1.25, (w * 0.86) / Math.max(4, g.text.length * 0.42))} th={th} />}
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={Math.min(big * 1.25, (w * 0.86) / Math.max(4, g.text.length * 0.42))} th={th} fx={g.fx} />}
           {g.sub && <Badge text={g.sub} f={f} delay={10} s={s} th={th} light={light} />}
         </div>
       );

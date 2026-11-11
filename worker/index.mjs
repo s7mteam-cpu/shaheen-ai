@@ -158,7 +158,8 @@ async function writeScript(shots, notes, seconds, brand) {
 }
 
 // ---------- Directing: AI edit plan ----------
-const GKINDS = ["headline", "timer", "counter", "steps", "compare", "icon", "flow", "checklist"];
+const LAYOUTS_OK = ["full", "split", "dynamic", "circle", "corner", "card"];
+const GKINDS = ["headline", "timer", "counter", "steps", "compare", "icon", "flow", "checklist", "bars", "donut", "line", "quote", "arrow"];
 const GICONS = "check,x,leaf,bread,bowl,heart,star,bolt,clock,phone,chat,gift,cart,tag,chart,shield,sparkle,pin,users,drop,book,bulb,video,camera,mic,money,rocket,target,brain,scissors,play,question,trophy,calendar,laptop,grad,eye,lock".split(",");
 /** Same rules as cleanGraphics() in src/remotion/montage.ts. */
 function cleanGraphic(x, at) {
@@ -169,32 +170,34 @@ function cleanGraphic(x, at) {
   const g = { kind, at, dur: +Math.max(1, Math.min(8, Number(x.dur) || 3)).toFixed(2), text: str(x.text, 70), hl: str(x.hl, 30), sub: str(x.sub, 40),
     value: x.value !== undefined && x.value !== null && x.value !== "" && Number.isFinite(Number(x.value)) ? Math.max(0, Number(x.value)) : undefined,
     suffix: str(x.suffix, 12), icon: icon(x.icon), emoji: str(x.emoji, 4), bad: str(x.bad, 50), good: str(x.good, 50),
-    items: Array.isArray(x.items) ? x.items.slice(0, kind === "flow" ? 3 : 4).map((i) => (typeof i === "string" ? { label: i.slice(0, 40) } : { label: String(i?.label ?? "").slice(0, 40), ...(icon(i?.icon) ? { icon: icon(i.icon) } : {}) })).filter((i) => i.label || i.icon) : undefined };
+    items: Array.isArray(x.items) ? x.items.slice(0, kind === "flow" ? 3 : kind === "bars" ? 5 : 4).map((i) => (typeof i === "string" ? { label: i.slice(0, 40) } : { label: String(i?.label ?? "").slice(0, 40), ...(icon(i?.icon) ? { icon: icon(i.icon) } : {}), ...(Number.isFinite(Number(i?.value)) && i?.value !== null && i?.value !== "" ? { value: Number(i.value) } : {}) })).filter((i) => i.label || i.icon) : undefined,
+    values: Array.isArray(x.values) ? x.values.slice(0, 12).map(Number).filter(Number.isFinite) : undefined,
+    fx: ["marker", "circle", "underline", "typewriter"].includes(x.fx) ? x.fx : undefined };
   for (const k of Object.keys(g)) if (g[k] === undefined) delete g[k];
-  return g.text || g.items?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined ? g : null;
+  return g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined ? g : null;
 }
 const PLAN_SYSTEM = `أنت مونتير محترف لريلز السوشال ميديا الخليجية. عندك نص فيديو مع توقيت كل جملة بالثواني (من الفيديو الأصلي).
 مهمتك: خطة مونتاج JSON فقط، بالشكل:
 {
  "hook": {"s":0,"e":0} أو null   // أقوى جملة قصيرة (2-6 ثواني) تنعرض بالبداية لتشد المشاهد
  "keep": [{"s":0,"e":0}]          // المقاطع اللي تنحفظ بالترتيب الزمني، احذف الأخطاء والتكرار والتأتأة والكلام الضعيف
- "titles": [{"text":"","at":0,"dur":2.5,"pos":"top","style":"kinetic","hl":"","sub":""}]   // نصوص على الفيديو، "at" بتوقيت الفيديو الأصلي. text قصير (2-6 كلمات). style: kinetic (كلمات تنط وحدة ورا وحدة، للهوك والجمل القوية) أو editorial (عنوان أنيق مع سطر صغير sub فوقه وخط ملوّن، للمعلومات) أو lower (شريط جانبي للأسماء والأسعار والأماكن) أو pill (شارة). hl: كلمة أو كلمتين من text تتلوّن باللون المميز. sub: سطر صغير اختياري
+ "titles": [{"text":"","at":0,"dur":2.5,"pos":"top","style":"kinetic","hl":"","sub":""}]   // نصوص على الفيديو، "at" بتوقيت الفيديو الأصلي. text قصير (2-6 كلمات). style: kinetic (كلمات تنط وحدة ورا وحدة، للهوك والجمل القوية) أو marker (قلم تظليل على كلمة hl) أو typewriter (تنكتب حرف حرف) أو editorial (عنوان أنيق مع سطر صغير sub فوقه وخط ملوّن، للمعلومات) أو lower (شريط جانبي للأسماء والأسعار والأماكن) أو pill (شارة). hl: كلمة أو كلمتين من text تتلوّن باللون المميز. sub: سطر صغير اختياري
  "zooms": [{"at":0,"dur":2,"scale":1.15}]               // تكبير عند الجمل المهمة، scale بين 1.08 و1.25
  "intro": {"on":true,"title":"","subtitle":""},          // بطاقة افتتاحية قصيرة
  "outro": {"on":true,"title":"","subtitle":""},          // بطاقة ختامية (دعوة للمتابعة/التواصل)
  "colors": {"text":"#FFFFFF","accent":"#hex","bg":"#hex"},
  "font": "Cairo|Tajawal|Almarai|Changa|Amiri",
- "caption_style": "karaoke|box|minimal",
+ "caption_style": "karaoke|pop|highlight|box|neon|outline|minimal",  // pop: كلمتين كبار تنط (ستايل ريلز المشاهير) | highlight: الكلمة الحالية بخلفية ملوّنة | neon: مضيء | outline: إطار أسود عريض
  "caption_pos": "bottom|middle|top",  // مكان الترجمة، الافتراضي bottom
- "transition": "none|flash|zoom|whip|blur",  // انتقال عند كل قطع: whip (سحبة سريعة عصرية) أو blur (تمويه ناعم) أو zoom أو flash
+ "transition": "none|whip|slide|zoom|spin|glitch|shake|blur|flash|dip",  // انتقال عند كل قطع: whip سحبة سريعة، slide انزلاق، spin دوران، glitch تشويش رقمي (تقني وشبابي)، shake هزّة (حماس)، blur تمويه ناعم، flash وميض، dip تعتيم أسود (هادي وفخم)
  "drift": true,                        // حركة تكبير بطيئة سينمائية على كل لقطة (ممتازة للقطات الصامتة والمنتجات)
  "vignette": false,                    // حواف داكنة خفيفة (للستايل السينمائي والفاخر)
  "broll": [{"i":1,"at":0,"dur":2.5}],  // إذا فيه صور إضافية: رقم الصورة ووقت ظهورها (بتوقيت الفيديو الأصلي) عند الكلام المرتبط فيها، لا تغطي الهوك
- "grade": "none|natural|vivid|warm|cinematic",  // ستايل الألوان المناسب للمحتوى (الأكل: vivid أو warm)
+ "grade": "none|natural|vivid|pop|reels|warm|sunset|cool|luxury|cinematic|bw",  // ستايل الألوان المناسب (الأكل: vivid أو warm أو pop، الفخم: luxury، التقني: cool، الريلز الحماسي: reels)
  "original_audio": "keep|low|mute",   // صوت الفيديو الأصلي: keep إذا فيه كلام مهم، low إذا أصوات المكان حلوة، mute إذا ضجيج
  "music_prompt": "",                  // إذا ما فيه كلام أو فيه تعليق صوتي: وصف إنجليزي قصير لموسيقى خلفية مناسبة (إذا طلب العميل همهمة اكتب: soft female vocal humming)، وإلا ""
- "layout": "full|split",              // split = شاشة مقسومة: لوحة رسوم متحركة فوق والمتكلم تحت (ممتاز للشرح والتعليم والنصائح). إذا العميل اختار شكل معيّن التزم فيه
- "graphics": [{"kind":"timer","at":0,"dur":3,"text":"","hl":"","sub":""}],  // مشاهد رسوم متحركة تشرح الكلام، "at" بتوقيت الفيديو الأصلي عند بداية الجملة، dur مثل مدة الجملة (2-5 ثواني). الأنواع: headline{text,hl,sub} عنوان كبير يطلع كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (أرقام ونسب) | steps{text,items[{label,icon}]} خطوات مرقّمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} الغلط مقابل الصح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] من 2 إلى 3,text} أيقونات بينها أسهم (فكرة ← أداة ← نتيجة). الأيقونات: check,x,leaf,bread,bowl,heart,star,bolt,clock,phone,chat,gift,cart,tag,chart,shield,sparkle,pin,users,drop,book,bulb,video,camera,mic,money,rocket,target,brain,scissors,play,question,trophy,calendar,laptop,grad,eye,lock. بالشاشة المقسومة: حط مشهد لأغلب الأفكار المهمة (مشهد كل 4-8 ثواني تقريباً)، والباقي تنعرض فيه كلمات المتكلم تلقائياً. بملء الشاشة: مشاهد قليلة (2-4) للأرقام والخطوات بس. النصوص من الكلام نفسه، قصيرة ومركّزة
+ "layout": "full|split|dynamic|circle|corner|card",  // split شاشة مقسومة (رسوم فوق والمتكلم تحت، ممتاز للشرح والتعليم) | dynamic المتكلم ملء الشاشة ويصغر لدائرة لما يطلع مشهد | circle المتكلم بدائرة والرسوم حوله | corner المتكلم بمربع صغير بالزاوية | card المتكلم ببطاقة. إذا العميل اختار شكل معيّن التزم فيه
+ "graphics": [{"kind":"timer","at":0,"dur":3,"text":"","hl":"","sub":""}],  // مشاهد رسوم متحركة تشرح الكلام، "at" بتوقيت الفيديو الأصلي عند بداية الجملة، dur مثل مدة الجملة (2-5 ثواني). الأنواع: headline{text,hl,sub} عنوان كبير يطلع كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (أرقام ونسب) | steps{text,items[{label,icon}]} خطوات مرقّمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} الغلط مقابل الصح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] من 2 إلى 3,text} أيقونات بينها أسهم (فكرة ← أداة ← نتيجة) | bars{text,suffix,items[{label,value}]} أعمدة | donut{value 0-100,text} دائرة نسبة | line{text,values[]} خط بياني | quote{text,sub} اقتباس | arrow{text} سهم يأشّر تحت. headline/quote/arrow تقبل fx: marker|circle|underline|typewriter (تأثير على كلمة hl). الأيقونات: check,x,leaf,bread,bowl,heart,star,bolt,clock,phone,chat,gift,cart,tag,chart,shield,sparkle,pin,users,drop,book,bulb,video,camera,mic,money,rocket,target,brain,scissors,play,question,trophy,calendar,laptop,grad,eye,lock. بالشاشة المقسومة أو circle أو corner أو card أو dynamic: حط مشهد لأغلب الأفكار المهمة (مشهد كل 4-8 ثواني تقريباً)، والباقي تنعرض فيه كلمات المتكلم تلقائياً. بملء الشاشة: مشاهد قليلة (2-4) للأرقام والخطوات بس. النصوص من الكلام نفسه، قصيرة ومركّزة
  "emojis": [{"e":"🔥","at":0,"dur":1.5}]  // إيموجي قليلة (3-6) عند لحظات مناسبة، "at" بتوقيت الفيديو الأصلي. للمحتوى الديني أو الجاد استخدم إيموجي محترمة قليلة (🤲 💡 ✅) أو لا شيء
 }
 إذا وصلتك صور من الفيديو (مع توقيتها): استخدمها لتفهم المحتوى، واختر أحلى اللقطات وأوضحها، واكتب عناوين تصف اللي يبين بالصورة (مثلاً اسم الطبق أو المنتج) بدون مبالغة.
@@ -354,7 +357,7 @@ async function analyzeMontage(job) {
         (brollPaths.length ? `صور إضافية متاحة للعرض فوق الكلام: ${brollPaths.length} (مرقمة من 1). وزّعها على لحظات مناسبة.\n` : "") +
         `اسم النشاط: ${kit?.business_name || "غير محدد"}${brandColors.length ? `، ألوان الهوية: ${brandColors.join(", ")}` : ""}${kit?.handle ? `، الحساب/التواصل: ${kit.handle}` : ""}\n` +
         `اللقطات بالفيديو (بالثواني): ${clipRanges.map((c, i) => `لقطة ${i + 1}: ${c.s}-${c.e}`).join("، ")}\n` +
-        (job.input.layout === "split" ? "شكل الفيديو: شاشة مقسومة (layout: split) — رسوم متحركة فوق والمتكلم تحت، فحط مشاهد graphics كثيرة تشرح الكلام.\n" : job.input.layout === "full" ? "شكل الفيديو: ملء الشاشة (layout: full).\n" : "") +
+        (LAYOUTS_OK.includes(job.input.layout) ? `شكل الفيديو اللي اختاره العميل: layout = ${job.input.layout}${job.input.layout !== "full" ? " — حط مشاهد graphics كثيرة تشرح الكلام" : ""}.\n` : "") +
         (cards ? "" : "مهم: العميل ما يبي بطاقات بخلفية من عندك: intro.on و outro.on = false. الدعوة بالنهاية تكون نص فوق آخر لقطة.\n") +
         `${speech ? "" : "تنبيه: ما فيه كلام واضح بالفيديو، اعتمد على الصور.\n"}` +
         (vo ? `\nمهم: فيه تعليق صوتي مدته ${vo.duration.toFixed(1)} ثانية بيغطي الفيديو كامل (التوقيت هنا بتوقيت الفيديو النهائي):\n${voLines}\n` +
@@ -416,11 +419,11 @@ async function analyzeMontage(job) {
       colors: brandColors.length
         ? { text: "#FFFFFF", accent: brandColors[0], bg: brandColors[1] ?? hex(plan?.colors?.bg, "#0B2A4A") }
         : { text: hex(plan?.colors?.text, "#FFFFFF"), accent: hex(plan?.colors?.accent, "#C9A45C"), bg: hex(plan?.colors?.bg, "#0B2A4A") },
-      captions: { on: job.input.captions !== false, style: ["karaoke", "box", "minimal"].includes(plan?.caption_style) ? plan.caption_style : "karaoke", pos: ["bottom", "middle", "top"].includes(plan?.caption_pos) ? plan.caption_pos : "bottom" },
+      captions: { on: job.input.captions !== false, style: ["karaoke", "box", "minimal", "pop", "highlight", "neon", "outline"].includes(plan?.caption_style) ? plan.caption_style : "karaoke", pos: ["bottom", "middle", "top"].includes(plan?.caption_pos) ? plan.caption_pos : "bottom" },
       segments, words,
       titles: place(plan?.titles, (x, at) => ({
         text: String(x.text ?? "").slice(0, 60), at, dur: clamp(Number(x.dur) || 2.5, 1.2, 5), pos: x.pos === "center" || (!speech && !vo) ? "center" : "top",
-        style: ["kinetic", "editorial", "lower", "pill"].includes(x.style) ? x.style : "kinetic",
+        style: ["kinetic", "editorial", "lower", "pill", "marker", "typewriter"].includes(x.style) ? x.style : "kinetic",
         ...(x.hl ? { hl: String(x.hl).slice(0, 30) } : {}), ...(x.sub ? { sub: String(x.sub).slice(0, 50) } : {}),
       })).filter((x) => x.text).sort((a, b) => a.at - b.at).filter((x, i, all) => i === 0 || x.at >= all[i - 1].at + 1.2),
       drift: typeof plan?.drift === "boolean" ? plan.drift : !speech,
@@ -429,14 +432,15 @@ async function analyzeMontage(job) {
       intro: { on: cards && !!plan?.intro?.on, title: String(plan?.intro?.title || kit?.business_name || "").slice(0, 60), subtitle: String(plan?.intro?.subtitle ?? "").slice(0, 60) },
       outro: { on: cards && (!!plan?.outro?.on || (!speech && !!kit)), title: String(plan?.outro?.title || "تابعنا للمزيد").slice(0, 60), subtitle: String(plan?.outro?.subtitle || kit?.handle || "").slice(0, 60) },
       music: null,
-      transition: ["none", "flash", "zoom", "whip", "blur"].includes(plan?.transition) ? plan.transition : local.length > 1 ? "whip" : "none",
+      transition: ["none", "flash", "zoom", "whip", "blur", "slide", "spin", "glitch", "shake", "dip"].includes(plan?.transition) ? plan.transition : local.length > 1 ? "whip" : "none",
       logo: kit?.logo_url ? { path: kit.logo_url, url: "", on: true, pos: "tl" } : null,
       face, track: face.length >= 3 && meta.width > meta.height * 1.05 && aspect !== "16:9",
-      grade: ["none", "natural", "vivid", "warm", "cinematic"].includes(plan?.grade) ? plan.grade : "natural",
+      grade: ["none", "natural", "vivid", "warm", "cinematic", "pop", "reels", "luxury", "cool", "sunset", "bw"].includes(plan?.grade) ? plan.grade : "natural",
       autoBright: light < 60 ? 1.22 : light < 85 ? 1.12 : 1,
       videoVolume: vo ? (speech ? 0.12 : 0.2) : plan?.original_audio === "mute" ? 0 : plan?.original_audio === "low" || !speech ? 0.25 : 1,
       vo: vo ? { path: vo.path, url: "", on: true, words: vo.words, text: vo.text, voice: job.input.vo_voice ?? "" } : null,
-      layout: job.input.layout === "split" || job.input.layout === "full" ? job.input.layout : plan?.layout === "split" && speech ? "split" : "full",
+      layout: LAYOUTS_OK.includes(job.input.layout) ? job.input.layout : LAYOUTS_OK.includes(plan?.layout) && (speech || plan.layout === "full") ? plan.layout : "full",
+      quality: job.input.quality === "4k" ? "4k" : "1080",
       panel: "light",
       graphics: place(plan?.graphics, (x, at) => cleanGraphic(x, at)).filter(Boolean).sort((a, b) => a.at - b.at).filter((g, i, all) => i === 0 || g.at >= all[i - 1].at + 1),
       emojis: place(plan?.emojis, (x, at) => ({ e: String(x.e ?? "").slice(0, 4), at, dur: clamp(Number(x.dur) || 1.5, 0.8, 3) })).filter((x) => x.e).slice(0, 8),
@@ -491,6 +495,8 @@ async function render(job, compositionId, props, lowMem = false) {
     await setProgress(job.id, 3);
     await renderMedia({
       composition, serveUrl, codec: "h264", crf: 20, x264Preset: "veryfast", outputLocation: out, inputProps: props,
+      // 4K: same layout drawn at double size (2160×3840 for 9:16)
+      ...(props?.quality === "4k" ? { scale: 2, crf: 22 } : {}),
       concurrency: Number(process.env.RENDER_CONCURRENCY) || null,
       offthreadVideoCacheSizeInBytes: 768 * 1024 * 1024,
       ...(lowMem ? LOW_MEM : {}),

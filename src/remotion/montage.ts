@@ -3,13 +3,15 @@ import { ICONS, dimensions, type Aspect, type IconName } from "./spec";
 
 export type Word = { t: string; s: number; e: number };          // source seconds
 export type Seg = { s: number; e: number };                       // kept source range, in output order
-export type TitleStyle = "kinetic" | "pill" | "lower" | "editorial";
+export type TitleStyle = "kinetic" | "pill" | "lower" | "editorial" | "marker" | "typewriter";
 export type Title = { text: string; at: number; dur: number; pos: "top" | "center"; style?: TitleStyle; hl?: string; sub?: string }; // output seconds (video part)
-export const TITLE_STYLES: [TitleStyle, string][] = [["kinetic", "حركي كبير"], ["editorial", "مجلّة"], ["pill", "شارة ملوّنة"], ["lower", "شريط سفلي"]];
+export const TITLE_STYLES: [TitleStyle, string][] = [["kinetic", "حركي كبير"], ["editorial", "مجلّة"], ["pill", "شارة ملوّنة"], ["lower", "شريط سفلي"], ["marker", "قلم تظليل"], ["typewriter", "آلة كاتبة"]];
 export type Zoom = { at: number; dur: number; scale: number };    // output seconds (video part)
-export type CaptionStyle = "karaoke" | "box" | "minimal";
+export type CaptionStyle = "karaoke" | "box" | "minimal" | "pop" | "highlight" | "neon" | "outline";
+export const CAPTION_STYLES: [CaptionStyle, string][] = [["karaoke", "كلمة كلمة ملوّنة"], ["pop", "كلمتين كبار تنط"], ["highlight", "الكلمة بخلفية ملوّنة"], ["box", "داخل صندوق"], ["neon", "نيون مضيء"], ["outline", "إطار عريض"], ["minimal", "بسيطة"]];
 export type CaptionPos = "bottom" | "middle" | "top";
-export type Transition = "none" | "flash" | "zoom" | "whip" | "blur";
+export type Transition = "none" | "flash" | "zoom" | "whip" | "blur" | "slide" | "spin" | "glitch" | "shake" | "dip";
+export const TRANSITIONS: [Transition, string][] = [["none", "بدون"], ["whip", "سحبة سريعة"], ["slide", "انزلاق"], ["zoom", "زووم سريع"], ["spin", "دوران"], ["glitch", "تشويش رقمي"], ["shake", "هزّة"], ["blur", "تمويه ناعم"], ["flash", "وميض أبيض"], ["dip", "تعتيم أسود"]];
 export type Corner = "tl" | "tr" | "bl" | "br";
 export type Emoji = { e: string; at: number; dur: number }; // output seconds (video part)
 
@@ -48,11 +50,13 @@ export type MontageSpec = {
   layout?: Layout;                                                // full screen, or graphics panel + speaker (split)
   panel?: "light" | "dark";                                       // look of the graphics panel in split layout
   graphics?: Graphic[];                                           // animated scenes synced to the speech
+  quality?: "1080" | "4k";                                         // export size
 };
 
 /** Split = animated graphics on top (or the side) and the speaker below — the "explainer reel" look. */
-export type Layout = "full" | "split";
-export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist";
+export type Layout = "full" | "split" | "circle" | "corner" | "card" | "dynamic";
+export const LAYOUTS: [Layout, string][] = [["full", "ملء الشاشة"], ["split", "مقسومة: رسوم فوق وأنت تحت"], ["dynamic", "ذكي: تصغر لدائرة لما يطلع مشهد"], ["circle", "أنت داخل دائرة"], ["corner", "أنت بمربع صغير بالزاوية"], ["card", "أنت ببطاقة بحواف ناعمة"]];
+export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist" | "bars" | "donut" | "line" | "quote" | "arrow";
 export type Graphic = {
   kind: GraphicKind;
   at: number; dur: number;                 // output seconds (video part)
@@ -63,12 +67,15 @@ export type Graphic = {
   suffix?: string;                         // counter suffix (٪, ألف, +…)
   icon?: IconName;                         // icon / emoji graphic
   emoji?: string;
-  items?: { label: string; icon?: IconName }[]; // steps, flow, checklist
+  items?: { label: string; icon?: IconName; value?: number }[]; // steps, flow, checklist, bars
+  values?: number[];                       // line chart
+  fx?: "marker" | "circle" | "underline" | "typewriter"; // headline effect on the hl word
   bad?: string; good?: string;             // compare
 };
 export const GRAPHIC_KINDS: [GraphicKind, string][] = [
   ["headline", "عنوان متحرك كبير"], ["timer", "ساعة / مؤقّت"], ["counter", "رقم يعدّ"], ["steps", "خطوات مرقّمة"],
   ["compare", "خطأ ✗ / صح ✓"], ["icon", "أيقونة مع جملة"], ["flow", "سلسلة أيقونات بأسهم"], ["checklist", "قائمة صح"],
+  ["bars", "رسم بياني أعمدة"], ["donut", "دائرة نسبة"], ["line", "خط صاعد"], ["quote", "اقتباس"], ["arrow", "سهم يأشّر"],
 ];
 export { ICONS };
 
@@ -80,20 +87,22 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
   const c = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
   return (Array.isArray(arr) ? arr : []).slice(0, 24).map((x: Record<string, unknown>) => {
     const kind = kinds.includes(x?.kind as GraphicKind) ? (x.kind as GraphicKind) : "headline";
-    const items = Array.isArray(x?.items) ? (x.items as unknown[]).slice(0, kind === "flow" ? 3 : 4).map((i) => typeof i === "string" ? { label: i.slice(0, 40) } : { label: String((i as { label?: unknown })?.label ?? "").slice(0, 40), icon: icon((i as { icon?: unknown })?.icon) }).filter((i) => i.label || i.icon) : undefined;
+    const items = Array.isArray(x?.items) ? (x.items as unknown[]).slice(0, kind === "flow" ? 3 : kind === "bars" ? 5 : 4).map((i) => typeof i === "string" ? { label: i.slice(0, 40) } : { label: String((i as { label?: unknown })?.label ?? "").slice(0, 40), icon: icon((i as { icon?: unknown })?.icon), value: Number.isFinite(Number((i as { value?: unknown })?.value)) ? Number((i as { value?: unknown }).value) : undefined }).filter((i) => i.label || i.icon).map((i) => { if (i.icon === undefined) delete i.icon; if (i.value === undefined) delete i.value; return i; }) : undefined;
     const g: Graphic = {
       kind, at: +c(Number(x?.at) || 0, 0, Math.max(0, len - 0.5)).toFixed(2), dur: +c(Number(x?.dur) || 2.5, 1, 8).toFixed(2),
       text: str(x?.text, 70), hl: str(x?.hl, 30), sub: str(x?.sub, 40),
       value: Number.isFinite(Number(x?.value)) && x?.value !== undefined && x?.value !== null && x?.value !== "" ? c(Number(x.value), 0, 1e9) : undefined,
       suffix: str(x?.suffix, 12), icon: icon(x?.icon), emoji: str(x?.emoji, 4), items,
       bad: str(x?.bad, 50), good: str(x?.good, 50),
+      values: Array.isArray(x?.values) ? (x.values as unknown[]).slice(0, 12).map(Number).filter(Number.isFinite) : undefined,
+      fx: (["marker", "circle", "underline", "typewriter"] as const).find((f) => f === x?.fx),
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.text || g.items?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
-export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic";
-export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["warm", "دافئ"], ["cinematic", "سينمائي"]];
+export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
+export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];
 
 /** CSS filter for a look (+ the measured brightness fix). */
 export function gradeFilter(m: MontageSpec) {
@@ -103,6 +112,12 @@ export function gradeFilter(m: MontageSpec) {
     case "vivid": return `brightness(${b * 1.03}) contrast(1.1) saturate(1.35)`;
     case "warm": return `brightness(${b * 1.03}) contrast(1.05) saturate(1.15) sepia(0.14) hue-rotate(-6deg)`;
     case "cinematic": return `brightness(${b * 0.98}) contrast(1.16) saturate(0.88)`;
+    case "pop": return `brightness(${b * 1.05}) contrast(1.14) saturate(1.6)`;
+    case "reels": return `brightness(${b * 1.04}) contrast(1.22) saturate(1.28)`;
+    case "luxury": return `brightness(${b * 0.97}) contrast(1.1) saturate(0.78) sepia(0.12)`;
+    case "cool": return `brightness(${b * 1.02}) contrast(1.08) saturate(1.1) hue-rotate(8deg)`;
+    case "sunset": return `brightness(${b * 1.04}) contrast(1.06) saturate(1.25) sepia(0.22) hue-rotate(-12deg)`;
+    case "bw": return `brightness(${b * 1.03}) contrast(1.2) grayscale(1)`;
     default: return b !== 1 ? `brightness(${b})` : "none";
   }
 }

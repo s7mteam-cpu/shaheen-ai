@@ -12,7 +12,7 @@ import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
-import { GRAPHIC_KINDS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
+import { CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
@@ -28,9 +28,9 @@ const Card = ({ title, icon, children }: { title: string; icon?: string; childre
   </section>
 );
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
-const styles: [CaptionStyle, string][] = [["karaoke", "كلمة كلمة ملوّنة"], ["box", "داخل صندوق"], ["minimal", "بسيطة"]];
+const styles: [CaptionStyle, string][] = CAPTION_STYLES;
 const positions: [CaptionPos, string][] = [["bottom", "تحت"], ["middle", "بالوسط"], ["top", "فوق"]];
-const transitions: [Transition, string][] = [["none", "بدون"], ["whip", "سحبة سريعة"], ["blur", "تمويه ناعم"], ["zoom", "زووم سريع"], ["flash", "وميض أبيض"]];
+const transitions: [Transition, string][] = TRANSITIONS;
 const corners: [Corner, string][] = [["tl", "فوق يسار"], ["tr", "فوق يمين"], ["bl", "تحت يسار"], ["br", "تحت يمين"]];
 const colorLabels = { text: "لون النص", accent: "اللون المميز", bg: "لون البطاقات" } as const;
 
@@ -124,6 +124,11 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       : kind === "checklist" ? { ...base, text: L("تحتاج"), items: [{ label: L("فكرة واضحة") }, { label: L("أداة مناسبة") }] }
       : kind === "compare" ? { ...base, bad: L("الطريقة القديمة"), good: L("الطريقة الصح") }
       : kind === "icon" ? { ...base, icon: "bulb" as const, text: L("فكرة ذكية") }
+      : kind === "bars" ? { ...base, text: L("المبيعات"), items: [{ label: L("قبل"), value: 40 }, { label: L("بعد"), value: 95 }] }
+      : kind === "donut" ? { ...base, value: 75, text: L("من العملاء راضين") }
+      : kind === "line" ? { ...base, text: L("نمو مستمر"), values: [2, 3, 2.6, 4, 5.2, 7] }
+      : kind === "quote" ? { ...base, text: L("الجودة ما تحتاج إعلان"), sub: L("اسمك") }
+      : kind === "arrow" ? { ...base, text: L("الرابط تحت"), fx: "underline" as const, hl: L("تحت") }
       : kind === "flow" ? { ...base, items: [{ icon: "bulb" as const, label: L("فكرتك") }, { icon: "sparkle" as const, label: L("شاهين") }, { icon: "video" as const, label: L("فيديو") }] }
       : { ...base, text: L("عنوان كبير") };
     setSpec({ ...spec, graphics: [...(spec.graphics ?? []), g].sort((a, b) => a.at - b.at) });
@@ -293,10 +298,9 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         <Card title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
           <Sub>{L("شكل الفيديو")}</Sub>
           <div className="flex flex-wrap gap-2">
-            <button type="button" aria-pressed={(spec.layout ?? "full") === "full"} onClick={() => setSpec({ ...spec, layout: "full" })} className="chip">{L("ملء الشاشة")}</button>
-            <button type="button" aria-pressed={spec.layout === "split"} onClick={() => setSpec({ ...spec, layout: "split" })} className="chip">{L("شاشة مقسومة: رسوم فوق وأنت تحت")}</button>
+            {LAYOUTS.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.layout ?? "full") === v} onClick={() => setSpec({ ...spec, layout: v })} className="chip">{L(l)}</button>)}
           </div>
-          {spec.layout === "split" && (
+          {spec.layout && spec.layout !== "full" && (
             <div className="flex flex-wrap gap-2">
               <button type="button" aria-pressed={(spec.panel ?? "light") === "light"} onClick={() => setSpec({ ...spec, panel: "light" })} className="chip">{L("لوحة فاتحة")}</button>
               <button type="button" aria-pressed={spec.panel === "dark"} onClick={() => setSpec({ ...spec, panel: "dark" })} className="chip">{L("لوحة داكنة")}</button>
@@ -311,6 +315,11 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                 <button type="button" onClick={() => player.current?.seekTo(introFrames(spec) + Math.round(g.at * MFPS))} className="shrink-0 rounded-lg bg-tint px-2 py-1 font-mono text-[12px]" dir="ltr">{g.at.toFixed(1)}s</button>
                 <span className="shrink-0 font-semibold">{L(GRAPHIC_KINDS.find((k) => k[0] === g.kind)?.[1] ?? "")}</span>
                 <span className="min-w-0 flex-1 truncate text-subtle">{g.text ?? g.items?.map((x) => x.label).join(" · ") ?? g.good ?? ""}</span>
+                {(g.kind === "headline" || g.kind === "quote" || g.kind === "arrow") && (
+                  <select value={g.fx ?? ""} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, fx: (e.target.value || undefined) as typeof x.fx, hl: x.hl || x.text?.split(/\s+/).slice(-1)[0] } : x)) })} aria-label={L("تأثير الكلمة")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
+                    <option value="">{L("بدون تأثير")}</option><option value="marker">{L("تظليل")}</option><option value="circle">{L("دائرة")}</option><option value="underline">{L("خط تحت")}</option><option value="typewriter">{L("آلة كاتبة")}</option>
+                  </select>
+                )}
                 <button type="button" onClick={() => setSpec({ ...spec, graphics: (spec.graphics ?? []).filter((_, j) => j !== i) })} className="shrink-0 rounded-lg px-2 py-1 text-red-700 hover:bg-red-50">{L("حذف")}</button>
               </div>
             ))}
@@ -328,6 +337,10 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
               <span className="font-semibold">{L("📊 شريط تقدّم فوق")}</span>
               <input type="checkbox" checked={!!spec.progress} onChange={(e) => setSpec({ ...spec, progress: e.target.checked })} className="h-5 w-5" />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3 sm:col-span-2">
+              <span className="font-semibold">{L("🎞 تصدير بجودة 4K (ليوتيوب، يتأخر أكثر)")}</span>
+              <input type="checkbox" checked={spec.quality === "4k"} onChange={(e) => setSpec({ ...spec, quality: e.target.checked ? "4k" : "1080" })} className="h-5 w-5" />
             </label>
           </div>
 

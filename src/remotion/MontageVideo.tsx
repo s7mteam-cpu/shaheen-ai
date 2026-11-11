@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, Audio, Easing, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { GraphicView, panelBackground, themeFor } from "./Graphics";
+import { GraphicView, Words, panelBackground, themeFor } from "./Graphics";
 import { MFPS, captionLines, cutTimes, faceAt, gradeFilter, introFrames, outroFrames, videoSeconds, type Graphic, type MontageSpec, type Seg } from "./montage";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
@@ -58,9 +58,26 @@ function Footage({ m }: { m: MontageSpec }) {
       }
     }
   }
+  let rot = 0, dy = 0, glitch = "";
+  const tr = m.transition ?? "none";
+  if (tr === "slide" || tr === "spin" || tr === "shake" || tr === "glitch") {
+    for (const c of cutTimes(m)) {
+      if (tr === "glitch" && t >= c - 0.1 && t < c + 0.2) {
+        const j = Math.sin(t * 173) * 1.6 + Math.sin(t * 91) * 1.1;
+        shift += j; dy += Math.sin(t * 57) * 0.8;
+        const a = 10 * (1 - Math.abs(t - c) / 0.2);
+        glitch = `drop-shadow(${a}px 0 0 rgba(255,0,80,.55)) drop-shadow(${-a}px 0 0 rgba(0,220,255,.55)) hue-rotate(${Math.sin(t * 40) * 25}deg)`;
+      }
+      if (t < c || t >= c + 0.35) continue;
+      const k = interpolate(t, [c, c + 0.35], [1, 0], { easing: ease });
+      if (tr === "slide") shift += k * 100;
+      if (tr === "spin") { rot += k * -14; scale *= 1 + k * 0.28; }
+      if (tr === "shake") { shift += Math.sin(t * 95) * 2.2 * k; dy += Math.cos(t * 80) * 1.6 * k; rot += Math.sin(t * 60) * 1.2 * k; }
+    }
+  }
   let off = 0;
   return (
-    <AbsoluteFill style={{ transform: `translateX(${shift}%) scale(${scale})`, transformOrigin: "50% 38%", filter: [gradeFilter(m), blur ? `blur(${blur}px)` : ""].filter((x) => x && x !== "none").join(" ") || "none" }}>
+    <AbsoluteFill style={{ transform: `translate(${shift}%, ${dy}%) rotate(${rot}deg) scale(${scale})`, transformOrigin: "50% 38%", filter: [gradeFilter(m), blur ? `blur(${blur}px)` : "", glitch].filter((x) => x && x !== "none").join(" ") || "none" }}>
       {m.segments.map((g, i) => {
         const from = Math.round(off * MFPS);
         const len = Math.max(1, Math.round((g.e - g.s) * MFPS));
@@ -79,12 +96,18 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
   const frame = useCurrentFrame();
   const t = frame / MFPS;
   const lines = React.useMemo(() => captionLines(m), [m]);
-  const line = m.captions.on ? lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.25) : undefined;
+  let line = m.captions.on ? lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.25) : undefined;
+  if (line && m.captions.style === "pop") {
+    // two words at a time, big
+    const chunks: (typeof line)[] = [];
+    for (let i = 0; i < line.length; i += 2) chunks.push(line.slice(i, i + 2));
+    line = [...chunks].reverse().find((c) => t >= c[0].s - 0.05) ?? chunks[0];
+  }
   const second = m.subs2?.on ? m.subs2.lines.find((l) => t >= l.s - 0.05 && t <= l.e + 0.25) : undefined;
   if (!line && !second) return null;
   const st = m.captions.style;
-  const size = (st === "minimal" ? 52 : 70) * u;
-  const appear = line ? interpolate(t, [line[0].s - 0.05, line[0].s + 0.1], [0.85, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
+  const size = (st === "minimal" ? 52 : st === "pop" ? 104 : st === "outline" ? 78 : 70) * u;
+  const appear = line ? (st === "pop" ? Math.min(1.06, spring({ frame: frame - Math.round(line[0].s * MFPS) + 2, fps: MFPS, config: { damping: 10, mass: 0.5 } })) : interpolate(t, [line[0].s - 0.05, line[0].s + 0.1], [0.85, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })) : 1;
   return (
     <AbsoluteFill style={{
       alignItems: "center",
@@ -100,7 +123,17 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
         {line.map((w, i) => {
           const active = t >= w.s && t <= w.e + 0.05;
           const said = t > w.e;
-          const color = st === "minimal" ? "#fff" : active ? m.colors.accent : said || st === "box" ? "#fff" : "rgba(255,255,255,.9)";
+          const A = m.colors.accent;
+          if (st === "highlight") return (
+            <span key={i} style={{ display: "inline-block", color: active ? "#0E1B2C" : "#fff", background: active ? A : "transparent", borderRadius: 14 * u, padding: `0 ${12 * u}px`, transform: active ? "scale(1.06) rotate(-2deg)" : "none", textShadow: active ? "none" : `0 ${4 * u}px ${16 * u}px rgba(0,0,0,.85)` }}>{w.t}</span>
+          );
+          if (st === "neon") return (
+            <span key={i} style={{ display: "inline-block", color: active ? "#fff" : A, textShadow: `0 0 ${10 * u}px ${A}, 0 0 ${26 * u}px ${A}, 0 0 ${48 * u}px ${A}`, transform: active ? "scale(1.1)" : "none" }}>{w.t}</span>
+          );
+          if (st === "outline" || st === "pop") return (
+            <span key={i} style={{ display: "inline-block", color: active ? A : "#fff", WebkitTextStroke: `${(st === "pop" ? 9 : 7) * u}px #000`, paintOrder: "stroke fill", textShadow: `0 ${6 * u}px 0 rgba(0,0,0,.9)`, transform: active && st === "outline" ? "scale(1.1)" : "none" }}>{w.t}</span>
+          );
+          const color = st === "minimal" ? "#fff" : active ? A : said || st === "box" ? "#fff" : "rgba(255,255,255,.9)";
           return (
             <span key={i} style={{
               color, display: "inline-block",
@@ -187,6 +220,15 @@ function Titles({ m, u }: { m: MontageSpec; u: number }) {
             </AbsoluteFill>
           );
         }
+        if (style === "marker" || style === "typewriter") {
+          const th = { ...themeFor(m, false), text: m.colors.text };
+          return (
+            <AbsoluteFill key={i} style={{ alignItems: "center", justifyContent: centre ? "center" : "flex-start", paddingTop: centre ? 0 : "15%", opacity: out, filter: `drop-shadow(0 ${4 * u}px ${14 * u}px rgba(0,0,0,.6))` }}>
+              <div style={{ width: "86%" }}><Words text={ti.text} hl={ti.hl || ti.text.split(/\s+/).slice(-1)[0]} f={frame - f0} size={Math.min(100 * u, (width * 0.86) / Math.max(4, ti.text.length * 0.45))} th={th} fx={style} /></div>
+              {ti.sub && <div style={{ marginTop: 16 * u, fontSize: 40 * u, fontWeight: 600, color: m.colors.text }}>{ti.sub}</div>}
+            </AbsoluteFill>
+          );
+        }
         if (style === "lower") {
           const x = interpolate(frame - f0, [0, 12], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
           return (
@@ -231,6 +273,11 @@ function SegmentVideo({ m, g, i }: { m: MontageSpec; g: Seg; i: number }) {
 /** White flash on every cut (when chosen). */
 function Flashes({ m }: { m: MontageSpec }) {
   const t = useCurrentFrame() / MFPS;
+  if (m.transition === "dip") {
+    const c = cutTimes(m).find((x) => t >= x - 0.2 && t < x + 0.25);
+    if (c === undefined) return null;
+    return <AbsoluteFill style={{ background: "#000", opacity: t < c ? interpolate(t, [c - 0.2, c], [0, 1]) : interpolate(t, [c, c + 0.25], [1, 0]) }} />;
+  }
   if (m.transition !== "flash") return null;
   const c = cutTimes(m).find((x) => t >= x && t < x + 0.22);
   if (c === undefined) return null;
@@ -310,19 +357,20 @@ function activeGraphic(m: MontageSpec, t: number, withTitles: boolean): Graphic 
 }
 
 /** Split layout: the graphics panel. With nothing scheduled it shows the words being said, big. */
-function Panel({ m, w, h }: { m: MontageSpec; w: number; h: number }) {
+function Panel({ m, w, h, area, opacity = 1, words = true, titles = true }: { m: MontageSpec; w: number; h: number; area?: { x: number; y: number; w: number; h: number }; opacity?: number; words?: boolean; titles?: boolean }) {
   const frame = useCurrentFrame();
   const t = frame / MFPS;
   const light = (m.panel ?? "light") === "light";
-  const g = activeGraphic(m, t, true);
+  const g = activeGraphic(m, t, titles);
+  const A = area ?? { x: 0, y: 0, w, h };
   const lines = React.useMemo(() => captionLines(m), [m]);
   const th = themeFor(m, light);
-  const s = Math.min(w / 1080, h / 760);
+  const s = Math.min(A.w / 1080, A.h / 760);
   let inner: React.ReactNode = null;
   if (g) {
     const f0 = Math.round(g.at * MFPS);
-    inner = <GraphicView key={`${g.kind}${g.at}`} g={g} m={m} f={frame - f0} len={Math.round(g.dur * MFPS)} w={w} h={h} light={light} />;
-  } else if (m.captions.on) {
+    inner = <GraphicView key={`${g.kind}${g.at}`} g={g} m={m} f={frame - f0} len={Math.round(g.dur * MFPS)} w={A.w} h={A.h} light={light} />;
+  } else if (m.captions.on && words) {
     const line = lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.35);
     if (line) inner = (
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${70 * s}px` }}>
@@ -337,13 +385,62 @@ function Panel({ m, w, h }: { m: MontageSpec; w: number; h: number }) {
     );
   }
   return (
-    <div style={{ position: "absolute", inset: 0, background: panelBackground(m, light), overflow: "hidden" }}>
+    <div style={{ position: "absolute", inset: 0, background: panelBackground(m, light), overflow: "hidden", opacity }}>
       <svg width={w} height={h} style={{ position: "absolute", inset: 0, opacity: light ? 0.5 : 0.35 }}>
-        <circle cx={w * 0.9} cy={h * 0.12} r={h * 0.5} fill={m.colors.accent} opacity={0.08} />
-        <circle cx={w * 0.05} cy={h * 1.05} r={h * 0.45} fill={m.colors.accent} opacity={0.06} />
+        <circle cx={w * 0.9} cy={h * 0.12} r={Math.min(w, h) * 0.5} fill={m.colors.accent} opacity={0.08} />
+        <circle cx={w * 0.05} cy={h * 1.05} r={Math.min(w, h) * 0.45} fill={m.colors.accent} opacity={0.06} />
       </svg>
-      {inner}
+      <div style={{ position: "absolute", left: A.x, top: A.y, width: A.w, height: A.h }}>{inner}</div>
     </div>
+  );
+}
+
+/** Speaker inside a shape (circle / corner / card), graphics fill the rest. "dynamic" shrinks to the circle only while a graphic is on. */
+function ShapedStage({ m, u }: { m: MontageSpec; u: number }) {
+  const frame = useCurrentFrame();
+  const { width: W, height: H } = useVideoConfig();
+  const t = frame / MFPS;
+  const tall = H >= W;
+  const lay = m.layout ?? "full";
+  // target geometry of the small speaker
+  const shape = lay === "dynamic" ? "circle" : lay;
+  let r: { x: number; y: number; w: number; h: number; rad: number };
+  let area: { x: number; y: number; w: number; h: number };
+  if (shape === "circle") {
+    const d = tall ? W * 0.56 : H * 0.62;
+    r = tall ? { x: (W - d) / 2, y: H - d - H * 0.06, w: d, h: d, rad: d / 2 } : { x: W - d - W * 0.05, y: (H - d) / 2, w: d, h: d, rad: d / 2 };
+    area = tall ? { x: 0, y: H * 0.04, w: W, h: r.y - H * 0.06 } : { x: W * 0.03, y: 0, w: r.x - W * 0.05, h: H };
+  } else if (shape === "corner") {
+    const w = tall ? W * 0.36 : W * 0.24, h = w * (tall ? 1.3 : 0.75);
+    r = { x: W * 0.05, y: H - h - H * 0.05, w, h, rad: 34 * u };
+    area = tall ? { x: 0, y: H * 0.05, w: W, h: r.y - H * 0.08 } : { x: r.x + w + W * 0.03, y: 0, w: W - (r.x + w + W * 0.06), h: H };
+  } else {
+    r = tall ? { x: W * 0.06, y: H * 0.43, w: W * 0.88, h: H * 0.52, rad: 46 * u } : { x: W * 0.5, y: H * 0.08, w: W * 0.45, h: H * 0.84, rad: 40 * u };
+    area = tall ? { x: 0, y: H * 0.02, w: W, h: H * 0.39 } : { x: W * 0.02, y: 0, w: W * 0.46, h: H };
+  }
+  // dynamic: k = 0 full-screen speaker, 1 = small circle (around each graphic)
+  let k = 1;
+  if (lay === "dynamic") {
+    k = 0;
+    for (const g of m.graphics ?? []) {
+      const a = g.at, b = g.at + g.dur;
+      if (t >= a - 0.4 && t <= b + 0.4) k = Math.max(k, Math.min(interpolate(t, [a - 0.35, a], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease }), interpolate(t, [b, b + 0.35], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease })));
+    }
+  }
+  const lerp = (a: number, b: number) => a + (b - a) * k;
+  const box = { left: lerp(0, r.x), top: lerp(0, r.y), width: lerp(W, r.w), height: lerp(H, r.h), borderRadius: lerp(0, r.rad) };
+  return (
+    <>
+      <Panel m={m} w={W} h={H} area={area} opacity={lay === "dynamic" ? k : 1} words={lay !== "dynamic"} titles={lay !== "dynamic"} />
+      <div style={{ position: "absolute", ...box, overflow: "hidden", boxShadow: k > 0.05 ? `0 ${20 * u}px ${60 * u}px rgba(0,0,0,${0.35 * k})` : "none", outline: k > 0.05 ? `${6 * u * k}px solid ${m.colors.accent}` : "none", outlineOffset: -1 }}>
+        <Footage m={m} />
+        {m.vignette && <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.5) 100%)" }} />}
+        <Flashes m={m} />
+        <BRollLayer m={m} />
+      </div>
+      {lay === "dynamic" && k < 0.5 && (m.captions.on || m.subs2?.on) && <Captions m={m} u={u} />}
+      {lay !== "dynamic" && m.subs2?.on && <Captions m={{ ...m, captions: { ...m.captions, on: false } }} u={u} />}
+    </>
   );
 }
 
@@ -380,6 +477,7 @@ export function MontageVideo(m: MontageSpec) {
   const vid = Math.max(1, Math.round(videoSeconds(m) * MFPS));
   const outro = outroFrames(m);
   const split = m.layout === "split";
+  const shaped = m.layout === "circle" || m.layout === "corner" || m.layout === "card" || m.layout === "dynamic";
   // 9:16 and 1:1 → panel on top, speaker below; 16:9 → panel on the left, speaker on the right.
   const tall = height >= width;
   const ph = Math.round(height * (height > width * 1.3 ? 0.42 : 0.46)), pw = Math.round(width * 0.5);
@@ -391,7 +489,7 @@ export function MontageVideo(m: MontageSpec) {
       {intro > 0 && m.sfx && <Audio src={staticFile("sfx/ding.mp3")} volume={0.35} endAt={20} />}
       {intro > 0 && <Sequence durationInFrames={intro}><Card title={m.intro.title} subtitle={m.intro.subtitle} m={m} u={u} len={intro} /></Sequence>}
       <Sequence from={intro} durationInFrames={vid}>
-        {split ? (
+        {shaped ? <ShapedStage m={m} u={u} /> : split ? (
           <>
             <div style={{ position: "absolute", ...box.foot, overflow: "hidden" }}>
               <Footage m={m} />
@@ -415,7 +513,7 @@ export function MontageVideo(m: MontageSpec) {
         )}
         {m.vo?.on && m.vo.url && <Audio src={m.vo.url} volume={1} />}
         <Emojis m={m} u={u} />
-        {!split && <Titles m={m} u={u} />}
+        {(!split && !shaped) || m.layout === "dynamic" ? <Titles m={m} u={u} /> : null}
         <Logo m={m} u={u} />
         <Sfx m={m} />
         <GraphicSfx m={m} />

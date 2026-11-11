@@ -6,7 +6,9 @@ import { aiJson, speechReady } from "@/lib/providers/text";
 import { music, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveResult, signedResultUrls } from "@/lib/providers/storage";
 import { config } from "@/lib/tools/run";
-import { ICONS, captionLines, cleanGraphics, videoSeconds, type MontageSpec } from "@/remotion/montage";
+import { CAPTION_STYLES, GRADES, ICONS, LAYOUTS, TITLE_STYLES, TRANSITIONS, captionLines, cleanGraphics, videoSeconds, type MontageSpec } from "@/remotion/montage";
+
+const ok = <T extends string>(list: [T, string][], v: unknown): T | undefined => list.find((x) => x[0] === v)?.[0];
 
 export const maxDuration = 300;
 
@@ -26,17 +28,18 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     colors: { text: hex(s.colors?.text, base.colors.text), accent: hex(s.colors?.accent, base.colors.accent), bg: hex(s.colors?.bg, base.colors.bg) },
     captions: {
       on: s.captions?.on ?? base.captions.on,
-      style: ["karaoke", "box", "minimal"].includes(String(s.captions?.style)) ? s.captions!.style : base.captions.style,
+      style: ok(CAPTION_STYLES, s.captions?.style) ?? base.captions.style,
       pos: ["bottom", "middle", "top"].includes(String(s.captions?.pos)) ? s.captions!.pos : base.captions.pos ?? "bottom",
     },
     titles: (Array.isArray(s.titles) ? s.titles : base.titles).slice(0, 15).map((t) => ({
       text: String(t.text ?? "").slice(0, 60), at: clamp(Number(t.at) || 0, 0, Math.max(0, len - 0.5)), dur: clamp(Number(t.dur) || 2.5, 1, 6), pos: t.pos === "center" ? "center" as const : "top" as const,
-      style: (["kinetic", "pill", "lower", "editorial"] as const).find((x) => x === t.style) ?? "pill",
+      style: ok(TITLE_STYLES, t.style) ?? "pill",
       hl: t.hl ? String(t.hl).slice(0, 30) : undefined, sub: t.sub ? String(t.sub).slice(0, 50) : undefined,
     })).filter((t) => t.text),
     drift: typeof s.drift === "boolean" ? s.drift : base.drift ?? false,
     vignette: typeof s.vignette === "boolean" ? s.vignette : base.vignette ?? false,
-    layout: s.layout === "split" || s.layout === "full" ? s.layout : base.layout ?? "full",
+    layout: ok(LAYOUTS, s.layout) ?? base.layout ?? "full",
+    quality: s.quality === "4k" || s.quality === "1080" ? s.quality : base.quality ?? "1080",
     panel: s.panel === "dark" || s.panel === "light" ? s.panel : base.panel ?? "light",
     graphics: cleanGraphics(Array.isArray(s.graphics) ? s.graphics : base.graphics ?? [], len),
     zooms: (Array.isArray(s.zooms) ? s.zooms : base.zooms).slice(0, 15).map((z) => ({ at: clamp(Number(z.at) || 0, 0, len), dur: clamp(Number(z.dur) || 2, 0.5, 6), scale: clamp(Number(z.scale) || 1.15, 1.02, 1.35) })),
@@ -45,11 +48,11 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     music: s.music === undefined ? base.music ?? null : s.music === null ? null : base.music?.path && s.music.name === base.music.name ? { ...base.music, url: "" } : s.music,
     face: base.face ?? [],
     track: typeof s.track === "boolean" ? s.track && (base.face ?? []).length > 0 : base.track ?? false,
-    grade: ["none", "natural", "vivid", "warm", "cinematic"].includes(String(s.grade)) ? s.grade : base.grade ?? "none",
+    grade: ok(GRADES, s.grade) ?? base.grade ?? "none",
     autoBright: base.autoBright ?? 1,
     videoVolume: typeof s.videoVolume === "number" ? clamp(s.videoVolume, 0, 1) : base.videoVolume ?? 1,
     vo: s.vo === null ? null : base.vo ? { ...base.vo, url: "", on: s.vo ? !!s.vo.on : base.vo.on } : null,
-    transition: ["none", "flash", "zoom", "whip", "blur"].includes(String(s.transition)) ? s.transition : base.transition ?? "none",
+    transition: ok(TRANSITIONS, s.transition) ?? base.transition ?? "none",
     logo: (() => {
       // the customer may add their own logo in the studio (an upload of theirs), move and resize it
       const path = s.logo?.path && userId && s.logo.path.startsWith(`${userId}/`) ? s.logo.path : base.logo?.path;
@@ -103,8 +106,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const c = await config("video-editing");
       const via = c.provider === "google" ? { provider: "gemini", model: "gemini-2.5-pro" } : { provider: "claude", model: "claude-sonnet-5-5" };
       const raw = await aiJson<Partial<MontageSpec>>(
-        `أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos,style: kinetic|editorial|pill|lower, hl (كلمة تتلوّن), sub (سطر صغير)}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (none|flash|zoom|whip|blur), drift (true/false حركة تكبير بطيئة سينمائية), vignette (true/false حواف داكنة), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), logo{on,pos: tl|tr|bl|br}, grade (none|natural|vivid|warm|cinematic ستايل الألوان), videoVolume (0..1 صوت الفيديو الأصلي، 0 صامت), layout (full ملء الشاشة | split شاشة مقسومة: رسوم متحركة فوق والمتكلم تحت), panel (light فاتح | dark داكن، لون لوحة الرسوم بالشاشة المقسومة), graphics[مشاهد متحركة] كل مشهد {kind, at, dur, ...}: headline{text,hl,sub} عنوان كبير كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (لما يذكر رقم أو نسبة) | steps{text,items[{label,icon}]} خطوات مرقمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} خطأ مقابل صح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] 2-3,text} أيقونات بينها أسهم (مثلاً فكرة ← أداة ← نتيجة). الأيقونات المتاحة: ${ICONS.join(", ")}. المشاهد تطلع بنفس لحظة الكلام عنها (at = وقت بداية الجملة) ومدتها مثل مدة الجملة (2-5 ثواني)، ولا تتداخل مع بعض ولا مع العناوين. إذا طلب العميل "حط فوق كذا" أو شكل معيّن عند كلمة معيّنة، أضف مشهد بالنوع المناسب عند وقت هالكلمة من الكلام بالتوقيت. إذا طلب شاشة مقسومة أو "رسوم فوق وأنا تحت" غيّر layout إلى split. العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: karaoke, box, minimal. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top).`,
-        `مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, drift: current.drift, vignette: current.vignette, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, grade: current.grade, videoVolume: current.videoVolume, layout: current.layout ?? "full", panel: current.panel ?? "light", graphics: current.graphics ?? [], logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
+        `أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos,style: kinetic|editorial|pill|lower|marker (قلم تظليل على الكلمة hl)|typewriter (آلة كاتبة), hl (كلمة تتلوّن), sub (سطر صغير)}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (${TRANSITIONS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), drift (true/false حركة تكبير بطيئة سينمائية), vignette (true/false حواف داكنة), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), logo{on,pos: tl|tr|bl|br}, grade (ستايل الألوان: ${GRADES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), videoVolume (0..1 صوت الفيديو الأصلي، 0 صامت), layout (شكل الفيديو: ${LAYOUTS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), quality (1080 | 4k), panel (light فاتح | dark داكن، لون لوحة الرسوم بالشاشة المقسومة), graphics[مشاهد متحركة] كل مشهد {kind, at, dur, ...}: headline{text,hl,sub} عنوان كبير كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (لما يذكر رقم أو نسبة) | steps{text,items[{label,icon}]} خطوات مرقمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} خطأ مقابل صح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] 2-3,text} أيقونات بينها أسهم (مثلاً فكرة ← أداة ← نتيجة) | bars{text,suffix,items[{label,value}] 2-5} رسم أعمدة | donut{value 0-100,text} دائرة نسبة | line{text,values[أرقام]} خط صاعد أو نازل | quote{text,sub (القائل)} اقتباس | arrow{text} سهم يأشّر تحت (مثل: الرابط تحت، تابعني). headline و quote و arrow تقبل fx: marker (تظليل) | circle (دائرة مرسومة حول الكلمة hl) | underline (خط تحت) | typewriter (تنكتب حرف حرف). الأيقونات المتاحة: ${ICONS.join(", ")}. المشاهد تطلع بنفس لحظة الكلام عنها (at = وقت بداية الجملة) ومدتها مثل مدة الجملة (2-5 ثواني)، ولا تتداخل مع بعض ولا مع العناوين. إذا طلب العميل "حط فوق كذا" أو شكل معيّن عند كلمة معيّنة، أضف مشهد بالنوع المناسب عند وقت هالكلمة من الكلام بالتوقيت. إذا طلب شاشة مقسومة أو "رسوم فوق وأنا تحت" غيّر layout إلى split، و"خلني بدائرة" circle، و"بالزاوية" corner، و"لما يطلع رسم صغّرني" dynamic. العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: ${CAPTION_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top).`,
+        `مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, drift: current.drift, vignette: current.vignette, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, grade: current.grade, videoVolume: current.videoVolume, layout: current.layout ?? "full", quality: current.quality ?? "1080", panel: current.panel ?? "light", graphics: current.graphics ?? [], logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
         6000, via);
       const spec = sanitize(current, { ...raw, broll: current.broll, subs2: current.subs2 }, user.id);
       await admin.from("jobs").update({ input: { ...job.input, spec: { ...spec, src: "" } } }).eq("id", job.id);
