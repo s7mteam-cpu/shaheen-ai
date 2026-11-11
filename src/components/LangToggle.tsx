@@ -17,7 +17,7 @@ export function LangToggle({ lang, className = "", light = false, full = false }
   if (full) return (
     <button type="button" onClick={flip} disabled={pending} lang={lang === "en" ? "ar" : "en"}
       aria-label={lang === "en" ? "التبديل إلى العربية" : "Switch to English"}
-      className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-white/20 bg-white/[0.06] px-3 text-[14px] font-semibold text-white transition hover:bg-white/10 disabled:opacity-50 ${className}`}>
+      className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-white/20 bg-white/[0.06] px-3 text-[14px] sm:h-10 sm:px-4 sm:text-[15px] font-semibold text-white transition hover:bg-white/10 disabled:opacity-50 ${className}`}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden className="opacity-80"><circle cx="12" cy="12" r="9.5" /><path d="M2.5 12h19M12 2.5c2.6 2.8 3.9 6 3.9 9.5s-1.3 6.7-3.9 9.5c-2.6-2.8-3.9-6-3.9-9.5s1.3-6.7 3.9-9.5Z" /></svg>
       {lang === "en" ? "عربي" : "English"}
     </button>

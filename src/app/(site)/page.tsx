@@ -41,16 +41,16 @@ export default async function Home() {
               </span>
             </h1>
             <p className="max-w-xl text-[19px] font-medium leading-8 text-ink/80 md:text-xl md:leading-9">{c.hero.subtitle}</p>
-            <div className="mt-5 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center md:mt-0 md:justify-start">
-              {/* phones (the bar has no buttons there): subscribe, then sign in, then explore */}
-              <div className="flex flex-col gap-3 sm:hidden">
+            <div className="mt-5 flex w-full max-w-sm flex-col gap-3 lg:max-w-none lg:flex-row lg:flex-wrap lg:justify-center md:mt-0 md:justify-start">
+              {/* phones & iPads (the bar has no buttons there): subscribe, then sign in, then explore */}
+              <div className="flex flex-col gap-3 lg:hidden">
                 <a href="#pricing" className="btn btn-outline px-4 py-4 text-[16px] font-semibold">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
                 {signedIn
                   ? <Link href="/app" className="btn btn-primary px-7 py-4 text-[17px]">{T("لوحة التحكم", "Dashboard")}</Link>
                   : <Link href="/login" className="btn btn-primary px-7 py-4 text-[17px]">{T("تسجيل الدخول", "Sign in")}</Link>}
               </div>
-              {/* tablets & computers: unchanged */}
-              <div className="hidden sm:flex">
+              {/* laptops & computers */}
+              <div className="hidden lg:flex">
                 <a href="#pricing" className="btn btn-primary px-7 py-4 text-[17px]">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
               </div>
               <a href="#tools" className="btn btn-outline px-4 py-4 text-[16px] font-semibold sm:px-6 sm:text-[17px]">{c.hero.cta_secondary}</a>

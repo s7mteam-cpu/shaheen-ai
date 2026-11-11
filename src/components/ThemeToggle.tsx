@@ -35,9 +35,9 @@ export function ThemeSwitch({ className = "" }: { className?: string }) {
     document.documentElement.classList.toggle("dark", next);
     try { localStorage.setItem("theme", next ? "dark" : "light"); } catch { /* private mode */ }
   }
-  const btn = (on: boolean) => `inline-flex h-7 w-8 items-center justify-center rounded-full transition ${on ? "bg-gold-500 !text-[#0A1E36] shadow-sm" : "text-white/70 hover:text-white"}`;
+  const btn = (on: boolean) => `inline-flex h-7 w-8 sm:h-8 sm:w-9 items-center justify-center rounded-full transition ${on ? "bg-gold-500 !text-[#0A1E36] shadow-sm" : "text-white/70 hover:text-white"}`;
   return (
-    <span dir="ltr" role="group" aria-label="الوضع الفاتح / الليلي" className={`inline-flex h-9 shrink-0 items-center gap-0.5 rounded-full border border-white/20 bg-white/[0.06] p-[3px] ${className}`}>
+    <span dir="ltr" role="group" aria-label="الوضع الفاتح / الليلي" className={`inline-flex h-9 shrink-0 items-center gap-0.5 rounded-full sm:h-10 sm:p-1 border border-white/20 bg-white/[0.06] p-[3px] ${className}`}>
       <button type="button" onClick={() => set(false)} aria-pressed={!dark} aria-label="الوضع الفاتح" title="الوضع الفاتح" className={btn(!dark)}>{SUN}</button>
       <button type="button" onClick={() => set(true)} aria-pressed={dark} aria-label="الوضع الليلي" title="الوضع الليلي" className={btn(dark)}>{MOON}</button>
     </span>
