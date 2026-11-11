@@ -12,6 +12,7 @@ import { PLAYBOOK, playbookText } from "@/remotion/playbook";
 import { enforcePack, packBrief, packById } from "@/remotion/packs";
 import { industryById } from "@/design/industries";
 import { guessIndustry } from "@/lib/server/guessIndustry";
+import { snapshot, trendsFor } from "@/lib/server/trends";
 import type { Aspect } from "@/remotion/spec";
 
 export const maxDuration = 300;
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
   try {
     // 1) script + scenes
     const words = Math.round(seconds * 2.2);
-    const ask = `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}`;
+    const ask = `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, motion ? "motion" : "lesson")}`;
     let plan: Plan;
     try { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask, 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
     catch { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask + "\nمهم: أعد JSON صالح ومكتمل فقط.", 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
@@ -183,7 +184,7 @@ export async function POST(req: Request) {
       vo,
       videoVolume: 0, sfx: true, progress: !motion, quality: "1080",
     };
-    await admin.from("jobs").update({ status: "draft", progress: 100, title: String(plan.title || topic).slice(0, 80), input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null, spec } }).eq("id", job.id);
+    await admin.from("jobs").update({ status: "draft", progress: 100, title: String(plan.title || topic).slice(0, 80), input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null, first: snapshot(spec as unknown as Record<string, unknown>), spec } }).eq("id", job.id);
     return NextResponse.json({ jobId: job.id });
   } catch (e) {
     console.error("lesson", e);

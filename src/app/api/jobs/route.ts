@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { industryById } from "@/design/industries";
 import { GENERAL, packBrief, packById } from "@/remotion/packs";
 import { guessIndustry } from "@/lib/server/guessIndustry";
+import { trendsFor } from "@/lib/server/trends";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { toolSpecs, validate, type Values } from "@/lib/tools/specs";
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
   if (toolId === "video-editing" && !parent) {
     const ind = industryById(String(input.industry ?? "")) ?? industryById(await guessIndustry(String(input.notes ?? "")));
     const pack = packById(ind?.id);
-    if (ind && pack) input = { ...input, industry: ind.id, pack_brief: packBrief(pack, ind.label), pack_scenes: [...new Set([...pack.scenes, ...GENERAL])] };
+    if (ind && pack) input = { ...input, industry: ind.id, pack_brief: `${packBrief(pack, ind.label)}\n${await trendsFor(ind.id, "montage")}`, pack_scenes: [...new Set([...pack.scenes, ...GENERAL])] };
     else delete input.industry;
   }
 

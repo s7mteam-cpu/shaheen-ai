@@ -493,7 +493,9 @@ async function analyzeMontage(job) {
         if (!up.error) spec.music = { url: "", name: "موسيقى تلقائية", path: mpath };
       } catch (e) { console.error("auto music skipped", e?.message ?? e); }
     }
-    await db.from("jobs").update({ status: "draft", progress: 100, input: { ...job.input, spec }, updated_at: now() }).eq("id", job.id);
+    // «first» = the AI's choices, to learn what customers change (trends lab)
+    const first = { industry: spec.domain, layout: spec.layout, captions: spec.captions?.style, transition: spec.transition, grade: spec.grade, board: spec.board, kinds: (spec.graphics ?? []).map((g) => g.kind).sort().join(",") || undefined };
+    await db.from("jobs").update({ status: "draft", progress: 100, input: { ...job.input, first, spec }, updated_at: now() }).eq("id", job.id);
     console.log("montage planned", job.id, segments.length, "segments", plan ? "(ai)" : "(basic)");
   } catch (e) {
     await fail(job, e);

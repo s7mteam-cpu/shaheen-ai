@@ -11,6 +11,7 @@ import { config } from "@/lib/tools/run";
 import { industryBrief, industryById } from "@/design/industries";
 import { designBrief, designPack } from "@/design/packs";
 import { guessIndustry } from "@/lib/server/guessIndustry";
+import { snapshot, trendsFor } from "@/lib/server/trends";
 import { usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, DECO_IDS, FRAME_IDS, STICKER_IDS, STICKER_LABELS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
 
 export const maxDuration = 300;
@@ -179,6 +180,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         (kit ? `هوية العميل: الاسم ${kit.business_name || "غير محدد"}، الألوان ${(kit.colors ?? []).join(", ") || "غير محددة"}، الخط ${kit.font || "اختر أنت"}، الحساب ${kit.handle || kit.instagram || "غير محدد"}${kit.website ? `، الموقع ${kit.website}` : ""}\n` : "") +
         (site ? `من موقع العميل (لتعرف نشاطه وأسلوب كلامه):\n${site}\n` : "") +
         (ind ? `${industryBrief(ind)}\n${dpick?.text ?? ""}\n` : "") +
+        `${await trendsFor(ind?.id, kind === "ads" ? "ads" : kind === "carousel" ? "carousel" : "post")}\n` +
         `\nمعلومات العميل:\n${info}\n\n` +
         `أعد JSON: { "font", "deco", "frame", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "caption", "slides": [ {layout, ...الحقول, "sticker", "photo", "imagePrompt", "caption"} ] }`,
         images, 9000);
@@ -224,7 +226,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       // A photo layout without a photo looks empty: fall back to a text layout.
       spec = { ...spec, slides: spec.slides.map((s) => (!s.photo && (s.layout === "photo" || s.layout === "split") ? { ...s, layout: "classic" } : s)) };
 
-      await admin.from("jobs").update({ progress: 100, input: { info, count, aspect, kind, photos, person, spec: { ...spec, slides: spec.slides.map((s) => s) } } }).eq("id", job.id);
+      // «first» = what the AI chose, kept to learn what customers change (trends lab)
+      await admin.from("jobs").update({ progress: 100, input: { info, count, aspect, kind, photos, person, first: snapshot(spec as unknown as Record<string, unknown>), spec: { ...spec, slides: spec.slides.map((s) => s) } } }).eq("id", job.id);
       return NextResponse.json({ jobId: job.id });
     } catch (e) {
       console.error("design start", e);
