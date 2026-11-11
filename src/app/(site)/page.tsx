@@ -25,7 +25,7 @@ export default async function Home() {
       {/* Hero */}
       <section className="relative overflow-hidden">
         <Circuit className="pointer-events-none absolute -left-10 top-5 hidden w-[520px] opacity-35 md:block" />
-        <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-14 px-6 pb-10 pt-7 md:pb-16 md:pt-20">
+        <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-14 px-6 pb-10 pt-12 md:pb-16 md:pt-20">
           <div className="flex min-h-[calc(100svh-62px-4.25rem)] min-w-0 flex-[1_1_460px] flex-col items-center gap-6 text-center md:min-h-0 md:items-start md:gap-6 md:text-start">
             <span className="inline-flex items-center gap-2 rounded-full border border-[#D3DDEA] bg-tint px-3.5 py-2 text-sm font-semibold text-navy-700">
               <span className="h-2 w-2 rounded-full bg-gold-500" />{c.hero.badge}
@@ -38,11 +38,11 @@ export default async function Home() {
               </span>
             </h1>
             <p className="max-w-xl text-[19px] font-medium leading-8 text-ink/80 md:text-xl md:leading-9">{c.hero.subtitle}</p>
-            <div className="flex w-full max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
+            <div className="mt-5 flex w-full max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center md:mt-0 md:justify-start">
               <a href="#pricing" className="btn btn-primary px-7 py-4 text-[17px]">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
               <a href="#tools" className="btn btn-outline px-6 py-4 text-[17px] font-semibold">{c.hero.cta_secondary}</a>
             </div>
-            <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted md:mt-0 md:justify-start md:pb-0">
+            <ul className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted md:mt-0 md:justify-start md:pb-0">
               {c.hero.points.map((p) => (
                 <li key={p} className="inline-flex items-center gap-1.5"><Icon name="check" size={16} className="text-navy-700" strokeWidth={2.2} />{p}</li>
               ))}
