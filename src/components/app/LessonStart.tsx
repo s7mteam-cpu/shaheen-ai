@@ -3,6 +3,7 @@ import { L } from "@/lib/i18n/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Progress } from "@/components/app/Progress";
+import { ILLUS_STYLES } from "@/remotion/styles";
 
 const lengths = [[30, "30 ثانية"], [60, "دقيقة"], [90, "دقيقة ونص"], [120, "دقيقتين"]] as const;
 const aspects = [["9:16", "ريلز / تيك توك 9:16"], ["1:1", "مربع 1:1"], ["16:9", "يوتيوب عريض 16:9"]] as const;
@@ -24,6 +25,8 @@ export function LessonStart({ costPer30, balance, voices }: { costPer30: number;
   const [board, setBoard] = useState<string>("auto");
   const [voice, setVoice] = useState(voices[0]?.id ?? "");
   const [withMusic, setWithMusic] = useState(true);
+  const [drawings, setDrawings] = useState(true);
+  const [illus, setIllus] = useState<string>("auto");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pct, setPct] = useState(0);
@@ -39,7 +42,7 @@ export function LessonStart({ costPer30, balance, voices }: { costPer30: number;
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic, notes, seconds, aspect, audience, dialect, panel, board, voice, music: withMusic }) });
+      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic, notes, seconds, aspect, audience, dialect, panel, board, voice, music: withMusic, drawings, illus: illus === "auto" ? undefined : illus }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setPct(100);
@@ -66,6 +69,8 @@ export function LessonStart({ costPer30, balance, voices }: { costPer30: number;
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(aspects, aspect, setAspect)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل اللوحة")}</span>{chips(panels, panel, setPanel)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("خلفية اللوحة")}</span>{chips(boards, board, setBoard)}</div>
+      <label className="flex items-center gap-3"><input type="checkbox" checked={drawings} onChange={(e) => setDrawings(e.target.checked)} className="h-5 w-5" /><span>{L("🎨 مشاهد مرسومة بالذكاء الاصطناعي (قصص وأمثلة وشخصيات)")}</span></label>
+      {drawings && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسومات")}</span>{chips([["auto", "شاهين يختار"], ...ILLUS_STYLES.map(([v, l]) => [v, l] as const)] as readonly (readonly [string, string])[], illus, setIllus)}</div>}
       <label className="flex items-center gap-3"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} className="h-5 w-5" /><span>{L("موسيقى خلفية هادئة")}</span></label>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("ملاحظات")} <span className="font-normal text-subtle">{L("(اختياري)")}</span></span>
         <input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} className="field" placeholder={L("مثال: اختم بسؤال للطلاب، واذكر اسم الأكاديمية")} /></label>

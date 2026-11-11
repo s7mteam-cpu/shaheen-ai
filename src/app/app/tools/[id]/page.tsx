@@ -100,9 +100,12 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
   const sign = async (p?: string) => (p ? (await createAdminClient().storage.from("results").createSignedUrl(p, 60 * 60 * 6)).data?.signedUrl ?? "" : "");
   const music = spec.music?.path ? { ...spec.music, url: await sign(spec.music.path) } : spec.music ?? null;
   const vo = spec.vo ? { ...spec.vo, url: await sign(spec.vo.path) } : null;
+  const pics = (spec.graphics ?? []).filter((g) => g.img).map((g) => g.img!);
+  const picUrls = pics.length ? (await createAdminClient().storage.from("results").createSignedUrls(pics, 60 * 60 * 6)).data ?? [] : [];
+  const graphics = (spec.graphics ?? []).map((g) => (g.img ? { ...g, url: picUrls[pics.indexOf(g.img)]?.signedUrl ?? "" } : g));
   const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name").maybeSingle();
   const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null } : null;
-  return <MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed?.signedUrl ?? "", logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
+  return <MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed?.signedUrl ?? "", logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo, graphics }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
 }
 
 /** Posts, carousels and ads: the info form, or the live design studio for one of the user's designs. */

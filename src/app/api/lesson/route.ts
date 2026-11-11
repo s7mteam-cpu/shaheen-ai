@@ -5,6 +5,8 @@ import { aiJson } from "@/lib/providers/text";
 import { music, speakable, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveResult } from "@/lib/providers/storage";
 import { brandHint } from "@/lib/tools/run";
+import { illustrateScenes } from "@/lib/server/illustrate";
+import { ILLUS_STYLES } from "@/remotion/styles";
 import { BOARD_STYLES, CAPTION_STYLES, DARK_BOARDS, ICONS, cleanGraphics, type BoardStyle, type MontageSpec } from "@/remotion/montage";
 import { PLAYBOOK, playbookText } from "@/remotion/playbook";
 import type { Aspect } from "@/remotion/spec";
@@ -17,23 +19,25 @@ const AUDIENCE: Record<string, string> = { kids: "أطفال (٥-١٠ سنوات
 const DIALECT: Record<string, string> = { kuwaiti: "لهجة كويتية بيضاء واضحة", gulf: "لهجة خليجية بيضاء", msa: "عربية فصحى مبسطة", en: "English (simple, clear)" };
 const hex = (v: unknown, d: string) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
 
-const SYSTEM = () => `أنت معلّم ومخرج فيديوهات تعليمية متحركة محترف (مثل أفضل قنوات الشرح بالرسوم المتحركة). تحوّل الدرس أو الفكرة إلى سكربت قصير مقسّم لجمل، ولكل جملة مشهد متحرك يشرحها.
+const SYSTEM = (drawHint: string) => `أنت معلّم ومخرج فيديوهات تعليمية متحركة محترف (مثل أفضل قنوات الشرح بالرسوم المتحركة). تحوّل الدرس أو الفكرة إلى سكربت قصير مقسّم لجمل، ولكل جملة مشهد متحرك يشرحها.
 أعد JSON فقط بالشكل:
 {
  "title": "عنوان الدرس (3-6 كلمات)",
  "domain": "id المجال من الدليل",
  "colors": {"accent": "#hex", "bg": "#hex غامق للوحة الداكنة"},
  "font": "Cairo|Tajawal|Almarai|Changa",
+ "illus": "ستايل الرسومات إذا فيه مشاهد scene",
  "board": "soft|paper|grid|dots|notebook|chalk|blueprint|night|pastel|sunrise (خلفية اللوحة المناسبة للموضوع: chalk للمدرسة، blueprint للهندسة والعلوم، notebook للدروس، pastel للأطفال، grid للرياضيات، night للتقنية)",
  "music_prompt": "وصف إنجليزي قصير لموسيقى خلفية هادئة مناسبة، أو \\"\\" للمحتوى الديني",
  "lines": [ { "say": "جملة تنقال بالصوت (6-16 كلمة)", "scene": { "kind": "...", ...حقول المشهد } } ]
 }
-أنواع المشاهد (scene.kind) وحقولها: headline{text,hl,sub,fx} | timer{text,hl,sub} | counter{value,suffix,text} | steps{text,items[{label,icon}] 2-4} | checklist{text,items[{label}] 2-4} | compare{text,bad,good} | icon{icon,text,sub} | flow{items[{icon,label}] 2-3,text} | bars{text,suffix,items[{label,value}] 2-5} | donut{value 0-100,text} | line{text,values[]} | quote{text,sub} | arrow{text} | definition{text المصطلح,sub المعنى,hl كلمة صغيرة فوق مثل "تعريف"} | quiz{text السؤال,items[{label}] 2-4 اختيارات,value رقم الجواب الصح من 1} | truefalse{text العبارة,value 1 صح أو 0 خطأ,sub التوضيح} | timeline{text,items[{label,icon}] 3-5 بالترتيب} | cycle{text,items[{label,icon}] 3-5 مراحل تتكرر} | mindmap{text الفكرة الرئيسية,items[{label,icon}] 3-6 فروع} | proscons{text,items[{label,value 1 ميزة أو 0 عيب}]} | equation{text معادلة بمسافات بين الرموز مثل "2 + 3 = 5",sub} | fraction{values[البسط,المقام],text} | vocab{text الكلمة,hl النطق,sub المعنى,good جملة مثال} | pyramid{text,items[{label}] من القاعدة للقمة 3-5} | table{text العنوان,items[{label: "البند: القيمة"}] 2-6} | fillblank{text جملة فيها ___ مكان الفراغ,good الجواب,sub}.
+أنواع المشاهد (scene.kind) وحقولها: headline{text,hl,sub,fx} | timer{text,hl,sub} | counter{value,suffix,text} | steps{text,items[{label,icon}] 2-4} | checklist{text,items[{label}] 2-4} | compare{text,bad,good} | icon{icon,text,sub} | flow{items[{icon,label}] 2-3,text} | bars{text,suffix,items[{label,value}] 2-5} | donut{value 0-100,text} | line{text,values[]} | quote{text,sub} | arrow{text} | scene{prompt وصف إنجليزي للرسمة,text,hl,sub} مشهد مرسوم بالذكاء الاصطناعي (للقصص والأمثلة والأماكن والشخصيات) | cube{text,items[{label,icon}] 2-4 وجوه} مكعب 3D يدور | globe{text} كرة أرضية تدور | text3d{text 1-3 كلمات,sub} نص ثلاثي الأبعاد | plot{text مثل "y = sin(x)",hl sin|cos|x2|x3|linear|exp|abs|sqrt,sub} رسم دالة | geometry{shape triangle|square|circle|hexagon,text,items[{label}] أطوال الأضلاع,sub القانون} | burst{text,icon أو emoji} ختم «تم» مع انفجار | confetti{text} احتفال | dotgrid{text,value} شبكة نقاط تتموّج | sketchbars{text,items[{label,value}]} رسم بياني مرسوم باليد | definition{text المصطلح,sub المعنى,hl كلمة صغيرة فوق مثل "تعريف"} | quiz{text السؤال,items[{label}] 2-4 اختيارات,value رقم الجواب الصح من 1} | truefalse{text العبارة,value 1 صح أو 0 خطأ,sub التوضيح} | timeline{text,items[{label,icon}] 3-5 بالترتيب} | cycle{text,items[{label,icon}] 3-5 مراحل تتكرر} | mindmap{text الفكرة الرئيسية,items[{label,icon}] 3-6 فروع} | proscons{text,items[{label,value 1 ميزة أو 0 عيب}]} | equation{text معادلة بمسافات بين الرموز مثل "2 + 3 = 5",sub} | fraction{values[البسط,المقام],text} | vocab{text الكلمة,hl النطق,sub المعنى,good جملة مثال} | pyramid{text,items[{label}] من القاعدة للقمة 3-5} | table{text العنوان,items[{label: "البند: القيمة"}] 2-6} | fillblank{text جملة فيها ___ مكان الفراغ,good الجواب,sub} | scene{prompt وصف إنجليزي للرسمة,text,hl,sub} مشهد مرسوم بالذكاء الاصطناعي (للقصص والأمثلة والأماكن والشخصيات) | cube{text,items[{label,icon}] 2-4 وجوه} مكعب 3D يدور | globe{text} كرة أرضية تدور | text3d{text 1-3 كلمات,sub} نص ثلاثي الأبعاد | plot{text مثل "y = sin(x)",hl sin|cos|x2|x3|linear|exp|abs|sqrt,sub} رسم دالة | geometry{shape triangle|square|circle|hexagon,text,items[{label}] أطوال الأضلاع,sub القانون} | burst{text,icon أو emoji} ختم «تم» مع انفجار | confetti{text} احتفال | dotgrid{text,value} شبكة نقاط تتموّج | sketchbars{text,items[{label,value}]} رسم بياني مرسوم باليد.
 fx (تأثير على كلمة hl): marker | circle | underline | typewriter.
 الأيقونات المتاحة فقط: ${ICONS.join(", ")}.
 قواعد الشرح:
 - أول جملة خطّاف يشد (سؤال أو معلومة مفاجئة) مع مشهد headline أو icon.
 - كل فكرة بجملة، والمشهد يوضّحها بصرياً: المصطلح definition أو vocab، الخطوات steps، الأخطاء compare أو truefalse، الأرقام counter أو bars أو table، النسب donut أو fraction، الحساب equation، التاريخ timeline، العمليات المتكررة cycle، تفرّع الموضوع mindmap، الترتيب حسب الأهمية pyramid، المزايا والعيوب proscons، الأمثلة icon، والتأكد من الفهم quiz أو fillblank.
+- ${drawHint}
 - كن مبدع وخلّ كل فيديو مختلف: نوّع بين أكثر من 6 أنواع مشاهد بالفيديو الواحد، ولا تمشي على نفس الترتيب كل مرة.
 - نوّع المشاهد ولا تكرر نفس النوع مرتين ورا بعض. نصوص المشاهد قصيرة جداً (كلمة إلى 5 كلمات) لأن الصوت يشرح.
 - آخر جملة خلاصة أو سؤال للمشاهد أو دعوة (arrow أو checklist للخلاصة).
@@ -43,7 +47,7 @@ fx (تأثير على كلمة hl): marker | circle | underline | typewriter.
 ${playbookText(PLAYBOOK.filter((d) => ["education", "kids", "coach", "tech", "finance", "clinic", "nutrition", "religion", "cooking", "news", "law", "story"].includes(d.id)))}`;
 
 type Line = { say?: string; scene?: Record<string, unknown> };
-type Plan = { board?: string; title?: string; domain?: string; colors?: { accent?: string; bg?: string }; font?: string; music_prompt?: string; lines?: Line[] };
+type Plan = { illus?: string; board?: string; title?: string; domain?: string; colors?: { accent?: string; bg?: string }; font?: string; music_prompt?: string; lines?: Line[] };
 
 export async function POST(req: Request) {
   const user = await requireUser();
@@ -57,6 +61,11 @@ export async function POST(req: Request) {
   const dialect = DIALECT[String(b.dialect)] ? String(b.dialect) : "kuwaiti";
   const panel = b.panel === "dark" ? "dark" : "light";
   const withMusic = b.music !== false;
+  const drawings = b.drawings !== false;
+  const illus = ILLUS_STYLES.some((x) => x[0] === b.illus) ? String(b.illus) : undefined;
+  const drawHint = drawings
+    ? `استخدم مشهد scene (رسمة بالذكاء الاصطناعي) من 2 إلى 5 مرات بالفيديو للقصص والأمثلة والأماكن والشخصيات، و prompt يكون وصف إنجليزي واضح للرسمة بدون أي كتابة داخلها.${illus ? "" : " واختر \"illus\" ستايل الرسومات المناسب من: " + ILLUS_STYLES.map((x) => x[0]).join(", ") + "."}`
+    : "لا تستخدم مشهد scene.";
   const admin = createAdminClient();
 
   const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", "lesson-video").single();
@@ -78,8 +87,8 @@ export async function POST(req: Request) {
     const words = Math.round(seconds * 2.2);
     const ask = `الدرس / الفكرة:\n${topic}\n\nالجمهور: ${AUDIENCE[audience]}\nاللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}`;
     let plan: Plan;
-    try { plan = await aiJson<Plan>(SYSTEM(), ask, 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
-    catch { plan = await aiJson<Plan>(SYSTEM(), ask + "\nمهم: أعد JSON صالح ومكتمل فقط.", 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
+    try { plan = await aiJson<Plan>(SYSTEM(drawHint), ask, 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
+    catch { plan = await aiJson<Plan>(SYSTEM(drawHint), ask + "\nمهم: أعد JSON صالح ومكتمل فقط.", 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
     const lines = (plan.lines ?? []).map((l) => ({ say: String(l.say ?? "").replace(/\s+/g, " ").trim(), scene: l.scene })).filter((l) => l.say).slice(0, 40);
     if (!lines.length) throw new Error("empty script");
     await admin.from("jobs").update({ progress: 35 }).eq("id", job.id);
@@ -105,7 +114,13 @@ export async function POST(req: Request) {
       return { ...l, s: first.s, e: last.e };
     });
     const total = +(v.duration + 0.6).toFixed(2);
-    const graphics = cleanGraphics(timed.filter((l) => l.scene).map((l, i, all) => ({ ...l.scene, at: Math.max(0, l.s - 0.1), dur: Math.max(1.6, ((all[i + 1]?.s ?? total) - l.s) - 0.05) })), total);
+    const style = illus ?? (ILLUS_STYLES.some((x) => x[0] === plan.illus) ? plan.illus : "gulf-cartoon");
+    let graphics = cleanGraphics(timed.filter((l) => l.scene).map((l, i, all) => ({ ...l.scene, at: Math.max(0, l.s - 0.1), dur: Math.max(1.6, ((all[i + 1]?.s ?? total) - l.s) - 0.05) })), total);
+
+    // 3b) AI-drawn scenes, all at once
+    if (drawings) graphics = await illustrateScenes(user.id, job.id, graphics, style, aspect, 6);
+    else graphics = graphics.filter((g) => g.kind !== "scene");
+    await admin.from("jobs").update({ progress: 80 }).eq("id", job.id);
 
     // 4) background music (optional, never for religious content)
     const domain = PLAYBOOK.some((d) => d.id === plan.domain) ? plan.domain : "education";
@@ -133,7 +148,7 @@ export async function POST(req: Request) {
       segments: [{ s: 0, e: total }], words: [], titles: [], zooms: [],
       intro: { on: false, title: String(plan.title ?? "").slice(0, 60), subtitle: "" },
       outro: { on: false, title: "", subtitle: "" },
-      music: musicTrack, layout: "board", panel: DARK_BOARDS.includes(board) ? "dark" : panel, board, graphics, domain,
+      illus: style, music: musicTrack, layout: "board", panel: DARK_BOARDS.includes(board) ? "dark" : panel, board, graphics, domain,
       vo: { path: voPath, url: "", on: true, words: v.words, text, voice: voiceId },
       videoVolume: 0, sfx: true, progress: true, quality: "1080",
     };

@@ -53,13 +53,15 @@ export type MontageSpec = {
   graphics?: Graphic[];                                           // animated scenes synced to the speech
   quality?: "1080" | "4k";                                         // export size
   domain?: string;                                                // field from the playbook (education, restaurant…)
+  illus?: string;                                                 // default illustration style for AI-drawn scenes
 };
 
 /** Split = animated graphics on top (or the side) and the speaker below — the "explainer reel" look. */
 export type Layout = "full" | "split" | "circle" | "corner" | "card" | "dynamic" | "board"; // board = no footage (animated lesson)
 export const LAYOUTS: [Layout, string][] = [["full", "ملء الشاشة"], ["split", "مقسومة: رسوم فوق وأنت تحت"], ["dynamic", "ذكي: تصغر لدائرة لما يطلع مشهد"], ["circle", "أنت داخل دائرة"], ["corner", "أنت بمربع صغير بالزاوية"], ["card", "أنت ببطاقة بحواف ناعمة"]];
 export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist" | "bars" | "donut" | "line" | "quote" | "arrow"
-  | "definition" | "quiz" | "truefalse" | "timeline" | "cycle" | "mindmap" | "proscons" | "equation" | "fraction" | "vocab" | "pyramid" | "table" | "fillblank";
+  | "definition" | "quiz" | "truefalse" | "timeline" | "cycle" | "mindmap" | "proscons" | "equation" | "fraction" | "vocab" | "pyramid" | "table" | "fillblank"
+  | "scene" | "cube" | "globe" | "text3d" | "plot" | "geometry" | "burst" | "confetti" | "dotgrid" | "sketchbars";
 export type Graphic = {
   kind: GraphicKind;
   at: number; dur: number;                 // output seconds (video part)
@@ -73,6 +75,11 @@ export type Graphic = {
   items?: { label: string; icon?: IconName; value?: number }[]; // steps, flow, checklist, bars
   values?: number[];                       // line chart
   fx?: "marker" | "circle" | "underline" | "typewriter"; // headline effect on the hl word
+  prompt?: string;                         // scene: what to draw (English)
+  img?: string;                            // scene: storage path in "results"
+  url?: string;                            // scene: signed URL (filled on load / render)
+  style?: string;                          // scene: illustration style
+  shape?: "triangle" | "square" | "circle" | "hexagon"; // geometry
   bad?: string; good?: string;             // compare
 };
 export const GRAPHIC_KINDS: [GraphicKind, string][] = [
@@ -82,10 +89,12 @@ export const GRAPHIC_KINDS: [GraphicKind, string][] = [
   ["definition", "تعريف مصطلح"], ["quiz", "سؤال اختيارات"], ["truefalse", "صح أو خطأ"], ["timeline", "خط زمني"], ["cycle", "دورة متكررة"],
   ["mindmap", "خريطة ذهنية"], ["proscons", "مزايا وعيوب"], ["equation", "معادلة / حساب"], ["fraction", "كسر بالدائرة"], ["vocab", "كلمة ومعناها"],
   ["pyramid", "هرم"], ["table", "جدول"], ["fillblank", "املأ الفراغ"],
+  ["scene", "مشهد مرسوم بالذكاء الاصطناعي"], ["cube", "مكعب ثلاثي الأبعاد"], ["globe", "كرة أرضية تدور"], ["text3d", "نص ثلاثي الأبعاد"],
+  ["plot", "رسم دالة رياضية"], ["geometry", "شكل هندسي"], ["burst", "ختم وانفجار «تم»"], ["confetti", "احتفال كونفيتي"], ["dotgrid", "شبكة نقاط متحركة"], ["sketchbars", "رسم بياني مرسوم باليد"],
 ];
 /** Board backgrounds — each lesson can look different. */
-export type BoardStyle = "soft" | "paper" | "grid" | "dots" | "notebook" | "chalk" | "blueprint" | "night" | "pastel" | "sunrise";
-export const BOARD_STYLES: [BoardStyle, string][] = [["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"]];
+export type BoardStyle = "soft" | "paper" | "grid" | "dots" | "notebook" | "chalk" | "blueprint" | "night" | "pastel" | "sunrise" | "sketch";
+export const BOARD_STYLES: [BoardStyle, string][] = [["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"], ["sketch", "مرسوم باليد"]];
 export const DARK_BOARDS: BoardStyle[] = ["chalk", "blueprint", "night"];
 export { ICONS };
 
@@ -106,10 +115,13 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       bad: str(x?.bad, 50), good: str(x?.good, 50),
       values: Array.isArray(x?.values) ? (x.values as unknown[]).slice(0, 12).map(Number).filter(Number.isFinite) : undefined,
       fx: (["marker", "circle", "underline", "typewriter"] as const).find((f) => f === x?.fx),
+      prompt: str(x?.prompt, 400), img: typeof x?.img === "string" && /^[\w-]+\/[\w./-]+$/.test(x.img as string) ? (x.img as string) : undefined,
+      url: typeof x?.url === "string" ? (x.url as string) : undefined, style: str(x?.style, 20),
+      shape: (["triangle", "square", "circle", "hexagon"] as const).find((v) => v === x?.shape),
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["confetti", "dotgrid", "globe", "cube", "plot", "geometry"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];

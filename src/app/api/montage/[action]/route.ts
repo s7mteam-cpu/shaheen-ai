@@ -4,9 +4,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson, speechReady } from "@/lib/providers/text";
 import { music, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
-import { saveResult, signedResultUrls } from "@/lib/providers/storage";
+import { saveResult } from "@/lib/providers/storage";
 import { config } from "@/lib/tools/run";
 import { PLAYBOOK, PLAYBOOK_RULES, playbookText } from "@/remotion/playbook";
+import { ILLUS_STYLES } from "@/remotion/styles";
+import { illustrate, illustrateScenes } from "@/lib/server/illustrate";
+import { signedResultUrls } from "@/lib/providers/storage";
 import { BOARD_STYLES, CAPTION_STYLES, GRADES, ICONS, LAYOUTS, TITLE_STYLES, TRANSITIONS, captionLines, cleanGraphics, videoSeconds, type MontageSpec } from "@/remotion/montage";
 
 const ok = <T extends string>(list: [T, string][], v: unknown): T | undefined => list.find((x) => x[0] === v)?.[0];
@@ -17,7 +20,7 @@ const hex = (v: unknown, d: string) => (typeof v === "string" && /^#[0-9a-f]{6}$
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 
-type Body = { jobId?: string; spec?: MontageSpec; instruction?: string; prompt?: string; seconds?: number; text?: string; voice?: string; dialect?: string };
+type Body = { jobId?: string; spec?: MontageSpec; instruction?: string; prompt?: string; style?: string; seconds?: number; text?: string; voice?: string; dialect?: string };
 
 
 /** Only the parts the customer may change; cuts, words and the source stay as the worker planned them. */
@@ -44,7 +47,10 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     quality: s.quality === "4k" || s.quality === "1080" ? s.quality : base.quality ?? "1080",
     panel: s.panel === "dark" || s.panel === "light" ? s.panel : base.panel ?? "light",
     board: ok(BOARD_STYLES, s.board) ?? base.board,
-    graphics: cleanGraphics(Array.isArray(s.graphics) ? s.graphics : base.graphics ?? [], len),
+    // pictures must be the customer's own (or already in this project)
+    graphics: cleanGraphics(Array.isArray(s.graphics) ? s.graphics : base.graphics ?? [], len)
+      .map((g) => (g.img && !g.img.startsWith(`${userId}/`) && !(base.graphics ?? []).some((x) => x.img === g.img) ? { ...g, img: undefined, url: undefined } : g)),
+    illus: ILLUS_STYLES.some((x) => x[0] === s.illus) ? s.illus : base.illus,
     zooms: (Array.isArray(s.zooms) ? s.zooms : base.zooms).slice(0, 15).map((z) => ({ at: clamp(Number(z.at) || 0, 0, len), dur: clamp(Number(z.dur) || 2, 0.5, 6), scale: clamp(Number(z.scale) || 1.15, 1.02, 1.35) })),
     intro: { on: !!(s.intro?.on ?? base.intro.on), title: String(s.intro?.title ?? base.intro.title).slice(0, 60), subtitle: String(s.intro?.subtitle ?? base.intro.subtitle).slice(0, 60) },
     outro: { on: !!(s.outro?.on ?? base.outro.on), title: String(s.outro?.title ?? base.outro.title).slice(0, 60), subtitle: String(s.outro?.subtitle ?? base.outro.subtitle).slice(0, 60) },
@@ -109,16 +115,42 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const c = await config("video-editing");
       const via = c.provider === "google" ? { provider: "gemini", model: "gemini-2.5-pro" } : { provider: "claude", model: "claude-sonnet-5-5" };
       const raw = await aiJson<Partial<MontageSpec>>(
-        `أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos,style: kinetic|editorial|pill|lower|marker (قلم تظليل على الكلمة hl)|typewriter (آلة كاتبة), hl (كلمة تتلوّن), sub (سطر صغير)}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (${TRANSITIONS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), drift (true/false حركة تكبير بطيئة سينمائية), vignette (true/false حواف داكنة), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), logo{on,pos: tl|tr|bl|br}, grade (ستايل الألوان: ${GRADES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), videoVolume (0..1 صوت الفيديو الأصلي، 0 صامت), layout (شكل الفيديو: ${LAYOUTS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), quality (1080 | 4k), panel (light فاتح | dark داكن، لون لوحة الرسوم), board (خلفية اللوحة: ${BOARD_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), graphics[مشاهد متحركة] كل مشهد {kind, at, dur, ...}: headline{text,hl,sub} عنوان كبير كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (لما يذكر رقم أو نسبة) | steps{text,items[{label,icon}]} خطوات مرقمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} خطأ مقابل صح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] 2-3,text} أيقونات بينها أسهم (مثلاً فكرة ← أداة ← نتيجة) | bars{text,suffix,items[{label,value}] 2-5} رسم أعمدة | donut{value 0-100,text} دائرة نسبة | line{text,values[أرقام]} خط صاعد أو نازل | quote{text,sub (القائل)} اقتباس | arrow{text} سهم يأشّر تحت (مثل: الرابط تحت، تابعني). وللتعليم: definition{text المصطلح,sub المعنى,hl كلمة صغيرة فوق مثل "تعريف"} | quiz{text السؤال,items[{label}] 2-4 اختيارات,value رقم الجواب الصح من 1} | truefalse{text العبارة,value 1 صح أو 0 خطأ,sub التوضيح} | timeline{text,items[{label,icon}] 3-5 بالترتيب} | cycle{text,items[{label,icon}] 3-5 مراحل تتكرر} | mindmap{text الفكرة الرئيسية,items[{label,icon}] 3-6 فروع} | proscons{text,items[{label,value 1 ميزة أو 0 عيب}]} | equation{text معادلة بمسافات بين الرموز مثل "2 + 3 = 5",sub} | fraction{values[البسط,المقام],text} | vocab{text الكلمة,hl النطق,sub المعنى,good جملة مثال} | pyramid{text,items[{label}] من القاعدة للقمة 3-5} | table{text العنوان,items[{label: "البند: القيمة"}] 2-6} | fillblank{text جملة فيها ___ مكان الفراغ,good الجواب,sub}. headline و quote و arrow تقبل fx: marker (تظليل) | circle (دائرة مرسومة حول الكلمة hl) | underline (خط تحت) | typewriter (تنكتب حرف حرف). الأيقونات المتاحة: ${ICONS.join(", ")}. المشاهد تطلع بنفس لحظة الكلام عنها (at = وقت بداية الجملة) ومدتها مثل مدة الجملة (2-5 ثواني)، ولا تتداخل مع بعض ولا مع العناوين. إذا طلب العميل "حط فوق كذا" أو شكل معيّن عند كلمة معيّنة، أضف مشهد بالنوع المناسب عند وقت هالكلمة من الكلام بالتوقيت. إذا طلب شاشة مقسومة أو "رسوم فوق وأنا تحت" غيّر layout إلى split، و"خلني بدائرة" circle، و"بالزاوية" corner، و"لما يطلع رسم صغّرني" dynamic. العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: ${CAPTION_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top). أضف "domain" (id المجال). إذا طلب العميل شي عام مثل «خلّه احترافي» أو «سوّه مثل فيديوهات المطاعم» استخدم دليل المجال.\n\n${PLAYBOOK_RULES}\n${playbookText()}`,
-        `مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, drift: current.drift, vignette: current.vignette, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, grade: current.grade, videoVolume: current.videoVolume, domain: current.domain ?? "", layout: current.layout ?? "full", quality: current.quality ?? "1080", panel: current.panel ?? "light", board: current.board ?? "soft", graphics: current.graphics ?? [], logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
+        `أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos,style: kinetic|editorial|pill|lower|marker (قلم تظليل على الكلمة hl)|typewriter (آلة كاتبة), hl (كلمة تتلوّن), sub (سطر صغير)}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (${TRANSITIONS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), drift (true/false حركة تكبير بطيئة سينمائية), vignette (true/false حواف داكنة), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), logo{on,pos: tl|tr|bl|br}, grade (ستايل الألوان: ${GRADES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), videoVolume (0..1 صوت الفيديو الأصلي، 0 صامت), layout (شكل الفيديو: ${LAYOUTS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), quality (1080 | 4k), panel (light فاتح | dark داكن، لون لوحة الرسوم), board (خلفية اللوحة: ${BOARD_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), graphics[مشاهد متحركة] كل مشهد {kind, at, dur, ...}: headline{text,hl,sub} عنوان كبير كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (لما يذكر رقم أو نسبة) | steps{text,items[{label,icon}]} خطوات مرقمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} خطأ مقابل صح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] 2-3,text} أيقونات بينها أسهم (مثلاً فكرة ← أداة ← نتيجة) | bars{text,suffix,items[{label,value}] 2-5} رسم أعمدة | donut{value 0-100,text} دائرة نسبة | line{text,values[أرقام]} خط صاعد أو نازل | quote{text,sub (القائل)} اقتباس | arrow{text} سهم يأشّر تحت (مثل: الرابط تحت، تابعني). ومشاهد إضافية: scene{prompt وصف إنجليزي للرسمة,text,hl,sub} مشهد مرسوم بالذكاء الاصطناعي | cube{text,items[{label,icon}]} مكعب 3D | globe{text} كرة أرضية | text3d{text,sub} نص 3D | plot{text,hl sin|cos|x2|x3|linear|exp|abs|sqrt} رسم دالة | geometry{shape triangle|square|circle|hexagon,text,items[{label}],sub} | burst{text,icon أو emoji} ختم «تم» | confetti{text} احتفال | dotgrid{text,value} شبكة نقاط | sketchbars{text,items[{label,value}]} رسم بياني مرسوم باليد. ستايل الرسومات illus من: ${ILLUS_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}. وللتعليم: definition{text المصطلح,sub المعنى,hl كلمة صغيرة فوق مثل "تعريف"} | quiz{text السؤال,items[{label}] 2-4 اختيارات,value رقم الجواب الصح من 1} | truefalse{text العبارة,value 1 صح أو 0 خطأ,sub التوضيح} | timeline{text,items[{label,icon}] 3-5 بالترتيب} | cycle{text,items[{label,icon}] 3-5 مراحل تتكرر} | mindmap{text الفكرة الرئيسية,items[{label,icon}] 3-6 فروع} | proscons{text,items[{label,value 1 ميزة أو 0 عيب}]} | equation{text معادلة بمسافات بين الرموز مثل "2 + 3 = 5",sub} | fraction{values[البسط,المقام],text} | vocab{text الكلمة,hl النطق,sub المعنى,good جملة مثال} | pyramid{text,items[{label}] من القاعدة للقمة 3-5} | table{text العنوان,items[{label: "البند: القيمة"}] 2-6} | fillblank{text جملة فيها ___ مكان الفراغ,good الجواب,sub}. headline و quote و arrow تقبل fx: marker (تظليل) | circle (دائرة مرسومة حول الكلمة hl) | underline (خط تحت) | typewriter (تنكتب حرف حرف). الأيقونات المتاحة: ${ICONS.join(", ")}. المشاهد تطلع بنفس لحظة الكلام عنها (at = وقت بداية الجملة) ومدتها مثل مدة الجملة (2-5 ثواني)، ولا تتداخل مع بعض ولا مع العناوين. إذا طلب العميل "حط فوق كذا" أو شكل معيّن عند كلمة معيّنة، أضف مشهد بالنوع المناسب عند وقت هالكلمة من الكلام بالتوقيت. إذا طلب شاشة مقسومة أو "رسوم فوق وأنا تحت" غيّر layout إلى split، و"خلني بدائرة" circle، و"بالزاوية" corner، و"لما يطلع رسم صغّرني" dynamic. العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: ${CAPTION_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top). أضف "domain" (id المجال). إذا طلب العميل شي عام مثل «خلّه احترافي» أو «سوّه مثل فيديوهات المطاعم» استخدم دليل المجال.\n\n${PLAYBOOK_RULES}\n${playbookText()}`,
+        `مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, drift: current.drift, vignette: current.vignette, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, grade: current.grade, videoVolume: current.videoVolume, domain: current.domain ?? "", layout: current.layout ?? "full", quality: current.quality ?? "1080", panel: current.panel ?? "light", board: current.board ?? "soft", illus: current.illus ?? "", graphics: (current.graphics ?? []).map(({ url: _u, ...g }) => g), logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
         6000, via);
       const spec = sanitize(current, { ...raw, broll: current.broll, subs2: current.subs2 }, user.id);
+      // new AI-drawn scenes the customer asked for (max 3 per edit)
+      if ((spec.graphics ?? []).some((g) => g.kind === "scene" && !g.img)) {
+        spec.graphics = await illustrateScenes(user.id, job.id, spec.graphics ?? [], spec.illus, spec.aspect, 3);
+        const imgs = (spec.graphics ?? []).filter((g) => g.img);
+        const urls = await signedResultUrls(imgs.map((g) => g.img!), 60 * 60 * 6);
+        imgs.forEach((g, i) => { g.url = urls[i]; });
+      }
       await admin.from("jobs").update({ input: { ...job.input, spec: { ...spec, src: "" } } }).eq("id", job.id);
       return NextResponse.json({ spec: { ...spec, src: "", words: [] } });
     } catch (e) {
       console.error("montage revise", e);
       await refund("revise");
       return NextResponse.json({ error: "ما ضبط التعديل، ورجّعنا لك الريش. جرّب تكتبه بطريقة ثانية." }, { status: 502 });
+    }
+  }
+
+  if (action === "illustrate") {
+    const prompt = String(body.prompt ?? "").trim().slice(0, 400);
+    if (prompt.length < 3) return NextResponse.json({ error: "اكتب وش تبي ينرسم." }, { status: 400 });
+    const denied = await charge();
+    if (denied) return denied;
+    try {
+      // the customer writes in Arabic: turn it into a clear English picture brief first
+      const brief = await aiJson<{ en: string }>("Rewrite the user's Arabic scene request as one clear English image prompt for an illustration (no text inside the picture). Return JSON {\"en\": \"...\"}.", prompt, 400, { provider: "claude", model: "claude-haiku-5-5" }).catch(() => ({ en: prompt }));
+      const style = ILLUS_STYLES.some((x) => x[0] === (body as { style?: string }).style) ? (body as { style?: string }).style : base.illus;
+      const img = await illustrate(user.id, job.id, brief.en || prompt, style, base.aspect);
+      const [url] = await signedResultUrls([img], 60 * 60 * 6);
+      return NextResponse.json({ img, url, prompt: brief.en, style });
+    } catch (e) {
+      console.error("montage illustrate", e);
+      await refund("illustrate");
+      return NextResponse.json({ error: "ما ضبطت الرسمة، ورجّعنا لك الريش. جرّب وصف ثاني." }, { status: 502 });
     }
   }
 

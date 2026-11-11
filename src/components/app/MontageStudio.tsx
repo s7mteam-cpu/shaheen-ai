@@ -12,6 +12,7 @@ import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
+import { ILLUS_STYLES } from "@/remotion/styles";
 import { BOARD_STYLES, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
@@ -41,6 +42,8 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   const [spec, setSpec] = useState<MontageSpec>(initial);
   const [mounted, setMounted] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [drawText, setDrawText] = useState("");
+  const [drawStyle, setDrawStyle] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [instruction, setInstruction] = useState("");
   const [musicPrompt, setMusicPrompt] = useState("");
@@ -142,6 +145,15 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       : kind === "pyramid" ? { ...base, text: L("الأولويات"), items: [{ label: L("الأساس") }, { label: L("المستوى الثاني") }, { label: L("القمة") }] }
       : kind === "table" ? { ...base, text: L("المقارنة"), items: [{ label: L("البند: القيمة") }, { label: L("البند الثاني: القيمة") }] }
       : kind === "fillblank" ? { ...base, dur: 4, text: L("عاصمة الكويت هي ___"), good: L("مدينة الكويت") }
+      : kind === "cube" ? { ...base, dur: 4, text: L("أربع نقاط مهمة"), items: [{ label: L("الأولى"), icon: "star" as const }, { label: L("الثانية"), icon: "bolt" as const }, { label: L("الثالثة"), icon: "heart" as const }, { label: L("الرابعة"), icon: "check" as const }] }
+      : kind === "globe" ? { ...base, text: L("حول العالم") }
+      : kind === "text3d" ? { ...base, text: L("شاهين") }
+      : kind === "plot" ? { ...base, dur: 4, text: "y = sin(x)", hl: "sin" }
+      : kind === "geometry" ? { ...base, shape: "triangle" as const, text: L("المثلث"), items: [{ label: "a" }, { label: "b" }, { label: "c" }], sub: "a² + b² = c²" }
+      : kind === "burst" ? { ...base, text: L("تم بنجاح"), icon: "check" as const }
+      : kind === "confetti" ? { ...base, text: L("مبروك!") }
+      : kind === "dotgrid" ? { ...base, text: L("واحد من كل ٦٣"), value: 31 }
+      : kind === "sketchbars" ? { ...base, text: L("قبل وبعد"), items: [{ label: L("قبل"), value: 30 }, { label: L("بعد"), value: 90 }] }
       : kind === "flow" ? { ...base, items: [{ icon: "bulb" as const, label: L("فكرتك") }, { icon: "sparkle" as const, label: L("شاهين") }, { icon: "video" as const, label: L("فيديو") }] }
       : { ...base, text: L("عنوان كبير") };
     setSpec({ ...spec, graphics: [...(spec.graphics ?? []), g].sort((a, b) => a.at - b.at) });
@@ -344,7 +356,19 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             ))}
           </div>
           <span className="text-[13px] font-semibold text-navy-800">{L("＋ أضف مشهد عند اللحظة اللي واقف عليها:")}</span>
-          <div className="flex flex-wrap gap-2">{GRAPHIC_KINDS.map(([k, l]) => <button key={k} type="button" onClick={() => addGraphic(k)} className="chip">{L(l)}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{GRAPHIC_KINDS.filter(([k]) => k !== "scene").map(([k, l]) => <button key={k} type="button" onClick={() => addGraphic(k)} className="chip">{L(l)}</button>)}</div>
+          <Sub>{L("🎨 ارسم مشهد بالذكاء الاصطناعي")}</Sub>
+          <div className="flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
+            <input value={drawText} onChange={(e) => setDrawText(e.target.value)} maxLength={400} className="field" placeholder={L("مثال: ثلاث رجال بالديوانية يشربون شاي ويطالعون جوالاتهم")} />
+            <div className="flex flex-wrap gap-2">{ILLUS_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(drawStyle || spec.illus || "gulf-cartoon") === v} onClick={() => setDrawStyle(v)} className="chip">{L(l)}</button>)}</div>
+            <button type="button" disabled={drawText.trim().length < 3 || !!busy} className="btn btn-primary self-start px-5 py-2.5"
+              onClick={async () => {
+                const f = player.current?.getCurrentFrame() ?? 0;
+                const at = +Math.max(0, Math.min(videoSeconds(spec) - 1, (f - introFrames(spec)) / MFPS)).toFixed(2);
+                const d = await call<{ img: string; url: string; prompt: string; style: string }>("illustrate", { prompt: drawText, style: drawStyle || spec.illus });
+                if (d) { setSpec({ ...spec, illus: d.style || spec.illus, graphics: [...(spec.graphics ?? []), { kind: "scene" as const, at, dur: 3.5, img: d.img, url: d.url, prompt: d.prompt, style: d.style }].sort((a, b) => a.at - b.at) }); setDrawText(""); }
+              }}>{L("ارسم وأضف عند اللحظة الحالية")} ({editCost} {L("ريشة")})</button>
+          </div>
         </Card>
 
         <Card title={L("لمسات احترافية")} icon="🎬">

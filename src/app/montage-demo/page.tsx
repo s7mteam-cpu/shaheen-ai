@@ -3,7 +3,7 @@ import { MontageStudio } from "@/components/app/MontageStudio";
 import type { MontageSpec } from "@/remotion/montage";
 
 // Local design preview only — never served in production.
-export default async function Page({ searchParams }: { searchParams: Promise<{ split?: string; dark?: string; layout?: string; cap?: string; tr?: string; board?: string; edu?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ split?: string; dark?: string; layout?: string; cap?: string; tr?: string; board?: string; edu?: string; p3?: string }> }) {
   const sp = await searchParams;
   if (process.env.NODE_ENV === "production") notFound();
   const words: MontageSpec["words"] = [];
@@ -16,7 +16,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     titles: [{ text: "أهم سر بالتسويق", at: 2.6, dur: 2.5, pos: "top" }], zooms: [{ at: 5.5, dur: 2, scale: 1.18 }],
     layout: (sp.layout as MontageSpec["layout"]) ?? (sp.split ? "split" : "full"), transition: (sp.tr as MontageSpec["transition"]) ?? "none", panel: sp.dark ? "dark" : "light",
     board: (sp.board as MontageSpec["board"]) ?? undefined,
-    graphics: sp.edu ? [
+    graphics: sp.p3 ? [
+      { kind: "scene", at: 0.2, dur: 1.4, url: "http://localhost:8765/scene.jpg", text: "الديوانية اليوم", hl: "اليوم", sub: "كل واحد بجواله" },
+      { kind: "cube", at: 1.7, dur: 1.5, text: "أربع نقاط", items: [{ label: "سرعة", icon: "bolt" }, { label: "جودة", icon: "star" }, { label: "سعر", icon: "tag" }, { label: "ثقة", icon: "shield" }] },
+      { kind: "globe", at: 3.3, dur: 1.3, text: "عملاء من كل العالم" },
+      { kind: "text3d", at: 4.7, dur: 1.2, text: "شاهين", sub: "S7M" },
+      { kind: "plot", at: 6.0, dur: 1.3, text: "y = sin(x)", hl: "sin" },
+      { kind: "geometry", at: 7.4, dur: 1.1, shape: "triangle", text: "فيثاغورس", items: [{ label: "a" }, { label: "b" }, { label: "c" }], sub: "a² + b² = c²" },
+      { kind: "burst", at: 8.6, dur: 1.0, text: "تم التسليم", icon: "check" },
+      { kind: "confetti", at: 9.7, dur: 0.9, text: "مبروك!" },
+      { kind: "dotgrid", at: 10.7, dur: 0.7, text: "واحد من كل ٦٣", value: 31 },
+      { kind: "sketchbars", at: 11.5, dur: 0.75, text: "قبل وبعد", items: [{ label: "قبل", value: 30 }, { label: "بعد", value: 90 }] },
+    ] : sp.edu ? [
       { kind: "definition", at: 0.2, dur: 1.4, text: "التمثيل الضوئي", sub: "طريقة النبات لصنع غذائه من الضوء", hl: "تعريف" },
       { kind: "quiz", at: 1.7, dur: 1.6, text: "وش يحتاج النبات؟", items: [{ label: "ضوء وماء" }, { label: "ملح" }, { label: "رمل" }], value: 1 },
       { kind: "truefalse", at: 3.4, dur: 1.2, text: "النبات ينام بالليل", value: 0, sub: "النبات يتنفس طول الوقت" },
