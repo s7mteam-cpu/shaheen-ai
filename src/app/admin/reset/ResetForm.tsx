@@ -79,12 +79,12 @@ export function ResetForm({ phrase, counts }: { phrase: string; counts: Counts }
       })}
       <div className="flex flex-col gap-3 rounded-2xl border-2 border-red-200 bg-red-50/60 p-5">
         <div>
-          <p className="font-bold text-red-900">رح يتصفّر ({chosen.length}):</p>
-          <p className="text-sm leading-7 text-navy-900">{chosen.length ? chosen.map((o) => o.title).join(" · ") : "ما اخترت شي لسا."}</p>
+          <p className="font-bold text-red-900">راح يتصفّر ({chosen.length}):</p>
+          <p className="text-sm leading-7 text-navy-900">{chosen.length ? chosen.map((o) => o.title).join(" · ") : "ما اخترت شي للحين."}</p>
         </div>
         <label className="flex cursor-pointer items-start gap-2.5 text-[15px] font-semibold text-red-900">
           <input type="checkbox" name="sure" checked={sure} onChange={(e) => setSure(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-red-700" />
-          أفهم إن الحذف نهائي، وما في أي طريقة لإرجاع اللي انحذف.
+          أفهم إن الحذف نهائي، وما فيه أي طريقة لإرجاع اللي انحذف.
         </label>
         <label htmlFor="reset-confirm" className="text-sm font-semibold">للتأكيد اكتب: <strong className="text-red-700">{phrase}</strong></label>
         <input id="reset-confirm" name="confirm" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" className="field max-w-xs bg-white" />

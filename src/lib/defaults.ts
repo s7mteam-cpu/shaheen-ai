@@ -1,3 +1,4 @@
+import { TERMS_AR, TERMS_EN, PRIVACY_AR, PRIVACY_EN, REFUND_AR, REFUND_EN } from "./legalTexts";
 // Fallback content used until the database is connected.
 // The live values come from Supabase and are edited from /admin.
 
@@ -39,7 +40,7 @@ export type SiteContent = {
   faq: { items: { q: string; a: string }[] };
   final_cta: { title: string; subtitle: string; cta: string };
   footer: { tagline: string; company: string; whatsapp: string; email: string; instagram: string };
-  legal: { terms: string; privacy: string; refund: string };
+  legal: { updated: string; updated_en: string; refund_days: string; terms: string; terms_en: string; privacy: string; privacy_en: string; refund: string; refund_en: string };
   voices: { items: { id: string; name: string; note: string; google_voice?: string }[] };
   /** Background-music library for the motion studio (royalty-free tracks you uploaded). */
   motion_music: { items: { name: string; mood?: string; url: string }[] };
@@ -101,10 +102,10 @@ export const defaultContent: SiteContent = {
   final_cta: { title: "جاهز تحلّق بمحتواك؟", subtitle: "اختر باقتك واصنع أول إعلان لمشروعك اليوم.", cta: "اختر باقتك" },
   footer: { tagline: "أدوات الذكاء الاصطناعي لصناعة المحتوى، بالعربي.", company: "[اسم الشركة والسجل التجاري]", whatsapp: "+96550993895", email: "", instagram: "" },
   legal: {
-    terms: "[اكتب شروط الاستخدام هنا من لوحة الإدارة]",
-    privacy: "[اكتب سياسة الخصوصية هنا من لوحة الإدارة]",
-    refund: "[اكتب سياسة الاسترجاع والإلغاء هنا من لوحة الإدارة]",
+    updated: "11 نوفمبر 2026", updated_en: "November 11, 2026", refund_days: "14",
+    terms: TERMS_AR, terms_en: TERMS_EN, privacy: PRIVACY_AR, privacy_en: PRIVACY_EN, refund: REFUND_AR, refund_en: REFUND_EN,
   },
+
   ai: { copy_provider: "claude", copy_model: "claude-haiku-5-5", chat_provider: "claude", chat_model: "claude-haiku-5-5" },
   managed_service: {
     enabled: true,

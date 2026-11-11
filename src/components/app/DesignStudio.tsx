@@ -167,7 +167,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
                 </a>
               ))}
             </div>
-            <p className="text-[14px] text-emerald-900/80">اضغط على أي صورة لتحميلها. تلقاها كمان في «أعمالي».</p>
+            <p className="text-[14px] text-emerald-900/80">اضغط على أي صورة لتحميلها. وتلقاها أيضاً في «أعمالي».</p>
           </>
         ) : render.status === "failed" ? (
           <p className="font-semibold text-red-800">ما نجح التصدير. حاول مرة ثانية.</p>

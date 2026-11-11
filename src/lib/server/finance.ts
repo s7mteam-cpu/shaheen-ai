@@ -48,7 +48,7 @@ export async function postRecurring() {
 /** Claude's real cost for each month of this year, from Anthropic's Cost API (needs ANTHROPIC_ADMIN_KEY). */
 export async function syncClaudeCosts(): Promise<{ ok?: string; error?: string }> {
   const key = process.env.ANTHROPIC_ADMIN_KEY;
-  if (!key) return { error: "ما في مفتاح ANTHROPIC_ADMIN_KEY بإعدادات Vercel. طلّعه من Claude Console ← Settings ← Admin keys." };
+  if (!key) return { error: "ما فيه مفتاح ANTHROPIC_ADMIN_KEY بإعدادات Vercel. طلّعه من Claude Console ← Settings ← Admin keys." };
   const year = new Date().getUTCFullYear();
   const byMonth = new Map<string, number>();
   let start = `${year}-01-01T00:00:00Z`;
@@ -76,7 +76,7 @@ export async function syncClaudeCosts(): Promise<{ ok?: string; error?: string }
     source: "claude-api", period: m, vendor: "Claude (Anthropic)", category: "usage", amount: Math.round(v * 1000) / 1000, currency: "USD",
     spent_on: `${m}-28`, note: "تلقائي من Anthropic Cost API",
   }));
-  if (!rows.length) return { ok: "ما في تكاليف Claude مسجّلة هالسنة لسا." };
+  if (!rows.length) return { ok: "ما فيه تكاليف Claude مسجّلة هالسنة للحين." };
   const admin = createAdminClient();
   for (const r of rows) {
     const { data: ex } = await admin.from("expenses").select("id").eq("source", "claude-api").eq("period", r.period).maybeSingle();

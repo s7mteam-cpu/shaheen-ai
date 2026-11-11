@@ -9,6 +9,7 @@ import { SupportAccess } from "@/components/app/SupportAccess";
 import { ACCESS_HOURS, latestAccess } from "@/lib/server/supportAccess";
 import { isImpersonating } from "@/lib/server/impersonation";
 import { openPortal, saveProfile, startCheckout } from "./actions";
+import { RenewConsent } from "@/components/app/RenewConsent";
 
 export const metadata = { title: "الحساب والاشتراك" };
 const tabs = [["sub", "الاشتراك"], ["inv", "الفواتير"], ["me", "بياناتي"]] as const;
@@ -70,7 +71,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
                   <span className="text-sm text-muted">{Number(p.price_kwd)} د.ك · {p.credits.toLocaleString("en")} ريشة{(p.bonus_credits ?? 0) > 0 ? ` + ${p.bonus_credits!.toLocaleString("en")} هدية` : ""}</span>
                   {p.id === plan?.id
                     ? <span className="mt-auto rounded-xl bg-tint py-2.5 text-center text-sm font-bold text-navy-700">باقتك الحالية</span>
-                    : <button className="btn btn-gold mt-auto py-2.5 text-sm">{plan ? "التبديل لهذه الباقة" : "اشترك"}</button>}
+                    : <div className="mt-auto flex flex-col gap-2.5"><RenewConsent price={Number(p.price_kwd)} /><button className="btn btn-gold py-2.5 text-sm">{plan ? "التبديل لهذه الباقة" : "اشترك"}</button></div>}
                 </form>
               ))}
             </div>

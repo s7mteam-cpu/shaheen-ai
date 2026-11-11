@@ -55,7 +55,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
             <h2 className="text-lg font-bold">{selected.full_name || selected.email}</h2>
             {selected.phone
               ? <a href={waLink(selected.phone, `السلام عليكم ${selected.full_name ?? ""}، معك فريق شاهين.`)} target="_blank" rel="noopener" className="btn bg-emerald-600 py-2.5 font-semibold text-white hover:bg-emerald-700">واتساب: <span dir="ltr" className="font-latin">{selected.phone}</span></a>
-              : <p className="text-sm text-subtle">ما أضاف رقم واتساب لسا (بينطلب منه أول ما يدخل).</p>}
+              : <p className="text-sm text-subtle">ما أضاف رقم واتساب للحين (بينطلب منه أول ما يدخل).</p>}
             <p className="text-sm text-subtle">الرصيد الحالي: <strong className="text-navy-900">{selected.credits} ريشة</strong></p>
             <CreditsForm key={selected.id} userId={selected.id} />
             <form action={setUserFlags} className="flex gap-2">

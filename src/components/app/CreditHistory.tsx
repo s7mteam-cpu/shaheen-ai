@@ -8,7 +8,7 @@ export type Row = {
 
 const REASON: Record<string, string> = {
   subscription: "تجديد الباقة",
-  renewal_reset: "انتهاء ريش الشهر السابق",
+  renewal_reset: "انتهاء ريش الشهر اللحينبق",
   refund: "استرجاع — ما نجح العمل",
   admin: "ريش من فريق شاهين",
   referral: "مكافأة دعوة صديق",
@@ -75,7 +75,7 @@ export function CreditHistoryView({ rows, tools, balance }: { rows: Row[]; tools
 
       {breakdown.length > 0 && (
         <section className="card flex flex-col gap-3.5 p-6">
-          <h2 className="text-lg font-bold">على شو صرفت {lastRenewal ? "من آخر تجديد" : "هذا الشهر"}</h2>
+          <h2 className="text-lg font-bold">على شنو صرفت {lastRenewal ? "من آخر تجديد" : "هذا الشهر"}</h2>
           {breakdown.map(([id, v]) => (
             <div key={id} className="flex flex-col gap-1.5">
               <div className="flex justify-between text-[15px]"><span className="font-semibold text-navy-900">{toolName(id)}</span><span className="font-latin font-bold">{v.toLocaleString("en")} <span className="font-sans text-sm font-normal text-muted">ريشة</span></span></div>
@@ -87,7 +87,7 @@ export function CreditHistoryView({ rows, tools, balance }: { rows: Row[]; tools
 
       <section className="card flex flex-col p-6">
         <h2 className="mb-2 text-lg font-bold">كل الحركات</h2>
-        {groups.length === 0 && <p className="py-6 text-center text-muted">ما في حركات لسا. أول ما تستخدم أي أداة بتشوف مصاريفك هنا.</p>}
+        {groups.length === 0 && <p className="py-6 text-center text-muted">ما فيه حركات للحين. أول ما تستخدم أي أداة بتشوف مصاريفك هنا.</p>}
         {groups.map((g) => (
           <div key={g.day} className="flex flex-col">
             <h3 className="mt-3 border-b border-line pb-2 text-[13px] font-semibold text-subtle">{g.day}</h3>

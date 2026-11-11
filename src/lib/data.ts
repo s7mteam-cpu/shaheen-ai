@@ -10,7 +10,13 @@ export const getContent = cache(async (): Promise<SiteContent> => {
   const supabase = await createClient();
   const { data } = await supabase.from("site_content").select("key,value");
   const merged = { ...defaultContent } as Record<string, unknown>;
-  for (const row of data ?? []) merged[row.key] = { ...(merged[row.key] as object), ...(row.value as object) };
+  for (const row of data ?? []) {
+    let value = row.value as Record<string, unknown>;
+    // Empty or "[اكتب…]" placeholders never hide the real text (e.g. the legal pages).
+    if (value && typeof value === "object" && !Array.isArray(value))
+      value = Object.fromEntries(Object.entries(value).filter(([, v]) => !(typeof v === "string" && (v.trim() === "" || /^\[[\s\S]*\]$/.test(v.trim())) && row.key === "legal")));
+    merged[row.key] = { ...(merged[row.key] as object), ...value };
+  }
   return merged as SiteContent;
 });
 

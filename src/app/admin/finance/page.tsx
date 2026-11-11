@@ -102,7 +102,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
             </section>
             <section className="card flex flex-col gap-2 p-5">
               <h2 className="text-lg font-bold">أكثر جهات بتصرف عليها</h2>
-              {vendors.length ? vendors.map(([v, a]) => <div key={v} className="flex justify-between border-b border-[#EDF1F6] py-2 last:border-0"><span>{v}</span><span className="font-latin font-bold">{kd(a)}</span></div>) : <p className="text-sm text-subtle">ما في مصاريف مسجّلة لسا.</p>}
+              {vendors.length ? vendors.map(([v, a]) => <div key={v} className="flex justify-between border-b border-[#EDF1F6] py-2 last:border-0"><span>{v}</span><span className="font-latin font-bold">{kd(a)}</span></div>) : <p className="text-sm text-subtle">ما فيه مصاريف مسجّلة للحين.</p>}
             </section>
           </div>
           <form action={saveRate} className="card flex flex-wrap items-center gap-2 p-4 text-sm">
@@ -129,7 +129,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
             <table className="w-full min-w-[720px] text-sm">
               <thead><tr className="text-right text-[13px] text-subtle"><th className="p-3 font-semibold">التاريخ</th><th className="p-3 font-semibold">الجهة</th><th className="p-3 font-semibold">النوع</th><th className="p-3 font-semibold">المبلغ</th><th className="p-3 font-semibold">بالدينار</th><th className="p-3 font-semibold">الفاتورة</th><th className="p-3"><span className="sr-only">حذف</span></th></tr></thead>
               <tbody>
-                {shownExpenses.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-subtle">ما في مصاريف بهالسنة.</td></tr>}
+                {shownExpenses.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-subtle">ما فيه مصاريف بهالسنة.</td></tr>}
                 {shownExpenses.map((x) => (
                   <tr key={x.id} className="border-t border-[#EDF1F6]">
                     <td className="p-3 font-latin">{x.spent_on}</td>
@@ -155,7 +155,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
             <RecurringForm />
           </section>
           <section className="card flex flex-col p-2">
-            {recurring.length === 0 && <p className="p-6 text-center text-subtle">ما في مصاريف متكررة. أمثلة: Supabase Pro 25$ كل شهر، الدومين 12$ كل سنة.</p>}
+            {recurring.length === 0 && <p className="p-6 text-center text-subtle">ما فيه مصاريف متكررة. أمثلة: Supabase Pro 25$ كل شهر، الدومين 12$ كل سنة.</p>}
             {recurring.map((r) => (
               <div key={r.id} className="flex flex-wrap items-center gap-3 border-b border-[#EDF1F6] p-3 last:border-0">
                 <div className="min-w-[180px] flex-1"><div className="font-semibold">{r.vendor}</div><div className="text-xs text-subtle">{r.category === "yearly" ? `كل سنة بتاريخ ${r.day_of_month}/${r.month_of_year}` : `كل شهر يوم ${r.day_of_month}`} · من {r.starts_on}{r.note ? ` · ${r.note}` : ""}</div></div>
@@ -180,7 +180,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
             <table className="w-full min-w-[680px] text-sm">
               <thead><tr className="text-right text-[13px] text-subtle"><th className="p-3 font-semibold">التاريخ</th><th className="p-3 font-semibold">الوصف</th><th className="p-3 font-semibold">العميل</th><th className="p-3 font-semibold">الطريقة</th><th className="p-3 font-semibold">المبلغ</th><th className="p-3"><span className="sr-only">حذف</span></th></tr></thead>
               <tbody>
-                {income.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-subtle">ما في إيرادات بهالسنة لسا.</td></tr>}
+                {income.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-subtle">ما فيه إيرادات بهالسنة للحين.</td></tr>}
                 {income.map((x) => (
                   <tr key={x.id} className="border-t border-[#EDF1F6]">
                     <td className="p-3 font-latin">{x.received_on}</td>

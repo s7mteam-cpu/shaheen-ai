@@ -16,7 +16,7 @@ export default async function Team() {
     <div className="flex max-w-5xl flex-col gap-6">
       <div>
         <h1 className="text-[26px] font-bold text-navy-900">فريق الإدارة</h1>
-        <p className="mt-1 text-sm leading-7 text-subtle">ضيف أي شخص عنده حساب بشاهين، وعلّم الأقسام اللي مسموح له يدخلها. ما بيشوف ولا بيقدر يفتح غيرها، وكل اللي بيعمله بينسجّل باسمه بسجل الإدارة.</p>
+        <p className="mt-1 text-sm leading-7 text-subtle">ضيف أي شخص عنده حساب بشاهين، وعلّم الأقسام اللي مسموح له يدخلها. ما يشوف ولا يقدر يفتح غيرها، وكل اللي يسويه ينسجّل باسمه بسجل الإدارة.</p>
       </div>
 
       <section className="card flex flex-col gap-3 p-5">

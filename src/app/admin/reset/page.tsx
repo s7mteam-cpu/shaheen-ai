@@ -21,7 +21,7 @@ export default async function Reset() {
   const [customers, jobs, moves, leads] = [c, j, m, l].map((r) => r.count ?? 0);
   return (
     <div className="flex max-w-3xl flex-col gap-5">
-      <div><h1 className="text-[26px] font-bold text-red-800">تصفير المنصة</h1><p className="mt-1 text-sm text-subtle">علّم بس اللي بدك تصفّره، وكل خيار لحاله. عدّادات اللوحة بترجع صفر بدون ما تنمسح البيانات، وخيارات الريش والبيانات بتمسح نهائياً. مفيد قبل الإطلاق الرسمي بعد التجارب، ولا تستخدمه بعد ما يصير في عملاء دفعوا.</p></div>
+      <div><h1 className="text-[26px] font-bold text-red-800">تصفير المنصة</h1><p className="mt-1 text-sm text-subtle">علّم بس اللي تبي تصفّره، وكل خيار لحاله. عدّادات اللوحة بترجع صفر بدون ما تنمسح البيانات، وخيارات الريش والبيانات بتمسح نهائياً. مفيد قبل الإطلاق الرسمي بعد التجارب، ولا تستخدمه بعد ما يصير في عملاء دفعوا.</p></div>
       <ResetForm phrase={RESET_PHRASE} counts={{ customers, jobs, moves, leads, notes: notes ?? 0, holders: holders?.length ?? 0, balance: (holders ?? []).reduce((a, h) => a + (h.credits ?? 0), 0) }} />
     </div>
   );

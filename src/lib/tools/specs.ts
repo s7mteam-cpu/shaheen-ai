@@ -120,7 +120,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
           { value: "lifestyle", label: "استخدام حقيقي: بيد شخص" }, { value: "fabric", label: "أزياء: قماش يتحرك مع الهوا" },
         ],
       },
-      { type: "line", name: "notes", label: "شو تبي يصير بالفيديو؟ (اختياري)", max: 300, placeholder: "مثال: العطر على رخام، والكاميرا تقرّب ببطء، وورد يطيح حوله" },
+      { type: "line", name: "notes", label: "شنو تبي يصير بالفيديو؟ (اختياري)", max: 300, placeholder: "مثال: العطر على رخام، والكاميرا تقرّب ببطء، وورد يطيح حوله" },
       { type: "choice", name: "duration", label: "المدة", default: "8", options: [{ value: "5", label: "5 ثواني" }, { value: "8", label: "8 ثواني" }, { value: "10", label: "10 ثواني" }] },
       { type: "choice", name: "aspect", label: "المقاس", default: "9:16", options: [{ value: "9:16", label: "ريلز / ستوري 9:16" }, { value: "16:9", label: "عريض 16:9" }] },
       { type: "toggle", name: "sound", label: "موسيقى ومؤثرات صوتية", default: true },
@@ -149,7 +149,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
       { type: "choice", name: "aspect", label: "المقاس النهائي", default: "9:16", options: [{ value: "9:16", label: "ريلز / تيك توك 9:16 (1080×1920)" }, { value: "1:1", label: "مربع 1:1 (1080×1080)" }, { value: "16:9", label: "يوتيوب عريض 16:9 (1920×1080)" }, { value: "original", label: "كما هو" }] },
       { type: "choice", name: "target", label: "مدة الفيديو النهائي", default: "30", options: [{ value: "15", label: "15 ثانية" }, { value: "30", label: "30 ثانية" }, { value: "60", label: "دقيقة" }, { value: "full", label: "بدون تقصير" }] },
       { type: "toggle", name: "cards", label: "بطاقات بخلفية من شاهين (بداية ونهاية)", default: false, hint: "إذا مطفية: يستخدم فيديوهاتك بس، ويكتب النصوص والمعلومات فوقها مع شعارك." },
-      { type: "text", name: "notes", label: "شو تبي بالمونتاج؟ (اختياري)", max: 600, rows: 3, placeholder: "مثال: ابدأ بهوك قوي من أقوى جملة، حط عناوين متحركة للأفكار المهمة، كبّر على وجهي بالجمل المهمة، وخلّ الألوان ذهبي وكحلي" },
+      { type: "text", name: "notes", label: "شنو تبي بالمونتاج؟ (اختياري)", max: 600, rows: 3, placeholder: "مثال: ابدأ بهوك قوي من أقوى جملة، حط عناوين متحركة للأفكار المهمة، كبّر على وجهي بالجمل المهمة، وخلّ الألوان ذهبي وكحلي" },
     ],
     // duration_seconds is read from the file in the browser; the worker re-checks it.
     units: (v) => Math.max(1, Math.ceil(n(v.duration_seconds, 60) / 60)),

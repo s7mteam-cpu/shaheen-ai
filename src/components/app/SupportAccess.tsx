@@ -10,7 +10,7 @@ export function SupportAccess({ access, hours }: { access: Access | null; hours:
   const [name, setName] = useState("");
 
   if (!access || ["denied", "revoked", "expired"].includes(access.status)) {
-    return <section className="card p-6 text-muted">ما في أي طلب صلاحية على حسابك. فريق شاهين ما يقدر يدخل على حسابك إلا إذا طلب وأنت وافقت.</section>;
+    return <section className="card p-6 text-muted">ما فيه أي طلب صلاحية على حسابك. فريق شاهين ما يقدر يدخل على حسابك إلا إذا طلب وأنت وافقت.</section>;
   }
   if (access.status === "approved") {
     return (
@@ -26,17 +26,17 @@ export function SupportAccess({ access, hours }: { access: Access | null; hours:
     <section className="card flex flex-col gap-4 border-2 border-gold-500 p-6">
       <div>
         <h2 className="text-lg font-bold text-navy-900">فريق شاهين يطلب صلاحية الدخول على حسابك</h2>
-        <p className="mt-1 leading-7 text-muted">السبب: <strong className="text-navy-900">{access.reason}</strong>. ما حدا بيدخل على حسابك إلا إذا وافقت هنا.</p>
+        <p className="mt-1 leading-7 text-muted">السبب: <strong className="text-navy-900">{access.reason}</strong>. محد يدخل على حسابك إلا إذا وافقت هنا.</p>
       </div>
       {state?.ok ? <p role="status" className="font-semibold text-emerald-700">{state.ok}</p> : (
         <form action={action} className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-              <p className="mb-1.5 font-bold text-emerald-900">✓ اللي بيقدر الفريق يشوفه</p>
+              <p className="mb-1.5 font-bold text-emerald-900">✓ اللي يقدر الفريق يشوفه</p>
               <ul className="list-disc space-y-1 ps-5 text-[14px] leading-6 text-navy-900"><li>مشاريعك وأعمالك (التصاميم، الفيديوهات، الأصوات)</li><li>هويتك التجارية والملفات اللي رفعتها</li><li>إعدادات الأدوات ورصيد الريش</li></ul>
             </div>
             <div className="rounded-xl border border-navy-700/20 bg-navy-800/[0.04] p-4">
-              <p className="mb-1.5 font-bold text-navy-900">🔒 محمي ومشفّر، ما بيقدر يشوفه</p>
+              <p className="mb-1.5 font-bold text-navy-900">🔒 محمي ومشفّر، ما أحد يقدر يشوفه</p>
               <ul className="list-disc space-y-1 ps-5 text-[14px] leading-6 text-navy-900"><li>بطاقاتك الائتمانية وبيانات الدفع</li><li>الفواتير والاشتراك (الدفع والإلغاء)</li><li>كلمة المرور وحذف الحساب</li></ul>
               <p className="mt-2 text-[12px] leading-5 text-subtle">بيانات البطاقات محفوظة عند بوابة الدفع نفسها مشفّرة، ومش عندنا أصلاً.</p>
             </div>

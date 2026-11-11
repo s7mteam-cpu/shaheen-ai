@@ -26,8 +26,10 @@ export async function ensureCustomer(profile: { id: string; email: string | null
 }
 
 /** New subscription → Stripe Checkout. Existing subscription → change plan in the billing portal. */
-export async function startCheckout(planId: string) {
+export async function startCheckout(planId: string, form?: FormData) {
   if (await isImpersonating()) redirect("/app/account?error=support");
+  // The customer must tick «أعرف إن المبلغ ينخصم كل شهر» before any card payment.
+  if (form?.get("renew_ok") !== "on") redirect(`/app/subscribe?plan=${encodeURIComponent(planId)}&error=renew`);
   const profile = await me();
   const admin = createAdminClient();
   const { data: plan } = await admin.from("plans").select("*").eq("id", planId).eq("is_active", true).single();
@@ -51,6 +53,7 @@ export async function startCheckout(planId: string) {
     cancel_url: `${site()}/app/account`,
     allow_promotion_codes: true,
     locale: "auto",
+    custom_text: { submit: { message: `بالاشتراك توافق على خصم ${Number(plan.price_kwd)} د.ك من بطاقتك تلقائياً كل شهر، حتى توقف التجديد من «إدارة الدفع والاشتراك» في حسابك بشاهين.` } },
     client_reference_id: profile.id,
     metadata: { user_id: profile.id, plan_id: plan.id },
     subscription_data: { metadata: { user_id: profile.id, plan_id: plan.id } },

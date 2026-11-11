@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-canvas">
       {imp && profile.role === "user" && (
         <form action={stopImpersonating} className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-3 bg-red-700 px-4 py-2.5 text-center text-sm font-semibold text-white">
-          <span>أنت داخل على حساب العميل <span dir="ltr" className="font-latin">{profile.email}</span> كمدير ({imp}). كل شي بتعمله بينحسب عليه.</span>
+          <span>أنت داخل على حساب العميل <span dir="ltr" className="font-latin">{profile.email}</span> كمدير ({imp}). كل شي تسويه ينحسب عليه.</span>
           <button className="rounded-full bg-white px-4 py-1 font-bold text-red-800">اطلع من حسابه</button>
         </form>
       )}

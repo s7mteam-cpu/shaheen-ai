@@ -34,7 +34,7 @@ export async function adjustCredits(_prev: Res, form: FormData): Promise<Res> {
   const note = String(form.get("note") || "").slice(0, 120);
   if (!raw) return { error: "اكتب عدد الريش." };
   const amount = op === "sub" ? -Math.min(raw, p.credits ?? 0) : raw;
-  if (!amount) return { error: "رصيد العميل صفر، ما في شي ينخصم." };
+  if (!amount) return { error: "رصيد العميل صفر، ما فيه شي ينخصم." };
   const { error } = await createAdminClient().rpc("grant_credits", { p_user: p.id, p_amount: amount, p_reason: "admin", p_ref: `admin:${me.id}:${Date.now()}:${note}` });
   if (error) return { error: "صار خطأ، حاول مرة ثانية." };
   await audit(me, op === "sub" ? "credits_sub" : "credits_add", p, `${Math.abs(amount)}${note ? ` — ${note}` : ""}`);
@@ -138,7 +138,7 @@ export async function requestAccess(_prev: Res, form: FormData): Promise<Res> {
   if (error) return { error: "ما قدرت أرسل الطلب. تأكد إنك شغّلت ملف SQL الخاص بالتحديث v24." };
   await audit(me, "access_request", p, reason);
   done();
-  return { ok: "انبعت الطلب. بيطلع للعميل بحسابه، ولما يوافق بيصير زر الدخول فعّال." };
+  return { ok: "انرسل الطلب. يطلع للعميل بحسابه، ولما يوافق يصير زر الدخول فعّال." };
 }
 
 /** Step 2: sign this browser in as the customer — only while their written approval is valid. Every entry is logged. */
@@ -148,7 +148,7 @@ export async function impersonate(_prev: Res, form: FormData): Promise<Res> {
   if (!p?.email) return { error: "العميل غير موجود." };
   if (p.role !== "user") return { error: "ما ينفع تدخل على حساب من فريق الإدارة." };
   const access = await latestAccess(p.id);
-  if (access?.status !== "approved") return { error: "العميل ما وافق، أو انتهت مدة الموافقة. ابعت له طلب صلاحية جديد." };
+  if (access?.status !== "approved") return { error: "العميل ما وافق، أو انتهت مدة الموافقة. أرسل له طلب صلاحية جديد." };
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: p.email });
   const hash = data?.properties?.hashed_token;

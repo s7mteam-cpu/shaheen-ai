@@ -20,7 +20,7 @@ export async function saveMember(_prev: Res, form: FormData): Promise<Res> {
   if (!full && !perms.length) return { error: "علّم قسم واحد على الأقل، أو «صلاحية كاملة»." };
   const admin = createAdminClient();
   const { data: p } = await admin.from("profiles").select("id,email,role").ilike("email", email).maybeSingle();
-  if (!p) return { error: "ما في حساب بهالبريد. خلّيه يسجّل بشاهين أول، بعدين ضيفه." };
+  if (!p) return { error: "ما فيه حساب بهالبريد. خلّيه يسجّل بشاهين أول، بعدين ضيفه." };
   if (p.id === me.id) return { error: "ما تقدر تعدّل صلاحياتك أنت." };
   if (OWNER_EMAILS.includes(String(p.email).toLowerCase())) return { error: "هذا حساب المالك، صلاحيته كاملة دائماً." };
   const { error } = await admin.from("profiles").update(full ? { role: "admin", admin_perms: null } : { role: "staff", admin_perms: perms }).eq("id", p.id);

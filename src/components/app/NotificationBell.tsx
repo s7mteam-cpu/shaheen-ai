@@ -6,7 +6,7 @@ import { markNotificationsRead } from "@/app/app/notificationActions";
 
 export type Note = { id: number; kind: string; title: string; body: string | null; link: string | null; read_at: string | null; created_at: string };
 
-const dot: Record<string, string> = { done: "bg-emerald-500", failed: "bg-red-500", credits: "bg-gold-500", access: "bg-navy-700", info: "bg-subtle" };
+const dot: Record<string, string> = { done: "bg-emerald-500", failed: "bg-red-500", credits: "bg-gold-500", access: "bg-navy-700", payment: "bg-emerald-600", info: "bg-subtle" };
 
 function ago(iso: string) {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -49,7 +49,7 @@ export function NotificationBell({ notes }: { notes: Note[] }) {
         <div className="card absolute left-0 top-12 z-40 flex max-h-[70vh] w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden shadow-lg">
           <div className="border-b border-line px-4 py-3 font-bold text-navy-900">الإشعارات</div>
           {notes.length === 0
-            ? <p className="px-4 py-8 text-center text-sm text-subtle">ما في إشعارات لسا. أول ما يجهز عملك أو يتغيّر رصيدك بتشوفه هنا.</p>
+            ? <p className="px-4 py-8 text-center text-sm text-subtle">ما فيه إشعارات للحين. أول ما يجهز عملك أو يتغيّر رصيدك بتشوفه هنا.</p>
             : (
               <ul className="overflow-y-auto">
                 {notes.map((n) => {

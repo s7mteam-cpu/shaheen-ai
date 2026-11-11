@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordPayment } from "@/lib/server/payments";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -49,6 +50,14 @@ export async function POST(req: Request) {
     case "checkout.session.completed": {
       const s = event.data.object as Stripe.Checkout.Session;
       if (s.subscription) await syncSubscription(await stripe().subscriptions.retrieve(String(s.subscription)));
+      // One-off payments (e.g. «الإدارة الكاملة») are recorded here; subscriptions are recorded at invoice.paid.
+      if (s.mode === "payment" && s.payment_status === "paid" && s.amount_total) {
+        await recordPayment({
+          ref: `stripe:${s.id}`, source: "stripe", description: s.metadata?.description || "دفعة من الموقع",
+          customerId: s.metadata?.user_id || s.client_reference_id || null,
+          amount: s.amount_total / (s.currency === "kwd" ? 1000 : 100), currency: s.currency === "kwd" ? "KWD" : "USD", method: "بطاقة",
+        });
+      }
       break;
     }
     case "invoice.paid": {
@@ -59,14 +68,13 @@ export async function POST(req: Request) {
       const synced = await syncSubscription(await stripe().subscriptions.retrieve(String(subId)));
       if (synced?.planId && inv.amount_paid > 0) {
         await admin.rpc("renew_credits", { p_user: synced.userId, p_plan: synced.planId, p_invoice: inv.id });
-        // Finance: every paid invoice becomes an income line automatically (once).
-        const { data: who } = await admin.from("profiles").select("full_name,email").eq("id", synced.userId).maybeSingle();
-        await admin.from("income").upsert({
-          external_ref: `stripe:${inv.id}`, source: "stripe", description: `اشتراك باقة ${synced.planId}`,
-          customer_id: synced.userId, customer_name: who?.full_name || who?.email || null,
-          amount: inv.amount_paid / (inv.currency === "kwd" ? 1000 : 100), currency: inv.currency === "kwd" ? "KWD" : "USD",
-          method: "بطاقة", received_on: new Date((inv.status_transitions?.paid_at ?? inv.created) * 1000).toISOString().slice(0, 10),
-        }, { onConflict: "external_ref", ignoreDuplicates: true }).then(() => null, () => null);
+        // Finance: every paid invoice becomes an income line (once), and the admins get notified.
+        const { data: plan } = await admin.from("plans").select("name").eq("id", synced.planId).maybeSingle();
+        await recordPayment({
+          ref: `stripe:${inv.id}`, source: "stripe", description: `اشتراك ${plan?.name ?? synced.planId}`, customerId: synced.userId,
+          amount: inv.amount_paid / (inv.currency === "kwd" ? 1000 : 100), currency: inv.currency === "kwd" ? "KWD" : "USD", method: "بطاقة",
+          receivedOn: new Date((inv.status_transitions?.paid_at ?? inv.created) * 1000).toISOString().slice(0, 10),
+        });
       }
       break;
     }

@@ -10,7 +10,7 @@ export function CompleteProfile({ name }: { name: string }) {
     <div role="dialog" aria-modal="true" aria-labelledby="cp-title" className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4">
       <form action={action} className="card flex w-full max-w-md flex-col gap-3 p-6 shadow-xl">
         <h2 id="cp-title" className="text-xl font-bold text-navy-900">كمّل بياناتك 👋</h2>
-        <p className="text-sm leading-7 text-muted">نحتاج رقم الواتساب عشان نتواصل معك إذا صار أي شي بحسابك أو أعمالك. ما بنبعت لك إعلانات مزعجة.</p>
+        <p className="text-sm leading-7 text-muted">نحتاج رقم الواتساب عشان نتواصل معك إذا صار أي شي بحسابك أو أعمالك. ما نرسل لك إعلانات مزعجة.</p>
         <label htmlFor="cp-name" className="label">الاسم</label>
         <input id="cp-name" name="full_name" defaultValue={name} required autoComplete="name" className="field" />
         <label htmlFor="cp-phone" className="label">رقم الواتساب</label>

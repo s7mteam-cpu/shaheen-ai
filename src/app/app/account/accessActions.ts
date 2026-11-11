@@ -16,12 +16,12 @@ export async function answerAccess(_prev: Res, form: FormData): Promise<Res> {
   const user = await me();
   if (!user) return { error: "سجّل دخولك." };
   const req = await latestAccess(user.id);
-  if (!req || req.status !== "pending") return { error: "ما في طلب بانتظار موافقتك." };
+  if (!req || req.status !== "pending") return { error: "ما فيه طلب بانتظار موافقتك." };
   const admin = createAdminClient();
   if (form.get("answer") === "deny") {
     await admin.from("support_access").update({ status: "denied", decided_at: new Date().toISOString() }).eq("id", req.id).eq("user_id", user.id);
     revalidatePath("/app", "layout");
-    return { ok: "رفضت الطلب. ما حدا بيقدر يدخل على حسابك." };
+    return { ok: "رفضت الطلب. محد يقدر يدخل على حسابك." };
   }
   const name = String(form.get("name") || "").trim().slice(0, 80);
   if (form.get("agree") !== "on" || name.length < 2) return { error: "علّم مربع الموافقة واكتب اسمك الكامل." };

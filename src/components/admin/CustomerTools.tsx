@@ -82,7 +82,7 @@ export function BlockEmail({ userId, action }: { userId: string; action: Act }) 
 
 export function RequestAccess({ userId, action, again }: { userId: string; action: Act; again?: boolean }) {
   return <Confirm userId={userId} action={action} tone="navy" label={again ? "طلب صلاحية جديد" : "طلب صلاحية الدخول على حسابه"} title="طلب صلاحية الدخول على حساب العميل" reason="سبب الطلب (بيشوفه العميل) — مثلاً: مشكلة بتصدير المونتاج"
-    body="بيطلع للعميل بحسابه طلب منك. لازم يوافق بعلامة صح ويكتب اسمه، وبعدها بتقدر تدخل خلال 24 ساعة. يقدر يلغي الموافقة بأي وقت. وأنت داخل: الدفع والبطاقات والفواتير وكلمة المرور وحذف الحساب مقفلة عليك." cta="ابعت الطلب" />;
+    body="بيطلع للعميل بحسابه طلب منك. لازم يوافق بعلامة صح ويكتب اسمه، وبعدها تقدر تدخل خلال 24 ساعة. يقدر يلغي الموافقة بأي وقت. وأنت داخل: الدفع والبطاقات والفواتير وكلمة المرور وحذف الحساب مقفلة عليك." cta="أرسل الطلب" />;
 }
 
 export function Impersonate({ userId, action }: { userId: string; action: Act }) {
