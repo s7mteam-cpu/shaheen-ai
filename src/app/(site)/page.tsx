@@ -4,7 +4,7 @@ import { Circuit } from "@/components/Circuit";
 import { ManagedService } from "@/components/site/ManagedService";
 import { DemoVideo } from "@/components/DemoVideo";
 import { demoThumb } from "@/lib/video";
-import { getContent, getGallery, getPlans, getTools } from "@/lib/data";
+import { getContent, getGallery, getPlans, getSessionProfile, getTools } from "@/lib/data";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
@@ -15,7 +15,8 @@ const catLabel = { ar: { image: "صور", video: "فيديو", audio: "صوت" }
 
 export default async function Home() {
   const lang = await getLang();
-  const [content, tools0, plans0, gallery0] = await Promise.all([getContent(), getTools(), getPlans(), getGallery()]);
+  const [content, tools0, plans0, gallery0, profile] = await Promise.all([getContent(), getTools(), getPlans(), getGallery(), getSessionProfile()]);
+  const signedIn = Boolean(profile);
   // Everything the admin writes in Arabic is shown translated when the visitor picks English.
   const { hero, steps, tools_section, gallery: galleryText, pricing, faq, final_cta, managed_service } = content;
   const [c, tools, plans, gallery] = await localize(
@@ -40,9 +41,19 @@ export default async function Home() {
               </span>
             </h1>
             <p className="max-w-xl text-[19px] font-medium leading-8 text-ink/80 md:text-xl md:leading-9">{c.hero.subtitle}</p>
-            <div className="mt-5 flex w-full max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center md:mt-0 md:justify-start">
-              <a href="#pricing" className="btn btn-primary px-7 py-4 text-[17px]">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
-              <a href="#tools" className="btn btn-outline px-6 py-4 text-[17px] font-semibold">{c.hero.cta_secondary}</a>
+            <div className="mt-5 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center md:mt-0 md:justify-start">
+              {/* phones (the bar has no buttons there): subscribe, then sign in, then explore */}
+              <div className="flex flex-col gap-3 sm:hidden">
+                <a href="#pricing" className="btn btn-gold px-7 py-4 text-[17px]">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
+                {signedIn
+                  ? <Link href="/app" className="btn btn-primary px-7 py-4 text-[17px]">{T("لوحة التحكم", "Dashboard")}</Link>
+                  : <Link href="/login" className="btn btn-primary px-7 py-4 text-[17px]">{T("تسجيل الدخول", "Sign in")}</Link>}
+              </div>
+              {/* tablets & computers: unchanged */}
+              <div className="hidden sm:flex">
+                <a href="#pricing" className="btn btn-primary px-7 py-4 text-[17px]">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
+              </div>
+              <a href="#tools" className="btn btn-outline px-4 py-4 text-[16px] font-semibold sm:px-6 sm:text-[17px]">{c.hero.cta_secondary}</a>
             </div>
             <ul className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted md:mt-0 md:justify-start md:pb-0">
               {c.hero.points.map((p) => (
