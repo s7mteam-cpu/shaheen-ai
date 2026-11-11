@@ -1,3 +1,4 @@
+import { guardPage } from "@/lib/server/auth";
 import Link from "next/link";
 import { JsonEditor } from "@/components/admin/JsonEditor";
 import { getContent } from "@/lib/data";
@@ -10,6 +11,7 @@ const sections = [
 ] as const;
 
 export default async function ContentAdmin({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
+  await guardPage("content");
   const { s = "hero" } = await searchParams;
   const content = await getContent();
   const current = sections.find(([k]) => k === s) ?? sections[0];

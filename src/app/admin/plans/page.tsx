@@ -1,3 +1,4 @@
+import { guardPage } from "@/lib/server/auth";
 import { getPlans } from "@/lib/data";
 import type { Plan } from "@/lib/defaults";
 import { savePlan } from "../actions";
@@ -24,6 +25,7 @@ function PlanForm({ p }: { p?: Plan }) {
 }
 
 export default async function PlansAdmin() {
+  await guardPage("plans");
   const plans = await getPlans(true);
   return (
     <div className="flex flex-col gap-5">

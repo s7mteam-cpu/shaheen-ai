@@ -3,7 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { REMEMBER_COOKIE, sessionOnly, wantsRemember } from "@/lib/supabase/remember";
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  // Pages and server actions learn which admin section they belong to from this header.
+  const withPath = () => { const h = new Headers(request.headers); h.set("x-path", request.nextUrl.pathname); return h; };
+  let response = NextResponse.next({ request: { headers: withPath() } });
 
   // Keep referral code from ?ref=CODE for 30 days
   const ref = request.nextUrl.searchParams.get("ref");
@@ -20,7 +22,7 @@ export async function middleware(request: NextRequest) {
         getAll: () => request.cookies.getAll(),
         setAll: (list) => {
           list.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: { headers: withPath() } });
           list.forEach(({ name, value, options }) => response.cookies.set(name, value, sessionOnly(options, remember)));
           if (ref) response.cookies.set("shaheen_ref", ref, { maxAge: 60 * 60 * 24 * 30, path: "/" });
         },

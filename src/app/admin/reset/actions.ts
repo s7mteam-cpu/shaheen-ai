@@ -11,7 +11,7 @@ type Res = { ok?: string; error?: string } | undefined;
 
 /** «تصفير المنصة»: every box is independent. Plans, tools, prices, site content and admin accounts always stay. */
 export async function resetPlatform(_prev: Res, form: FormData): Promise<Res> {
-  const me = await requireAdmin();
+  const me = await requireAdmin("reset");
   if (!me) return { error: "غير مصرّح" };
   const on = (k: string) => form.get(k) === "on";
   const counters = (Object.keys(COUNTERS) as Counter[]).filter((k) => on(`c_${k}`));
@@ -32,7 +32,7 @@ export async function resetPlatform(_prev: Res, form: FormData): Promise<Res> {
   }
 
   if (want.customers) {
-    const { data: people } = await admin.from("profiles").select("id,role,stripe_customer_id").neq("role", "admin");
+    const { data: people } = await admin.from("profiles").select("id,role,stripe_customer_id").eq("role", "user");
     let n = 0;
     for (const c of people ?? []) {
       if ((await deleteUserCompletely(c)).error) failed++;

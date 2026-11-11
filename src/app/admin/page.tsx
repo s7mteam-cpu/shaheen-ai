@@ -1,9 +1,11 @@
+import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { counterResets } from "@/lib/server/overviewReset";
 
 export const dynamic = "force-dynamic";
 
 export default async function Overview() {
+  await guardPage("overview");
   const admin = createAdminClient();
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
   const r = await counterResets();

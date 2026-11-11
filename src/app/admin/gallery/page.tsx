@@ -1,9 +1,11 @@
+import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addGalleryItem, updateGalleryItem } from "../actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function GalleryAdmin() {
+  await guardPage("gallery");
   const { data } = await createAdminClient().from("gallery_items").select("*").order("sort_order");
   return (
     <div className="flex flex-col gap-5">

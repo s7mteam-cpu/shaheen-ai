@@ -1,18 +1,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/server/auth";
+import { headers } from "next/headers";
+import { adminAccess, canOpen } from "@/lib/server/auth";
+import { SECTIONS, TEAM, sectionOf } from "@/lib/admin/sections";
 
-const nav = [
-  ["/admin", "نظرة عامة"], ["/admin/content", "نصوص وصور الموقع"], ["/admin/tools", "الأدوات والأسعار"], ["/admin/ai", "الذكاء الاصطناعي"],
-  ["/admin/plans", "الباقات"], ["/admin/customers", "العملاء"], ["/admin/leads", "طلبات الإدارة"], ["/admin/jobs", "الطلبات"], ["/admin/gallery", "معرض الأعمال"],
-  ["/admin/changes", "آخر التعديلات"], ["/admin/reset", "تصفير المنصة"],
-] as const;
+
 
 export const metadata = { title: "لوحة الإدارة" };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  if (!(await requireAdmin())) redirect("/app");
+  const access = await adminAccess();
+  if (!access) redirect("/app");
+  const nav = [...SECTIONS, ...(access.full ? [TEAM] : [])].filter((x) => canOpen(access, x.key)).map((x) => [x.path, x.label] as const);
+  if (!nav.length) redirect("/app");
+  const here = sectionOf((await headers()).get("x-path") ?? "/admin");
+  if (!canOpen(access, here)) redirect(nav[0][0]);
   return (
     <div className="flex min-h-screen flex-col bg-canvas lg:flex-row">
       <nav aria-label="قائمة الإدارة" className="flex flex-col gap-1 bg-navy-950 p-4 lg:sticky lg:top-0 lg:h-screen lg:w-[250px] lg:shrink-0">

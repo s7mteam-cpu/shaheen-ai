@@ -38,7 +38,7 @@ export type Profile = {
   email: string | null;
   phone: string | null;
   instagram: string | null;
-  role: "user" | "admin";
+  role: "user" | "admin" | "staff";
   credits: number;
   plan_id: string | null;
   is_suspended: boolean;

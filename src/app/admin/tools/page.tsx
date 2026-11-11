@@ -1,3 +1,4 @@
+import { guardPage } from "@/lib/server/auth";
 import { getTools } from "@/lib/data";
 import { saveTool } from "../actions";
 import { providerInfo, toolProviders, type ProviderId } from "@/lib/providers/registry";
@@ -6,6 +7,7 @@ export const dynamic = "force-dynamic";
 const icons = ["sparkles", "camera", "megaphone", "film", "user", "scissors", "mic", "waves"];
 
 export default async function ToolsAdmin() {
+  await guardPage("tools");
   const tools = await getTools(true);
   return (
     <div className="flex flex-col gap-5">

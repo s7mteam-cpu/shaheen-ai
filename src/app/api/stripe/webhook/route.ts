@@ -59,6 +59,14 @@ export async function POST(req: Request) {
       const synced = await syncSubscription(await stripe().subscriptions.retrieve(String(subId)));
       if (synced?.planId && inv.amount_paid > 0) {
         await admin.rpc("renew_credits", { p_user: synced.userId, p_plan: synced.planId, p_invoice: inv.id });
+        // Finance: every paid invoice becomes an income line automatically (once).
+        const { data: who } = await admin.from("profiles").select("full_name,email").eq("id", synced.userId).maybeSingle();
+        await admin.from("income").upsert({
+          external_ref: `stripe:${inv.id}`, source: "stripe", description: `اشتراك باقة ${synced.planId}`,
+          customer_id: synced.userId, customer_name: who?.full_name || who?.email || null,
+          amount: inv.amount_paid / (inv.currency === "kwd" ? 1000 : 100), currency: inv.currency === "kwd" ? "KWD" : "USD",
+          method: "بطاقة", received_on: new Date((inv.status_transitions?.paid_at ?? inv.created) * 1000).toISOString().slice(0, 10),
+        }, { onConflict: "external_ref", ignoreDuplicates: true }).then(() => null, () => null);
       }
       break;
     }

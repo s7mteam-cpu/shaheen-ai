@@ -117,7 +117,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
             <h2 className="text-lg font-bold">بياناتي</h2>
             <label htmlFor="full_name" className="label">الاسم</label><input id="full_name" name="full_name" defaultValue={profile?.full_name ?? ""} className="field" />
             <label htmlFor="email" className="label">البريد الإلكتروني</label><input id="email" value={profile?.email ?? ""} readOnly dir="ltr" className="field text-right opacity-70" />
-            <label htmlFor="phone" className="label">رقم الجوال</label><input id="phone" name="phone" defaultValue={profile?.phone ?? ""} dir="ltr" className="field text-right" />
+            <label htmlFor="phone" className="label">رقم الواتساب</label><input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ""} dir="ltr" placeholder="+965 5000 0000" className="field text-right" />
             <label htmlFor="instagram" className="label">حساب إنستغرام (لاقتراح أفكار تناسبك)</label><input id="instagram" name="instagram" defaultValue={profile?.instagram ?? ""} dir="ltr" placeholder="@account" className="field text-right" />
             <button className="btn btn-primary self-start px-6 py-2.5">حفظ التغييرات</button>
           </form>

@@ -1,3 +1,4 @@
+import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { RESET_PHRASE } from "./phrase";
 import { ResetForm } from "./ResetForm";
@@ -6,10 +7,11 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export default async function Reset() {
+  await guardPage("reset");
   const admin = createAdminClient();
   const head = { count: "exact" as const, head: true };
   const [c, j, m, l] = await Promise.all([
-    admin.from("profiles").select("id", head).neq("role", "admin"),
+    admin.from("profiles").select("id", head).eq("role", "user"),
     admin.from("jobs").select("id", head),
     admin.from("credit_ledger").select("id", head),
     admin.from("leads").select("id", head),

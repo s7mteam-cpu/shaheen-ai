@@ -2,24 +2,25 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/server/auth";
+import type { SectionKey } from "@/lib/admin/sections";
 import { textProviders, toolProviders } from "@/lib/providers/registry";
 
-async function guard() {
-  const u = await requireAdmin();
+async function guard(section: SectionKey) {
+  const u = await requireAdmin(section);
   if (!u) throw new Error("غير مصرّح");
   return u;
 }
 const refresh = () => revalidatePath("/", "layout");
 
 export async function saveContent(key: string, value: unknown) {
-  await guard();
+  await guard("content");
   const { error } = await createAdminClient().from("site_content").upsert({ key, value, updated_at: new Date().toISOString() });
   refresh();
   return { ok: !error, error: error?.message };
 }
 
 export async function saveTool(form: FormData) {
-  await guard();
+  await guard("tools");
   const id = String(form.get("id"));
   const provider = String(form.get("provider") || "");
   const allowed = toolProviders[id] ?? {};
@@ -39,7 +40,7 @@ export async function saveTool(form: FormData) {
 }
 
 export async function savePlan(form: FormData) {
-  await guard();
+  await guard("plans");
   const id = String(form.get("id")).trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
   if (!id) return;
   await createAdminClient().from("plans").upsert({
@@ -59,13 +60,13 @@ export async function savePlan(form: FormData) {
 }
 
 export async function refundJob(form: FormData) {
-  await guard();
+  await guard("jobs");
   await createAdminClient().rpc("refund_job", { p_job: String(form.get("job_id")) });
   revalidatePath("/admin/jobs");
 }
 
 export async function addGalleryItem(form: FormData) {
-  await guard();
+  await guard("gallery");
   const admin = createAdminClient();
   const file = form.get("file") as File | null;
   if (!file || !file.size) return;
@@ -83,7 +84,7 @@ export async function addGalleryItem(form: FormData) {
 }
 
 export async function updateGalleryItem(form: FormData) {
-  await guard();
+  await guard("gallery");
   const id = String(form.get("id"));
   const admin = createAdminClient();
   if (form.get("delete") === "1") await admin.from("gallery_items").delete().eq("id", id);
@@ -93,7 +94,7 @@ export async function updateGalleryItem(form: FormData) {
 
 /** Upload any site image (hero image etc.) and get its public URL. */
 export async function uploadSiteImage(form: FormData) {
-  await guard();
+  await guard("content");
   const file = form.get("file") as File | null;
   if (!file || !file.size) return { url: "" };
   const admin = createAdminClient();
@@ -103,13 +104,13 @@ export async function uploadSiteImage(form: FormData) {
 }
 
 export async function setLeadStatus(form: FormData) {
-  await guard();
+  await guard("leads");
   await createAdminClient().from("leads").update({ status: String(form.get("status")) }).eq("id", String(form.get("id")));
   revalidatePath("/admin/leads");
 }
 
 export async function saveAi(form: FormData) {
-  await guard();
+  await guard("ai");
   const ok = (p: string) => (p in textProviders ? p : "claude");
   const value = {
     copy_provider: ok(String(form.get("copy_provider"))), copy_model: String(form.get("copy_model") || ""),

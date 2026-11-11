@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
 import { Alert, arabicAuthError } from "@/components/auth/Alert";
+import { normalizePhone } from "@/lib/phone";
 
 const TERMS_VERSION = "2026-11-11";
 
@@ -27,14 +28,16 @@ export function SignupForm() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!agree) return setNudge(true);
+    const f = new FormData(e.currentTarget);
+    const phone = normalizePhone(String(f.get("phone") || ""));
+    if (!phone) return setError("اكتب رقم واتساب صحيح، مثل 50000000 أو ‎+96550000000.");
     accept();
     setLoading(true); setError("");
-    const f = new FormData(e.currentTarget);
     const { data, error } = await createClient().auth.signUp({
       email: String(f.get("email")),
       password: String(f.get("password")),
       options: {
-        data: { full_name: String(f.get("name")), ref: readRef(), terms_accepted: TERMS_VERSION, terms_accepted_at: new Date().toISOString() },
+        data: { full_name: String(f.get("name")), phone, ref: readRef(), terms_accepted: TERMS_VERSION, terms_accepted_at: new Date().toISOString() },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
@@ -58,6 +61,7 @@ export function SignupForm() {
       {error && <Alert>{error}</Alert>}
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2"><label htmlFor="name" className="label">الاسم</label><input id="name" name="name" required autoComplete="name" className="field" /></div>
+        <div className="flex flex-col gap-2"><label htmlFor="phone" className="label">رقم الواتساب</label><input id="phone" name="phone" type="tel" required inputMode="tel" autoComplete="tel" dir="ltr" placeholder="+965 5000 0000" className="field text-right" /><span className="text-[12px] text-subtle">للتواصل معك بخصوص حسابك فقط.</span></div>
         <div className="flex flex-col gap-2"><label htmlFor="email" className="label">البريد الإلكتروني</label><input id="email" name="email" type="email" required dir="ltr" autoComplete="email" className="field text-right" /></div>
         <div className="flex flex-col gap-2"><label htmlFor="password" className="label">كلمة المرور (8 أحرف أو أكثر)</label><input id="password" name="password" type="password" minLength={8} required autoComplete="new-password" className="field" /></div>
         <button disabled={loading} className="btn btn-primary py-3.5 text-[17px]">{loading ? "جارٍ الإنشاء…" : "إنشاء الحساب"}</button>

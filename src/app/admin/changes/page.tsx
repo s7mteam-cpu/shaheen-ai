@@ -1,9 +1,11 @@
+import { guardPage } from "@/lib/server/auth";
 import { CHANGELOG } from "@/lib/changelog";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function Changes() {
+  await guardPage("changes");
   const { data } = await createAdminClient().from("site_content").select("value").eq("key", "changelog_cleared").maybeSingle();
   const hidden = new Set<string>(((data?.value as { versions?: string[] } | null)?.versions) ?? []);
   const list = CHANGELOG.filter((c) => !hidden.has(c.version));

@@ -1,3 +1,4 @@
+import { guardPage } from "@/lib/server/auth";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { refundJob } from "../actions";
@@ -6,6 +7,7 @@ export const dynamic = "force-dynamic";
 const statusAr: Record<string, string> = { queued: "انتظار", running: "قيد التنفيذ", done: "جاهز", failed: "فشل" };
 
 export default async function Jobs({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
+  await guardPage("jobs");
   const { s = "" } = await searchParams;
   const admin = createAdminClient();
   let q = admin.from("jobs").select("id,tool_id,title,status,error,credits_charged,refunded,created_at,profiles(email)").order("created_at", { ascending: false }).limit(100);

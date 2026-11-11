@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/server/auth";
+import { requireAdmin, requireFullAdmin } from "@/lib/server/auth";
+import { OWNER_EMAILS } from "@/lib/admin/sections";
 import { deleteUserCompletely, emptyFolder } from "@/lib/server/deleteUser";
 import { audit } from "@/lib/server/audit";
 import { REMEMBER_COOKIE } from "@/lib/supabase/remember";
@@ -14,7 +15,7 @@ type Res = { ok?: string; error?: string } | undefined;
 const done = () => revalidatePath("/admin/customers");
 
 async function guard() {
-  const u = await requireAdmin();
+  const u = await requireAdmin("customers");
   if (!u) throw new Error("غير مصرّح");
   return u;
 }
@@ -48,7 +49,12 @@ export async function setUserFlags(form: FormData) {
   if (!p) return;
   const patch: Record<string, unknown> = {};
   if (form.has("is_suspended")) patch.is_suspended = form.get("is_suspended") === "true";
-  if (form.has("role")) patch.role = form.get("role") === "admin" ? "admin" : "user";
+  if (form.has("role")) {
+    if (!(await requireFullAdmin())) return;
+    if (OWNER_EMAILS.includes(String(p.email ?? "").toLowerCase())) return;
+    patch.role = form.get("role") === "admin" ? "admin" : "user";
+    patch.admin_perms = null;
+  }
   await createAdminClient().from("profiles").update(patch).eq("id", p.id);
   if ("is_suspended" in patch) await audit(me, patch.is_suspended ? "suspend" : "unsuspend", p);
   if ("role" in patch) await audit(me, patch.role === "admin" ? "make_admin" : "remove_admin", p);
@@ -77,7 +83,7 @@ export async function deleteCustomer(_prev: Res, form: FormData): Promise<Res> {
   const p = await target(String(form.get("user_id")));
   if (!p) return { error: "العميل غير موجود." };
   if (p.id === me.id) return { error: "ما تقدر تحذف حسابك أنت من هنا." };
-  if (p.role === "admin") return { error: "هذا حساب مدير. أزل صلاحية المدير أولاً." };
+  if (p.role !== "user") return { error: "هذا حساب من فريق الإدارة. أزله من الفريق أولاً." };
   if (String(form.get("confirm") ?? "").trim().toLowerCase() !== String(p.email ?? "").toLowerCase()) return { error: "اكتب بريد العميل بالضبط للتأكيد." };
   const res = await deleteUserCompletely(p);
   if (res.error) return res;
@@ -91,7 +97,7 @@ export async function blockCustomer(_prev: Res, form: FormData): Promise<Res> {
   const me = await guard();
   const p = await target(String(form.get("user_id")));
   if (!p?.email) return { error: "العميل غير موجود." };
-  if (p.role === "admin") return { error: "ما ينفع تحظر حساب مدير." };
+  if (p.role !== "user") return { error: "ما ينفع تحظر حساب من فريق الإدارة." };
   const admin = createAdminClient();
   const reason = String(form.get("reason") || "").slice(0, 200) || null;
   const { error } = await admin.from("blocked_emails").upsert({ email: p.email.toLowerCase(), reason, blocked_by: me.id });
@@ -123,7 +129,7 @@ export async function requestAccess(_prev: Res, form: FormData): Promise<Res> {
   const me = await guard();
   const p = await target(String(form.get("user_id")));
   if (!p) return { error: "العميل غير موجود." };
-  if (p.role === "admin") return { error: "ما ينفع على حساب مدير." };
+  if (p.role !== "user") return { error: "ما ينفع على حساب من فريق الإدارة." };
   const reason = String(form.get("reason") || "").trim().slice(0, 200);
   if (reason.length < 3) return { error: "اكتب سبب الطلب (مثلاً: مشكلة بتصدير المونتاج)." };
   const admin = createAdminClient();
@@ -140,7 +146,7 @@ export async function impersonate(_prev: Res, form: FormData): Promise<Res> {
   const me = await guard();
   const p = await target(String(form.get("user_id")));
   if (!p?.email) return { error: "العميل غير موجود." };
-  if (p.role === "admin") return { error: "ما ينفع تدخل على حساب مدير." };
+  if (p.role !== "user") return { error: "ما ينفع تدخل على حساب من فريق الإدارة." };
   const access = await latestAccess(p.id);
   if (access?.status !== "approved") return { error: "العميل ما وافق، أو انتهت مدة الموافقة. ابعت له طلب صلاحية جديد." };
   const admin = createAdminClient();

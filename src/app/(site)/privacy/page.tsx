@@ -32,6 +32,7 @@ export default async function Page() {
       <H>1. البيانات التي نجمعها</H>
       <L items={[
         <><b>بيانات الحساب:</b> الاسم والبريد الإلكتروني وكلمة المرور (مشفّرة)، أو عند الدخول بحساب Google: اسمك وبريدك الإلكتروني وصورة ملفك الشخصي فقط.</>,
+        <><b>رقم الواتساب:</b> نطلبه عند التسجيل لنتواصل معك بخصوص حسابك وأعمالك والدعم فقط، ولا نشاركه مع أحد ولا نرسل عليه إعلانات مزعجة.</>,
         <><b>محتواك:</b> الصور والفيديوهات والملفات الصوتية والنصوص التي ترفعها أو تكتبها لاستخدام الأدوات، والنتائج التي تنتجها المنصة لك.</>,
         <><b>هويتك التجارية (اختياري):</b> اسم النشاط والشعار والألوان والخط والحساب ورابط الموقع وحساب إنستغرام وصور مرجعية للأسلوب.</>,
         <><b>بيانات الاستخدام والاشتراك:</b> رصيد «الريش»، والعمليات المنفذة، والفواتير، ورمز الإحالة.</>,
@@ -89,6 +90,7 @@ export default async function Page() {
         <H>1. Data we collect</H>
         <L items={[
           <><b>Account data:</b> name, email and password (hashed), or, when you sign in with Google, only your name, email address and profile picture.</>,
+          <><b>WhatsApp number:</b> requested at sign-up so we can contact you about your account, your work and support only. We never share it or send spam to it.</>,
           <><b>Your content:</b> images, videos, audio and text you upload or write to use our tools, and the results we generate for you.</>,
           <><b>Brand kit (optional):</b> business name, logo, colours, font, handle, website, Instagram account and style reference images.</>,
           <><b>Usage and billing:</b> credit balance, jobs you run, invoices and referral code.</>,

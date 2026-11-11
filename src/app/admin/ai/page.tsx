@@ -1,3 +1,4 @@
+import { guardPage } from "@/lib/server/auth";
 import Link from "next/link";
 import { getContent } from "@/lib/data";
 import { providerInfo, textProviders, toolProviders, type ProviderId } from "@/lib/providers/registry";
@@ -18,6 +19,7 @@ function Row({ title, hint, pName, mName, p, m }: { title: string; hint: string;
 }
 
 export default async function AiAdmin() {
+  await guardPage("ai");
   const { ai } = await getContent();
   const keys = Object.entries(providerInfo).filter(([id]) => id !== "gemini").map(([id, p]) => ({ id, ...p, ok: Boolean(process.env[p.env]) }));
   return (

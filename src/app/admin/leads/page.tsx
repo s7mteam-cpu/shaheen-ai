@@ -1,3 +1,4 @@
+import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setLeadStatus } from "../actions";
 
@@ -5,6 +6,7 @@ export const dynamic = "force-dynamic";
 const st = [["new", "جديد"], ["contacted", "تم التواصل"], ["won", "اشترك"], ["closed", "مغلق"]] as const;
 
 export default async function Leads() {
+  await guardPage("leads");
   const { data } = await createAdminClient().from("leads").select("*").order("created_at", { ascending: false }).limit(200);
   return (
     <div className="flex flex-col gap-5">

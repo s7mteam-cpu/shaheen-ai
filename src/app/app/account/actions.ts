@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { deleteUserCompletely } from "@/lib/server/deleteUser";
 import { isImpersonating } from "@/lib/server/impersonation";
+import { normalizePhone } from "@/lib/phone";
 
 const site = () => process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -70,7 +71,7 @@ export async function saveProfile(form: FormData) {
   const supabase = await createClient();
   await supabase.from("profiles").update({
     full_name: String(form.get("full_name") ?? "").slice(0, 80),
-    phone: String(form.get("phone") ?? "").slice(0, 30),
+    phone: normalizePhone(String(form.get("phone") ?? "")) ?? profile.phone,
     instagram: String(form.get("instagram") ?? "").slice(0, 60),
   }).eq("id", profile.id);
   revalidatePath("/app", "layout");
