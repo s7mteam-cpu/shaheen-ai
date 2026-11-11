@@ -42,6 +42,7 @@ export function LoginForm() {
         </label>
         <button disabled={loading} className="btn btn-primary py-3.5 text-[17px]">{loading ? "جارٍ الدخول…" : "تسجيل الدخول"}</button>
       </form>
+      <p className="text-center text-[13px] text-subtle">بالمتابعة أنت توافق على <Link href="/terms" className="underline">الشروط</Link> و<Link href="/refund" className="underline">سياسة الاسترجاع</Link> و<Link href="/privacy" className="underline">الخصوصية</Link>.</p>
       <p className="text-center text-[15px] text-muted">ما عندك حساب؟ <Link href="/signup" className="font-bold text-navy-700">أنشئ حسابك</Link></p>
     </>
   );

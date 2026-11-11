@@ -29,7 +29,7 @@ export default async function Page() {
       <P>شاهين منصة لإنشاء المحتوى بالذكاء الاصطناعي (تصاميم، منشورات، فيديوهات، مونتاج، أصوات). النتائج يولّدها الذكاء الاصطناعي وقد تحتاج مراجعتك قبل النشر.</P>
 
       <H>2. الحساب</H>
-      <P>أنت مسؤول عن صحة بياناتك وعن سرية حسابك وعن كل ما يتم من خلاله. يجب أن يكون عمرك 13 عاماً على الأقل.</P>
+      <P>أنت مسؤول عن صحة بياناتك وعن سرية حسابك وعن كل ما يتم من خلاله. يجب أن يكون عمرك 18 عاماً على الأقل، أو أن تستخدم المنصة بموافقة وليّ أمرك وتحت إشرافه.</P>
 
       <H>3. الاشتراكات والرصيد</H>
       <P>تستخدم الأدوات رصيد «الريش» حسب الباقة. تُوضَّح تكلفة كل أداة قبل التنفيذ، وإذا فشل الطلب يُعاد الرصيد تلقائياً. تخضع المبالغ المدفوعة لـ<a className="text-navy-700 underline" href="/refund">سياسة الاسترجاع</a>.</P>
@@ -55,7 +55,7 @@ export default async function Page() {
         <H>1. The service</H>
         <P>Shaheen is an AI content platform (designs, posts, videos, video editing, voice). Results are AI-generated and may need your review before publishing.</P>
         <H>2. Your account</H>
-        <P>You are responsible for accurate account details, keeping your account secure and all activity under it. You must be at least 13 years old.</P>
+        <P>You are responsible for accurate account details, keeping your account secure and all activity under it. You must be at least 18 years old, or use the platform with the consent and supervision of a parent or guardian.</P>
         <H>3. Plans and credits</H>
         <P>Tools use “feather” credits according to your plan. Each tool shows its cost before running, and credits are refunded automatically if a job fails. Payments are subject to our <a className="text-navy-700 underline" href="/refund">refund policy</a>.</P>
         <H>4. Your content</H>

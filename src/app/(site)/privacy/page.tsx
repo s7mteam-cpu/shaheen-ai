@@ -70,7 +70,7 @@ export default async function Page() {
       <P>يحق لك الاطلاع على بياناتك وتصحيحها وتنزيل أعمالك وطلب حذفها، والاعتراض على أي استخدام لا ترغب به. تواصل معنا وسنرد خلال مدة معقولة.</P>
 
       <H>8. الأطفال</H>
-      <P>المنصة غير موجّهة لمن هم دون 13 عاماً، ولا نجمع بياناتهم عن قصد.</P>
+      <P>المنصة موجّهة لمن هم 18 عاماً فأكثر. من هم دون ذلك يستخدمونها فقط بموافقة وليّ الأمر، ولا نجمع عن قصد بيانات من هم دون 13 عاماً.</P>
 
       <H>9. التعديلات</H>
       <P>قد نحدّث هذه السياسة، وسننشر النسخة الجديدة هنا مع تاريخ التحديث، ونبلغك بالتغييرات الجوهرية.</P>
@@ -125,7 +125,7 @@ export default async function Page() {
         <P>You can access, correct, download and request deletion of your data, and object to any use you do not want. Contact us and we will respond within a reasonable time.</P>
 
         <H>8. Children</H>
-        <P>The platform is not directed to children under 13 and we do not knowingly collect their data.</P>
+        <P>The platform is intended for users aged 18 or over. Younger users may use it only with a parent’s or guardian’s consent, and we do not knowingly collect data from children under 13.</P>
 
         <H>9. Changes</H>
         <P>We may update this policy; the new version will be posted here with its date, and we will notify you of material changes.</P>

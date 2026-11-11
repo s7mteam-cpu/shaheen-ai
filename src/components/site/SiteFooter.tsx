@@ -4,6 +4,9 @@ import type { SiteContent } from "@/lib/defaults";
 
 export function SiteFooter({ footer }: { footer: SiteContent["footer"] }) {
   const year = new Date().getFullYear();
+  const email = footer.email || "s7m.team@gmail.com";
+  // company name + commercial registration number: shown once filled in from the admin
+  const company = footer.company && !footer.company.trim().startsWith("[") ? footer.company : "";
   return (
     <footer className="bg-navy-950 text-white/75">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 pb-8 pt-12">
@@ -11,21 +14,24 @@ export function SiteFooter({ footer }: { footer: SiteContent["footer"] }) {
           <div className="flex max-w-xs flex-col gap-3">
             <div className="flex items-center gap-2.5"><Image src="/brand/eagle.png" alt="" width={36} height={36} /><span className="text-xl font-bold text-gold-500">شاهين</span></div>
             <p className="text-sm leading-7">{footer.tagline}</p>
+            <div className="flex flex-col gap-1 text-sm">
+              {footer.whatsapp && <a href={`tel:${footer.whatsapp.replace(/[^\d+]/g, "")}`} dir="ltr" className="self-start font-latin hover:text-white">{footer.whatsapp}</a>}
+              <a href={`mailto:${email}`} dir="ltr" className="self-start font-latin hover:text-white">{email}</a>
+            </div>
             <div className="flex flex-wrap gap-3 text-sm">
               {footer.whatsapp && <a href={`https://wa.me/${footer.whatsapp.replace(/\D/g, "")}`} className="hover:text-white">واتساب</a>}
               {footer.instagram && <a href={`https://instagram.com/${footer.instagram.replace("@", "")}`} className="hover:text-white">إنستغرام</a>}
-              {footer.email && <a href={`mailto:${footer.email}`} className="hover:text-white">البريد</a>}
             </div>
           </div>
           <nav aria-label="روابط الفوتر" className="flex flex-wrap gap-12 text-sm">
             <div className="flex flex-col gap-2.5"><span className="font-semibold text-white">المنصة</span><Link href="/#tools">الأدوات</Link><Link href="/#pricing">الأسعار</Link><Link href="/#faq">الأسئلة الشائعة</Link></div>
             <div className="flex flex-col gap-2.5"><span className="font-semibold text-white">الحساب</span><Link href="/login">تسجيل الدخول</Link><Link href="/signup">إنشاء حساب</Link></div>
-            <div className="flex flex-col gap-2.5"><span className="font-semibold text-white">قانوني</span><Link href="/terms">شروط الاستخدام</Link><Link href="/privacy">سياسة الخصوصية</Link><Link href="/refund">سياسة الاسترجاع</Link></div>
+            <div className="flex flex-col gap-2.5"><span className="font-semibold text-white">قانوني</span><Link href="/terms">شروط الاستخدام</Link><Link href="/privacy">سياسة الخصوصية</Link><Link href="/refund">سياسة الاسترجاع</Link><a href={`mailto:${email}?subject=${encodeURIComponent("شكوى / ملاحظة")}`}>الشكاوى والملاحظات</a></div>
           </nav>
         </div>
         <div className="flex flex-wrap justify-between gap-3 border-t border-white/10 pt-5 text-[13px]">
           <span>© {year} شاهين (S7M). جميع الحقوق محفوظة.</span>
-          <span>{footer.company}</span>
+          {company && <span>{company}</span>}
         </div>
       </div>
     </footer>

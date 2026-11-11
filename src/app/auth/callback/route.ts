@@ -13,7 +13,14 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       // Attach referral for Google sign-ups (email sign-ups pass it in metadata).
-      const ref = (await cookies()).get("shaheen_ref")?.value;
+      const jar = await cookies();
+      const terms = jar.get("shaheen_terms")?.value;
+      if (terms && data.user && !data.user.user_metadata?.terms_accepted) {
+        await createAdminClient().auth.admin.updateUserById(data.user.id, {
+          user_metadata: { ...data.user.user_metadata, terms_accepted: terms, terms_accepted_at: new Date().toISOString() },
+        }).catch(() => {});
+      }
+      const ref = jar.get("shaheen_ref")?.value;
       if (ref && data.user) {
         const admin = createAdminClient();
         const { data: referrer } = await admin.from("profiles").select("id").eq("referral_code", ref).single();
