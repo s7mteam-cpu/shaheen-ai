@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { deleteUserCompletely } from "@/lib/server/deleteUser";
+import { isImpersonating } from "@/lib/server/impersonation";
 
 const site = () => process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -25,6 +26,7 @@ export async function ensureCustomer(profile: { id: string; email: string | null
 
 /** New subscription → Stripe Checkout. Existing subscription → change plan in the billing portal. */
 export async function startCheckout(planId: string) {
+  if (await isImpersonating()) redirect("/app/account?error=support");
   const profile = await me();
   const admin = createAdminClient();
   const { data: plan } = await admin.from("plans").select("*").eq("id", planId).eq("is_active", true).single();
@@ -56,6 +58,7 @@ export async function startCheckout(planId: string) {
 }
 
 export async function openPortal() {
+  if (await isImpersonating()) redirect("/app/account?error=support");
   const profile = await me();
   const customer = await ensureCustomer(profile);
   const portal = await stripe().billingPortal.sessions.create({ customer, return_url: `${site()}/app/account` });
@@ -75,6 +78,7 @@ export async function saveProfile(form: FormData) {
 
 /** "حذف الحساب": cancels billing, deletes the user's files and all their data. */
 export async function deleteAccount(_prev: { error?: string } | undefined, form: FormData): Promise<{ error?: string }> {
+  if (await isImpersonating()) return { error: "حذف الحساب محمي، وما يقدر فريق الدعم يعمله." };
   const profile = await me();
   if (String(form.get("confirm") ?? "").trim() !== "حذف") return { error: "اكتب كلمة «حذف» للتأكيد." };
   if (profile.role === "admin") return { error: "حساب المدير لا يُحذف من هنا." };

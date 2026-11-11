@@ -5,6 +5,9 @@ import { stripe } from "@/lib/stripe";
 import { PasswordForm } from "@/components/app/PasswordForm";
 import { DeleteAccount } from "@/components/app/DeleteAccount";
 import { CreditHistory } from "@/components/app/CreditHistory";
+import { SupportAccess } from "@/components/app/SupportAccess";
+import { ACCESS_HOURS, latestAccess } from "@/lib/server/supportAccess";
+import { isImpersonating } from "@/lib/server/impersonation";
 import { openPortal, saveProfile, startCheckout } from "./actions";
 
 export const metadata = { title: "الحساب والاشتراك" };
@@ -13,6 +16,7 @@ const statusAr: Record<string, string> = { active: "نشط", trialing: "تجري
 
 export default async function Account({ searchParams }: { searchParams: Promise<{ tab?: string; error?: string }> }) {
   const { tab = "sub", error } = await searchParams;
+  const imp = await isImpersonating();
   const [profile, plans] = await Promise.all([getSessionProfile(), getPlans()]);
   const supabase = await createClient();
   const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", profile!.id).order("updated_at", { ascending: false }).limit(1).maybeSingle();
@@ -26,13 +30,17 @@ export default async function Account({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
-      <h1 className="text-[28px] font-bold text-navy-900">{tab === "spend" ? "مصاريف الريش" : "الحساب والاشتراك"}</h1>
+      <h1 className="text-[28px] font-bold text-navy-900">{tab === "spend" ? "مصاريف الريش" : tab === "access" ? "صلاحية الدعم" : "الحساب والاشتراك"}</h1>
+      {imp && (tab === "sub" || tab === "inv" || tab === "me") && (
+        <p className="rounded-xl bg-navy-800 px-4 py-3 text-sm text-white">🔒 أنت داخل كفريق دعم: بيانات الدفع والبطاقات والفواتير وكلمة المرور وحذف الحساب محمية ومخفية عنك.</p>
+      )}
+      {error === "support" && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">هذا القسم محمي، وما يقدر فريق الدعم يدخل عليه.</p>}
       {error === "plan" && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">هذه الباقة غير جاهزة للدفع بعد. تواصل مع الدعم.</p>}
-      {tab !== "spend" && <div role="tablist" aria-label="أقسام الحساب" className="card flex w-full gap-1 overflow-x-auto rounded-2xl p-1 sm:w-auto sm:self-start">
+      {tab !== "spend" && tab !== "access" && <div role="tablist" aria-label="أقسام الحساب" className="card flex w-full gap-1 overflow-x-auto rounded-2xl p-1 sm:w-auto sm:self-start">
         {tabs.map(([id, l]) => <Link key={id} role="tab" aria-selected={tab === id} href={`/app/account?tab=${id}`} className={`flex-1 whitespace-nowrap rounded-xl px-3 py-2.5 text-center text-[15px] font-semibold sm:flex-none sm:px-5 ${tab === id ? "bg-navy-800 text-white" : "text-muted"}`}>{l}</Link>)}
       </div>}
 
-      {tab === "sub" && (
+      {tab === "sub" && !imp && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-wrap gap-5">
             <section className="flex min-w-0 flex-[2_1_420px] flex-col gap-3 rounded-3xl bg-navy-800 p-7 text-white">
@@ -77,7 +85,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
         </div>
       )}
 
-      {tab === "inv" && (
+      {tab === "inv" && !imp && (
         <section className="card p-2">
           {invoices.length ? (
             <ul>
@@ -101,6 +109,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
       )}
 
       {tab === "spend" && <CreditHistory balance={profile?.credits ?? 0} />}
+      {tab === "access" && profile && <SupportAccess access={await latestAccess(profile.id)} hours={ACCESS_HOURS} />}
 
       {tab === "me" && (
         <div className="grid gap-5 md:grid-cols-2">
@@ -112,8 +121,8 @@ export default async function Account({ searchParams }: { searchParams: Promise<
             <label htmlFor="instagram" className="label">حساب إنستغرام (لاقتراح أفكار تناسبك)</label><input id="instagram" name="instagram" defaultValue={profile?.instagram ?? ""} dir="ltr" placeholder="@account" className="field text-right" />
             <button className="btn btn-primary self-start px-6 py-2.5">حفظ التغييرات</button>
           </form>
-          <PasswordForm />
-          {profile?.role !== "admin" && <DeleteAccount />}
+          {!imp && <PasswordForm />}
+          {!imp && profile?.role !== "admin" && <DeleteAccount />}
         </div>
       )}
     </div>

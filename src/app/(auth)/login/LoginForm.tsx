@@ -8,8 +8,13 @@ import { Alert, arabicAuthError } from "@/components/auth/Alert";
 
 export function LoginForm() {
   const router = useRouter();
-  const next = useSearchParams().get("next") || "/app";
-  const [error, setError] = useState("");
+  const params = useSearchParams();
+  const next = params.get("next") || "/app";
+  const urlError = params.get("error");
+  const [error, setError] = useState(
+    urlError === "blocked" ? "هذا البريد ممنوع من التسجيل بمنصة شاهين. إذا تعتقد إن في خطأ، تواصل معنا."
+    : urlError === "banned" ? "هذا الحساب موقوف. تواصل مع الدعم."
+    : urlError === "auth" ? "ما قدرنا نكمّل تسجيل الدخول، حاول مرة ثانية." : "");
   const [loading, setLoading] = useState(false);
   const [remember, setRem] = useState(true);
 

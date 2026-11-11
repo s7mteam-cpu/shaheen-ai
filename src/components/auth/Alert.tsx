@@ -8,6 +8,8 @@ export function arabicAuthError(msg: string) {
   if (/Invalid login/i.test(msg)) return "البريد أو كلمة المرور غير صحيحة.";
   if (/Email not confirmed/i.test(msg)) return "أكّد بريدك الإلكتروني أولاً من الرسالة اللي وصلتك.";
   if (/already registered/i.test(msg)) return "هذا البريد مسجّل مسبقاً، سجّل دخولك.";
+  if (/Database error saving new user|EMAIL_BLOCKED/i.test(msg)) return "هذا البريد ممنوع من التسجيل بمنصة شاهين. إذا تعتقد إن في خطأ، تواصل معنا.";
+  if (/banned/i.test(msg)) return "هذا الحساب موقوف. تواصل مع الدعم.";
   if (/Password should be/i.test(msg)) return "كلمة المرور لازم تكون 8 أحرف أو أكثر.";
   return "صار خطأ، حاول مرة ثانية.";
 }

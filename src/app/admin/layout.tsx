@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/server/auth";
 const nav = [
   ["/admin", "نظرة عامة"], ["/admin/content", "نصوص وصور الموقع"], ["/admin/tools", "الأدوات والأسعار"], ["/admin/ai", "الذكاء الاصطناعي"],
   ["/admin/plans", "الباقات"], ["/admin/customers", "العملاء"], ["/admin/leads", "طلبات الإدارة"], ["/admin/jobs", "الطلبات"], ["/admin/gallery", "معرض الأعمال"],
+  ["/admin/changes", "آخر التعديلات"], ["/admin/reset", "تصفير المنصة"],
 ] as const;
 
 export const metadata = { title: "لوحة الإدارة" };

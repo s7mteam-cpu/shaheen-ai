@@ -31,5 +31,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL(safeNext, url.origin));
     }
   }
-  return NextResponse.redirect(new URL("/login?error=auth", url.origin));
+  const why = `${url.searchParams.get("error_description") ?? ""}`;
+  const kind = /Database error saving new user|EMAIL_BLOCKED/i.test(why) ? "blocked" : /banned/i.test(why) ? "banned" : "auth";
+  return NextResponse.redirect(new URL(`/login?error=${kind}`, url.origin));
 }

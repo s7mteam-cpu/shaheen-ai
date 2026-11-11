@@ -61,10 +61,11 @@ export default async function Page() {
       <P>يُرسل لهؤلاء المزوّدين فقط ما يلزم لتنفيذ طلبك (مثل النص أو الصورة التي ترفعها).</P>
 
       <H>5. مدة الاحتفاظ والحذف</H>
-      <P>نحتفظ ببياناتك وأعمالك طالما حسابك فعّال لتتمكن من الرجوع إليها. يمكنك حذف أي عمل من «أعمالي» في أي وقت، ويمكنك طلب حذف حسابك وكل بياناتك بمراسلتنا على {EMAIL}، وننفّذ الطلب خلال 30 يوماً، إلا ما يلزمنا القانون بالاحتفاظ به (مثل سجلات الفواتير).</P>
+      <P>نحتفظ ببياناتك وأعمالك طالما حسابك فعّال لتتمكن من الرجوع إليها. يمكنك حذف أي عمل من «أعمالي» في أي وقت، ويمكنك حذف حسابك وكل بياناتك بنفسك من «الحساب والاشتراك» ← «بياناتي» ← «حذف الحساب»، أو بمراسلتنا على {EMAIL} وننفّذ الطلب خلال 30 يوماً، إلا ما يلزمنا القانون بالاحتفاظ به (مثل سجلات الفواتير).</P>
 
       <H>6. حماية البيانات</H>
       <P>نستخدم اتصالاً مشفّراً (HTTPS)، وتخزيناً خاصاً لا يصل إليه إلا صاحب الحساب عبر روابط مؤقتة، وصلاحيات وصول محدودة. لا يوجد نظام آمن بنسبة 100٪، لكننا نتخذ إجراءات معقولة لحماية بياناتك.</P>
+      <P><strong>دخول فريق الدعم:</strong> لا يدخل فريق المنصة على حسابك إلا بعد أن يطلب ذلك وتوافق أنت بتفويض مكتوب من داخل حسابك، ولحل المشكلة المذكورة فقط. ينتهي التفويض تلقائياً بعد 24 ساعة، ويمكنك إلغاؤه في أي وقت، ويُسجَّل كل دخول باسم من دخل وسببه ووقته. هذه الصلاحية لا تشمل بيانات الدفع والبطاقات الائتمانية (محفوظة مشفّرة لدى بوابة الدفع ولا نطّلع عليها) ولا الفواتير ولا كلمة المرور ولا حذف الحساب.</P>
 
       <H>7. حقوقك</H>
       <P>يحق لك الاطلاع على بياناتك وتصحيحها وتنزيل أعمالك وطلب حذفها، والاعتراض على أي استخدام لا ترغب به. تواصل معنا وسنرد خلال مدة معقولة.</P>
@@ -120,6 +121,7 @@ export default async function Page() {
 
         <H>6. Security</H>
         <P>We use encrypted connections (HTTPS), private storage reachable only by the account owner through short-lived links, and limited access permissions. No system is 100% secure, but we take reasonable measures to protect your data.</P>
+        <P><strong>Support access:</strong> our team accesses your account only after asking and receiving your written approval inside your account, and only to fix the stated problem. The approval expires automatically after 24 hours and you can withdraw it at any time. Every access is logged with who, why and when. This access never covers payment or card details (held encrypted by the payment provider, never by us), invoices, your password or account deletion.</P>
 
         <H>7. Your rights</H>
         <P>You can access, correct, download and request deletion of your data, and object to any use you do not want. Contact us and we will respond within a reasonable time.</P>

@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 
 /** Removes every file under `prefix` (including nested job folders) from a bucket. */
-async function emptyFolder(bucket: string, prefix: string, depth = 0): Promise<void> {
+export async function emptyFolder(bucket: string, prefix: string, depth = 0): Promise<void> {
   if (depth > 3) return;
   const store = createAdminClient().storage.from(bucket);
   for (;;) {
