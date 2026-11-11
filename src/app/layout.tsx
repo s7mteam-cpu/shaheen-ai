@@ -9,6 +9,8 @@ import "@fontsource/cairo/latin-600.css";
 import "@fontsource/cairo/latin-700.css";
 import "./globals.css";
 import { THEME_SCRIPT } from "@/components/ThemeToggle";
+import { getLang } from "@/lib/server/lang";
+import { dirOf } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
@@ -17,9 +19,10 @@ export const metadata: Metadata = {
   openGraph: { title: "شاهين", description: "استوديو المحتوى العربي بالذكاء الاصطناعي", locale: "ar_KW", type: "website" },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const lang = await getLang();
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    <html lang={lang} dir={dirOf(lang)} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
       <body className="font-sans antialiased">{children}</body>
     </html>

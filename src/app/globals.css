@@ -96,3 +96,6 @@ html.dark .bg-gold-100 { background-color: rgb(201 164 92 / .16); }
 html.dark ::-webkit-scrollbar-thumb { background: var(--d-field); }
 html.dark .btn-primary, html.dark .bg-navy-800.text-white:not(header) { background: var(--color-navy-600); }
 html.dark .btn-primary:hover { background: #2563A3; }
+
+/* English (left-to-right): arrows point the other way */
+html[dir="ltr"] svg[data-icon="arrow"] { transform: scaleX(-1); }

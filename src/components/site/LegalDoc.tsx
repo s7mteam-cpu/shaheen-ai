@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { SiteContent } from "@/lib/defaults";
+import type { Lang } from "@/lib/i18n";
 
 const SITE = "shaheen-kw.com";
 const OWNER_EMAIL = "s7m.team@gmail.com";
@@ -68,8 +69,18 @@ function blocks(src: string, prefix = ""): ReactNode[] {
 }
 
 /** One legal page: Arabic on top, English below — both straight from «نصوص وصور الموقع ← الصفحات القانونية». */
-export function LegalDoc({ c, ar, en, titleAr, titleEn }: { c: SiteContent; ar: string; en: string; titleAr: string; titleEn: string }) {
+export function LegalDoc({ c, ar, en, titleAr, titleEn, lang = "ar" }: { c: SiteContent; ar: string; en: string; titleAr: string; titleEn: string; lang?: Lang }) {
   const v = legalVars(c);
+  if (lang === "en" && en?.trim()) {
+    // English visitors get the English text only.
+    return (
+      <main lang="en" className="mx-auto max-w-3xl px-6 py-16 text-[16px] leading-8 text-muted">
+        <h1 className="mb-2 text-3xl font-bold text-navy-900">{titleEn}</h1>
+        {c.legal?.updated_en && <p className="mb-8 text-[14px]">Last updated: {c.legal.updated_en}</p>}
+        {blocks(fill(en, v), "en")}
+      </main>
+    );
+  }
   return (
     <main className="mx-auto max-w-3xl px-6 py-16 text-[16px] leading-8 text-muted">
       <h1 className="mb-2 text-3xl font-bold text-navy-900">{titleAr}</h1>

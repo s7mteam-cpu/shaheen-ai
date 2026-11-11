@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function Logo({ href = "/", size = 40, sub = true }: { href?: string; size?: number; sub?: boolean }) {
   return (
-    <Link href={href} className="flex items-center gap-2.5" aria-label="شاهين — الرئيسية">
+    <Link href={href} className="flex items-center gap-2.5" aria-label="Shaheen — home">
       <Image src="/brand/eagle.png" alt="" width={size} height={size} priority />
       <span className="flex flex-col leading-none">
         <span className="text-[22px] font-bold text-gold-500">شاهين</span>

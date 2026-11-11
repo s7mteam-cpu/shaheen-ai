@@ -3,13 +3,22 @@ import { Icon } from "@/components/Icon";
 import { Circuit } from "@/components/Circuit";
 import { ManagedService } from "@/components/site/ManagedService";
 import { getContent, getGallery, getPlans, getTools } from "@/lib/data";
+import { getLang } from "@/lib/server/lang";
+import { localize } from "@/lib/server/translate";
+import { tr } from "@/lib/i18n";
 
 export const revalidate = 60;
 
-const catLabel = { image: "صور", video: "فيديو", audio: "صوت" } as const;
+const catLabel = { ar: { image: "صور", video: "فيديو", audio: "صوت" }, en: { image: "Images", video: "Video", audio: "Audio" } } as const;
 
 export default async function Home() {
-  const [c, tools, plans, gallery] = await Promise.all([getContent(), getTools(), getPlans(), getGallery()]);
+  const lang = await getLang();
+  const [content, tools0, plans0, gallery0] = await Promise.all([getContent(), getTools(), getPlans(), getGallery()]);
+  // Everything the admin writes in Arabic is shown translated when the visitor picks English.
+  const { hero, steps, tools_section, gallery: galleryText, pricing, faq, final_cta, managed_service } = content;
+  const [c, tools, plans, gallery] = await localize(
+    [{ hero, steps, tools_section, gallery: galleryText, pricing, faq, final_cta, managed_service }, tools0, plans0, gallery0] as const, lang);
+  const T = (ar: string, en: string) => tr(lang, ar, en);
 
   return (
     <main>
@@ -48,7 +57,7 @@ export default async function Home() {
             <div className="relative flex aspect-square w-full max-w-[460px] items-center justify-center overflow-hidden rounded-[32px] bg-navy-800 shadow-[0_30px_60px_-30px_rgba(11,42,74,0.5)]">
               <Circuit className="absolute inset-0 h-full w-full text-gold-500/15" />
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/eagle.png" alt="شعار شاهين" className="relative w-[62%] drop-shadow-[0_20px_40px_rgba(0,0,0,0.35)]" />
+              <img src="/brand/eagle.png" alt={T("شعار شاهين", "Shaheen logo")} className="relative w-[62%] drop-shadow-[0_20px_40px_rgba(0,0,0,0.35)]" />
             </div>
             )}
           </div>
@@ -76,13 +85,13 @@ export default async function Home() {
         <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div><span className="text-sm font-semibold text-navy-700">{c.tools_section.eyebrow}</span><h2 className="mt-2.5 text-3xl font-bold text-navy-900 md:text-4xl">{c.tools_section.title}</h2></div>
-            <a href="#pricing" className="text-[15px] font-semibold text-navy-700">كل الأدوات متاحة في كل الباقات ←</a>
+            <a href="#pricing" className="text-[15px] font-semibold text-navy-700">{T("كل الأدوات متاحة في كل الباقات ←", "All tools are included in every plan →")}</a>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {tools.map((t) => (
               <a key={t.id} href="#pricing" className="card flex flex-col gap-3 p-6 transition hover:-translate-y-0.5 hover:border-gold-500">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-800 text-gold-500"><Icon name={t.icon} size={24} /></span>
-                <span className="text-xs font-semibold text-subtle">{catLabel[t.category]}</span>
+                <span className="text-xs font-semibold text-subtle">{catLabel[lang][t.category]}</span>
                 <span className="text-[19px] font-bold text-navy-900">{t.name}</span>
                 <span className="text-[15px] leading-7 text-muted">{t.description}</span>
               </a>
@@ -120,26 +129,26 @@ export default async function Home() {
               <div key={p.id} className={p.is_featured
                 ? "relative flex flex-col gap-5 rounded-3xl border-2 border-gold-500 bg-navy-800 p-8 text-white"
                 : "card flex flex-col gap-5 rounded-3xl p-8"}>
-                {p.is_featured && <span className="absolute -top-3.5 right-8 rounded-full bg-gold-500 px-3 py-1 text-[13px] font-bold text-navy-900">الأكثر اختياراً</span>}
+                {p.is_featured && <span className="absolute -top-3.5 end-8 rounded-full bg-gold-500 px-3 py-1 text-[13px] font-bold text-navy-900">{T("الأكثر اختياراً", "Most popular")}</span>}
                 <div><div className={`text-lg font-bold ${p.is_featured ? "text-gold-500" : ""}`}>{p.name}</div><div className={`mt-1 text-sm ${p.is_featured ? "text-white/75" : "text-subtle"}`}>{p.subtitle}</div></div>
-                <div className="flex items-baseline gap-2"><span className="font-latin text-5xl font-bold">{Number(p.price_kwd)}</span><span className="font-semibold">د.ك</span><span className={p.is_featured ? "text-white/75" : "text-subtle"}>/ شهرياً</span></div>
+                <div className="flex items-baseline gap-2"><span className="font-latin text-5xl font-bold">{Number(p.price_kwd)}</span><span className="font-semibold">{T("د.ك", "KWD")}</span><span className={p.is_featured ? "text-white/75" : "text-subtle"}>{T("/ شهرياً", "/ month")}</span></div>
                 <ul className="flex flex-col gap-2.5 text-[15px]">
-                  <li className="flex items-center gap-2"><Icon name="feather" size={16} className="text-gold-500" />{p.credits.toLocaleString("en")} ريشة كل شهر</li>
-                  {(p.bonus_credits ?? 0) > 0 && <li className={`flex items-center gap-2 font-bold ${p.is_featured ? "text-gold-500" : "text-[#9A7A35]"}`}><span aria-hidden="true" className="w-4 text-center text-[15px]">🎁</span>+ {p.bonus_credits!.toLocaleString("en")} ريشة هدية كل شهر</li>}
+                  <li className="flex items-center gap-2"><Icon name="feather" size={16} className="text-gold-500" />{p.credits.toLocaleString("en")} {T("ريشة كل شهر", "credits every month")}</li>
+                  {(p.bonus_credits ?? 0) > 0 && <li className={`flex items-center gap-2 font-bold ${p.is_featured ? "text-gold-500" : "text-[#9A7A35]"}`}><span aria-hidden="true" className="w-4 text-center text-[15px]">🎁</span>+ {p.bonus_credits!.toLocaleString("en")} {T("ريشة هدية كل شهر", "bonus credits every month")}</li>}
                   {p.features.map((f) => <li key={f} className="flex items-center gap-2"><Icon name="check" size={16} className={p.is_featured ? "text-gold-500" : "text-navy-700"} strokeWidth={2.2} />{f}</li>)}
                 </ul>
-                <Link href={`/signup?plan=${p.id}`} className={`btn mt-auto py-3.5 ${p.is_featured ? "btn-gold" : "btn-outline"}`}>اشترك في {p.name}</Link>
+                <Link href={`/signup?plan=${p.id}`} className={`btn mt-auto py-3.5 ${p.is_featured ? "btn-gold" : "btn-outline"}`}>{T(`اشترك في ${p.name}`, `Get ${p.name}`)}</Link>
               </div>
             ))}
           </div>
-          <ManagedService s={c.managed_service} />
+          <ManagedService s={c.managed_service} lang={lang} />
         </div>
       </section>
 
       {/* FAQ */}
       <section id="faq" className="border-t border-[#E6EBF2] bg-canvas">
         <div className="mx-auto flex max-w-3xl flex-col gap-7 px-6 py-20">
-          <h2 className="text-center text-3xl font-bold text-navy-900 md:text-4xl">أسئلة شائعة</h2>
+          <h2 className="text-center text-3xl font-bold text-navy-900 md:text-4xl">{T("أسئلة شائعة", "Frequently asked questions")}</h2>
           <div className="flex flex-col gap-3">
             {c.faq.items.map((f) => (
               <details key={f.q} className="group card rounded-2xl px-6 py-5">
