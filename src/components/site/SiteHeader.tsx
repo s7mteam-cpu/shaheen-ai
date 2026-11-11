@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Icon } from "@/components/Icon";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LangToggle } from "@/components/LangToggle";
@@ -22,7 +21,7 @@ export function SiteHeader({ signedIn, lang = "ar", chosen = lang }: { signedIn:
             <Link href="/app" className="btn btn-gold whitespace-nowrap px-3 py-1.5 text-[13px] sm:px-5 sm:py-2.5 sm:text-[15px]">{T("لوحة التحكم", "Dashboard")}</Link>
           ) : (
             <>
-              <Link href="/login" aria-label={T("تسجيل الدخول", "Sign in")} className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-white/25 px-2 text-[13px] font-semibold text-white hover:bg-white/5 sm:h-auto sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-[15px]"><Icon name="user" size={17} className="sm:hidden" /><span className="hidden sm:inline">{T("تسجيل الدخول", "Sign in")}</span></Link>
+              <Link href="/login" className="shrink-0 whitespace-nowrap rounded-xl border border-white/25 px-2 py-1.5 text-[12.5px] font-semibold text-white hover:bg-white/5 sm:px-4 sm:py-2.5 sm:text-[15px]">{T("تسجيل الدخول", "Sign in")}</Link>
               <Link href="/#pricing" className="btn btn-gold shrink-0 whitespace-nowrap px-3 py-1.5 text-[13px] sm:px-5 sm:py-2.5 sm:text-[15px]">{T("اشترك الآن", "Get started")}</Link>
             </>
           )}
