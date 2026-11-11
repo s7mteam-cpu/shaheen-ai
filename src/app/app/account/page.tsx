@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getPlans, getSessionProfile } from "@/lib/data";
 import { stripe } from "@/lib/stripe";
 import { PasswordForm } from "@/components/app/PasswordForm";
+import { DeleteAccount } from "@/components/app/DeleteAccount";
+import { CreditHistory } from "@/components/app/CreditHistory";
 import { openPortal, saveProfile, startCheckout } from "./actions";
 
 export const metadata = { title: "الحساب والاشتراك" };
@@ -24,11 +26,11 @@ export default async function Account({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
-      <h1 className="text-[28px] font-bold text-navy-900">الحساب والاشتراك</h1>
+      <h1 className="text-[28px] font-bold text-navy-900">{tab === "spend" ? "مصاريف الريش" : "الحساب والاشتراك"}</h1>
       {error === "plan" && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">هذه الباقة غير جاهزة للدفع بعد. تواصل مع الدعم.</p>}
-      <div role="tablist" aria-label="أقسام الحساب" className="card flex w-full gap-1 rounded-2xl p-1 sm:w-auto sm:self-start">
+      {tab !== "spend" && <div role="tablist" aria-label="أقسام الحساب" className="card flex w-full gap-1 overflow-x-auto rounded-2xl p-1 sm:w-auto sm:self-start">
         {tabs.map(([id, l]) => <Link key={id} role="tab" aria-selected={tab === id} href={`/app/account?tab=${id}`} className={`flex-1 whitespace-nowrap rounded-xl px-3 py-2.5 text-center text-[15px] font-semibold sm:flex-none sm:px-5 ${tab === id ? "bg-navy-800 text-white" : "text-muted"}`}>{l}</Link>)}
-      </div>
+      </div>}
 
       {tab === "sub" && (
         <div className="flex flex-col gap-6">
@@ -98,6 +100,8 @@ export default async function Account({ searchParams }: { searchParams: Promise<
         </section>
       )}
 
+      {tab === "spend" && <CreditHistory balance={profile?.credits ?? 0} />}
+
       {tab === "me" && (
         <div className="grid gap-5 md:grid-cols-2">
           <form action={saveProfile} className="card flex flex-col gap-3 p-6">
@@ -109,6 +113,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
             <button className="btn btn-primary self-start px-6 py-2.5">حفظ التغييرات</button>
           </form>
           <PasswordForm />
+          {profile?.role !== "admin" && <DeleteAccount />}
         </div>
       )}
     </div>

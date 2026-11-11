@@ -21,7 +21,8 @@ export function SideNav({ isAdmin, support, tools }: { isAdmin: boolean; support
   const home = path === "/app";
   const works = path.startsWith("/app/works");
   const brand = path.startsWith("/app/brand");
-  const account = path.startsWith("/app/account") && tab !== "me";
+  const account = path.startsWith("/app/account") && tab !== "me" && tab !== "spend";
+  const spend = path.startsWith("/app/account") && tab === "spend";
   const settings = path.startsWith("/app/account") && tab === "me";
 
   return (
@@ -37,6 +38,7 @@ export function SideNav({ isAdmin, support, tools }: { isAdmin: boolean; support
       <Link href="/app/works" aria-current={works ? "page" : undefined} className={item(works)}><Icon name="folder" size={18} className={ic(works)} />أعمالي</Link>
       <Link href="/app/brand" aria-current={brand ? "page" : undefined} className={item(brand)}><Icon name="palette" size={18} className={ic(brand)} />هويتي التجارية</Link>
       <Link href="/app/account" aria-current={account ? "page" : undefined} className={item(account)}><Icon name="card" size={18} className={ic(account)} />الحساب والاشتراك</Link>
+      <Link href="/app/account?tab=spend" aria-current={spend ? "page" : undefined} className={item(spend)}><Icon name="feather" size={18} className={ic(spend)} />مصاريف الريش</Link>
       {support && (
         <a href={support} target="_blank" rel="noreferrer" className={item(false)}><Icon name="chat" size={18} className="text-navy-700" />التواصل مع الدعم</a>
       )}
