@@ -10,6 +10,7 @@ import { deleteUserCompletely, emptyFolder } from "@/lib/server/deleteUser";
 import { audit } from "@/lib/server/audit";
 import { REMEMBER_COOKIE } from "@/lib/supabase/remember";
 import { latestAccess } from "@/lib/server/supportAccess";
+import { stripe } from "@/lib/stripe";
 
 type Res = { ok?: string; error?: string } | undefined;
 const done = () => revalidatePath("/admin/customers");
@@ -171,4 +172,50 @@ export async function stopImpersonating() {
   jar.delete("shaheen_imp");
   await (await createClient()).auth.signOut({ scope: "local" });
   redirect("/login?next=/admin/customers");
+}
+
+/** Cancel a customer's subscription: at the end of the paid month (no more charges), or right now (plan and ريش stop today). */
+export async function cancelCustomerSub(_prev: Res, form: FormData): Promise<Res> {
+  const me = await guard();
+  const p = await target(String(form.get("user_id")));
+  if (!p) return { error: "العميل غير موجود." };
+  const now = form.get("mode") === "now";
+  const admin = createAdminClient();
+  const { data: sub } = await admin.from("subscriptions").select("*").eq("user_id", p.id).in("status", ["active", "trialing", "past_due"]).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  if (!sub) return { error: "ما عنده اشتراك شغّال." };
+  try {
+    if (sub.provider !== "tap" && process.env.STRIPE_SECRET_KEY) {
+      if (now) await stripe().subscriptions.cancel(sub.id); else await stripe().subscriptions.update(sub.id, { cancel_at_period_end: true });
+    }
+  } catch { return { error: "ما قدرنا نوصل لبوابة الدفع، حاول مرة ثانية." }; }
+  const stamp = new Date().toISOString();
+  if (now) {
+    await admin.from("subscriptions").update({ status: "canceled", cancel_at_period_end: true, updated_at: stamp }).eq("id", sub.id);
+    await admin.from("profiles").update({ plan_id: null }).eq("id", p.id);
+    if (p.credits) await admin.rpc("grant_credits", { p_user: p.id, p_amount: -p.credits, p_reason: "admin", p_ref: `admin-cancel:${sub.id}:${Date.now()}` });
+  } else {
+    await admin.from("subscriptions").update({ cancel_at_period_end: true, updated_at: stamp }).eq("id", sub.id);
+  }
+  await admin.from("notifications").insert({
+    user_id: p.id, kind: "info", title: now ? "انلغى اشتراكك" : "انوقف تجديد اشتراكك",
+    body: now ? "فريق شاهين ألغى اشتراكك. حسابك وأعمالك محفوظة، وتقدر ترجع تشترك بأي وقت." : "اشتراكك يكمل لين نهاية الشهر المدفوع، وما ينخصم منك شي بعدها.",
+    link: "/app/account",
+  }).then(() => null, () => null);
+  await audit(me, "cancel_sub", p, now ? "إلغاء فوري" : "إيقاف التجديد");
+  done();
+  return { ok: now ? "انلغى الاشتراك الحين، وانشال من الإيراد الشهري." : "انوقف التجديد. يكمل لين نهاية شهره، وبعدها ينشال من الإيراد الشهري." };
+}
+
+/** Undo «إيقاف التجديد» for a customer. */
+export async function resumeCustomerSub(form: FormData) {
+  const me = await guard();
+  const p = await target(String(form.get("user_id")));
+  if (!p) return;
+  const admin = createAdminClient();
+  const { data: sub } = await admin.from("subscriptions").select("id,provider").eq("user_id", p.id).in("status", ["active", "trialing", "past_due"]).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  if (!sub) return;
+  if (sub.provider !== "tap" && process.env.STRIPE_SECRET_KEY) await stripe().subscriptions.update(sub.id, { cancel_at_period_end: false }).catch(() => null);
+  await admin.from("subscriptions").update({ cancel_at_period_end: false, updated_at: new Date().toISOString() }).eq("id", sub.id);
+  await audit(me, "resume_sub", p, "");
+  done();
 }

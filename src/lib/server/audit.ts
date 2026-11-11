@@ -12,5 +12,5 @@ export async function audit(admin: { id: string; email?: string | null }, action
 export const AUDIT_AR: Record<string, string> = {
   credits_add: "إضافة رصيد", credits_sub: "خصم رصيد", delete_account: "حذف الحساب", delete_work: "حذف أعماله",
   block: "حظر البريد", unblock: "إلغاء الحظر", impersonate: "الدخول على حسابه", access_request: "طلب صلاحية دخول", suspend: "إيقاف", unsuspend: "إلغاء الإيقاف",
-  make_admin: "جعله مديراً", team_perms: "تعديل صلاحيات الفريق", remove_admin: "إزالة المدير",
+  cancel_sub: "إلغاء الاشتراك", resume_sub: "إرجاع التجديد", make_admin: "جعله مديراً", team_perms: "تعديل صلاحيات الفريق", remove_admin: "إزالة المدير",
 };

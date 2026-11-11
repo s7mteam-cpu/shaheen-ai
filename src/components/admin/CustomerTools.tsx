@@ -96,3 +96,31 @@ export function Impersonate({ userId, action }: { userId: string; action: Act })
     </form>
   );
 }
+
+/** Cancel the customer's subscription: at the end of the month, or right now. */
+export function CancelSub({ userId, action }: { userId: string; action: Act }) {
+  const [open, setOpen] = useState(false);
+  const [state, run, pending] = useActionState(action, undefined);
+  if (!open) return <button type="button" onClick={() => setOpen(true)} className="btn border border-red-300 py-2.5 font-semibold text-red-700 hover:bg-red-50">إلغاء اشتراكه</button>;
+  return (
+    <form action={run} className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50/60 p-4">
+      <input type="hidden" name="user_id" value={userId} />
+      <p className="font-bold text-red-800">إلغاء اشتراك العميل</p>
+      <label className="flex cursor-pointer items-start gap-2 text-[13px] leading-6 text-navy-900">
+        <input type="radio" name="mode" value="end" defaultChecked className="mt-1.5 accent-red-700" />
+        <span><b>إيقاف التجديد:</b> يكمل لين نهاية الشهر اللي دفعه، وما ينخصم منه شي بعدها.</span>
+      </label>
+      <label className="flex cursor-pointer items-start gap-2 text-[13px] leading-6 text-navy-900">
+        <input type="radio" name="mode" value="now" className="mt-1.5 accent-red-700" />
+        <span><b>إلغاء فوري:</b> يوقف الحين وينمسح رصيد ريشه (مثلاً بعد ما ترجّع له فلوسه). حسابه وأعماله تظل.</span>
+      </label>
+      <p className="text-[12px] text-subtle">إرجاع الفلوس نفسه تسويه من لوحة بوابة الدفع (Tap)، وهذا الزر يوقف الاشتراك بس.</p>
+      {state?.ok && <p role="status" className="text-sm font-semibold text-emerald-700">{state.ok}</p>}
+      {state?.error && <p role="alert" className="text-sm font-semibold text-red-700">{state.error}</p>}
+      <div className="flex gap-2">
+        <button disabled={pending || !!state?.ok} className="btn flex-1 bg-red-700 py-2.5 font-semibold text-white hover:bg-red-800 disabled:opacity-40">{pending ? "لحظة…" : "أكّد"}</button>
+        <button type="button" onClick={() => setOpen(false)} className="btn btn-outline flex-1 py-2.5">{state?.ok ? "تمام" : "تراجع"}</button>
+      </div>
+    </form>
+  );
+}

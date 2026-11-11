@@ -2,10 +2,10 @@ import { guardPage, adminAccess } from "@/lib/server/auth";
 import Link from "next/link";
 import { waLink } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { setUserFlags, deleteCustomerWork, blockCustomer, unblockEmail, impersonate, requestAccess } from "./actions";
+import { setUserFlags, deleteCustomerWork, blockCustomer, unblockEmail, impersonate, requestAccess, cancelCustomerSub, resumeCustomerSub } from "./actions";
 import { latestAccess } from "@/lib/server/supportAccess";
 import { AUDIT_AR } from "@/lib/server/audit";
-import { CreditsForm, DeleteCustomer, DeleteWork, BlockEmail, Impersonate, RequestAccess } from "@/components/admin/CustomerTools";
+import { CreditsForm, DeleteCustomer, DeleteWork, BlockEmail, Impersonate, RequestAccess, CancelSub } from "@/components/admin/CustomerTools";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +24,10 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   const isBlocked = !!selected?.email && blocked.some((b) => b.email === String(selected.email).toLowerCase());
   const auditRes = selected ? await admin.from("admin_audit").select("action,admin_email,note,created_at").eq("target_user", selected.id).order("created_at", { ascending: false }).limit(15) : null;
   const access = selected ? await latestAccess(selected.id) : null;
+  const { data: sub } = selected
+    ? await admin.from("subscriptions").select("*").eq("user_id", selected.id).in("status", ["active", "trialing", "past_due"]).order("updated_at", { ascending: false }).limit(1).maybeSingle()
+    : { data: null };
+  const SUB_AR: Record<string, string> = { active: "نشط", trialing: "تجريبي", past_due: "متأخر الدفع" };
   const accessAr: Record<string, string> = { pending: "بانتظار موافقة العميل", approved: "وافق العميل", denied: "رفض العميل", revoked: "ملغية", expired: "انتهت المدة" };
   const log = auditRes && !auditRes.error ? auditRes.data ?? [] : [];
   const reasonAr: Record<string, string> = { subscription: "اشتراك", renewal_reset: "تصفير التجديد", spend: "استخدام", refund: "استرجاع", admin: "تعديل إداري", referral: "دعوة" };
@@ -58,6 +62,22 @@ export default async function Customers({ searchParams }: { searchParams: Promis
               : <p className="text-sm text-subtle">ما أضاف رقم واتساب للحين (بينطلب منه أول ما يدخل).</p>}
             <p className="text-sm text-subtle">الرصيد الحالي: <strong className="text-navy-900">{selected.credits} ريشة</strong></p>
             <CreditsForm key={selected.id} userId={selected.id} />
+            <div className="flex flex-col gap-2 rounded-2xl bg-canvas p-3">
+              <p className="text-sm font-bold">الاشتراك</p>
+              {sub ? (
+                <>
+                  <p className="text-[13px] leading-6 text-navy-900">
+                    {SUB_AR[sub.status] ?? sub.status} · {sub.plan_id ?? "—"}
+                    {sub.pay_method && <> · {sub.pay_method === "card" ? `بطاقة ${sub.card_label ?? ""}` : "كي نت / رابط شهري"}</>}
+                    {sub.current_period_end && <><br />{sub.cancel_at_period_end ? "ينتهي في" : "التجديد"}: {new Date(sub.current_period_end).toLocaleDateString("ar-KW")}</>}
+                  </p>
+                  {sub.cancel_at_period_end
+                    ? <form action={resumeCustomerSub}><input type="hidden" name="user_id" value={selected.id} /><button className="btn btn-outline w-full py-2.5 text-sm">رجّع التجديد</button></form>
+                    : null}
+                  <CancelSub key={`c-${selected.id}`} userId={selected.id} action={cancelCustomerSub} />
+                </>
+              ) : <p className="text-[13px] text-subtle">ما عنده اشتراك شغّال.</p>}
+            </div>
             <form action={setUserFlags} className="flex gap-2">
               <input type="hidden" name="user_id" value={selected.id} />
               <input type="hidden" name="is_suspended" value={selected.is_suspended ? "false" : "true"} />
