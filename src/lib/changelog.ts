@@ -3,6 +3,10 @@ export type Change = { version: string; date: string; title: string; items: stri
 
 export const CHANGELOG: Change[] = [
   {
+    version: "v26", date: "2026-11-11", title: "فحص شامل",
+    items: ["جواب سؤال «هل الأعمال ملكي؟» بالأسئلة الشائعة بدل النص المؤقت."],
+  },
+  {
     version: "v25", date: "2026-11-11", title: "تصفير أشمل",
     items: [
       "كل خيار تصفير صار لحاله: 6 عدّادات للنظرة العامة (المشتركون، الإيراد، الحسابات، الريش المستهلكة، الطلبات، الفاشلة) بترجع صفر بدون حذف بيانات.",
