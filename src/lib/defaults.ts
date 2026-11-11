@@ -29,6 +29,8 @@ export type Tool = {
   provider_model: string | null;
   is_enabled: boolean;
   sort_order: number;
+  demo_url?: string | null;     // YouTube link or an uploaded clip
+  demo_thumb?: string | null;   // 9:16 picture shown on the card
 };
 
 export type SiteContent = {
@@ -75,7 +77,7 @@ export const defaultContent: SiteContent = {
     highlight: "يبيع",
     subtitle: "شاهين استوديو المحتوى العربي لمشروعك: صور منتجات، فيديوهات، إعلانات وتعليق صوتي بلهجة جمهورك — كلها من مكان واحد، وبهويتك أنت.",
     cta_primary: "اشترك الآن",
-    cta_secondary: "استكشف الأدوات",
+    cta_secondary: "استكشف الأدوات وطريقة استخدامها",
     points: ["بدون كاميرا أو فريق إنتاج", "أكثر من 20 لهجة عربية", "إلغاء في أي وقت"],
     image: "",
   },

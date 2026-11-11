@@ -3,7 +3,8 @@ import { getTools } from "@/lib/data";
 import { saveTool } from "../actions";
 import { providerInfo, toolProviders, type ProviderId } from "@/lib/providers/registry";
 import { getL } from "@/lib/server/lang";
-import { L } from "@/lib/i18n/ui";
+import { demoThumb } from "@/lib/video";
+import { DemoField } from "@/components/admin/DemoField";
 
 export const dynamic = "force-dynamic";
 const icons = ["sparkles", "camera", "megaphone", "film", "user", "scissors", "mic", "waves"];
@@ -35,6 +36,24 @@ export default async function ToolsAdmin() {
             <input name="provider_model" defaultValue={t.provider_model ?? ""} dir="ltr" className="field text-right" placeholder={Object.entries(toolProviders[t.id] ?? {}).map(([p, m]) => `${p}: ${m}`).join(" | ")} />
           </div>
           <div className="flex flex-col gap-1.5"><label className="label">{L("الترتيب")}</label><input name="sort_order" type="number" defaultValue={t.sort_order} className="field" /></div>
+          <fieldset className="flex flex-col gap-3 rounded-2xl border border-line bg-canvas p-4 md:col-span-2">
+            <legend className="px-1 text-sm font-bold text-navy-900">{L("فيديو المثال (يطلع ببطاقة الأداة بالصفحة الرئيسية وداخل الأداة)")}</legend>
+            <div className="flex flex-wrap items-start gap-4">
+              {demoThumb(t) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={demoThumb(t)!} alt="" className="aspect-[9/16] w-[72px] shrink-0 rounded-lg object-cover ring-1 ring-line" />
+              )}
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <DemoField tool={t.id} initial={t.demo_url ?? ""} />
+                <div className="grid gap-3">
+                  <label className="flex flex-col gap-1.5 text-sm"><span className="label">{L("صورة البطاقة 9:16 (اختياري)")}</span>
+                    <input name="demo_thumb_file" type="file" accept="image/png,image/jpeg,image/webp" className="text-sm" />
+                    <span className="text-[12px] text-subtle">{L("إذا ما رفعت صورة، تطلع صورة الفيديو من يوتيوب.")}</span></label>
+                </div>
+                {t.demo_thumb && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="demo_thumb_clear" className="h-4 w-4 accent-red-700" />{L("احذف صورة البطاقة")}</label>}
+              </div>
+            </div>
+          </fieldset>
           <label className="flex items-center gap-2"><input type="checkbox" name="is_enabled" defaultChecked={t.is_enabled} className="h-5 w-5 accent-navy-700" />{L("الأداة مفعّلة")}</label>
           <button className="btn btn-primary justify-self-end px-6 py-2.5">{L("حفظ")}</button>
         </form>

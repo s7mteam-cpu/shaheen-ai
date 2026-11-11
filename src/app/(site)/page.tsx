@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { Circuit } from "@/components/Circuit";
 import { ManagedService } from "@/components/site/ManagedService";
+import { DemoVideo } from "@/components/DemoVideo";
+import { demoThumb } from "@/lib/video";
 import { getContent, getGallery, getPlans, getTools } from "@/lib/data";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
@@ -89,12 +91,15 @@ export default async function Home() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {tools.map((t) => (
-              <a key={t.id} href="#pricing" className="card flex flex-col gap-3 p-6 transition hover:-translate-y-0.5 hover:border-gold-500">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-800 text-gold-500"><Icon name={t.icon} size={24} /></span>
-                <span className="text-xs font-semibold text-subtle">{catLabel[lang][t.category]}</span>
-                <span className="text-[19px] font-bold text-navy-900">{t.name}</span>
-                <span className="text-[15px] leading-7 text-muted">{t.description}</span>
-              </a>
+              <div key={t.id} className="card flex gap-4 p-6 transition hover:-translate-y-0.5 hover:border-gold-500">
+                <a href="#pricing" className="flex min-w-0 flex-1 flex-col gap-3">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-800 text-gold-500"><Icon name={t.icon} size={24} /></span>
+                  <span className="text-xs font-semibold text-subtle">{catLabel[lang][t.category]}</span>
+                  <span className="text-[19px] font-bold text-navy-900">{t.name}</span>
+                  <span className="text-[15px] leading-7 text-muted">{t.description}</span>
+                </a>
+                {t.demo_url && <DemoVideo url={t.demo_url} thumb={demoThumb(t)} title={t.name} />}
+              </div>
             ))}
           </div>
         </div>

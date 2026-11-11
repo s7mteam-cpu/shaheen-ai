@@ -18,6 +18,7 @@ import { getContent, getSessionProfile, getTools, getToolsL } from "@/lib/data";
 import { toolSpecs } from "@/lib/tools/specs";
 import { listWorks } from "@/lib/works";
 import { getL } from "@/lib/server/lang";
+import { DemoVideo } from "@/components/DemoVideo";
 
 type P = { params: Promise<{ id: string }>; searchParams: Promise<{ job?: string }> };
 
@@ -39,7 +40,10 @@ export default async function ToolPage({ params, searchParams }: P) {
     <div className="flex flex-col gap-5">
       <div>
         <nav aria-label={L("مسار الصفحة")} className="text-sm text-subtle"><Link href="/app" className="text-navy-700">{L("الرئيسية")}</Link> › <Link href="/app/tools" className="text-navy-700">{L("الأدوات")}</Link> › {tool.name}</nav>
-        <h1 className="mt-1.5 text-[28px] font-bold text-navy-900">{tool.name}</h1>
+        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-[28px] font-bold text-navy-900">{tool.name}</h1>
+          {tool.demo_url && <DemoVideo url={tool.demo_url} title={tool.name} variant="button" />}
+        </div>
         <p className="mt-1 text-muted">{tool.description}</p>
       </div>
       {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>

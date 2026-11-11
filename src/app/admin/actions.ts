@@ -38,7 +38,25 @@ export async function saveTool(form: FormData) {
     sort_order: Number(form.get("sort_order")) || 0,
     is_enabled: form.get("is_enabled") === "on",
   }).eq("id", id);
+  await saveToolDemo(id, form);
   refresh();
+}
+
+/** Demo video of a tool: a YouTube link, or a short clip uploaded here; plus an optional 9:16 picture for the card. */
+async function saveToolDemo(id: string, form: FormData) {
+  const admin = createAdminClient();
+  const upload = async (file: File, folder: string) => {
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+    const path = `${folder}/${id}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const { error } = await admin.storage.from("site").upload(path, file, { contentType: file.type });
+    return error ? null : admin.storage.from("site").getPublicUrl(path).data.publicUrl;
+  };
+  const patch: { demo_url?: string | null; demo_thumb?: string | null } = {};
+  if (form.has("demo_url")) patch.demo_url = String(form.get("demo_url") || "").trim() || null;
+  const pic = form.get("demo_thumb_file") as File | null;
+  if (pic && pic.size && pic.type.startsWith("image/")) patch.demo_thumb = await upload(pic, "demos");
+  if (form.get("demo_thumb_clear") === "on") patch.demo_thumb = null;
+  if (Object.keys(patch).length) await admin.from("tools").update(patch).eq("id", id).then(() => null, () => null);
 }
 
 export async function savePlan(form: FormData) {
