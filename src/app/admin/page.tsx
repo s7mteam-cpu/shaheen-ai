@@ -11,15 +11,20 @@ export default async function Overview() {
   const r = await counterResets();
   const since = (k: keyof typeof r, base = "1970-01-01T00:00:00Z") => (r[k] && r[k]! > base ? r[k]! : base);
   const active = ["active", "trialing", "past_due"];
-  const [{ data: subs }, { data: subsRev }, { data: plans }, { count: users }, { data: spent }, { count: failed }, { count: jobs }] = await Promise.all([
-    admin.from("subscriptions").select("plan_id,status").in("status", active).gte("updated_at", since("subs")),
-    admin.from("subscriptions").select("plan_id").in("status", active).gte("updated_at", since("revenue")),
+  const [{ data: allSubs }, { data: allSubsRev }, { data: plans }, { count: users }, { data: spent }, { count: failed }, { count: jobs }, { data: team }] = await Promise.all([
+    admin.from("subscriptions").select("plan_id,status,user_id").in("status", active).gte("updated_at", since("subs")),
+    admin.from("subscriptions").select("plan_id,user_id").in("status", active).gte("updated_at", since("revenue")),
     admin.from("plans").select("id,name,price_kwd"),
     admin.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", since("accounts")),
     admin.from("credit_ledger").select("amount").eq("reason", "spend").gte("created_at", since("spent", monthStart)),
     admin.from("jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("created_at", since("failed", monthStart)),
     admin.from("jobs").select("id", { count: "exact", head: true }).gte("created_at", since("jobs", monthStart)),
+    admin.from("profiles").select("id").in("role", ["admin", "staff"]),
   ]);
+  // The admin team's own (test) subscriptions are not customers, so they never count here.
+  const teamIds = new Set((team ?? []).map((t) => t.id));
+  const subs = (allSubs ?? []).filter((x) => !teamIds.has(x.user_id));
+  const subsRev = (allSubsRev ?? []).filter((x) => !teamIds.has(x.user_id));
   const price = (id: string | null) => Number(plans?.find((p) => p.id === id)?.price_kwd ?? 0);
   const mrr = (subsRev ?? []).reduce((s, x) => s + price(x.plan_id), 0);
   const used = -(spent ?? []).reduce((s, x) => s + x.amount, 0);
