@@ -17,8 +17,9 @@ import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
+import { designPack } from "@/design/packs";
 import {
-  usedIcons, DECO_IDS, DECO_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum,
+  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum,
   type DAspect, type DColors, type DImg, type DItem, type DesignSpec, type LayoutId, type Slide,
 } from "@/design/spec";
 
@@ -240,6 +241,16 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           <div className="flex flex-wrap gap-2">
             {DECO_IDS.map((id) => <button key={id} type="button" aria-pressed={(spec.deco ?? "circles") === id} onClick={() => setSpec({ ...spec, deco: id })} className="chip">{L(DECO_LABELS[id])}</button>)}
           </div>
+          <Sub>{L("الإطار")}</Sub>
+          <div className="flex flex-wrap gap-2">
+            {FRAME_IDS.map((id) => <button key={id} type="button" aria-pressed={(spec.frame ?? "none") === id} onClick={() => setSpec({ ...spec, frame: id })} className="chip">{L(FRAME_LABELS[id])}</button>)}
+          </div>
+          <Sub>{L("ملصق بالزاوية")}</Sub>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-pressed={!s.sticker} onClick={() => setSlide({ sticker: null })} className="chip">{L("بدون")}</button>
+            {STICKER_IDS.map((id) => <button key={id} type="button" aria-pressed={s.sticker?.kind === id} onClick={() => setSlide({ sticker: { kind: id, text: s.sticker?.text || L("جديد") } })} className="chip">{L(STICKER_LABELS[id])}</button>)}
+          </div>
+          {s.sticker && <input value={s.sticker.text} maxLength={24} onChange={(e) => setSlide({ sticker: { ...s.sticker!, text: e.target.value } })} className="field py-2.5" aria-label={L("نص الملصق")} />}
           <Sub>{L("أسلوب الأيقونات")}</Sub>
           <div className="flex flex-wrap gap-2">
             {ICON_STYLES.map(([id, l]) => <button key={id} type="button" aria-pressed={(spec.icons ?? "line") === id} onClick={() => setSpec({ ...spec, icons: id })} className="chip">{L(l)}</button>)}
@@ -279,7 +290,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           </div>
           <Sub>{L("لوحات جاهزة")}</Sub>
           <div className="flex flex-wrap gap-2">
-            {PALETTES.map((p) => (
+            {[...(designPack(spec.industry)?.palettes ?? []).map((colors, i) => ({ name: `${L("مجالك")} ${i + 1}`, colors })), ...PALETTES].map((p) => (
               <button key={L(p.name)} type="button" onClick={() => setSpec({ ...spec, colors: p.colors })} title={L(p.name)} className="flex items-center gap-1.5 rounded-full border border-line bg-white py-1 pe-3 ps-1 text-[13px]">
                 <span className="flex overflow-hidden rounded-full">{[p.colors.bg, p.colors.accent, p.colors.ink].map((c) => <span key={c} className="h-6 w-4" style={{ background: c }} />)}</span>{L(p.name)}
               </button>

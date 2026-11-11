@@ -3,7 +3,8 @@ import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getL } from "@/lib/server/lang";
 import { INDUSTRIES } from "@/design/industries";
-import { DECO_IDS, LAYOUT_IDS } from "@/design/spec";
+import { DECO_IDS, FRAME_IDS, LAYOUT_IDS, STICKER_IDS } from "@/design/spec";
+import { DESIGN_PACKS, DESIGN_TARGET, designReport } from "@/design/packs";
 import { PACKS, packReport } from "@/remotion/packs";
 import { BOARD_STYLES, CAPTION_STYLES, GRADES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS } from "@/remotion/montage";
 import { ILLUS_STYLES } from "@/remotion/styles";
@@ -21,7 +22,6 @@ const TOOLS = [
 ] as const;
 
 // What "complete" means for one field, per kind of tool
-const DESIGN_TARGET = { palettes: 4, layouts: 5, decos: 2 };
 const VIDEO_TARGET = { signature: 6, recipes: 3, transitions: 4, illus: 3, boards: 3 };
 
 type Row = { id: string; label: string; group: string; cells: (string | number)[]; gaps: string[] };
@@ -51,15 +51,13 @@ export default async function Packs({ searchParams }: { searchParams: Promise<{ 
   let rows: Row[] = [];
   let lib: [string, number][] = [];
   if (tool.kind === "design") {
-    head = ["مجموعات ألوان", "تخطيطات", "زخرفة", "خط", "ستايل صور", "مثال جاهز"];
+    head = ["الإصدار", "مجموعات ألوان", "تخطيطات", "زخارف", "إطارات", "ملصقات", "خطوط", "أيقونات", "ستايلات صور", "أفكار جاهزة"];
     rows = INDUSTRIES.map((i) => {
-      const gaps: string[] = [];
-      if (i.palettes.length < DESIGN_TARGET.palettes) gaps.push(`ألوان ${i.palettes.length}/${DESIGN_TARGET.palettes}`);
-      if (i.layouts.length < DESIGN_TARGET.layouts) gaps.push(`تخطيطات ${i.layouts.length}/${DESIGN_TARGET.layouts}`);
-      if (1 < DESIGN_TARGET.decos) gaps.push(`زخرفة 1/${DESIGN_TARGET.decos}`);
-      return { id: i.id, label: i.label, group: i.group, cells: [i.palettes.length, i.layouts.length, 1, 1, 1, 1], gaps };
+      const p = DESIGN_PACKS[i.id];
+      const r = designReport(p);
+      return { id: i.id, label: i.label, group: i.group, cells: [`v${p.version}`, r.palettes, r.layouts, r.decos, r.frames, r.stickers, r.fonts, r.icons, r.photo, r.recipes], gaps: r.gaps };
     });
-    lib = [["تخطيطات بالمكتبة", LAYOUT_IDS.length], ["زخارف", DECO_IDS.length], ["مجالات", INDUSTRIES.length]];
+    lib = [["تخطيطات بالمكتبة", LAYOUT_IDS.length], ["زخارف", DECO_IDS.length], ["إطارات", FRAME_IDS.length - 1], ["أنواع الملصقات", STICKER_IDS.length], ["مجالات", INDUSTRIES.length]];
   } else {
     head = ["الإصدار", "مشاهد خاصة", "مشاهد متاحة", "فيديوهات جاهزة", "انتقالات", "ألوان", "ترجمة", "خلفيات", "ستايلات رسم", "يستعير أكثر"];
     const list = tool.id === "lesson-video" ? INDUSTRIES.filter((i) => i.group === "تعليم وتدريب" || ["clinic", "nutrition", "tech", "law"].includes(i.id)) : INDUSTRIES;
@@ -92,7 +90,7 @@ export default async function Packs({ searchParams }: { searchParams: Promise<{ 
         {lib.map(([l, v]) => <div key={l} className="card p-4"><div className="text-[13px] text-subtle">{L(l)}</div><div className="mt-1 text-[26px] font-bold text-navy-900">{v}</div></div>)}
       </div>
       <p className="text-[13px] text-subtle">{tool.kind === "design"
-        ? L(`الهدف لكل مجال: ${DESIGN_TARGET.palettes} مجموعات ألوان، ${DESIGN_TARGET.layouts} تخطيطات، ${DESIGN_TARGET.decos} زخارف.`)
+        ? L(`الهدف لكل مجال: ${DESIGN_TARGET.palettes} مجموعات ألوان، ${DESIGN_TARGET.layouts} تخطيطات، ${DESIGN_TARGET.decos} زخارف، ${DESIGN_TARGET.frames} إطارات، ${DESIGN_TARGET.stickers} ملصقات، ${DESIGN_TARGET.photo} ستايلات صور، ${DESIGN_TARGET.recipes} أفكار جاهزة. كل عميل ياخذ تشكيلة مختلفة منها.`)
         : L(`الهدف لكل مجال: ${VIDEO_TARGET.signature} مشاهد خاصة، ${VIDEO_TARGET.recipes} فيديوهات جاهزة، ${VIDEO_TARGET.transitions} انتقالات، ${VIDEO_TARGET.illus} ستايلات رسم، ${VIDEO_TARGET.boards} خلفيات. «يستعير أكثر» = المشاهد اللي يجيبها الذكاء الاصطناعي من حزم ثانية لهالمجال — إذا تكررت، نضيف لهالمجال مشهد خاص بالتحديث الجاي.`)}</p>
 
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">

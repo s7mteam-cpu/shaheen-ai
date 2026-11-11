@@ -9,7 +9,9 @@ import { keyFor, splitIconSheet } from "@/lib/providers/iconsheet";
 import { ICON_EN } from "@/design/icon-names";
 import { config } from "@/lib/tools/run";
 import { industryBrief, industryById } from "@/design/industries";
-import { usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, DECO_IDS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
+import { designBrief, designPack } from "@/design/packs";
+import { guessIndustry } from "@/lib/server/guessIndustry";
+import { usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, DECO_IDS, FRAME_IDS, STICKER_IDS, STICKER_LABELS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
 
 export const maxDuration = 300;
 
@@ -27,6 +29,8 @@ const SYSTEM = `أنت مدير فني ومصمم سوشال ميديا خليج
 - الألوان: إذا للعميل ألوان هوية استخدمها ووزّع الأدوار: bg خلفية، ink لون النص (تباين عالي مع bg)، accent لون مميز للتأكيد والأزرار، soft سطح البطاقات (قريب من bg). إذا ما فيه، اختر لوحة راقية تناسب المجال (مطاعم دافئة، طبي هادئ، فخامة داكن وذهبي، أطفال مبهج...) وتجنّب التدرجات البنفسجية والنيون والكليشيهات.
 - الخط من: Cairo, Tajawal, Almarai, Changa, Amiri (Amiri للفخامة والتراث فقط).
 - deco زخرفة الخلفية من: ${DECO_IDS.join(", ")}.
+- frame إطار التصميم من: ${FRAME_IDS.join(", ")} (gold للفخامة، dashed ومرح للأطفال والدروس، none للبسيط).
+- sticker (اختياري لكل شريحة) {kind, text} لمسة بالزاوية: ${STICKER_IDS.map((k) => `${k} ${STICKER_LABELS[k]}`).join("، ")}. النص قصير جداً (1-3 كلمات) وصحيح، ولا تخترع معلومة ما ذكرها العميل (مثل «أصلي 100%» أو «ضمان») إلا إذا تناسب كلامه.
 - icons أسلوب الأيقونات: 3d (أيقونات ثلاثية الأبعاد احترافية بألوان الهوية، تنرسم بالذكاء الاصطناعي، الأفضل للتصاميم التسويقية العصرية إذا الصور مسموحة)، line (خطّية أنيقة، الافتراضي للستايل الراقي والبسيط)، duo (معبّاة بلون خفيف، عصرية)، emoji (أيقونات ملوّنة طبيعية، للستايل المبهج والزاهي والأطفال والأكل والعروض). إذا طلب العميل أيقونات طبيعية أو ملوّنة استخدم emoji.
 - إذا طلب العميل ستايل معيّن (ألوان زاهية، فخم، بسيط، داكن...) نفّذه بالألوان والتخطيط والزخرفة والأيقونات.
 - النصوص بلهجة مطلوبة وبإملاء صحيح، وجمل تسويقية قوية وقصيرة.
@@ -35,7 +39,7 @@ const SYSTEM = `أنت مدير فني ومصمم سوشال ميديا خليج
 ${LAYOUT_IDS.map((id) => `- ${id}: ${LAYOUTS[id].hint}. الحقول: ${LAYOUTS[id].uses.join(", ")}`).join("\n")}
 
 الحقول:
-kicker (سطر صغير فوق العنوان)، title، highlight، body، items [{icon,text}]، meta [{icon,text}]، date {day (رقم), month, weekday}، price {value (رقم فقط), old, currency (مثل د.ك), note}، stat {value (مثل 30% أو 2x), label}، badge (شارة قصيرة)، cta (2-3 كلمات)، person {name, role}، photo، imagePrompt، caption.
+kicker (سطر صغير فوق العنوان)، sticker، title، highlight، body، items [{icon,text}]، meta [{icon,text}]، date {day (رقم), month, weekday}، price {value (رقم فقط), old, currency (مثل د.ك), note}، stat {value (مثل 30% أو 2x), label}، badge (شارة قصيرة)، cta (2-3 كلمات)، person {name, role}، photo، imagePrompt، caption.
 
 الصور (photo):
 - "upload:N" لاستخدام صورة العميل رقم N (شوفها وحطها بالتخطيط المناسب).
@@ -165,14 +169,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         : kind === "ads"
           ? `${count} تصاميم إعلانية مختلفة لنفس المنتج، كل واحد بزاوية تسويقية مختلفة (عرض، فائدة، دليل اجتماعي، ندرة...) وبتخطيط مختلف. كل تصميم له caption خاص.`
           : `تصميم بوست واحد. اختر أنسب تخطيط للمحتوى، وحط caption.`;
+      // the field: chosen, or read from what the customer wrote; its design pack picks this job's look
+      const ind = industryById(body.industry) ?? industryById(await guessIndustry(info));
+      const dpack = designPack(ind?.id);
+      const dpick = dpack && ind ? designBrief(dpack, ind.label) : null;
       const raw = await claudeVisionJson<Raw>(SYSTEM,
         `${want}\nالمقاس: ${aspect}\nلهجة النصوص: ${DIALECT[String(body.dialect)] ?? DIALECT.gulf}\n` +
         `الصور المولّدة بالذكاء الاصطناعي: ${body.aiImages === false ? "ممنوعة (استخدم صور العميل أو بدون صورة)" : "مسموحة إذا تفيد التصميم"}\n` +
         (kit ? `هوية العميل: الاسم ${kit.business_name || "غير محدد"}، الألوان ${(kit.colors ?? []).join(", ") || "غير محددة"}، الخط ${kit.font || "اختر أنت"}، الحساب ${kit.handle || kit.instagram || "غير محدد"}${kit.website ? `، الموقع ${kit.website}` : ""}\n` : "") +
         (site ? `من موقع العميل (لتعرف نشاطه وأسلوب كلامه):\n${site}\n` : "") +
-        (industryById(body.industry) ? `${industryBrief(industryById(body.industry)!)}\n` : "") +
+        (ind ? `${industryBrief(ind)}\n${dpick?.text ?? ""}\n` : "") +
         `\nمعلومات العميل:\n${info}\n\n` +
-        `أعد JSON: { "font", "deco", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "caption", "slides": [ {layout, ...الحقول, "photo", "imagePrompt", "caption"} ] }`,
+        `أعد JSON: { "font", "deco", "frame", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "caption", "slides": [ {layout, ...الحقول, "sticker", "photo", "imagePrompt", "caption"} ] }`,
         images, 9000);
 
       // photos: customer uploads by index, AI photos generated in parallel (max 4)
@@ -192,7 +200,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       });
       if (kind === "post" && !raw.slides.length) throw new Error("no slides");
       const brand = { name: (raw.brand as { name?: string })?.name || kit?.business_name || undefined, handle: kit?.handle || kit?.instagram || (raw.brand as { handle?: string })?.handle || undefined, logo: kit?.logo_url ? { path: kit.logo_url, bucket: "uploads" as const, url: "" } : null, showLogo: true };
-      let spec = safeColors(normaliseDesign({ ...raw, brand, aspect }, { kind, aspect }));
+      let spec = safeColors(normaliseDesign({ ...raw, brand, aspect, deco: raw.deco ?? dpick?.pick.deco, frame: ((raw as { frame?: string }).frame ?? dpick?.pick.frame) as DesignSpec["frame"], industry: ind?.id }, { kind, aspect }));
       await admin.from("jobs").update({ progress: 60 }).eq("id", job.id);
 
       const gen = await Promise.allSettled(aiWanted.map(async ({ i, ref }) => {

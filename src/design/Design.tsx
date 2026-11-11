@@ -164,6 +164,49 @@ function Deco({ c }: { c: Ctx }) {
     case "arc": return <div style={{ ...abs, width: c.W * 1.2, height: c.W * 1.2, borderRadius: "50%", background: S, left: -c.W * 0.1, top: -c.W * 0.62 }} />;
     case "lines": return <div style={{ ...abs, inset: 0, opacity: 0.1, backgroundImage: `repeating-linear-gradient(135deg, ${a} 0 2px, transparent 2px 28px)`, maskImage: "linear-gradient(180deg, transparent 40%, #000 100%)", WebkitMaskImage: "linear-gradient(180deg, transparent 40%, #000 100%)" }} />;
     case "corner": return <><div style={{ ...abs, width: 300, height: 300, background: a, left: 0, top: 0, borderBottomRightRadius: 300 }} /><div style={{ ...abs, width: 140, height: 140, border: `3px solid ${L}`, borderRadius: "50%", right: 60, bottom: c.H * 0.32 }} /></>;
+    case "waves": return <svg width={c.W} height={c.H * 0.34} viewBox="0 0 1080 360" preserveAspectRatio="none" style={{ ...abs, left: 0, bottom: 0 }}><path d="M0 120 C180 60 360 180 540 120 C720 60 900 180 1080 120 V360 H0 Z" fill={S} /><path d="M0 200 C200 140 380 250 560 200 C740 150 900 250 1080 200 V360 H0 Z" fill={a} opacity={0.18} /></svg>;
+    case "confetti": return <>{Array.from({ length: 26 }, (_, i) => { const x = (i * 397) % c.W, y = (i * 211) % (c.H * 0.45); return <div key={i} style={{ ...abs, left: x, top: y, width: 14 + (i % 3) * 8, height: i % 2 ? 14 : 30, borderRadius: i % 2 ? 99 : 4, background: [a, L, S][i % 3], opacity: 0.55, transform: `rotate(${i * 37}deg)` }} />; })}</>;
+    case "sparkle": return <>{Array.from({ length: 9 }, (_, i) => { const x = (i * 331 + 60) % (c.W - 80), y = (i * 173 + 40) % (c.H * 0.5); const z = 26 + (i % 3) * 18; return <svg key={i} width={z} height={z} viewBox="0 0 24 24" style={{ ...abs, left: x, top: y, opacity: 0.5 }}><path d="M12 1l2.2 8.8L23 12l-8.8 2.2L12 23l-2.2-8.8L1 12l8.8-2.2z" fill={a} /></svg>; })}</>;
+    case "leaves": return <svg width={420} height={520} viewBox="0 0 100 124" style={{ ...abs, left: -90, bottom: c.H * 0.12, opacity: 0.18 }}><path d="M50 120 C50 80 50 40 50 4 M50 30 C30 20 14 26 8 40 C24 46 40 42 50 30 M50 54 C70 44 86 50 92 64 C76 70 60 66 50 54 M50 78 C30 68 14 74 8 88 C24 94 40 90 50 78" fill="none" stroke={a} strokeWidth={3} strokeLinecap="round" /></svg>;
+    case "geo": return <div style={{ ...abs, inset: 0, opacity: 0.09, backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><g fill='none' stroke='${a}' stroke-width='3'><rect x='30' y='30' width='60' height='60'/><rect x='30' y='30' width='60' height='60' transform='rotate(45 60 60)'/><circle cx='60' cy='60' r='12'/></g></svg>`)}")`, backgroundSize: "120px 120px", maskImage: "linear-gradient(180deg, #000 0%, transparent 60%)", WebkitMaskImage: "linear-gradient(180deg, #000 0%, transparent 60%)" }} />;
+    case "halftone": return <div style={{ ...abs, right: -60, top: -60, width: c.W * 0.7, height: c.W * 0.7, opacity: 0.22, backgroundImage: `radial-gradient(${a} 30%, transparent 32%)`, backgroundSize: "26px 26px", maskImage: "radial-gradient(circle at 100% 0%, #000 0%, transparent 70%)", WebkitMaskImage: "radial-gradient(circle at 100% 0%, #000 0%, transparent 70%)" }} />;
+    default: return null;
+  }
+}
+
+/** Border around the whole design. */
+function FrameLayer({ c }: { c: Ctx }) {
+  const f = c.spec.frame ?? "none";
+  const abs: React.CSSProperties = { position: "absolute", pointerEvents: "none" };
+  const a = c.accent;
+  switch (f) {
+    case "gold": return <><div style={{ ...abs, inset: 26, border: `4px solid ${a}` }} /><div style={{ ...abs, inset: 40, border: `1.5px solid ${a}` }} /></>;
+    case "rounded": return <div style={{ ...abs, inset: 28, border: `3px solid ${mix(a, c.bg, 0.3)}`, borderRadius: 48 }} />;
+    case "dashed": return <div style={{ ...abs, inset: 28, border: `4px dashed ${mix(a, c.bg, 0.25)}`, borderRadius: 30 }} />;
+    case "double": return <><div style={{ ...abs, inset: 22, border: `2px solid ${c.line}` }} /><div style={{ ...abs, inset: 34, border: `2px solid ${c.line}` }} /></>;
+    case "corners": return <>{[[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => <div key={`${x}${y}`} style={{ ...abs, width: 110, height: 110, [x ? "right" : "left"]: 30, [y ? "bottom" : "top"]: 30, [`border${y ? "Bottom" : "Top"}`]: `6px solid ${a}`, [`border${x ? "Right" : "Left"}`]: `6px solid ${a}` }} />)}</>;
+    default: return null;
+  }
+}
+
+/** A field-specific touch pinned to the top-left corner (the text side is the right). */
+function StickerLayer({ c }: { c: Ctx }) {
+  const st = c.s.sticker;
+  if (!st) return null;
+  const a = c.accent, on = c.onAccent;
+  // the layout's own badge sits in the top-left corner: step below it
+  const top = c.s.badge && st.kind !== "ribbon" ? 150 : 60;
+  const abs: React.CSSProperties = { position: "absolute", pointerEvents: "none", fontFamily: `"${c.font}", Cairo, sans-serif` };
+  switch (st.kind) {
+    case "ribbon": return <div style={{ ...abs, left: -70, top: 50, width: 340, padding: "14px 0", textAlign: "center", background: a, color: on, fontSize: 34, fontWeight: 900, transform: "rotate(-45deg)", boxShadow: "0 8px 20px rgba(0,0,0,.2)" }}>{st.text}</div>;
+    case "stamp": return <div style={{ ...abs, left: 60, top, width: 190, height: 190, borderRadius: "50%", border: `5px solid ${a}`, outline: `2px solid ${a}`, outlineOffset: -16, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 30, color: a, fontSize: 30, fontWeight: 900, lineHeight: 1.15, transform: "rotate(-14deg)" }}>{st.text}</div>;
+    case "burst": {
+      const R = 120, pts = Array.from({ length: 28 }, (_, i) => { const t = (i / 28) * Math.PI * 2, r = i % 2 ? R * 0.84 : R; return `${R + Math.cos(t) * r},${R + Math.sin(t) * r}`; }).join(" ");
+      return <div style={{ ...abs, left: 50, top: top - 10, width: R * 2, height: R * 2, transform: "rotate(-10deg)" }}><svg width={R * 2} height={R * 2} style={{ position: "absolute", inset: 0 }}><polygon points={pts} fill={a} /></svg><div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 40, color: on, fontSize: 34, fontWeight: 900, lineHeight: 1.1 }}>{st.text}</div></div>;
+    }
+    case "stars": return <div style={{ ...abs, left: 60, top, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 22px", borderRadius: 22, background: c.soft, border: `2px solid ${c.line}` }}><div style={{ display: "flex", gap: 4, direction: "ltr" }}>{Array.from({ length: 5 }, (_, i) => <svg key={i} width={34} height={34} viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5L2.5 9.3l6.6-.8z" fill="#F5B301" /></svg>)}</div>{st.text && <span style={{ fontSize: 24, fontWeight: 800, color: c.ink }}>{st.text}</span>}</div>;
+    case "tape": return <div style={{ ...abs, left: 50, top: top + 10, padding: "12px 34px", background: mix(a, "#FFFFFF", 0.35), opacity: 0.92, color: c.ink, fontSize: 30, fontWeight: 800, transform: "rotate(-6deg)", clipPath: "polygon(3% 0, 97% 4%, 100% 50%, 97% 100%, 2% 96%, 0 50%)" }}>{st.text}</div>;
+    case "tag": return <div style={{ ...abs, left: 70, top: top - 60, display: "flex", flexDirection: "column", alignItems: "center", transform: "rotate(8deg)", transformOrigin: "50% 0" }}><div style={{ width: 3, height: 70, background: c.muted }} /><div style={{ position: "relative", padding: "26px 26px 22px", minWidth: 140, textAlign: "center", background: a, color: on, fontSize: 36, fontWeight: 900, borderRadius: "14px 14px 18px 18px", clipPath: "polygon(25% 0, 75% 0, 100% 18%, 100% 100%, 0 100%, 0 18%)" }}><div style={{ position: "absolute", top: 10, left: "50%", width: 14, height: 14, marginLeft: -7, borderRadius: 99, background: c.bg }} />{st.text}</div></div>;
     default: return null;
   }
 }
@@ -525,6 +568,8 @@ export function DesignSlide({ spec, index }: DesignProps) {
     <div dir="rtl" lang="ar" style={{ position: "relative", width: W, height: H, overflow: "hidden", fontFamily: `"${spec.font}", "Cairo", sans-serif`, background: bg }}>
       {!["cta", "photo", "split", "bento"].includes(s.layout) && <Deco c={c} />}
       <div style={{ position: "absolute", inset: 0 }}>{L(c)}</div>
+      <FrameLayer c={c} />
+      <StickerLayer c={c} />
       {spec.brand.box && spec.brand.showLogo && spec.brand.logo?.url && (
         <div style={{ position: "absolute", left: spec.brand.box.x * W, top: spec.brand.box.y * H, width: spec.brand.box.w * W, height: spec.brand.box.w * W, transform: "translate(-50%, -50%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Img src={spec.brand.logo.url} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />

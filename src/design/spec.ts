@@ -23,6 +23,7 @@ export type Slide = {
   badge?: string;
   cta?: string;
   person?: { name: string; role?: string; photo?: DImg | null } | null;
+  sticker?: Sticker | null;
   photo?: DImg | null;
   imagePrompt?: string;
   caption?: string;
@@ -37,12 +38,23 @@ export type DesignSpec = {
   slides: Slide[];
   caption?: string;
   deco?: Deco;
+  frame?: Frame;
+  industry?: string;
   icons?: "line" | "duo" | "emoji" | "3d";
   icon3d?: Record<string, DImg>;   // AI-made 3D icons by icon id (when icons = "3d")
 };
-export const DECO_IDS = ["none", "circles", "grid", "dots", "blob", "arc", "lines", "corner"] as const;
+export const DECO_IDS = ["none", "circles", "grid", "dots", "blob", "arc", "lines", "corner", "waves", "confetti", "sparkle", "leaves", "geo", "halftone"] as const;
 export type Deco = (typeof DECO_IDS)[number];
-export const DECO_LABELS: Record<Deco, string> = { none: "بدون", circles: "دوائر", grid: "شبكة", dots: "نقاط", blob: "شكل حر", arc: "قوس", lines: "خطوط", corner: "زاوية" };
+export const DECO_LABELS: Record<Deco, string> = { none: "بدون", circles: "دوائر", grid: "شبكة", dots: "نقاط", blob: "شكل حر", arc: "قوس", lines: "خطوط", corner: "زاوية", waves: "أمواج", confetti: "احتفال", sparkle: "بريق", leaves: "أوراق", geo: "نقش إسلامي", halftone: "نقاط مطبعية" };
+/** Border around the whole design. */
+export const FRAME_IDS = ["none", "gold", "rounded", "corners", "dashed", "double"] as const;
+export type Frame = (typeof FRAME_IDS)[number];
+export const FRAME_LABELS: Record<Frame, string> = { none: "بدون", gold: "إطار ذهبي", rounded: "إطار ناعم", corners: "زوايا", dashed: "متقطع", double: "مزدوج" };
+/** Small badge pinned on a slide corner (field-specific touches). */
+export const STICKER_IDS = ["ribbon", "stamp", "burst", "stars", "tape", "tag"] as const;
+export type StickerKind = (typeof STICKER_IDS)[number];
+export const STICKER_LABELS: Record<StickerKind, string> = { ribbon: "شريط بالزاوية", stamp: "ختم دائري", burst: "نجمة عرض", stars: "نجوم تقييم", tape: "شريط لاصق", tag: "بطاقة سعر معلّقة" };
+export type Sticker = { kind: StickerKind; text: string };
 
 export const DSIZE: Record<DAspect, { width: number; height: number }> = {
   "4:5": { width: 1080, height: 1350 },
@@ -144,6 +156,7 @@ export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fa
     badge: opt(raw.badge, 30),
     cta: opt(raw.cta, 30),
     person: per && str(per.name, 40) ? { name: str(per.name, 40), role: opt(per.role, 40), photo: img(per.photo) } : null,
+    sticker: (() => { const k = (raw.sticker as Sticker | null)?.kind; return k && (STICKER_IDS as readonly string[]).includes(k) ? { kind: k, text: str((raw.sticker as Sticker).text, 24) } : null; })(),
     photo: img(raw.photo),
     imagePrompt: opt(raw.imagePrompt, 600),
     caption: typeof raw.caption === "string" ? raw.caption.trim().slice(0, 2200) || undefined : undefined,
@@ -165,6 +178,8 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
     slides: slides.length ? slides : [normaliseSlide({ title: "عنوانك هنا" })],
     caption: typeof raw.caption === "string" ? raw.caption.trim().slice(0, 2200) || undefined : undefined,
     deco: (DECO_IDS as readonly string[]).includes(String(raw.deco)) ? (raw.deco as Deco) : "circles",
+    frame: (FRAME_IDS as readonly string[]).includes(String(raw.frame)) ? (raw.frame as Frame) : "none",
+    industry: typeof raw.industry === "string" ? raw.industry.slice(0, 30) : undefined,
     icons: raw.icons === "duo" || raw.icons === "emoji" || raw.icons === "3d" ? raw.icons : "line",
     icon3d: Object.fromEntries(Object.entries((raw.icon3d ?? {}) as Record<string, unknown>).filter(([k]) => (ICON_IDS as readonly string[]).includes(k)).map(([k, v]) => [k, img(v)]).filter(([, v]) => v)) as Record<string, DImg>,
   };
