@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { saveContent, uploadSiteImage } from "@/app/admin/actions";
+import { L, LT } from "@/lib/i18n/ui";
 
 type J = string | number | boolean | null | J[] | { [k: string]: J };
 
@@ -22,7 +23,7 @@ function blank(sample: J): J {
 }
 
 function Node({ k, v, onChange }: { k: string; v: J; onChange: (v: J) => void }) {
-  const label = labels[k] ?? k;
+  const label = L(labels[k] ?? k);
   if (typeof v === "string") {
     return (
       <div className="flex flex-col gap-1.5">
@@ -33,14 +34,14 @@ function Node({ k, v, onChange }: { k: string; v: J; onChange: (v: J) => void })
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {v && <img src={v} alt="" className="h-16 w-16 rounded-lg object-cover" />}
-            <label className="btn btn-outline cursor-pointer px-3 py-2 text-sm">رفع صورة
+            <label className="btn btn-outline cursor-pointer px-3 py-2 text-sm">{L("رفع صورة")}
               <input type="file" accept="image/*" className="sr-only" onChange={async (e) => {
                 const f = e.target.files?.[0]; if (!f) return;
                 const fd = new FormData(); fd.append("file", f);
                 const r = await uploadSiteImage(fd); onChange(r.url);
               }} />
             </label>
-            {v && <button type="button" onClick={() => onChange("")} className="text-sm text-red-700">إزالة</button>}
+            {v && <button type="button" onClick={() => onChange("")} className="text-sm text-red-700">{L("إزالة")}</button>}
           </div>
         )}
       </div>
@@ -58,12 +59,12 @@ function Node({ k, v, onChange }: { k: string; v: J; onChange: (v: J) => void })
           <div key={i} className="flex flex-col gap-2 rounded-xl bg-canvas p-3">
             <Node k={typeof item === "string" ? `${label} ${i + 1}` : ""} v={item} onChange={(nv) => onChange(v.map((x, j) => (j === i ? nv : x)))} />
             <div className="flex gap-3 text-sm">
-              {i > 0 && <button type="button" onClick={() => { const c = [...v]; [c[i - 1], c[i]] = [c[i], c[i - 1]]; onChange(c); }} className="text-navy-700">↑ تحريك لأعلى</button>}
-              <button type="button" onClick={() => onChange(v.filter((_, j) => j !== i))} className="text-red-700">حذف</button>
+              {i > 0 && <button type="button" onClick={() => { const c = [...v]; [c[i - 1], c[i]] = [c[i], c[i - 1]]; onChange(c); }} className="text-navy-700">{L("↑ تحريك لأعلى")}</button>}
+              <button type="button" onClick={() => onChange(v.filter((_, j) => j !== i))} className="text-red-700">{L("حذف")}</button>
             </div>
           </div>
         ))}
-        <button type="button" onClick={() => onChange([...v, blank(sample)])} className="btn btn-outline self-start px-3 py-2 text-sm">+ إضافة</button>
+        <button type="button" onClick={() => onChange([...v, blank(sample)])} className="btn btn-outline self-start px-3 py-2 text-sm">{L("+ إضافة")}</button>
       </fieldset>
     );
   }
@@ -86,7 +87,7 @@ export function JsonEditor({ contentKey, title, initial }: { contentKey: string;
       <h2 className="text-lg font-bold text-navy-900">{title}</h2>
       <Node k="" v={value} onChange={setValue} />
       <div className="flex items-center gap-3">
-        <button type="button" disabled={saving} onClick={async () => { setSaving(true); const r = await saveContent(contentKey, value); setSaving(false); setMsg(r.ok ? "تم الحفظ ✓ — التعديل ظاهر على الموقع." : `خطأ: ${r.error}`); }} className="btn btn-primary px-6 py-2.5">{saving ? "جارٍ الحفظ…" : "حفظ"}</button>
+        <button type="button" disabled={saving} onClick={async () => { setSaving(true); const r = await saveContent(contentKey, value); setSaving(false); setMsg(r.ok ? L("تم الحفظ ✓ — التعديل ظاهر على الموقع.") : LT(`خطأ: ${r.error}`, `Error: ${r.error}`)); }} className="btn btn-primary px-6 py-2.5">{saving ? L("جارٍ الحفظ…") : L("حفظ")}</button>
         {msg && <span role="status" className="text-sm text-navy-700">{msg}</span>}
       </div>
     </section>

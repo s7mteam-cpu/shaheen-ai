@@ -1,10 +1,13 @@
 import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { counterResets } from "@/lib/server/overviewReset";
+import { getL, serverT } from "@/lib/server/lang";
 
 export const dynamic = "force-dynamic";
 
 export default async function Overview() {
+  const T = await serverT();
+  const L = await getL();
   await guardPage("overview");
   const admin = createAdminClient();
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
@@ -31,16 +34,16 @@ export default async function Overview() {
   const byPlan = (plans ?? []).map((p) => ({ name: p.name, n: (subs ?? []).filter((s) => s.plan_id === p.id).length }));
 
   const cards = [
-    ["المشتركون النشطون", (subs ?? []).length.toLocaleString("en")],
-    ["الإيراد الشهري", `${mrr.toLocaleString("en")} د.ك`],
-    ["كل الحسابات", (users ?? 0).toLocaleString("en")],
-    ["ريش مستهلكة هذا الشهر", used.toLocaleString("en")],
-    ["طلبات هذا الشهر", (jobs ?? 0).toLocaleString("en")],
-    ["طلبات فاشلة هذا الشهر", (failed ?? 0).toLocaleString("en")],
+    [L("المشتركون النشطون"), (subs ?? []).length.toLocaleString("en")],
+    [L("الإيراد الشهري"), `${mrr.toLocaleString("en")} ${T("د.ك", "KWD")}`],
+    [L("كل الحسابات"), (users ?? 0).toLocaleString("en")],
+    [L("ريش مستهلكة هذا الشهر"), used.toLocaleString("en")],
+    [L("طلبات هذا الشهر"), (jobs ?? 0).toLocaleString("en")],
+    [L("طلبات فاشلة هذا الشهر"), (failed ?? 0).toLocaleString("en")],
   ];
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-[26px] font-bold text-navy-900">نظرة عامة</h1>
+      <h1 className="text-[26px] font-bold text-navy-900">{L("نظرة عامة")}</h1>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
         {cards.map(([l, v], i) => (
           <div key={l} className={i === 1 ? "flex flex-col gap-2 rounded-2xl bg-navy-800 p-5" : "card flex flex-col gap-2 p-5"}>
@@ -50,10 +53,10 @@ export default async function Overview() {
         ))}
       </div>
       <section className="card p-5">
-        <h2 className="mb-3 text-lg font-bold">المشتركون حسب الباقة</h2>
+        <h2 className="mb-3 text-lg font-bold">{L("المشتركون حسب الباقة")}</h2>
         <ul className="flex flex-col gap-2">{byPlan.map((p) => <li key={p.name} className="flex justify-between border-b border-[#EDF1F6] py-2 last:border-0"><span>{p.name}</span><span className="font-latin font-bold">{p.n}</span></li>)}</ul>
       </section>
-      <p className="text-sm text-subtle">تكلفة المزودين الفعلية تجدها في لوحات fal.ai وElevenLabs وAnthropic. الإيرادات التفصيلية والاستردادات في لوحة Stripe.</p>
+      <p className="text-sm text-subtle">{L("تكلفة المزودين الفعلية تجدها في لوحات fal.ai وElevenLabs وAnthropic. الإيرادات التفصيلية والاستردادات في لوحة Stripe.")}</p>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { Icon } from "@/components/Icon";
 export type NavTool = { id: string; name: string; icon: string; category: "image" | "video" | "audio" };
 const groups: [NavTool["category"], string][] = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"]];
 
-{L("/** \"إنشاء\" sheet: bottom sheet on phones, side panel on desktop. */")}
+/** "إنشاء" sheet: bottom sheet on phones, side panel on desktop. */
 export function ToolsSheet({ tools, open, onClose }: { tools: NavTool[]; open: boolean; onClose: () => void }) {
   const [q, setQ] = useState("");
   const search = useRef<HTMLInputElement>(null);

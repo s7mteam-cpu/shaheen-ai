@@ -4,10 +4,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/server/auth";
 import type { SectionKey } from "@/lib/admin/sections";
 import { textProviders, toolProviders } from "@/lib/providers/registry";
+import { getL } from "@/lib/server/lang";
 
 async function guard(section: SectionKey) {
+  const L = await getL();
   const u = await requireAdmin(section);
-  if (!u) throw new Error("غير مصرّح");
+  if (!u) throw new Error(L("غير مصرّح"));
   return u;
 }
 const refresh = () => revalidatePath("/", "layout");
