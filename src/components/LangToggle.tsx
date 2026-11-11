@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { LANG_COOKIE, type Lang } from "@/lib/i18n";
 
 /** «EN» / «ع» — switches the whole site between Arabic and English (remembered for a year). */
-export function LangToggle({ lang, className = "" }: { lang: Lang; className?: string }) {
+export function LangToggle({ lang, className = "", light = false }: { lang: Lang; className?: string; light?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   function flip() {
@@ -17,7 +17,7 @@ export function LangToggle({ lang, className = "" }: { lang: Lang; className?: s
   return (
     <button type="button" onClick={flip} disabled={pending} lang={lang === "en" ? "ar" : "en"}
       aria-label={lang === "en" ? "التبديل إلى العربية" : "Switch to English"} title={lang === "en" ? "العربية" : "English"}
-      className={`inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full px-2 text-[14px] font-bold text-white/85 transition hover:bg-white/10 hover:text-white disabled:opacity-50 ${className}`}>
+      className={`inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full px-2 text-[14px] font-bold transition ${light ? "border border-line text-navy-800 hover:bg-tint" : "text-white/85 hover:bg-white/10 hover:text-white"} disabled:opacity-50 ${className}`}>
       {lang === "en" ? "ع" : "EN"}
     </button>
   );

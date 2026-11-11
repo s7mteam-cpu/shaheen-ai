@@ -9,6 +9,7 @@ import { isImpersonating } from "@/lib/server/impersonation";
 import { normalizePhone } from "@/lib/phone";
 import { tapOpenFor } from "@/lib/tap";
 import { startTapPayment } from "@/lib/server/tapBilling";
+import { getLang, serverT } from "@/lib/server/lang";
 
 const site = () => process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -45,7 +46,7 @@ export async function startCheckout(planId: string, form?: FormData) {
       redirect("/app/account?ok=plan");
     }
     let url: string;
-    try { url = await startTapPayment(profile.id, "subscribe", planId); } catch (e) { console.error(e); redirect("/app/account?error=payment"); }
+    try { url = await startTapPayment(profile.id, "subscribe", planId, await getLang()); } catch (e) { console.error(e); redirect("/app/account?error=payment"); }
     redirect(url);
   }
 
@@ -99,10 +100,12 @@ export async function saveProfile(form: FormData) {
 
 /** "حذف الحساب": cancels billing, deletes the user's files and all their data. */
 export async function deleteAccount(_prev: { error?: string } | undefined, form: FormData): Promise<{ error?: string }> {
-  if (await isImpersonating()) return { error: "حذف الحساب محمي، وما يقدر فريق الدعم يعمله." };
+  const T = await serverT();
+  if (await isImpersonating()) return { error: T("حذف الحساب محمي، وما يقدر فريق الدعم يعمله.", "Account deletion is protected and can't be done by the support team.") };
   const profile = await me();
-  if (String(form.get("confirm") ?? "").trim() !== "حذف") return { error: "اكتب كلمة «حذف» للتأكيد." };
-  if (profile.role === "admin") return { error: "حساب المدير لا يُحذف من هنا." };
+  const word = String(form.get("confirm") ?? "").trim();
+  if (word !== "حذف" && word.toUpperCase() !== "DELETE") return { error: T("اكتب كلمة «حذف» للتأكيد.", "Type «DELETE» to confirm.") };
+  if (profile.role === "admin") return { error: T("حساب المدير لا يُحذف من هنا.", "The admin account can't be deleted here.") };
   const res = await deleteUserCompletely(profile);
   if (res.error) return res;
 
@@ -116,7 +119,7 @@ export async function payNow(kind: "renew" | "managed") {
   const profile = await me();
   if (!tapOpenFor(profile.role)) redirect("/app/account?error=plan");
   let url: string;
-  try { url = await startTapPayment(profile.id, kind); } catch (e) { console.error(e); redirect("/app/account?error=payment"); }
+  try { url = await startTapPayment(profile.id, kind, undefined, await getLang()); } catch (e) { console.error(e); redirect("/app/account?error=payment"); }
   redirect(url);
 }
 

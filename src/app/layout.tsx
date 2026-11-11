@@ -11,6 +11,7 @@ import "./globals.css";
 import { THEME_SCRIPT } from "@/components/ThemeToggle";
 import { getLang } from "@/lib/server/lang";
 import { dirOf } from "@/lib/i18n";
+import { LangProvider } from "@/components/LangProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
@@ -24,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={lang} dir={dirOf(lang)} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased"><LangProvider lang={lang}>{children}</LangProvider></body>
     </html>
   );
 }

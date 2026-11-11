@@ -49,7 +49,7 @@ async function tap<T>(path: string, init?: { method?: string; body?: unknown; la
   return json;
 }
 
-export const createCharge = (body: Record<string, unknown>) => tap<TapCharge>("/charges", { body });
+export const createCharge = (body: Record<string, unknown>, lang: "ar" | "en" = "ar") => tap<TapCharge>("/charges", { body, lang });
 export const getCharge = (id: string) => tap<TapCharge>(`/charges/${encodeURIComponent(id)}`);
 export const tokenFromSavedCard = (cardId: string, customerId: string) =>
   tap<{ id: string }>("/tokens", { body: { saved_card: { card_id: cardId, customer_id: customerId } } });

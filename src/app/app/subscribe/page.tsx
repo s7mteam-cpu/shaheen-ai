@@ -2,21 +2,27 @@ import { redirect } from "next/navigation";
 import { startCheckout } from "@/app/app/account/actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { RenewConsent } from "@/components/app/RenewConsent";
+import { getLang } from "@/lib/server/lang";
+import { localize } from "@/lib/server/translate";
+import { tr } from "@/lib/i18n";
 
 /** Coming from the pricing section: confirm the plan and the monthly charge, then go to the secure payment page. */
 export default async function Subscribe({ searchParams }: { searchParams: Promise<{ plan?: string; error?: string }> }) {
   const { plan: id = "starter", error } = await searchParams;
-  const { data: plan } = await createAdminClient().from("plans").select("id,name,price_kwd,credits,bonus_credits").eq("id", id).eq("is_active", true).maybeSingle();
-  if (!plan) redirect("/app/account");
+  const { data: plan0 } = await createAdminClient().from("plans").select("id,name,price_kwd,credits,bonus_credits").eq("id", id).eq("is_active", true).maybeSingle();
+  if (!plan0) redirect("/app/account");
+  const lang = await getLang();
+  const plan = await localize(plan0, lang);
+  const T = (ar: string, en: string) => tr(lang, ar, en);
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 py-8">
-      <h1 className="text-[26px] font-bold text-navy-900">تأكيد الاشتراك</h1>
+      <h1 className="text-[26px] font-bold text-navy-900">{T("تأكيد الاشتراك", "Confirm your plan")}</h1>
       <form action={startCheckout.bind(null, plan.id)} className="card flex flex-col gap-3 p-6">
         <span className="text-lg font-bold">{plan.name}</span>
-        <span className="text-muted">{Number(plan.price_kwd)} د.ك شهرياً · {plan.credits.toLocaleString("en")} ريشة{(plan.bonus_credits ?? 0) > 0 ? ` + ${plan.bonus_credits.toLocaleString("en")} هدية` : ""}</span>
-        {error === "renew" && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">علّم على المربع عشان تكمل للدفع.</p>}
+        <span className="text-muted">{Number(plan.price_kwd)} {T("د.ك شهرياً", "KWD / month")} · {plan.credits.toLocaleString("en")} {T("ريشة", "credits")}{(plan.bonus_credits ?? 0) > 0 ? ` + ${plan.bonus_credits.toLocaleString("en")} ${T("هدية", "bonus")}` : ""}</span>
+        {error === "renew" && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">{T("علّم على المربع عشان تكمل للدفع.", "Tick the box to continue to payment.")}</p>}
         <RenewConsent price={Number(plan.price_kwd)} />
-        <button className="btn btn-gold py-3">كمّل للدفع الآمن</button>
+        <button className="btn btn-gold py-3">{T("كمّل للدفع الآمن", "Continue to secure payment")}</button>
       </form>
     </div>
   );

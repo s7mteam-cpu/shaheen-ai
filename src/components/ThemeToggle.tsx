@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 
 /** 🌙 / ☀️ — light is the default; each visitor's choice is remembered in their browser. */
-export function ThemeToggle({ className = "" }: { className?: string }) {
+export function ThemeToggle({ className = "", light = false }: { className?: string; light?: boolean }) {
   const [dark, setDark] = useState(false);
   useEffect(() => { setDark(document.documentElement.classList.contains("dark")); }, []);
   function flip() {
@@ -13,7 +13,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   }
   return (
     <button type="button" onClick={flip} aria-label={dark ? "الوضع الفاتح" : "الوضع الليلي"} aria-pressed={dark} title={dark ? "الوضع الفاتح" : "الوضع الليلي"}
-      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/85 transition hover:bg-white/10 hover:text-white ${className}`}>
+      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${light ? "border border-line text-navy-800 hover:bg-tint" : "text-white/85 hover:bg-white/10 hover:text-white"} ${className}`}>
       {dark ? (
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="12" cy="12" r="4.2" /><path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" /></svg>
       ) : (

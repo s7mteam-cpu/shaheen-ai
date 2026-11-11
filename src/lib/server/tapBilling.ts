@@ -28,7 +28,7 @@ async function notify(userId: string, title: string, body: string, link: string)
 }
 
 /** Starts a payment and returns the Tap page to send the customer to. */
-export async function startTapPayment(userId: string, kind: Kind, wantedPlan?: string): Promise<string> {
+export async function startTapPayment(userId: string, kind: Kind, wantedPlan?: string, lang: "ar" | "en" = "ar"): Promise<string> {
   const admin = createAdminClient();
   const [{ data: profile }, { data: sub }] = await Promise.all([
     admin.from("profiles").select("id,email,full_name,phone").eq("id", userId).single(),
@@ -65,11 +65,11 @@ export async function startTapPayment(userId: string, kind: Kind, wantedPlan?: s
   };
   let charge: TapCharge;
   try {
-    charge = await createCharge(body);
+    charge = await createCharge(body, lang);
   } catch (e) {
     // If «حفظ البطاقة» isn't switched on in the Tap account yet, still take the payment (the customer then renews by link).
     if (!body.save_card) throw e;
-    charge = await createCharge({ ...body, save_card: false });
+    charge = await createCharge({ ...body, save_card: false }, lang);
   }
   await admin.from("tap_charges").upsert({ id: charge.id, user_id: userId, kind, plan_id: planId, amount, currency: "KWD", status: charge.status });
   if (!charge.transaction?.url) throw new Error("no payment url");
