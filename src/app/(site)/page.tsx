@@ -44,7 +44,7 @@ export default async function Home() {
             <div className="mt-5 flex w-full max-w-sm flex-col gap-3 lg:max-w-none lg:flex-row lg:flex-wrap lg:justify-center md:mt-0 md:justify-start">
               {/* phones & iPads (the bar has no buttons there): subscribe, then sign in, then explore */}
               <div className="flex flex-col gap-3 lg:hidden">
-                <a href="#pricing" className="btn btn-outline px-4 py-4 text-[16px] font-semibold">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
+                <a href="#pricing" className="btn btn-gold px-7 py-4 text-[17px]">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
                 {signedIn
                   ? <Link href="/app" className="btn btn-primary px-7 py-4 text-[17px]">{T("لوحة التحكم", "Dashboard")}</Link>
                   : <Link href="/login" className="btn btn-primary px-7 py-4 text-[17px]">{T("تسجيل الدخول", "Sign in")}</Link>}
