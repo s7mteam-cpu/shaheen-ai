@@ -1,4 +1,5 @@
 "use client";
+import { L } from "@/lib/i18n/ui";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
@@ -6,7 +7,7 @@ import { Icon } from "@/components/Icon";
 export type NavTool = { id: string; name: string; icon: string; category: "image" | "video" | "audio" };
 const groups: [NavTool["category"], string][] = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"]];
 
-/** "إنشاء" sheet: bottom sheet on phones, side panel on desktop. */
+{L("/** \"إنشاء\" sheet: bottom sheet on phones, side panel on desktop. */")}
 export function ToolsSheet({ tools, open, onClose }: { tools: NavTool[]; open: boolean; onClose: () => void }) {
   const [q, setQ] = useState("");
   const search = useRef<HTMLInputElement>(null);
@@ -27,18 +28,18 @@ export function ToolsSheet({ tools, open, onClose }: { tools: NavTool[]; open: b
 
   return (
     <div className="fixed inset-0 z-50">
-      <button aria-label="إغلاق" onClick={onClose} className="absolute inset-0 bg-navy-900/45" />
+      <button aria-label={L("إغلاق")} onClick={onClose} className="absolute inset-0 bg-navy-900/45" />
       <div role="dialog" aria-modal="true" aria-labelledby="ts-title"
         className="absolute inset-x-0 bottom-0 flex max-h-[88vh] flex-col overflow-hidden rounded-t-[28px] bg-[#F5F6F8] shadow-2xl animate-[sheetUp_.22s_ease-out] lg:inset-y-0 lg:bottom-auto lg:right-0 lg:left-auto lg:h-full lg:max-h-none lg:w-[420px] lg:rounded-none lg:rounded-l-[28px]">
         <div className="flex items-center justify-between border-b border-line px-6 py-5">
-          <h2 id="ts-title" className="text-[22px] font-bold text-navy-900">إنشاء</h2>
-          <button onClick={onClose} aria-label="إغلاق" className="flex h-10 w-10 items-center justify-center rounded-full text-2xl text-navy-900 hover:bg-white">×</button>
+          <h2 id="ts-title" className="text-[22px] font-bold text-navy-900">{L("إنشاء")}</h2>
+          <button onClick={onClose} aria-label={L("إغلاق")} className="flex h-10 w-10 items-center justify-center rounded-full text-2xl text-navy-900 hover:bg-white">×</button>
         </div>
         <div className="overflow-y-auto px-6 pb-8">
-          <button onClick={onClose} className="mt-4 text-[15px] text-subtle hover:text-navy-800">رجوع</button>
+          <button onClick={onClose} className="mt-4 text-[15px] text-subtle hover:text-navy-800">{L("رجوع")}</button>
           <label className="mt-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 ring-1 ring-line focus-within:ring-gold-500">
             <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-subtle"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-            <input ref={search} value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث عن أداة" aria-label="ابحث عن أداة" className="w-full bg-transparent text-[16px] outline-none placeholder:text-subtle" />
+            <input ref={search} value={q} onChange={(e) => setQ(e.target.value)} placeholder={L("ابحث عن أداة")} aria-label={L("ابحث عن أداة")} className="w-full bg-transparent text-[16px] outline-none placeholder:text-subtle" />
           </label>
 
           {groups.map(([cat, label]) => {
@@ -46,7 +47,7 @@ export function ToolsSheet({ tools, open, onClose }: { tools: NavTool[]; open: b
             if (!list.length) return null;
             return (
               <section key={cat} className="mt-7">
-                <h3 className="mb-1 text-[17px] font-bold text-navy-900">{label}</h3>
+                <h3 className="mb-1 text-[17px] font-bold text-navy-900">{L(label)}</h3>
                 <ul>
                   {list.map((t) => (
                     <li key={t.id} className="border-b border-line/70 last:border-0">
@@ -61,7 +62,7 @@ export function ToolsSheet({ tools, open, onClose }: { tools: NavTool[]; open: b
               </section>
             );
           })}
-          {!shown.length && <p className="mt-8 text-center text-subtle">ما لقينا أداة بهالاسم.</p>}
+          {!shown.length && <p className="mt-8 text-center text-subtle">{L("ما لقينا أداة بهالاسم.")}</p>}
         </div>
       </div>
     </div>

@@ -67,3 +67,10 @@ export const getGallery = cache(async () => {
   const { data } = await supabase.from("gallery_items").select("id,title,media_url,media_type").eq("is_published", true).order("sort_order");
   return data ?? [];
 });
+
+/** Tools with names/descriptions in the page language (English is translated once and cached). */
+export const getToolsL = cache(async (includeDisabled = false) => {
+  const { getLang } = await import("@/lib/server/lang");
+  const { localize } = await import("@/lib/server/translate");
+  return localize(await getTools(includeDisabled), await getLang());
+});

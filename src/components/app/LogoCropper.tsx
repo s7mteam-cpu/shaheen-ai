@@ -1,4 +1,5 @@
 "use client";
+import { L } from "@/lib/i18n/ui";
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState } from "react";
 
@@ -70,9 +71,9 @@ export function LogoCropper({ file, onDone, onCancel }: { file: File; onDone: (f
   );
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="قص الشعار" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div role="dialog" aria-modal="true" aria-label={L("قص الشعار")} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="card flex w-full max-w-md flex-col gap-4 p-5">
-        <h2 className="text-[18px] font-bold text-navy-900">قص الشعار</h2>
+        <h2 className="text-[18px] font-bold text-navy-900">{L("قص الشعار")}</h2>
         <div dir="ltr" ref={area} className="relative mx-auto select-none bg-[repeating-conic-gradient(#eee_0_25%,#fff_0_50%)] bg-[length:20px_20px]" onPointerMove={move} onPointerUp={up}>
           <img ref={img} src={src} alt="" className="block max-h-[50vh] max-w-full" draggable={false} />
           <div className="pointer-events-none absolute inset-0 bg-black/45" style={{ clipPath: `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${r.x * 100}% ${r.y * 100}%, ${r.x * 100}% ${(r.y + r.h) * 100}%, ${(r.x + r.w) * 100}% ${(r.y + r.h) * 100}%, ${(r.x + r.w) * 100}% ${r.y * 100}%, ${r.x * 100}% ${r.y * 100}%)` }} />
@@ -84,14 +85,14 @@ export function LogoCropper({ file, onDone, onCancel }: { file: File; onDone: (f
             {handle("br", "-bottom-2.5 -right-2.5 cursor-nwse-resize")}
           </div>
         </div>
-        <p className="text-center text-[13px] text-subtle">اسحب الإطار، أو اسحب الدوائر الصفرا لتحدد الشعار.</p>
+        <p className="text-center text-[13px] text-subtle">{L("اسحب الإطار، أو اسحب الدوائر الصفرا لتحدد الشعار.")}</p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => { const t = img.current && autoTrim(img.current); if (t) setR(t); }} className="btn btn-outline px-4 py-2 text-sm">✂️ قص الفراغ تلقائياً</button>
-          <button type="button" onClick={() => setR({ x: 0, y: 0, w: 1, h: 1 })} className="btn btn-outline px-4 py-2 text-sm">بدون قص</button>
+          <button type="button" onClick={() => { const t = img.current && autoTrim(img.current); if (t) setR(t); }} className="btn btn-outline px-4 py-2 text-sm">{L("✂️ قص الفراغ تلقائياً")}</button>
+          <button type="button" onClick={() => setR({ x: 0, y: 0, w: 1, h: 1 })} className="btn btn-outline px-4 py-2 text-sm">{L("بدون قص")}</button>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={done} className="btn btn-primary flex-1 py-3">تم</button>
-          <button type="button" onClick={onCancel} className="btn border border-line bg-white flex-1 py-3">إلغاء</button>
+          <button type="button" onClick={done} className="btn btn-primary flex-1 py-3">{L("تم")}</button>
+          <button type="button" onClick={onCancel} className="btn border border-line bg-white flex-1 py-3">{L("إلغاء")}</button>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 "use client";
+import { L } from "@/lib/i18n/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Progress } from "@/components/app/Progress";
@@ -36,29 +37,29 @@ export function MotionStart({ costPer15, balance, brand }: { costPer15: number; 
       if (!r.ok) throw new Error(d.error);
       setPct(100);
       router.push(`/app/tools/motion-video?job=${d.jobId}`);
-    } catch (err) { setError((err as Error).message || "صار خطأ."); setBusy(false); }
+    } catch (err) { setError((err as Error).message || L("صار خطأ.")); setBusy(false); }
   }
 
   const chips = <T extends string | number>(list: readonly (readonly [T, string])[], value: T, set: (v: T) => void) => (
-    <div className="flex flex-wrap gap-2">{list.map(([v, l]) => <button key={String(v)} type="button" aria-pressed={value === v} onClick={() => set(v)} className="chip">{l}</button>)}</div>
+    <div className="flex flex-wrap gap-2">{list.map(([v, l]) => <button key={String(v)} type="button" aria-pressed={value === v} onClick={() => set(v)} className="chip">{L(l)}</button>)}</div>
   );
 
   return (
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
-      <label className="flex flex-col gap-2"><span className="font-semibold">فكرة الفيديو</span>
+      <label className="flex flex-col gap-2"><span className="font-semibold">{L("فكرة الفيديو")}</span>
         <textarea required minLength={5} maxLength={1200} rows={4} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
-          placeholder="مثال: فيديو توعوي عن خرافات الكربوهيدرات لعيادة تغذية، ينتهي بدعوة لحجز استشارة" /></label>
-      <label className="flex flex-col gap-2"><span className="font-semibold">اسم نشاطك <span className="font-normal text-subtle">(اختياري)</span></span>
-        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} className="field" placeholder="مثال: د. وسمية الحمد" /></label>
-      <div className="flex flex-col gap-2"><span className="font-semibold">المدة</span>{chips(lengths, seconds, setSeconds)}</div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">المقاس</span>{chips(aspects, aspect, setAspect)}</div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">لهجة النصوص</span>{chips(dialects, dialect, setDialect)}</div>
-      {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
-      {busy ? <Progress value={pct} label="جاري إنشاء الفيديو…" /> : (
-        <button disabled={idea.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">✨ أنشئ الفيديو ({cost} ريشة)</button>
+          placeholder={L("مثال: فيديو توعوي عن خرافات الكربوهيدرات لعيادة تغذية، ينتهي بدعوة لحجز استشارة")} /></label>
+      <label className="flex flex-col gap-2"><span className="font-semibold">{L("اسم نشاطك")} <span className="font-normal text-subtle">{L("(اختياري)")}</span></span>
+        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} className="field" placeholder={L("مثال: د. وسمية الحمد")} /></label>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span>{chips(lengths, seconds, setSeconds)}</div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(aspects, aspect, setAspect)}</div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("لهجة النصوص")}</span>{chips(dialects, dialect, setDialect)}</div>
+      {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
+      {busy ? <Progress value={pct} label={L("جاري إنشاء الفيديو…")} /> : (
+        <button disabled={idea.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">✨ {L("أنشئ الفيديو")} ({cost} {L("ريشة")})</button>
       )}
-      {balance < cost && <p className="text-center text-[14px] text-red-700">رصيدك ما يكفي. <a href="/app/subscribe" className="underline">زوّد رصيدك</a></p>}
-      <p className="text-center text-[13px] text-subtle">بعدها تقدر تعدّل الألوان والنصوص والخط مجاناً وتشوف التغيير مباشرة.</p>
+      {balance < cost && <p className="text-center text-[14px] text-red-700">{L("رصيدك ما يكفي.")} <a href="/app/subscribe" className="underline">{L("زوّد رصيدك")}</a></p>}
+      <p className="text-center text-[13px] text-subtle">{L("بعدها تقدر تعدّل الألوان والنصوص والخط مجاناً وتشوف التغيير مباشرة.")}</p>
     </form>
   );
 }

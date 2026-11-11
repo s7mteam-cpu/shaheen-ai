@@ -1,4 +1,5 @@
 "use client";
+import { L } from "@/lib/i18n/ui";
 import { useRef } from "react";
 
 /** Logo placement as fractions of the frame: centre (x, y) and width w. */
@@ -31,12 +32,12 @@ export function LogoDrag({ box, onChange }: { box: LogoBox; onChange: (b: LogoBo
   return (
     <div ref={area} className="pointer-events-none absolute inset-0 z-10" onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
       <div
-        role="slider" aria-label="مكان الشعار" aria-valuenow={Math.round(box.x * 100)} aria-valuetext={`${Math.round(box.x * 100)}% × ${Math.round(box.y * 100)}%`}
+        role="slider" aria-label={L("مكان الشعار")} aria-valuenow={Math.round(box.x * 100)} aria-valuetext={`${Math.round(box.x * 100)}% × ${Math.round(box.y * 100)}%`}
         onPointerDown={down("move")} onPointerMove={move} onPointerUp={up}
         className="pointer-events-auto absolute cursor-move touch-none rounded-md border-2 border-dashed border-gold-500 bg-white/5"
         style={{ left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.w * 100}%`, aspectRatio: "1 / 1", transform: "translate(-50%, -50%)" }}
       >
-        <span onPointerDown={down("size")} onPointerMove={move} onPointerUp={up} aria-label="تكبير وتصغير الشعار"
+        <span onPointerDown={down("size")} onPointerMove={move} onPointerUp={up} aria-label={L("تكبير وتصغير الشعار")}
           className="absolute -bottom-2.5 -left-2.5 h-5 w-5 cursor-nesw-resize touch-none rounded-full border-2 border-white bg-gold-500 shadow" />
       </div>
     </div>
@@ -47,10 +48,10 @@ export function LogoDrag({ box, onChange }: { box: LogoBox; onChange: (b: LogoBo
 export function LogoSize({ box, onChange }: { box: LogoBox; onChange: (b: LogoBox) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-3 text-[14px]">
-      <label className="flex flex-1 items-center gap-2">الحجم
+      <label className="flex flex-1 items-center gap-2">{L("الحجم")}
         <input type="range" min={6} max={70} value={Math.round(box.w * 100)} onChange={(e) => onChange({ ...box, w: Number(e.target.value) / 100 })} className="flex-1 accent-navy-700" />
       </label>
-      <span className="text-[13px] text-subtle">اسحب الشعار بالمعاينة لتحريكه، واسحب الدائرة الصفرا لتكبيره.</span>
+      <span className="text-[13px] text-subtle">{L("اسحب الشعار بالمعاينة لتحريكه، واسحب الدائرة الصفرا لتكبيره.")}</span>
     </div>
   );
 }

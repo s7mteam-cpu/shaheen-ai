@@ -14,28 +14,31 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { MontageSpec } from "@/remotion/montage";
 import { createClient } from "@/lib/supabase/server";
 import type { MotionSpec } from "@/remotion/spec";
-import { getContent, getSessionProfile, getTools } from "@/lib/data";
+import { getContent, getSessionProfile, getTools, getToolsL } from "@/lib/data";
 import { toolSpecs } from "@/lib/tools/specs";
 import { listWorks } from "@/lib/works";
+import { getL } from "@/lib/server/lang";
 
 type P = { params: Promise<{ id: string }>; searchParams: Promise<{ job?: string }> };
 
 export async function generateMetadata({ params }: P) {
+  const L = await getL();
   const { id } = await params;
-  const t = (await getTools()).find((x) => x.id === id);
-  return { title: t?.name ?? "أداة" };
+  const t = (await getToolsL()).find((x) => x.id === id);
+  return { title: t?.name ?? L("أداة") };
 }
 
 export default async function ToolPage({ params, searchParams }: P) {
+  const L = await getL();
   const { id } = await params;
   const { job } = await searchParams;
-  const [tools, profile, content, recent] = await Promise.all([getTools(), getSessionProfile(), getContent(), listWorks({ tool: id, limit: 8 })]);
+  const [tools, profile, content, recent] = await Promise.all([getToolsL(), getSessionProfile(), getContent(), listWorks({ tool: id, limit: 8 })]);
   const tool = tools.find((t) => t.id === id);
   if (!tool || !toolSpecs[id]) notFound();
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <nav aria-label="مسار الصفحة" className="text-sm text-subtle"><Link href="/app" className="text-navy-700">الرئيسية</Link> › <Link href="/app/tools" className="text-navy-700">الأدوات</Link> › {tool.name}</nav>
+        <nav aria-label={L("مسار الصفحة")} className="text-sm text-subtle"><Link href="/app" className="text-navy-700">{L("الرئيسية")}</Link> › <Link href="/app/tools" className="text-navy-700">{L("الأدوات")}</Link> › {tool.name}</nav>
         <h1 className="mt-1.5 text-[28px] font-bold text-navy-900">{tool.name}</h1>
         <p className="mt-1 text-muted">{tool.description}</p>
       </div>
@@ -51,6 +54,7 @@ type Content = Awaited<ReturnType<typeof getContent>>;
 
 /** Motion graphics: idea form, or the live studio for one of the user's drafts. */
 async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content) {
+  const L = await getL();
   const supabase = await createClient();
   if (jobId) {
     const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
@@ -65,7 +69,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
     }
     if (data && data.status === "done" && spec) return await reopen(data.id, "motion-video", tool);
     if (data && data.status !== "draft") {
-      return <p className="card p-6 text-center">هذا الفيديو انرسل للتصدير، تلقاه في <Link href="/app/works" className="font-semibold text-navy-700 underline">أعمالي</Link>.</p>;
+      return <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
     }
   }
   const { data: kit } = await supabase.from("brand_kits").select("business_name").maybeSingle();
@@ -74,13 +78,14 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
 
 /** Smart montage: once the worker planned the edit, the customer edits it live here. */
 async function montage(jobId: string, tool: ToolRow, content: Content) {
+  const L = await getL();
   const supabase = await createClient();
   const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
   const spec = (data?.input as { spec?: MontageSpec } | null)?.spec;
   if (data?.status === "done" && spec?.segments) return await reopen(data.id, "video-editing", tool);
   if (!data || data.status !== "draft" || !spec) return null;
   const { data: signed } = await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6);
-  if (!signed?.signedUrl) return <p className="card p-6 text-center">ما لقينا الفيديو الأصلي. ارفعه مرة ثانية.</p>;
+  if (!signed?.signedUrl) return <p className="card p-6 text-center">{L("ما لقينا الفيديو الأصلي. ارفعه مرة ثانية.")}</p>;
   const logoUrl = spec.logo?.path ? (await createAdminClient().storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" : "";
   const brollPaths = (spec.broll ?? []).map((b) => b.path);
   const brollUrls = brollPaths.length ? (await createAdminClient().storage.from("uploads").createSignedUrls(brollPaths, 60 * 60 * 6)).data ?? [] : [];
@@ -95,13 +100,14 @@ async function montage(jobId: string, tool: ToolRow, content: Content) {
 
 /** Posts, carousels and ads: the info form, or the live design studio for one of the user's designs. */
 async function design(jobId: string | undefined, tool: ToolRow, balance: number) {
+  const L = await getL();
   const supabase = await createClient();
   if (jobId) {
     const { data } = await supabase.from("jobs").select("id,status,input,output").eq("id", jobId).maybeSingle();
     const spec = (data?.input as { spec?: DesignSpec } | null)?.spec;
     if (data && spec) {
       if (data.status === "queued" || data.status === "running") {
-        return <p className="card p-6 text-center">التصميم قيد التصدير، تلقاه بعد لحظات في <Link href="/app/works" className="font-semibold text-navy-700 underline">أعمالي</Link>.</p>;
+        return <p className="card p-6 text-center">{L("التصميم قيد التصدير، تلقاه بعد لحظات في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
       }
       const admin = createAdminClient();
       const urls: Record<string, string> = {};

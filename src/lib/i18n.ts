@@ -5,3 +5,8 @@ export const dirOf = (l: Lang) => (l === "en" ? "ltr" : "rtl");
 export const hasArabic = (s: string) => /[؀-ۿ]/.test(s);
 /** Pick the right side of a bilingual pair: tr(lang, "عربي", "English"). */
 export const tr = (l: Lang, ar: string, en: string) => (l === "en" ? en : ar);
+
+/** Everything is bilingual except the admin panel (Arabic only). */
+export const isTranslatedPath = (path: string) => !path.startsWith("/admin");
+/** The language a page is shown in: the visitor's choice, on pages that have an English version. */
+export const langFor = (chosen: Lang, path: string): Lang => (chosen === "en" && isTranslatedPath(path) ? "en" : "ar");

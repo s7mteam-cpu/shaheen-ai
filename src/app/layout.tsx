@@ -9,7 +9,7 @@ import "@fontsource/cairo/latin-600.css";
 import "@fontsource/cairo/latin-700.css";
 import "./globals.css";
 import { THEME_SCRIPT } from "@/components/ThemeToggle";
-import { getLang } from "@/lib/server/lang";
+import { getChosenLang, getLang } from "@/lib/server/lang";
 import { dirOf } from "@/lib/i18n";
 import { LangProvider } from "@/components/LangProvider";
 
@@ -21,11 +21,11 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const lang = await getLang();
+  const [lang, chosen] = await Promise.all([getLang(), getChosenLang()]);
   return (
     <html lang={lang} dir={dirOf(lang)} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
-      <body className="font-sans antialiased"><LangProvider lang={lang}>{children}</LangProvider></body>
+      <body className="font-sans antialiased"><LangProvider chosen={chosen}>{children}</LangProvider></body>
     </html>
   );
 }

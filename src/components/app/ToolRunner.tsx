@@ -1,4 +1,5 @@
 "use client";
+import { L, LT } from "@/lib/i18n/ui";
 import { Progress } from "@/components/app/Progress";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -88,7 +89,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
         const { error: upErr } = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
-        if (upErr) throw new Error(/size|large|413/i.test(upErr.message) ? "الملف أكبر من المسموح. صغّر حجمه وحاول مرة ثانية." : "تعذّر رفع الملف.");
+        if (upErr) throw new Error(/size|large|413/i.test(upErr.message) ? L("الملف أكبر من المسموح. صغّر حجمه وحاول مرة ثانية.") : L("تعذّر رفع الملف."));
         if (f.accept === "video") {
           const secs = await new Promise<number>((res) => {
             const el = document.createElement("video");
@@ -109,7 +110,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
       set(f.name, next.map((x) => x.path));
     } catch (e) {
       // shown right inside the upload card, where the customer is looking
-      setFileError({ field: f.name, text: e instanceof Error ? e.message : "تعذّر رفع الملف." });
+      setFileError({ field: f.name, text: e instanceof Error ? e.message : L("تعذّر رفع الملف.") });
     } finally { setBusyUpload(false); }
   }
   function removeFile(name: string, path: string) {
@@ -138,7 +139,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
       if (d.error) setError(d.error);
       watch(d.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "صار خطأ.");
+      setError(e instanceof Error ? e.message : L("صار خطأ."));
     } finally { setSending(false); }
   }
 
@@ -153,7 +154,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
       setEditing(null); setEditText(""); setJob(null);
       watch(d.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "صار خطأ.");
+      setError(e instanceof Error ? e.message : L("صار خطأ."));
     } finally { setSending(false); }
   }
 
@@ -164,7 +165,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-start gap-5">
         {/* Settings */}
-        <section aria-label="إعدادات الطلب" className="flex min-w-0 flex-[1_1_440px] flex-col gap-4">
+        <section aria-label={L("إعدادات الطلب")} className="flex min-w-0 flex-[1_1_440px] flex-col gap-4">
           {spec.fields.map((f, idx) => {
             if (f.type === "consent" && f.showIf && !values[f.showIf.field]) return null;
             if (tool.id === "voice" && f.name === "sample" && !values.clone) return null;
@@ -173,30 +174,30 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
                 <div className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-2.5">
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-navy-800 text-sm font-bold text-gold-500">{idx + 1}</span>
-                    <label htmlFor={`f-${f.name}`} className="font-bold">{f.label}</label>
+                    <label htmlFor={`f-${f.name}`} className="font-bold">{L(f.label)}</label>
                   </span>
                   {spec.inspire && f === textField && (
-                    <button type="button" onClick={inspire} className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy-700"><Icon name="bulb" size={16} />ألهمني</button>
+                    <button type="button" onClick={inspire} className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy-700"><Icon name="bulb" size={16} />{L("ألهمني")}</button>
                   )}
                 </div>
 
                 {f.type === "text" && (
                   <>
-                    <textarea id={`f-${f.name}`} rows={f.rows ?? 4} maxLength={f.max} value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)} placeholder={f.placeholder} className="field resize-y leading-7" />
+                    <textarea id={`f-${f.name}`} rows={f.rows ?? 4} maxLength={f.max} value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)} placeholder={f.placeholder && L(f.placeholder)} className="field resize-y leading-7" />
                     {f === textField && ideas.length > 0 && (
                       <div className="flex flex-col gap-2">{ideas.map((i) => <button key={i} type="button" onClick={() => { set(f.name, i); setIdeas([]); }} className="rounded-xl border border-line bg-canvas p-3 text-right text-sm leading-6 hover:border-gold-500">{i}</button>)}</div>
                     )}
                     {f.max && <span className="text-xs text-subtle">{String(values[f.name] ?? "").length} / {f.max}</span>}
                   </>
                 )}
-                {f.type === "line" && <input id={`f-${f.name}`} maxLength={f.max} value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)} placeholder={f.placeholder} className="field" />}
+                {f.type === "line" && <input id={`f-${f.name}`} maxLength={f.max} value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)} placeholder={f.placeholder && L(f.placeholder)} className="field" />}
 
                 {f.type === "files" && (
                   <>
                     {fileError?.field === f.name && (
                       <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-800">
-                        <span aria-hidden>⚠️</span><span className="flex-1">{fileError.text}</span>
-                        <button type="button" aria-label="إغلاق" onClick={() => setFileError(null)} className="text-red-700">✕</button>
+                        <span aria-hidden>⚠️</span><span className="flex-1">{L(fileError.text)}</span>
+                        <button type="button" aria-label={L("إغلاق")} onClick={() => setFileError(null)} className="text-red-700">✕</button>
                       </p>
                     )}
                     <div className="flex flex-wrap gap-3">
@@ -204,23 +205,23 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
                         <div key={u.path} className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-tint text-xs text-subtle">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           {u.preview ? <img src={u.preview} alt="" className="h-full w-full object-cover" /> : <span className="p-2 text-center">{u.name}</span>}
-                          <button type="button" aria-label="إزالة الملف" onClick={() => removeFile(f.name, u.path)} className="absolute left-1 top-1 rounded-full bg-white/90 p-1 text-red-700"><Icon name="trash" size={12} /></button>
+                          <button type="button" aria-label={L("إزالة الملف")} onClick={() => removeFile(f.name, u.path)} className="absolute left-1 top-1 rounded-full bg-white/90 p-1 text-red-700"><Icon name="trash" size={12} /></button>
                         </div>
                       ))}
                       {(uploads[f.name] ?? []).length < f.max && (
                         <label className="flex h-24 w-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-[1.5px] border-dashed border-field bg-canvas text-[13px] font-semibold text-navy-700">
-                          <Icon name={busyUpload ? "upload" : "plus"} size={20} />{busyUpload ? (squeeze !== null ? `تجهيز الفيديو ${squeeze}%` : "جارٍ الرفع") : "رفع"}
+                          <Icon name={busyUpload ? "upload" : "plus"} size={20} />{busyUpload ? (squeeze !== null ? LT(`تجهيز الفيديو ${squeeze}%`, `Preparing video ${squeeze}%`) : L("جارٍ الرفع")) : L("رفع")}
                           <input id={`f-${f.name}`} type="file" accept={accepts[f.accept]} multiple={f.max > 1} className="sr-only" onChange={(e) => { addFiles(f, e.target.files); e.target.value = ""; }} />
                         </label>
                       )}
                     </div>
-                    {f.hint && <p className="text-[13px] text-subtle">{f.hint}</p>}
+                    {f.hint && <p className="text-[13px] text-subtle">{f.hint && L(f.hint)}</p>}
                   </>
                 )}
 
                 {f.type === "choice" && (
                   <div id={`f-${f.name}`} role="group" className="flex flex-wrap gap-2">
-                    {f.options.map((o) => <button key={o.value} type="button" aria-pressed={values[f.name] === o.value} onClick={() => set(f.name, o.value)} className="chip">{o.label}</button>)}
+                    {f.options.map((o) => <button key={o.value} type="button" aria-pressed={values[f.name] === o.value} onClick={() => set(f.name, o.value)} className="chip">{L(o.label)}</button>)}
                   </div>
                 )}
 
@@ -232,46 +233,46 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
 
                 {f.type === "count" && (
                   <div className="flex items-center gap-1 self-start rounded-xl border border-field p-1">
-                    <button type="button" aria-label="إنقاص" onClick={() => set(f.name, Math.max(f.min, Number(values[f.name]) - 1))} className="h-9 w-9 rounded-lg bg-tint text-lg text-navy-800">−</button>
+                    <button type="button" aria-label={L("إنقاص")} onClick={() => set(f.name, Math.max(f.min, Number(values[f.name]) - 1))} className="h-9 w-9 rounded-lg bg-tint text-lg text-navy-800">−</button>
                     <span id={`f-${f.name}`} className="min-w-8 text-center font-latin font-bold">{String(values[f.name])}</span>
-                    <button type="button" aria-label="زيادة" onClick={() => set(f.name, Math.min(f.max, Number(values[f.name]) + 1))} className="h-9 w-9 rounded-lg bg-tint text-lg text-navy-800">+</button>
+                    <button type="button" aria-label={L("زيادة")} onClick={() => set(f.name, Math.min(f.max, Number(values[f.name]) + 1))} className="h-9 w-9 rounded-lg bg-tint text-lg text-navy-800">+</button>
                   </div>
                 )}
 
                 {(f.type === "toggle" || f.type === "consent") && (
                   <label className="flex items-center gap-3 text-[15px]">
                     <input id={`f-${f.name}`} type="checkbox" checked={Boolean(values[f.name])} onChange={(e) => set(f.name, e.target.checked)} className="h-5 w-5 accent-navy-700" />
-                    {f.type === "toggle" ? (f.hint ?? "تفعيل") : "موافق"}
+                    {f.type === "toggle" ? (f.hint ?? L("تفعيل")) : L("موافق")}
                   </label>
                 )}
               </div>
             );
           })}
 
-          {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
+          {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">{L(error)}</p>}
 
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-navy-800 px-5 py-4 text-white">
             <div className="flex flex-col">
-              <span>التكلفة: <strong className="text-gold-500">{cost} ريشة</strong></span>
-              <span className="text-[13px] text-white/75">رصيدك بعدها {Math.max(0, balance - cost)} ريشة · ترجع لك إذا فشل الطلب</span>
+              <span>{L("التكلفة:")} <strong className="text-gold-500">{cost} {L("ريشة")}</strong></span>
+              <span className="text-[13px] text-white/75">{L("رصيدك بعدها")} {Math.max(0, balance - cost)} {L("ريشة · ترجع لك إذا فشل الطلب")}</span>
             </div>
             <button type="button" disabled={sending || busyUpload || cost > balance} onClick={submit} className="btn btn-gold px-6 py-3">
-              {sending ? "جارٍ الإرسال…" : cost > balance ? "رصيدك ما يكفي" : "ابدأ الإنشاء"}
+              {sending ? L("جارٍ الإرسال…") : cost > balance ? L("رصيدك ما يكفي") : L("ابدأ الإنشاء")}
             </button>
           </div>
         </section>
 
         {/* Result */}
-        <section aria-label="النتيجة" aria-live="polite" className="card flex min-w-0 flex-[1_1_440px] flex-col gap-4 p-5 lg:sticky lg:top-24">
-          <h2 className="font-bold">النتيجة</h2>
-          {!job && <div className="flex aspect-video items-center justify-center rounded-2xl bg-tint text-sm text-subtle">النتيجة بتظهر هنا</div>}
+        <section aria-label={L("النتيجة")} aria-live="polite" className="card flex min-w-0 flex-[1_1_440px] flex-col gap-4 p-5 lg:sticky lg:top-24">
+          <h2 className="font-bold">{L("النتيجة")}</h2>
+          {!job && <div className="flex aspect-video items-center justify-center rounded-2xl bg-tint text-sm text-subtle">{L("النتيجة بتظهر هنا")}</div>}
           {job && (job.status === "queued" || job.status === "running") && (
             <div className="flex aspect-video flex-col items-center justify-center gap-3 rounded-2xl bg-tint text-sm text-navy-700">
-              <div className="w-full max-w-sm px-4"><Progress value={job.progress ?? (job.status === "running" ? 30 : 5)} label={tool.id === "video-editing" ? "جاري تحليل الفيديو وتجهيز المونتاج…" : "جارٍ التنفيذ…"} /></div>
-              {tool.id.includes("video") && <span className="px-4 text-center">ياخذ من دقيقة لعدة دقائق. تقدر تطلع، وبتلقاه في أعمالي.</span>}
+              <div className="w-full max-w-sm px-4"><Progress value={job.progress ?? (job.status === "running" ? 30 : 5)} label={tool.id === "video-editing" ? L("جاري تحليل الفيديو وتجهيز المونتاج…") : L("جارٍ التنفيذ…")} /></div>
+              {tool.id.includes("video") && <span className="px-4 text-center">{L("ياخذ من دقيقة لعدة دقائق. تقدر تطلع، وبتلقاه في أعمالي.")}</span>}
             </div>
           )}
-          {job?.status === "failed" && <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">ما نجح الطلب، ورجّعنا لك الريش. جرّب مرة ثانية أو عدّل الوصف.</p>}
+          {job?.status === "failed" && <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{L("ما نجح الطلب، ورجّعنا لك الريش. جرّب مرة ثانية أو عدّل الوصف.")}</p>}
           {job?.status === "done" && (
             <div className="grid gap-3 sm:grid-cols-2">
               {job.files.map((f, i) => (
@@ -279,25 +280,25 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
                   <Media f={f} className="max-h-[480px]" />
                   {f.caption && <figcaption className="whitespace-pre-line p-3 text-sm leading-6">{f.caption}</figcaption>}
                   <div className="flex flex-wrap gap-2 p-3 pt-0">
-                    <a href={f.url} download className="btn btn-primary flex-1 py-2 text-sm"><Icon name="download" size={14} />تحميل</a>
-                    {hint && <button type="button" aria-expanded={editing === i} onClick={() => { setEditing(editing === i ? null : i); setEditOpts({}); }} className="btn btn-outline flex-1 py-2 text-sm"><Icon name="sparkles" size={14} />تعديل</button>}
-                    {f.caption && <button type="button" onClick={() => navigator.clipboard.writeText(f.caption!)} className="btn btn-outline flex-1 py-2 text-sm">نسخ النص</button>}
+                    <a href={f.url} download className="btn btn-primary flex-1 py-2 text-sm"><Icon name="download" size={14} />{L("تحميل")}</a>
+                    {hint && <button type="button" aria-expanded={editing === i} onClick={() => { setEditing(editing === i ? null : i); setEditOpts({}); }} className="btn btn-outline flex-1 py-2 text-sm"><Icon name="sparkles" size={14} />{L("تعديل")}</button>}
+                    {f.caption && <button type="button" onClick={() => navigator.clipboard.writeText(f.caption!)} className="btn btn-outline flex-1 py-2 text-sm">{L("نسخ النص")}</button>}
                   </div>
                   {hint && editing === i && (
                     <div className="flex flex-col gap-3 border-t border-line bg-canvas p-3">
-                      <label htmlFor={`edit-${i}`} className="label">{hint.label}</label>
+                      <label htmlFor={`edit-${i}`} className="label">{L(hint.label)}</label>
                       {hint.options ? (
                         <div id={`edit-${i}`} className="flex flex-col gap-2 text-sm">
-                          <label className="flex items-center gap-2"><input type="checkbox" defaultChecked={Boolean(values.cut_silence ?? true)} onChange={(e) => setEditOpts({ ...editOpts, cut_silence: e.target.checked })} className="accent-navy-700" />قص الأجزاء الصامتة</label>
-                          <label className="flex items-center gap-2"><input type="checkbox" defaultChecked={Boolean(values.captions ?? true)} onChange={(e) => setEditOpts({ ...editOpts, captions: e.target.checked })} className="accent-navy-700" />ترجمة عربية مكتوبة</label>
-                          <div className="flex flex-wrap gap-2">{[["original", "كما هو"], ["9:16", "9:16"], ["1:1", "1:1"], ["16:9", "16:9"]].map(([a, l]) => <button key={a} type="button" aria-pressed={editOpts.aspect === a} onClick={() => setEditOpts({ ...editOpts, aspect: a })} className="chip">{l}</button>)}</div>
-                          <div className="flex flex-wrap gap-2">{[["15", "15 ثانية"], ["30", "30 ثانية"], ["60", "دقيقة"], ["full", "بدون تقصير"]].map(([d, l]) => <button key={d} type="button" aria-pressed={(editOpts.target ?? values.target) === d} onClick={() => setEditOpts({ ...editOpts, target: d })} className="chip">{l}</button>)}</div>
+                          <label className="flex items-center gap-2"><input type="checkbox" defaultChecked={Boolean(values.cut_silence ?? true)} onChange={(e) => setEditOpts({ ...editOpts, cut_silence: e.target.checked })} className="accent-navy-700" />{L("قص الأجزاء الصامتة")}</label>
+                          <label className="flex items-center gap-2"><input type="checkbox" defaultChecked={Boolean(values.captions ?? true)} onChange={(e) => setEditOpts({ ...editOpts, captions: e.target.checked })} className="accent-navy-700" />{L("ترجمة عربية مكتوبة")}</label>
+                          <div className="flex flex-wrap gap-2">{[["original", L("كما هو")], ["9:16", "9:16"], ["1:1", "1:1"], ["16:9", "16:9"]].map(([a, l]) => <button key={a} type="button" aria-pressed={editOpts.aspect === a} onClick={() => setEditOpts({ ...editOpts, aspect: a })} className="chip">{l}</button>)}</div>
+                          <div className="flex flex-wrap gap-2">{[["15", L("15 ثانية")], ["30", L("30 ثانية")], ["60", L("دقيقة")], ["full", L("بدون تقصير")]].map(([d, l]) => <button key={d} type="button" aria-pressed={(editOpts.target ?? values.target) === d} onClick={() => setEditOpts({ ...editOpts, target: d })} className="chip">{l}</button>)}</div>
                         </div>
                       ) : (
-                        <textarea id={`edit-${i}`} rows={3} value={editText} onChange={(e) => setEditText(e.target.value)} placeholder={hint.placeholder} className="field resize-y leading-7" />
+                        <textarea id={`edit-${i}`} rows={3} value={editText} onChange={(e) => setEditText(e.target.value)} placeholder={hint.placeholder && L(hint.placeholder)} className="field resize-y leading-7" />
                       )}
                       <button type="button" disabled={sending || (!hint.options && !editText.trim()) || tool.edit_cost > balance} onClick={() => submitEdit(i)} className="btn btn-primary py-2.5 text-sm">
-                        {tool.edit_cost > balance ? "رصيدك ما يكفي" : `نفّذ التعديل · ${tool.edit_cost} ريشة`}
+                        {tool.edit_cost > balance ? L("رصيدك ما يكفي") : LT(`نفّذ التعديل · ${tool.edit_cost} ريشة`, `Apply edit · ${tool.edit_cost} credits`)}
                       </button>
                     </div>
                   )}
@@ -305,13 +306,13 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
               ))}
             </div>
           )}
-          <p className="text-[13px] text-subtle">كل النتائج تُحفظ تلقائياً في أعمالي.</p>
+          <p className="text-[13px] text-subtle">{L("كل النتائج تُحفظ تلقائياً في أعمالي.")}</p>
         </section>
       </div>
 
       {recent.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-bold text-navy-900">آخر أعمالك بهذه الأداة</h2>
+          <h2 className="text-lg font-bold text-navy-900">{L("آخر أعمالك بهذه الأداة")}</h2>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">{recent.map((w) => <WorkCard key={w.id} w={w} />)}</div>
         </section>
       )}

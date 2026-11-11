@@ -1,4 +1,5 @@
 "use client";
+import { L, LT } from "@/lib/i18n/ui";
 import "@fontsource/tajawal/arabic-500.css";
 import "@fontsource/tajawal/arabic-800.css";
 import "@fontsource/almarai/arabic-400.css";
@@ -67,7 +68,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   const [voVoice, setVoVoice] = useState(initial.vo?.voice || voices[0]?.id || "");
   const voAudio = useRef<HTMLAudioElement | null>(null);
   const [voPlaying, setVoPlaying] = useState(false);
-  const voName = voices.find((v) => v.id === spec.vo?.voice)?.name ?? "تعليق صوتي";
+  const voName = voices.find((v) => v.id === spec.vo?.voice)?.name ?? L("تعليق صوتي");
   const voSecs = spec.vo?.words.length ? spec.vo.words[spec.vo.words.length - 1].e : 0;
   function toggleVo() {
     if (!spec.vo?.url) return;
@@ -104,7 +105,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
     try {
       const r = await fetch(`/api/montage/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId, ...body }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error ?? "صار خطأ، حاول مرة ثانية.");
+      if (!r.ok) throw new Error(d.error ?? L("صار خطأ، حاول مرة ثانية."));
       return d as T;
     } catch (e) { setError((e as Error).message); return null; } finally { setBusy(null); }
   }
@@ -113,7 +114,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   function addTitle() {
     const f = player.current?.getCurrentFrame() ?? 0;
     const at = Math.max(0, Math.min(videoSeconds(spec) - 1, (f - introFrames(spec)) / MFPS));
-    setSpec({ ...spec, titles: [...spec.titles, { text: "عنوان جديد", at: +at.toFixed(2), dur: 2.5, pos: "top" as const }].sort((a, b) => a.at - b.at) });
+    setSpec({ ...spec, titles: [...spec.titles, { text: L("عنوان جديد"), at: +at.toFixed(2), dur: 2.5, pos: "top" as const }].sort((a, b) => a.at - b.at) });
   }
   const removeTitle = (i: number) => setSpec({ ...spec, titles: spec.titles.filter((_, j) => j !== i) });
   const nowAt = () => Math.max(0, Math.min(videoSeconds(spec) - 0.5, ((player.current?.getCurrentFrame() ?? 0) - introFrames(spec)) / MFPS));
@@ -146,10 +147,10 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       if (!r.ok) throw new Error(d.error);
       const supabase = createClient();
       const up = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
-      if (up.error) throw new Error("تعذّر رفع الشعار.");
+      if (up.error) throw new Error(L("تعذّر رفع الشعار."));
       const signed = await supabase.storage.from("uploads").createSignedUrl(d.path, 60 * 60 * 6);
       setSpec((sp) => ({ ...sp, logo: { path: d.path, url: signed.data?.signedUrl ?? "", on: true, pos: sp.logo?.pos ?? "tr", box: sp.logo?.box ?? DEFAULT_LOGO_BOX } }));
-    } catch (e) { setError((e as Error).message || "تعذّر رفع الشعار."); } finally { setUploading(false); }
+    } catch (e) { setError((e as Error).message || L("تعذّر رفع الشعار.")); } finally { setUploading(false); }
   }
 
   /** Upload a photo and show it at the moment the player is paused on. */
@@ -161,11 +162,11 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       if (!r.ok) throw new Error(d.error);
       const supabase = createClient();
       const up = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
-      if (up.error) throw new Error("تعذّر رفع الصورة.");
+      if (up.error) throw new Error(L("تعذّر رفع الصورة."));
       const signed = await supabase.storage.from("uploads").createSignedUrl(d.path, 60 * 60 * 6);
       const at = +nowAt().toFixed(2);
       setSpec((sp) => ({ ...sp, broll: [...(sp.broll ?? []), { path: d.path, url: signed.data?.signedUrl ?? "", at, dur: 2.5 }].sort((a, b) => a.at - b.at) }));
-    } catch (e) { setError((e as Error).message || "تعذّر رفع الصورة."); } finally { setUploading(false); }
+    } catch (e) { setError((e as Error).message || L("تعذّر رفع الصورة.")); } finally { setUploading(false); }
   }
 
   if (sent) {
@@ -173,22 +174,22 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       <div className="mx-auto flex max-w-xl flex-col items-center gap-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-8 text-center">
         {render.status === "done" && render.url ? (
           <>
-            <h2 className="text-[22px] font-bold text-emerald-900">✓ الفيديو جاهز</h2>
+            <h2 className="text-[22px] font-bold text-emerald-900">{L("✓ الفيديو جاهز")}</h2>
             <video src={render.url} controls playsInline className="max-h-[60vh] w-full rounded-2xl bg-black" />
-            <a href={render.url} download className="btn btn-gold w-full py-3.5">⬇️ تحميل الفيديو</a>
+            <a href={render.url} download className="btn btn-gold w-full py-3.5">{L("⬇️ تحميل الفيديو")}</a>
           </>
         ) : render.status === "failed" ? (
-          <p className="font-semibold text-red-800">ما نجح التصدير، ورجّعنا لك الريش. حاول مرة ثانية.</p>
+          <p className="font-semibold text-red-800">{L("ما نجح التصدير، ورجّعنا لك الريش. حاول مرة ثانية.")}</p>
         ) : (
           <>
-            <h2 className="text-[22px] font-bold text-emerald-900">✓ تم إرسال الفيديو للمعالجة</h2>
-            <Progress value={render.progress} label={render.status === "queued" && !render.progress ? "في الطابور…" : "جاري تجهيز الفيديو…"} />
-            <p className="text-[14px] text-emerald-900/80">تقدر تطلع من الصفحة، وبيوصلك الفيديو في «أعمالي» أول ما يخلص.</p>
+            <h2 className="text-[22px] font-bold text-emerald-900">{L("✓ تم إرسال الفيديو للمعالجة")}</h2>
+            <Progress value={render.progress} label={render.status === "queued" && !render.progress ? L("في الطابور…") : L("جاري تجهيز الفيديو…")} />
+            <p className="text-[14px] text-emerald-900/80">{L("تقدر تطلع من الصفحة، وبيوصلك الفيديو في «أعمالي» أول ما يخلص.")}</p>
           </>
         )}
         <div className="flex flex-wrap justify-center gap-3">
-          <Link href="/app/works" className="btn btn-primary px-6 py-3">روح لأعمالي</Link>
-          <Link href="/app/tools/video-editing" className="btn border border-line bg-white px-6 py-3">مونتاج جديد</Link>
+          <Link href="/app/works" className="btn btn-primary px-6 py-3">{L("روح لأعمالي")}</Link>
+          <Link href="/app/tools/video-editing" className="btn border border-line bg-white px-6 py-3">{L("مونتاج جديد")}</Link>
         </div>
       </div>
     );
@@ -200,8 +201,8 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:items-start">
       <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-bold text-navy-900">معاينة مباشرة</h2>
-          <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{seconds} ثانية</span>
+          <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
+          <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{seconds} {L("ثانية")}</span>
         </div>
         <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 11rem) * 0.5625))" : "100%" }}>
           {mounted ? (
@@ -214,25 +215,25 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             </div>
           )}
         </div>
-        <p className="text-center text-[13px] text-subtle">شاهين قصّ الفيديو وحط الهوك والعناوين. عدّل اللي تبيه وشوف التغيير على طول.</p>
+        <p className="text-center text-[13px] text-subtle">{L("شاهين قصّ الفيديو وحط الهوك والعناوين. عدّل اللي تبيه وشوف التغيير على طول.")}</p>
       </div>
 
       <div className="flex min-w-0 flex-col gap-5">
-        <Card title="الترجمة" icon="💬">
+        <Card title={L("الترجمة")} icon="💬">
           <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
-            <span className="font-semibold">إظهار الترجمة على الفيديو</span>
+            <span className="font-semibold">{L("إظهار الترجمة على الفيديو")}</span>
             <input type="checkbox" checked={spec.captions.on} onChange={(e) => setSpec({ ...spec, captions: { ...spec.captions, on: e.target.checked } })} className="h-5 w-5" />
           </label>
           {spec.captions.on && <>
-            <Sub>مكان الترجمة</Sub>
-            <div className="flex flex-wrap gap-2">{positions.map(([p, l]) => <button key={p} type="button" aria-pressed={(spec.captions.pos ?? "bottom") === p} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, pos: p } })} className="chip">{l}</button>)}</div>
-            <Sub>شكل الترجمة</Sub>
+            <Sub>{L("مكان الترجمة")}</Sub>
+            <div className="flex flex-wrap gap-2">{positions.map(([p, l]) => <button key={p} type="button" aria-pressed={(spec.captions.pos ?? "bottom") === p} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, pos: p } })} className="chip">{L(l)}</button>)}</div>
+            <Sub>{L("شكل الترجمة")}</Sub>
           </>}
-          {spec.captions.on && <div className="flex flex-wrap gap-2">{styles.map(([s, l]) => <button key={s} type="button" aria-pressed={spec.captions.style === s} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, style: s } })} className="chip">{l}</button>)}</div>}
+          {spec.captions.on && <div className="flex flex-wrap gap-2">{styles.map(([s, l]) => <button key={s} type="button" aria-pressed={spec.captions.style === s} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, style: s } })} className="chip">{L(l)}</button>)}</div>}
         </Card>
 
-        <Card title="تعديلات سريعة" icon="✏️">
-          <Sub>الألوان</Sub>
+        <Card title={L("تعديلات سريعة")} icon="✏️">
+          <Sub>{L("الألوان")}</Sub>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {(Object.keys(colorLabels) as (keyof typeof colorLabels)[]).map((k) => (
               <label key={k} className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]">
@@ -242,113 +243,113 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             ))}
           </div>
 
-          <Sub>النصوص</Sub>
+          <Sub>{L("النصوص")}</Sub>
           <div className="flex flex-col gap-2.5">
             {texts.map((f) => (
               <div key={f.key} className="flex items-end gap-2">
                 <label className="flex flex-1 flex-col gap-1">
-                  <span className="text-[12px] text-subtle">{f.label}</span>
+                  <span className="text-[12px] text-subtle">{L(f.label)}</span>
                   <input value={f.value} onChange={(e) => setSpec(setMontageText(spec, f.key, e.target.value))} className="field" />
                 </label>
-                {f.key.startsWith("titles.") && <button type="button" onClick={() => removeTitle(Number(f.key.split(".")[1]))} aria-label={`حذف ${f.label}`} className="mb-1 rounded-lg px-3 py-2 text-red-700 hover:bg-red-50">حذف</button>}
+                {f.key.startsWith("titles.") && <button type="button" onClick={() => removeTitle(Number(f.key.split(".")[1]))} aria-label={LT(`حذف ${L(f.label)}`, `Delete ${L(f.label)}`)} className="mb-1 rounded-lg px-3 py-2 text-red-700 hover:bg-red-50">{L("حذف")}</button>}
               </div>
             ))}
-            <button type="button" onClick={addTitle} className="btn border border-dashed border-field bg-white py-2.5 text-[14px]">＋ أضف عنوان متحرك عند اللحظة اللي واقف عليها بالفيديو</button>
+            <button type="button" onClick={addTitle} className="btn border border-dashed border-field bg-white py-2.5 text-[14px]">{L("＋ أضف عنوان متحرك عند اللحظة اللي واقف عليها بالفيديو")}</button>
           </div>
 
-          <Sub>البداية والنهاية</Sub>
+          <Sub>{L("البداية والنهاية")}</Sub>
           <div className="flex flex-wrap gap-2">
-            <button type="button" aria-pressed={spec.intro.on} onClick={() => setSpec({ ...spec, intro: { ...spec.intro, on: !spec.intro.on, title: spec.intro.title || "اسم نشاطك" } })} className="chip">بطاقة البداية</button>
-            <button type="button" aria-pressed={spec.outro.on} onClick={() => setSpec({ ...spec, outro: { ...spec.outro, on: !spec.outro.on, title: spec.outro.title || "تابعنا للمزيد" } })} className="chip">بطاقة النهاية</button>
+            <button type="button" aria-pressed={spec.intro.on} onClick={() => setSpec({ ...spec, intro: { ...spec.intro, on: !spec.intro.on, title: spec.intro.title || L("اسم نشاطك") } })} className="chip">{L("بطاقة البداية")}</button>
+            <button type="button" aria-pressed={spec.outro.on} onClick={() => setSpec({ ...spec, outro: { ...spec.outro, on: !spec.outro.on, title: spec.outro.title || L("تابعنا للمزيد") } })} className="chip">{L("بطاقة النهاية")}</button>
           </div>
 
-          <Sub>الخط</Sub>
+          <Sub>{L("الخط")}</Sub>
           <div className="flex flex-wrap gap-2">
             {FONTS.map((f) => (
               <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} style={{ fontFamily: f.id }}
-                className={`rounded-xl border px-4 py-2 text-[16px] ${spec.font === f.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink"}`}>{f.label}</button>
+                className={`rounded-xl border px-4 py-2 text-[16px] ${spec.font === f.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink"}`}>{L(f.label)}</button>
             ))}
           </div>
         </Card>
 
-        <Card title="لمسات احترافية" icon="🎬">
+        <Card title={L("لمسات احترافية")} icon="🎬">
           <div className="grid gap-2.5 sm:grid-cols-2">
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
-              <span className="font-semibold">🔊 مؤثرات صوتية</span>
+              <span className="font-semibold">{L("🔊 مؤثرات صوتية")}</span>
               <input type="checkbox" checked={!!spec.sfx} onChange={(e) => setSpec({ ...spec, sfx: e.target.checked })} className="h-5 w-5" />
             </label>
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
-              <span className="font-semibold">📊 شريط تقدّم فوق</span>
+              <span className="font-semibold">{L("📊 شريط تقدّم فوق")}</span>
               <input type="checkbox" checked={!!spec.progress} onChange={(e) => setSpec({ ...spec, progress: e.target.checked })} className="h-5 w-5" />
             </label>
           </div>
 
-          <Sub>الانتقال عند كل قطع</Sub>
-          <div className="flex flex-wrap gap-2">{transitions.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.transition ?? "none") === v} onClick={() => setSpec({ ...spec, transition: v })} className="chip">{l}</button>)}</div>
+          <Sub>{L("الانتقال عند كل قطع")}</Sub>
+          <div className="flex flex-wrap gap-2">{transitions.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.transition ?? "none") === v} onClick={() => setSpec({ ...spec, transition: v })} className="chip">{L(l)}</button>)}</div>
 
-          <Sub>ستايل النصوص على الفيديو</Sub>
-          <div className="flex flex-wrap gap-2">{TITLE_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={spec.titles.length > 0 && spec.titles.every((t) => (t.style ?? "pill") === v)} onClick={() => setSpec({ ...spec, titles: spec.titles.map((t) => ({ ...t, style: v })) })} className="chip">{l}</button>)}</div>
+          <Sub>{L("ستايل النصوص على الفيديو")}</Sub>
+          <div className="flex flex-wrap gap-2">{TITLE_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={spec.titles.length > 0 && spec.titles.every((t) => (t.style ?? "pill") === v)} onClick={() => setSpec({ ...spec, titles: spec.titles.map((t) => ({ ...t, style: v })) })} className="chip">{L(l)}</button>)}</div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3"><span className="font-semibold">حركة سينمائية بطيئة</span>
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3"><span className="font-semibold">{L("حركة سينمائية بطيئة")}</span>
               <input type="checkbox" checked={!!spec.drift} onChange={(e) => setSpec({ ...spec, drift: e.target.checked })} className="h-5 w-5" /></label>
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3"><span className="font-semibold">حواف داكنة (فينييت)</span>
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3"><span className="font-semibold">{L("حواف داكنة (فينييت)")}</span>
               <input type="checkbox" checked={!!spec.vignette} onChange={(e) => setSpec({ ...spec, vignette: e.target.checked })} className="h-5 w-5" /></label>
           </div>
 
-          <Sub>شعار نشاطك</Sub>
+          <Sub>{L("شعار نشاطك")}</Sub>
           {spec.logo ? (
             <>
               <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
-                <span className="font-semibold">إظهار الشعار بالزاوية</span>
+                <span className="font-semibold">{L("إظهار الشعار بالزاوية")}</span>
                 <input type="checkbox" checked={spec.logo.on} onChange={(e) => setSpec({ ...spec, logo: { ...spec.logo!, on: e.target.checked } })} className="h-5 w-5" />
               </label>
               {spec.logo.on && <div className="flex flex-wrap gap-2">
-                {corners.map(([c, l]) => <button key={c} type="button" aria-pressed={!spec.logo!.box && spec.logo!.pos === c} onClick={() => setSpec({ ...spec, logo: { ...spec.logo!, pos: c, box: null } })} className="chip">{l}</button>)}
-                <button type="button" aria-pressed={!!spec.logo.box} onClick={() => setSpec({ ...spec, logo: { ...spec.logo!, box: spec.logo!.box ?? DEFAULT_LOGO_BOX } })} className="chip">✋ تحريك وتكبير حر</button>
+                {corners.map(([c, l]) => <button key={c} type="button" aria-pressed={!spec.logo!.box && spec.logo!.pos === c} onClick={() => setSpec({ ...spec, logo: { ...spec.logo!, pos: c, box: null } })} className="chip">{L(l)}</button>)}
+                <button type="button" aria-pressed={!!spec.logo.box} onClick={() => setSpec({ ...spec, logo: { ...spec.logo!, box: spec.logo!.box ?? DEFAULT_LOGO_BOX } })} className="chip">{L("✋ تحريك وتكبير حر")}</button>
               </div>}
               {spec.logo.on && spec.logo.box && <LogoSize box={spec.logo.box} onChange={(b) => setSpec({ ...spec, logo: { ...spec.logo!, box: b } })} />}
-              <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">تغيير الشعار<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} /></label>
+              <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">{L("تغيير الشعار")}<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} /></label>
             </>
           ) : (
-            <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">⬆️ ارفع شعارك<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} /></label>
+            <label className="btn btn-outline cursor-pointer self-start px-4 py-2 text-sm">{L("⬆️ ارفع شعارك")}<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} /></label>
           )}
 
-          <Sub>إيموجي</Sub>
+          <Sub>{L("إيموجي")}</Sub>
           {(spec.emojis ?? []).length > 0 && (
             <ul className="flex flex-wrap gap-2">
               {(spec.emojis ?? []).map((x, i) => (
                 <li key={i} className="flex items-center gap-1.5 rounded-full border border-line bg-white py-1 pe-1 ps-3 text-[14px]">
                   <span className="text-[18px]">{x.e}</span><span className="text-subtle" dir="ltr">{x.at.toFixed(1)}s</span>
-                  <button type="button" onClick={() => removeEmoji(i)} aria-label={`حذف ${x.e}`} className="rounded-full px-2 text-red-700 hover:bg-red-50">×</button>
+                  <button type="button" onClick={() => removeEmoji(i)} aria-label={LT(`حذف ${x.e}`, `Delete ${x.e}`)} className="rounded-full px-2 text-red-700 hover:bg-red-50">×</button>
                 </li>
               ))}
             </ul>
           )}
-          <p className="text-[12px] text-subtle">وقّف الفيديو عند اللحظة اللي تبيها، واضغط على إيموجي لإضافته.</p>
-          <div className="flex flex-wrap gap-1.5">{EMOJIS.map((e) => <button key={e} type="button" onClick={() => addEmoji(e)} aria-label={`أضف ${e}`} className="rounded-xl border border-line bg-white px-2.5 py-1.5 text-[20px] hover:border-gold-500">{e}</button>)}</div>
+          <p className="text-[12px] text-subtle">{L("وقّف الفيديو عند اللحظة اللي تبيها، واضغط على إيموجي لإضافته.")}</p>
+          <div className="flex flex-wrap gap-1.5">{EMOJIS.map((e) => <button key={e} type="button" onClick={() => addEmoji(e)} aria-label={LT(`أضف ${e}`, `Add ${e}`)} className="rounded-xl border border-line bg-white px-2.5 py-1.5 text-[20px] hover:border-gold-500">{e}</button>)}</div>
         </Card>
 
-        <Card title="الصورة والصوت" icon="🎨">
-          <Sub>ستايل الألوان والإضاءة {spec.autoBright && spec.autoBright > 1 ? "(صحّحنا إضاءة الفيديو الغامق تلقائياً)" : ""}</Sub>
-          <div className="flex flex-wrap gap-2">{GRADES.map(([g, l]) => <button key={g} type="button" aria-pressed={(spec.grade ?? "none") === g} onClick={() => setSpec({ ...spec, grade: g })} className="chip">{l}</button>)}</div>
+        <Card title={L("الصورة والصوت")} icon="🎨">
+          <Sub>{L("ستايل الألوان والإضاءة")} {spec.autoBright && spec.autoBright > 1 ? L("(صحّحنا إضاءة الفيديو الغامق تلقائياً)") : ""}</Sub>
+          <div className="flex flex-wrap gap-2">{GRADES.map(([g, l]) => <button key={g} type="button" aria-pressed={(spec.grade ?? "none") === g} onClick={() => setSpec({ ...spec, grade: g })} className="chip">{L(l)}</button>)}</div>
           {(spec.face ?? []).length > 0 && (
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
-              <span className="font-semibold">🎯 تتبّع الوجه (القص يلحق الشخص)</span>
+              <span className="font-semibold">{L("🎯 تتبّع الوجه (القص يلحق الشخص)")}</span>
               <input type="checkbox" checked={!!spec.track} onChange={(e) => setSpec({ ...spec, track: e.target.checked })} className="h-5 w-5" />
             </label>
           )}
-          <Sub>صوت الفيديو الأصلي</Sub>
+          <Sub>{L("صوت الفيديو الأصلي")}</Sub>
           <div className="flex flex-wrap gap-2">
-            {([[1, "كامل"], [0.25, "منخفض"], [0, "صامت"]] as const).map(([v, l]) => <button key={l} type="button" aria-pressed={Math.abs((spec.videoVolume ?? 1) - v) < 0.14} onClick={() => setSpec({ ...spec, videoVolume: v })} className="chip">{l}</button>)}
+            {([[1, L("كامل")], [0.25, L("منخفض")], [0, L("صامت")]] as const).map(([v, l]) => <button key={l} type="button" aria-pressed={Math.abs((spec.videoVolume ?? 1) - v) < 0.14} onClick={() => setSpec({ ...spec, videoVolume: v })} className="chip">{L(l)}</button>)}
           </div>
-          {kit && <button type="button" onClick={applyBrand} className="btn border border-gold-500 bg-gold-500/10 py-2.5 text-[14px] font-semibold text-navy-900">🏷️ طبّق هويتي التجارية (الألوان، الخط، الشعار، الحساب)</button>}
+          {kit && <button type="button" onClick={applyBrand} className="btn border border-gold-500 bg-gold-500/10 py-2.5 text-[14px] font-semibold text-navy-900">{L("🏷️ طبّق هويتي التجارية (الألوان، الخط، الشعار، الحساب)")}</button>}
         </Card>
 
-        <Card title="التعليق الصوتي" icon="🎙️">
+        <Card title={L("التعليق الصوتي")} icon="🎙️">
           {spec.vo ? (
             /* the voice track: play it, or ✕ to delete and record a new one */
             <div className="flex items-center gap-3 rounded-2xl border border-navy-800/15 bg-navy-800 px-3 py-3 text-white">
-              <button type="button" onClick={toggleVo} aria-label={voPlaying ? "إيقاف" : "تشغيل الصوت"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-500 text-navy-900">{voPlaying ? "❚❚" : "▶"}</button>
+              <button type="button" onClick={toggleVo} aria-label={voPlaying ? L("إيقاف") : L("تشغيل الصوت")} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-500 text-navy-900">{voPlaying ? "❚❚" : "▶"}</button>
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <span className="truncate text-[14px] font-semibold">🎙️ {voName}</span>
                 <span aria-hidden className="flex h-5 items-center gap-[3px] overflow-hidden">
@@ -356,15 +357,15 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                 </span>
               </div>
               <span className="shrink-0 text-[12px] text-white/70" dir="ltr">{voSecs.toFixed(0)}s</span>
-              <button type="button" onClick={removeVo} aria-label="حذف التعليق الصوتي" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-[18px] hover:bg-red-600">✕</button>
+              <button type="button" onClick={removeVo} aria-label={L("حذف التعليق الصوتي")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-[18px] hover:bg-red-600">✕</button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <p className="text-[13px] text-subtle">اكتب الكلام واختر الصوت، وبيتسجّل فوق الفيديو والترجمة تمشي معه.</p>
-              <textarea value={voText} onChange={(e) => setVoText(e.target.value)} rows={5} maxLength={1500} className="field" placeholder="اكتب الكلام اللي تبي ينقال…" />
+              <p className="text-[13px] text-subtle">{L("اكتب الكلام واختر الصوت، وبيتسجّل فوق الفيديو والترجمة تمشي معه.")}</p>
+              <textarea value={voText} onChange={(e) => setVoText(e.target.value)} rows={5} maxLength={1500} className="field" placeholder={L("اكتب الكلام اللي تبي ينقال…")} />
               {voices.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  <Sub>اختر الصوت</Sub>
+                  <Sub>{L("اختر الصوت")}</Sub>
                   {voices.map((v) => (
                     <button key={v.id} type="button" aria-pressed={voVoice === v.id} onClick={() => setVoVoice(v.id)}
                       className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-start ${voVoice === v.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white"}`}>
@@ -378,13 +379,13 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                   const d = await call<{ spec: MontageSpec; url: string; text: string }>("voice", { spec: { ...spec, src: "", words: [], face: [] }, text: voText, voice: voVoice });
                   if (d) { setSpec((sp) => ({ ...sp, segments: d.spec.segments, videoVolume: d.spec.videoVolume, vo: { ...d.spec.vo!, url: d.url } })); setVoText(d.text); }
                 }}>
-                {busy === "voice" ? "جاري التسجيل…" : `🎙️ سجّل الصوت (${editCost} ريشة)`}
+                {busy === "voice" ? L("جاري التسجيل…") : LT(`🎙️ سجّل الصوت (${editCost} ريشة)`, `🎙️ Record voice (${editCost} credits)`)}
               </button>
             </div>
           )}
         </Card>
 
-        <Card title="صور إضافية فوق الكلام" icon="🖼️">
+        <Card title={L("صور إضافية فوق الكلام")} icon="🖼️">
           {(spec.broll ?? []).length > 0 ? (
             <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {(spec.broll ?? []).map((b, i) => (
@@ -392,41 +393,41 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {b.url && <img src={b.url} alt="" className="aspect-square w-full object-cover" />}
                   <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 text-[11px] text-white" dir="ltr">{b.at.toFixed(1)}s</span>
-                  <button type="button" onClick={() => removeBroll(i)} aria-label="حذف الصورة" className="absolute left-1 top-1 rounded-full bg-white/90 px-2 text-red-700">×</button>
+                  <button type="button" onClick={() => removeBroll(i)} aria-label={L("حذف الصورة")} className="absolute left-1 top-1 rounded-full bg-white/90 px-2 text-red-700">×</button>
                 </li>
               ))}
             </ul>
-          ) : <p className="text-[13px] text-subtle">ما فيه صور إضافية. أضف صور منتجاتك أو محلك وبتطلع فوق الكلام.</p>}
+          ) : <p className="text-[13px] text-subtle">{L("ما فيه صور إضافية. أضف صور منتجاتك أو محلك وبتطلع فوق الكلام.")}</p>}
           <label className={`btn border border-dashed border-field bg-white py-2.5 text-[14px] ${uploading ? "opacity-60" : "cursor-pointer"}`}>
-            {uploading ? "جاري رفع الصورة…" : "＋ أضف صورة عند اللحظة اللي واقف عليها بالفيديو"}
+            {uploading ? L("جاري رفع الصورة…") : L("＋ أضف صورة عند اللحظة اللي واقف عليها بالفيديو")}
             <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) addBroll(f); e.target.value = ""; }} />
           </label>
         </Card>
 
-        <Card title="ترجمة بلغة ثانية" icon="🌍">
+        <Card title={L("ترجمة بلغة ثانية")} icon="🌍">
           {spec.subs2 ? (
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
-              <span className="font-semibold">إظهار ترجمة {SUB_LANGS.find((l) => l.id === spec.subs2!.lang)?.label} تحت الكلام</span>
+              <span className="font-semibold">{L("إظهار ترجمة")} {SUB_LANGS.find((l) => l.id === spec.subs2!.lang)?.label} {L("تحت الكلام")}</span>
               <input type="checkbox" checked={spec.subs2.on} onChange={(e) => setSpec({ ...spec, subs2: { ...spec.subs2!, on: e.target.checked } })} className="h-5 w-5" />
             </label>
-          ) : <p className="text-[13px] text-subtle">أضف ترجمة تحت الكلام العربي، توصل لجمهور أكبر.</p>}
-          <div className="flex flex-wrap gap-2">{SUB_LANGS.map((l) => <button key={l.id} type="button" aria-pressed={lang === l.id} onClick={() => setLang(l.id)} className="chip">{l.label}</button>)}</div>
+          ) : <p className="text-[13px] text-subtle">{L("أضف ترجمة تحت الكلام العربي، توصل لجمهور أكبر.")}</p>}
+          <div className="flex flex-wrap gap-2">{SUB_LANGS.map((l) => <button key={l.id} type="button" aria-pressed={lang === l.id} onClick={() => setLang(l.id)} className="chip">{L(l.label)}</button>)}</div>
           <button type="button" disabled={!!busy} className="btn btn-primary self-start px-5 py-2.5"
             onClick={async () => { const d = await call<{ subs2: NonNullable<MontageSpec["subs2"]> }>("translate", { spec: { ...spec, src: "" }, lang }); if (d) setSpec((sp) => ({ ...sp, subs2: d.subs2 })); }}>
-            {busy === "translate" ? "جاري الترجمة…" : `ترجم الكلام (${editCost} ريشة)`}
+            {busy === "translate" ? L("جاري الترجمة…") : LT(`ترجم الكلام (${editCost} ريشة)`, `Translate speech (${editCost} credits)`)}
           </button>
         </Card>
 
-        <Card title="تعديل متقدّم (بالوصف)" icon="✨">
-          <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} className="field" placeholder="مثال: زيد عناوين للأفكار الأساسية، وكبّر أكثر على الجمل القوية، وخلّ الألوان أحمر وأسود" />
+        <Card title={L("تعديل متقدّم (بالوصف)")} icon="✨">
+          <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} className="field" placeholder={L("مثال: زيد عناوين للأفكار الأساسية، وكبّر أكثر على الجمل القوية، وخلّ الألوان أحمر وأسود")} />
           <button type="button" disabled={!instruction.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
             onClick={async () => { const d = await call<{ spec: MontageSpec }>("revise", { spec: { ...spec, src: "", words: [], face: [] }, instruction }); if (d) { const urls = new Map((spec.broll ?? []).map((b) => [b.path, b.url])); setSpec({ ...d.spec, src: spec.src, words: spec.words, segments: spec.segments, face: spec.face, logo: d.spec.logo ? { ...d.spec.logo, url: spec.logo?.url ?? "" } : null, broll: (d.spec.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? "" })), subs2: spec.subs2, vo: spec.vo, music: d.spec.music?.path && spec.music?.path === d.spec.music.path ? spec.music : d.spec.music }); setInstruction(""); } }}>
-            {busy === "revise" ? "جاري التعديل…" : `طبّق التعديل (${editCost} ريشة)`}
+            {busy === "revise" ? L("جاري التعديل…") : LT(`طبّق التعديل (${editCost} ريشة)`, `Apply edit (${editCost} credits)`)}
           </button>
-          <p className="text-[12px] text-subtle">يعدّل العناوين والتكبير والإيموجي والانتقالات والمؤثرات والألوان والخط والبطاقات ومكان الترجمة. القصّ نفسه يبقى مثل ما هو.</p>
+          <p className="text-[12px] text-subtle">{L("يعدّل العناوين والتكبير والإيموجي والانتقالات والمؤثرات والألوان والخط والبطاقات ومكان الترجمة. القصّ نفسه يبقى مثل ما هو.")}</p>
         </Card>
 
-        <Card title="موسيقى خلفية" icon="🎵">
+        <Card title={L("موسيقى خلفية")} icon="🎵">
           {tracks.length > 0 && (
             <ul className="flex flex-col gap-2">
               {tracks.map((t) => {
@@ -434,25 +435,25 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                 return (
                   <li key={t.url} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${chosen ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}>
                     <span className="flex flex-1 flex-col"><span className="font-semibold">{t.name}</span>{t.mood && <span className="text-[12px] text-subtle" dir="ltr">{t.mood}</span>}</span>
-                    <button type="button" onClick={() => setSpec({ ...spec, music: chosen ? null : { url: t.url, name: t.name } })} className={`rounded-lg px-3.5 py-1.5 text-[14px] font-semibold ${chosen ? "bg-gold-500 text-navy-900" : "bg-navy-800 text-white"}`}>{chosen ? "مختارة ✓" : "اختر"}</button>
+                    <button type="button" onClick={() => setSpec({ ...spec, music: chosen ? null : { url: t.url, name: t.name } })} className={`rounded-lg px-3.5 py-1.5 text-[14px] font-semibold ${chosen ? "bg-gold-500 text-navy-900" : "bg-navy-800 text-white"}`}>{chosen ? L("مختارة ✓") : L("اختر")}</button>
                   </li>
                 );
               })}
             </ul>
           )}
-          <input value={musicPrompt} onChange={(e) => setMusicPrompt(e.target.value)} className="field" placeholder="مثال: موسيقى هادئة ملهمة خفيفة تحت الكلام" />
+          <input value={musicPrompt} onChange={(e) => setMusicPrompt(e.target.value)} className="field" placeholder={L("مثال: موسيقى هادئة ملهمة خفيفة تحت الكلام")} />
           <button type="button" disabled={!musicPrompt.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
             onClick={async () => { const d = await call<{ url: string }>("music", { prompt: musicPrompt, seconds }); if (d) setSpec({ ...spec, music: { url: d.url, name: musicPrompt } }); }}>
-            {busy === "music" ? "جاري التأليف…" : `✨ ألّف موسيقى (${editCost} ريشة)`}
+            {busy === "music" ? L("جاري التأليف…") : LT(`✨ ألّف موسيقى (${editCost} ريشة)`, `✨ Compose music (${editCost} credits)`)}
           </button>
-          {spec.music && <p className="text-[13px] text-subtle">الموسيقى الحالية: {spec.music.name} · <button type="button" className="text-red-700 underline" onClick={() => setSpec({ ...spec, music: null })}>إزالة</button></p>}
+          {spec.music && <p className="text-[13px] text-subtle">{L("الموسيقى الحالية:")} {L(spec.music.name)} · <button type="button" className="text-red-700 underline" onClick={() => setSpec({ ...spec, music: null })}>{L("إزالة")}</button></p>}
         </Card>
 
-        {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
 
         <button type="button" disabled={!!busy} className="btn btn-gold w-full py-4 text-[17px]"
           onClick={async () => { const d = await call<{ ok: true }>("export", { spec: { ...spec, src: "" } }); if (d) { try { localStorage.removeItem(key); } catch {} setSent(true); } }}>
-          {busy === "export" ? "جاري الإرسال…" : "⬇️ تصدير الفيديو (MP4)"}
+          {busy === "export" ? L("جاري الإرسال…") : L("⬇️ تصدير الفيديو (MP4)")}
         </button>
       </div>
     </div>

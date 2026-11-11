@@ -1,4 +1,5 @@
 "use client";
+import { L } from "@/lib/i18n/ui";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
@@ -93,7 +94,7 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
       if (d.text) {
         setText((t) => (t.trim() ? `${t.trim()} ${d.text}` : d.text));
         setTimeout(() => input.current?.focus(), 50);
-      } else setVoiceNote(d.error ?? T("ما قدرنا نحوّل الصوت لنص، جرّب مرة ثانية.", "We couldn't convert your voice to text. Please try again."));
+      } else setVoiceNote(d.error ? L(d.error) : T("ما قدرنا نحوّل الصوت لنص، جرّب مرة ثانية.", "We couldn't convert your voice to text. Please try again."));
     } catch {
       setVoiceNote(T("تعذّر الاتصال، جرّب مرة ثانية.", "Connection failed. Please try again."));
     } finally { setRec("idle"); }

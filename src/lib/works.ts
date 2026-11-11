@@ -1,12 +1,12 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { signedResultUrls } from "@/lib/providers/storage";
-import { getTools } from "@/lib/data";
+import { getToolsL } from "@/lib/data";
 import type { Work } from "@/components/app/WorkCard";
 
 export async function listWorks(opts: { limit?: number; tool?: string; category?: string } = {}): Promise<Work[]> {
   const supabase = await createClient();
-  const tools = await getTools(true);
+  const tools = await getToolsL(true);
   let q = supabase.from("jobs").select("id,title,tool_id,status,created_at,output,error,progress").order("created_at", { ascending: false }).limit(opts.limit ?? 60);
   if (opts.tool) q = q.eq("tool_id", opts.tool);
   if (opts.category) q = q.in("tool_id", tools.filter((t) => t.category === opts.category).map((t) => t.id));

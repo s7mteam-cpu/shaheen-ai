@@ -1,11 +1,20 @@
 "use client";
-import { createContext, useContext } from "react";
-import { tr, type Lang } from "@/lib/i18n";
+import { createContext, useContext, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { langFor, tr, type Lang } from "@/lib/i18n";
+import { setUiLang } from "@/lib/i18n/ui";
 
 const Ctx = createContext<Lang>("ar");
 
-/** Set once in the root layout; every client component reads the page language from here. */
-export function LangProvider({ lang, children }: { lang: Lang; children: React.ReactNode }) {
+/** Root of the page language: the visitor's choice (cookie) applied to the current page. Keeps <html lang/dir> in sync while navigating. */
+export function LangProvider({ chosen, children }: { chosen: Lang; children: React.ReactNode }) {
+  const path = usePathname() ?? "/";
+  const lang = langFor(chosen, path);
+  setUiLang(lang);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "en" ? "ltr" : "rtl";
+  }, [lang]);
   return <Ctx.Provider value={lang}>{children}</Ctx.Provider>;
 }
 export const useLang = () => useContext(Ctx);

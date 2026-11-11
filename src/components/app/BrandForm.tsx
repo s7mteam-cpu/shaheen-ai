@@ -1,4 +1,5 @@
 "use client";
+import { L, LT } from "@/lib/i18n/ui";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { saveBrand } from "@/app/app/brand/actions";
@@ -36,62 +37,62 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
   }
   async function save() {
     const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path) });
-    setMsg(r.ok ? "تم الحفظ. بتنطبق هويتك على كل تصميم جديد." : "تعذّر الحفظ.");
+    setMsg(r.ok ? L("تم الحفظ. بتنطبق هويتك على كل تصميم جديد.") : L("تعذّر الحفظ."));
   }
 
   return (
     <div className="card flex max-w-2xl flex-col gap-5 p-7">
-      <div className="flex flex-col gap-2"><label htmlFor="bn" className="label">اسم النشاط</label><input id="bn" value={name} onChange={(e) => setName(e.target.value)} className="field" placeholder="مثال: مطعم الديرة" /></div>
+      <div className="flex flex-col gap-2"><label htmlFor="bn" className="label">{L("اسم النشاط")}</label><input id="bn" value={name} onChange={(e) => setName(e.target.value)} className="field" placeholder={L("مثال: مطعم الديرة")} /></div>
       <div className="flex flex-col gap-2">
-        <span className="label">الشعار</span>
+        <span className="label">{L("الشعار")}</span>
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl bg-tint text-xs text-subtle">{preview ? <img src={preview} alt="شعارك" className="h-full w-full object-contain" /> : "بدون شعار"}</div>
-          <label className="btn btn-outline cursor-pointer px-4 py-2.5 text-sm">رفع شعار<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} /></label>
+          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl bg-tint text-xs text-subtle">{preview ? <img src={preview} alt={L("شعارك")} className="h-full w-full object-contain" /> : L("بدون شعار")}</div>
+          <label className="btn btn-outline cursor-pointer px-4 py-2.5 text-sm">{L("رفع شعار")}<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} /></label>
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        <span className="label">ألوان الهوية</span>
+        <span className="label">{L("ألوان الهوية")}</span>
         <div className="flex flex-wrap gap-3">
           {colors.map((c, i) => (
             <label key={i} className="flex items-center gap-2 rounded-xl border border-field px-2 py-1.5">
-              <input type="color" value={c} onChange={(e) => setColors(colors.map((x, j) => (j === i ? e.target.value : x)))} className="h-8 w-8 cursor-pointer border-0 bg-transparent" aria-label={`اللون ${i + 1}`} />
+              <input type="color" value={c} onChange={(e) => setColors(colors.map((x, j) => (j === i ? e.target.value : x)))} className="h-8 w-8 cursor-pointer border-0 bg-transparent" aria-label={LT(`اللون ${i + 1}`, `Color ${i + 1}`)} />
               <span dir="ltr" className="font-latin text-sm">{c}</span>
             </label>
           ))}
-          {colors.length < 5 && <button type="button" onClick={() => setColors([...colors, "#999999"])} className="btn btn-outline px-3 text-sm">+ لون</button>}
+          {colors.length < 5 && <button type="button" onClick={() => setColors([...colors, "#999999"])} className="btn btn-outline px-3 text-sm">{L("+ لون")}</button>}
         </div>
       </div>
-      <div className="flex flex-col gap-2"><label htmlFor="bh" className="label">حسابك أو رقم التواصل <span className="font-normal text-subtle">(يطلع بنهاية الفيديوهات)</span></label><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder="مثال: @aldeira.kw أو 9999 9999" /></div>
+      <div className="flex flex-col gap-2"><label htmlFor="bh" className="label">{L("حسابك أو رقم التواصل")} <span className="font-normal text-subtle">{L("(يطلع بنهاية الفيديوهات)")}</span></label><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder={L("مثال: @aldeira.kw أو 9999 9999")} /></div>
       <div className="flex flex-col gap-2">
-        <span className="label">خط الهوية</span>
+        <span className="label">{L("خط الهوية")}</span>
         <div className="flex flex-wrap gap-2">
-          <button type="button" aria-pressed={!font} onClick={() => setFont("")} className="chip">يختاره شاهين</button>
-          {FONTS.map(([id, l]) => <button key={id} type="button" aria-pressed={font === id} onClick={() => setFont(id)} className="chip" style={{ fontFamily: id }}>{l}</button>)}
+          <button type="button" aria-pressed={!font} onClick={() => setFont("")} className="chip">{L("يختاره شاهين")}</button>
+          {FONTS.map(([id, l]) => <button key={id} type="button" aria-pressed={font === id} onClick={() => setFont(id)} className="chip" style={{ fontFamily: id }}>{L(l)}</button>)}
         </div>
       </div>
       <div className="flex flex-col gap-4 rounded-2xl bg-tint p-4">
-        <div><span className="label">ستايلك المفضّل</span><p className="text-[13px] text-subtle">شاهين يتعلّم منها أسلوبك، ويصمّم لك بنفس الإحساس.</p></div>
+        <div><span className="label">{L("ستايلك المفضّل")}</span><p className="text-[13px] text-subtle">{L("شاهين يتعلّم منها أسلوبك، ويصمّم لك بنفس الإحساس.")}</p></div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">موقعك الإلكتروني</span><input dir="ltr" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={200} className="field" placeholder="example.com" /></label>
-          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">حسابك على إنستغرام</span><input dir="ltr" value={instagram} onChange={(e) => setInstagram(e.target.value)} maxLength={120} className="field" placeholder="@yourbrand" /></label>
+          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("موقعك الإلكتروني")}</span><input dir="ltr" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={200} className="field" placeholder="example.com" /></label>
+          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("حسابك على إنستغرام")}</span><input dir="ltr" value={instagram} onChange={(e) => setInstagram(e.target.value)} maxLength={120} className="field" placeholder="@yourbrand" /></label>
         </div>
         <div className="flex flex-col gap-2">
-          <span className="text-[14px] font-semibold">ارفع 3-6 صور من أحلى بوستاتك <span className="font-normal text-subtle">(سكرين شوت من إنستغرام يكفي)</span></span>
+          <span className="text-[14px] font-semibold">{L("ارفع 3-6 صور من أحلى بوستاتك")} <span className="font-normal text-subtle">{L("(سكرين شوت من إنستغرام يكفي)")}</span></span>
           <div className="flex flex-wrap gap-2.5">
             {refs.map((r, i) => (
               <div key={r.path} className="relative h-20 w-16 overflow-hidden rounded-lg bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={r.url} alt="" className="h-full w-full object-cover" />
-                <button type="button" aria-label="حذف" onClick={() => setRefs(refs.filter((_, j) => j !== i))} className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-[11px] text-white">✕</button>
+                <button type="button" aria-label={L("حذف")} onClick={() => setRefs(refs.filter((_, j) => j !== i))} className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-[11px] text-white">✕</button>
               </div>
             ))}
             {refs.length < 6 && <label className="grid h-20 w-16 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-field bg-white text-[22px] text-subtle">+<input type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" onChange={(e) => addRefs(e.target.files)} /></label>}
           </div>
         </div>
       </div>
-      {msg && <p role="status" className="text-sm text-navy-700">{msg}</p>}
-      <button type="button" onClick={save} className="btn btn-primary self-start px-6 py-3">حفظ الهوية</button>
+      {msg && <p role="status" className="text-sm text-navy-700">{L(msg)}</p>}
+      <button type="button" onClick={save} className="btn btn-primary self-start px-6 py-3">{L("حفظ الهوية")}</button>
     </div>
   );
 }
