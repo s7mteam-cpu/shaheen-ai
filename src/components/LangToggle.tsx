@@ -17,7 +17,7 @@ export function LangToggle({ lang, className = "", light = false }: { lang: Lang
   return (
     <button type="button" onClick={flip} disabled={pending} lang={lang === "en" ? "ar" : "en"}
       aria-label={lang === "en" ? "التبديل إلى العربية" : "Switch to English"} title={lang === "en" ? "العربية" : "English"}
-      className={`inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full px-2 text-[14px] font-bold transition ${light ? "border border-line text-navy-800 hover:bg-tint" : "text-white/85 hover:bg-white/10 hover:text-white"} disabled:opacity-50 ${className}`}>
+      className={`inline-flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full px-1.5 text-[13px] font-bold sm:h-10 sm:min-w-10 sm:px-2 sm:text-[14px] transition ${light ? "border border-line text-navy-800 hover:bg-tint" : "text-white/85 hover:bg-white/10 hover:text-white"} disabled:opacity-50 ${className}`}>
       {lang === "en" ? "ع" : "EN"}
     </button>
   );
