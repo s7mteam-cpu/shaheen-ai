@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { ThemeToggle, ThemeSwitch } from "@/components/ThemeToggle";
 import { LangToggle } from "@/components/LangToggle";
 import { tr, type Lang } from "@/lib/i18n";
 
@@ -16,7 +16,9 @@ export function SiteHeader({ signedIn, lang = "ar", chosen = lang }: { signedIn:
           ))}
         </nav>
         <div className="flex min-w-0 items-center gap-1 sm:gap-2">
-          <span className="flex items-center rounded-full bg-white/[0.06] sm:bg-transparent"><LangToggle lang={chosen} /><ThemeToggle /></span>
+          {/* Phones: clear labels fill the space left by the sign-in buttons (they live in the hero). */}
+          <span className="flex items-center gap-1.5 sm:hidden"><LangToggle lang={chosen} full /><ThemeSwitch /></span>
+          <span className="hidden items-center sm:flex"><LangToggle lang={chosen} /><ThemeToggle /></span>
           {/* On phones these two live in the page itself (above «اشترك الآن»), so the bar stays light. */}
           <span className="hidden items-center gap-2 sm:flex">
             {signedIn ? (
