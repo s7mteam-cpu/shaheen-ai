@@ -162,7 +162,7 @@ async function writeScript(shots, notes, seconds, brand) {
 
 // ---------- Directing: AI edit plan ----------
 const LAYOUTS_OK = ["full", "split", "dynamic", "circle", "corner", "card"];
-const GKINDS = ["headline", "timer", "counter", "steps", "compare", "icon", "flow", "checklist", "bars", "donut", "line", "quote", "arrow"];
+const GKINDS = ["headline", "timer", "counter", "steps", "compare", "icon", "flow", "checklist", "bars", "donut", "line", "quote", "arrow", "definition", "quiz", "truefalse", "timeline", "cycle", "mindmap", "proscons", "equation", "fraction", "vocab", "pyramid", "table", "fillblank"];
 const GICONS = "check,x,leaf,bread,bowl,heart,star,bolt,clock,phone,chat,gift,cart,tag,chart,shield,sparkle,pin,users,drop,book,bulb,video,camera,mic,money,rocket,target,brain,scissors,play,question,trophy,calendar,laptop,grad,eye,lock".split(",");
 /** Same rules as cleanGraphics() in src/remotion/montage.ts. */
 function cleanGraphic(x, at) {
@@ -173,7 +173,7 @@ function cleanGraphic(x, at) {
   const g = { kind, at, dur: +Math.max(1, Math.min(8, Number(x.dur) || 3)).toFixed(2), text: str(x.text, 70), hl: str(x.hl, 30), sub: str(x.sub, 40),
     value: x.value !== undefined && x.value !== null && x.value !== "" && Number.isFinite(Number(x.value)) ? Math.max(0, Number(x.value)) : undefined,
     suffix: str(x.suffix, 12), icon: icon(x.icon), emoji: str(x.emoji, 4), bad: str(x.bad, 50), good: str(x.good, 50),
-    items: Array.isArray(x.items) ? x.items.slice(0, kind === "flow" ? 3 : kind === "bars" ? 5 : 4).map((i) => (typeof i === "string" ? { label: i.slice(0, 40) } : { label: String(i?.label ?? "").slice(0, 40), ...(icon(i?.icon) ? { icon: icon(i.icon) } : {}), ...(Number.isFinite(Number(i?.value)) && i?.value !== null && i?.value !== "" ? { value: Number(i.value) } : {}) })).filter((i) => i.label || i.icon) : undefined,
+    items: Array.isArray(x.items) ? x.items.slice(0, kind === "flow" ? 3 : ["mindmap", "table", "proscons"].includes(kind) ? 6 : ["bars", "timeline", "cycle", "pyramid"].includes(kind) ? 5 : 4).map((i) => (typeof i === "string" ? { label: i.slice(0, 40) } : { label: String(i?.label ?? "").slice(0, 40), ...(icon(i?.icon) ? { icon: icon(i.icon) } : {}), ...(Number.isFinite(Number(i?.value)) && i?.value !== null && i?.value !== "" ? { value: Number(i.value) } : {}) })).filter((i) => i.label || i.icon) : undefined,
     values: Array.isArray(x.values) ? x.values.slice(0, 12).map(Number).filter(Number.isFinite) : undefined,
     fx: ["marker", "circle", "underline", "typewriter"].includes(x.fx) ? x.fx : undefined };
   for (const k of Object.keys(g)) if (g[k] === undefined) delete g[k];
@@ -200,7 +200,7 @@ const PLAN_SYSTEM = () => `أنت مونتير محترف لريلز السوش�
  "original_audio": "keep|low|mute",   // صوت الفيديو الأصلي: keep إذا فيه كلام مهم، low إذا أصوات المكان حلوة، mute إذا ضجيج
  "music_prompt": "",                  // إذا ما فيه كلام أو فيه تعليق صوتي: وصف إنجليزي قصير لموسيقى خلفية مناسبة (إذا طلب العميل همهمة اكتب: soft female vocal humming)، وإلا ""
  "layout": "full|split|dynamic|circle|corner|card",  // split شاشة مقسومة (رسوم فوق والمتكلم تحت، ممتاز للشرح والتعليم) | dynamic المتكلم ملء الشاشة ويصغر لدائرة لما يطلع مشهد | circle المتكلم بدائرة والرسوم حوله | corner المتكلم بمربع صغير بالزاوية | card المتكلم ببطاقة. إذا العميل اختار شكل معيّن التزم فيه
- "graphics": [{"kind":"timer","at":0,"dur":3,"text":"","hl":"","sub":""}],  // مشاهد رسوم متحركة تشرح الكلام، "at" بتوقيت الفيديو الأصلي عند بداية الجملة، dur مثل مدة الجملة (2-5 ثواني). الأنواع: headline{text,hl,sub} عنوان كبير يطلع كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (أرقام ونسب) | steps{text,items[{label,icon}]} خطوات مرقّمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} الغلط مقابل الصح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] من 2 إلى 3,text} أيقونات بينها أسهم (فكرة ← أداة ← نتيجة) | bars{text,suffix,items[{label,value}]} أعمدة | donut{value 0-100,text} دائرة نسبة | line{text,values[]} خط بياني | quote{text,sub} اقتباس | arrow{text} سهم يأشّر تحت. headline/quote/arrow تقبل fx: marker|circle|underline|typewriter (تأثير على كلمة hl). الأيقونات: check,x,leaf,bread,bowl,heart,star,bolt,clock,phone,chat,gift,cart,tag,chart,shield,sparkle,pin,users,drop,book,bulb,video,camera,mic,money,rocket,target,brain,scissors,play,question,trophy,calendar,laptop,grad,eye,lock. بالشاشة المقسومة أو circle أو corner أو card أو dynamic: حط مشهد لأغلب الأفكار المهمة (مشهد كل 4-8 ثواني تقريباً)، والباقي تنعرض فيه كلمات المتكلم تلقائياً. بملء الشاشة: مشاهد قليلة (2-4) للأرقام والخطوات بس. النصوص من الكلام نفسه، قصيرة ومركّزة
+ "graphics": [{"kind":"timer","at":0,"dur":3,"text":"","hl":"","sub":""}],  // مشاهد رسوم متحركة تشرح الكلام، "at" بتوقيت الفيديو الأصلي عند بداية الجملة، dur مثل مدة الجملة (2-5 ثواني). الأنواع: headline{text,hl,sub} عنوان كبير يطلع كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (أرقام ونسب) | steps{text,items[{label,icon}]} خطوات مرقّمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} الغلط مقابل الصح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] من 2 إلى 3,text} أيقونات بينها أسهم (فكرة ← أداة ← نتيجة) | bars{text,suffix,items[{label,value}]} أعمدة | donut{value 0-100,text} دائرة نسبة | line{text,values[]} خط بياني | quote{text,sub} اقتباس | arrow{text} سهم يأشّر تحت. headline/quote/arrow تقبل fx: marker|circle|underline|typewriter (تأثير على كلمة hl). وللمحتوى التعليمي: definition{text المصطلح,sub المعنى,hl كلمة صغيرة فوق مثل "تعريف"} | quiz{text السؤال,items[{label}] 2-4 اختيارات,value رقم الجواب الصح من 1} | truefalse{text العبارة,value 1 صح أو 0 خطأ,sub التوضيح} | timeline{text,items[{label,icon}] 3-5 بالترتيب} | cycle{text,items[{label,icon}] 3-5 مراحل تتكرر} | mindmap{text الفكرة الرئيسية,items[{label,icon}] 3-6 فروع} | proscons{text,items[{label,value 1 ميزة أو 0 عيب}]} | equation{text معادلة بمسافات بين الرموز مثل "2 + 3 = 5",sub} | fraction{values[البسط,المقام],text} | vocab{text الكلمة,hl النطق,sub المعنى,good جملة مثال} | pyramid{text,items[{label}] من القاعدة للقمة 3-5} | table{text العنوان,items[{label: "البند: القيمة"}] 2-6} | fillblank{text جملة فيها ___ مكان الفراغ,good الجواب,sub}. الأيقونات: check,x,leaf,bread,bowl,heart,star,bolt,clock,phone,chat,gift,cart,tag,chart,shield,sparkle,pin,users,drop,book,bulb,video,camera,mic,money,rocket,target,brain,scissors,play,question,trophy,calendar,laptop,grad,eye,lock. بالشاشة المقسومة أو circle أو corner أو card أو dynamic: حط مشهد لأغلب الأفكار المهمة (مشهد كل 4-8 ثواني تقريباً)، والباقي تنعرض فيه كلمات المتكلم تلقائياً. بملء الشاشة: مشاهد قليلة (2-4) للأرقام والخطوات بس. النصوص من الكلام نفسه، قصيرة ومركّزة
  "emojis": [{"e":"🔥","at":0,"dur":1.5}]  // إيموجي قليلة (3-6) عند لحظات مناسبة، "at" بتوقيت الفيديو الأصلي. للمحتوى الديني أو الجاد استخدم إيموجي محترمة قليلة (🤲 💡 ✅) أو لا شيء
 }
 إذا وصلتك صور من الفيديو (مع توقيتها): استخدمها لتفهم المحتوى، واختر أحلى اللقطات وأوضحها، واكتب عناوين تصف اللي يبين بالصورة (مثلاً اسم الطبق أو المنتج) بدون مبالغة.
@@ -537,8 +537,9 @@ async function render(job, compositionId, props, lowMem = false) {
 
 async function renderMontage(job) {
   const spec = job.input.spec;
-  const { data } = await db.storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 3);
-  if (!data?.signedUrl) return fail(job, new Error("source video missing"));
+  // animated lessons (layout "board") have no source footage
+  const { data } = spec.srcPath ? await db.storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 3) : { data: { signedUrl: "" } };
+  if (spec.srcPath && !data?.signedUrl) return fail(job, new Error("source video missing"));
   let logo = spec.logo ?? null;
   if (logo?.on && logo.path) {
     const l = await db.storage.from("uploads").createSignedUrl(logo.path, 60 * 60 * 3);
@@ -609,7 +610,7 @@ console.log("Shaheen video worker started");
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
 async function recoverStale(minutes) {
   const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
-  const { data: videos } = await db.from("jobs").select("id,tool_id,input").in("tool_id", ["video-editing", "motion-video"]).eq("status", "running").lt("updated_at", cutoff);
+  const { data: videos } = await db.from("jobs").select("id,tool_id,input").in("tool_id", ["video-editing", "motion-video", "lesson-video"]).eq("status", "running").lt("updated_at", cutoff);
   const { data: designs } = await db.from("jobs").select("id,tool_id,input").in("tool_id", DESIGN_TOOLS).eq("input->>render", "true").eq("status", "running").lt("updated_at", cutoff);
   for (const j of [...(videos ?? []), ...(designs ?? [])]) {
     const attempts = Number(j.input?.attempts ?? 0) + 1;
@@ -629,7 +630,7 @@ await recoverStale(3); // interrupted jobs stop updating; a job another instance
 setInterval(() => recoverStale(15).catch(() => {}), 60_000);
 
 for (;;) {
-  const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", ["video-editing", "motion-video"]).eq("status", "queued").order("created_at").limit(1);
+  const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", ["video-editing", "motion-video", "lesson-video"]).eq("status", "queued").order("created_at").limit(1);
   const { data: designs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", DESIGN_TOOLS).eq("status", "queued").eq("input->>render", "true").order("updated_at").limit(1);
   // Designs are quick stills: they go first so customers don't wait behind long videos.
   const job = designs?.[0] ?? jobs?.[0];
@@ -647,5 +648,6 @@ for (;;) {
     await render(job, "Motion", spec);
   }
   else if (job.input.render && job.input.spec) await renderMontage(job);
+  else if (job.tool_id === "lesson-video") await fail(job, new Error("lesson job without render flag"));
   else await analyzeMontage(job);
 }

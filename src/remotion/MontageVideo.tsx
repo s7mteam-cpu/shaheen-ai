@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, Audio, Easing, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { GraphicView, Words, panelBackground, themeFor } from "./Graphics";
+import { GraphicView, Words, isLight, panelBackground, themeFor } from "./Graphics";
 import { MFPS, captionLines, cutTimes, faceAt, gradeFilter, introFrames, outroFrames, videoSeconds, type Graphic, type MontageSpec, type Seg } from "./montage";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
@@ -357,10 +357,10 @@ function activeGraphic(m: MontageSpec, t: number, withTitles: boolean): Graphic 
 }
 
 /** Split layout: the graphics panel. With nothing scheduled it shows the words being said, big. */
-function Panel({ m, w, h, area, opacity = 1, words = true, titles = true }: { m: MontageSpec; w: number; h: number; area?: { x: number; y: number; w: number; h: number }; opacity?: number; words?: boolean; titles?: boolean }) {
+function Panel({ m, w, h, area, opacity = 1, words = true, titles = true, boost = 1 }: { m: MontageSpec; w: number; h: number; area?: { x: number; y: number; w: number; h: number }; opacity?: number; words?: boolean; titles?: boolean; boost?: number }) {
   const frame = useCurrentFrame();
   const t = frame / MFPS;
-  const light = (m.panel ?? "light") === "light";
+  const light = isLight(m);
   const g = activeGraphic(m, t, titles);
   const A = area ?? { x: 0, y: 0, w, h };
   const lines = React.useMemo(() => captionLines(m), [m]);
@@ -369,7 +369,7 @@ function Panel({ m, w, h, area, opacity = 1, words = true, titles = true }: { m:
   let inner: React.ReactNode = null;
   if (g) {
     const f0 = Math.round(g.at * MFPS);
-    inner = <GraphicView key={`${g.kind}${g.at}`} g={g} m={m} f={frame - f0} len={Math.round(g.dur * MFPS)} w={A.w} h={A.h} light={light} />;
+    inner = <GraphicView key={`${g.kind}${g.at}`} g={g} m={m} f={frame - f0} len={Math.round(g.dur * MFPS)} w={A.w} h={A.h} light={light} boost={boost} />;
   } else if (m.captions.on && words) {
     const line = lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.35);
     if (line) inner = (
@@ -444,6 +444,32 @@ function ShapedStage({ m, u }: { m: MontageSpec; u: number }) {
   );
 }
 
+/** Board (animated lesson, no footage): graphics fill the screen, a subtitle line sits at the bottom. */
+function Board({ m }: { m: MontageSpec }) {
+  const frame = useCurrentFrame();
+  const { width: W, height: H } = useVideoConfig();
+  const t = frame / MFPS;
+  const light = isLight(m);
+  const th = themeFor(m, light);
+  const lines = React.useMemo(() => captionLines(m), [m]);
+  const busy = !!activeGraphic(m, t, true);
+  const line = m.captions.on && busy ? lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.25) : undefined;
+  const s = Math.min(W, H) / 1080;
+  const capH = H * (H > W ? 0.16 : 0.18);
+  return (
+    <>
+      <Panel m={m} w={W} h={H} area={{ x: 0, y: H * 0.04, w: W, h: H - capH - H * 0.04 }} boost={H > W * 1.3 ? 1.22 : 1} />
+      {line && (
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: H * 0.05, height: capH - H * 0.05, display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${60 * s}px` }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `0 ${16 * s}px`, direction: "rtl", padding: `${12 * s}px ${30 * s}px`, borderRadius: 24 * s, background: light ? "rgba(14,27,44,.06)" : "rgba(255,255,255,.08)" }}>
+            {line.map((w, i) => <span key={i} style={{ fontSize: 50 * s, fontWeight: 700, color: t >= w.s && t <= w.e + 0.05 ? th.accent : t > w.e ? th.text : th.soft }}>{w.t}</span>)}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 /** Full layout: graphics appear as a frosted card over the footage. */
 function OverlayGraphics({ m }: { m: MontageSpec }) {
   const frame = useCurrentFrame();
@@ -489,7 +515,7 @@ export function MontageVideo(m: MontageSpec) {
       {intro > 0 && m.sfx && <Audio src={staticFile("sfx/ding.mp3")} volume={0.35} endAt={20} />}
       {intro > 0 && <Sequence durationInFrames={intro}><Card title={m.intro.title} subtitle={m.intro.subtitle} m={m} u={u} len={intro} /></Sequence>}
       <Sequence from={intro} durationInFrames={vid}>
-        {shaped ? <ShapedStage m={m} u={u} /> : split ? (
+        {m.layout === "board" ? <Board m={m} /> : shaped ? <ShapedStage m={m} u={u} /> : split ? (
           <>
             <div style={{ position: "absolute", ...box.foot, overflow: "hidden" }}>
               <Footage m={m} />
@@ -513,7 +539,7 @@ export function MontageVideo(m: MontageSpec) {
         )}
         {m.vo?.on && m.vo.url && <Audio src={m.vo.url} volume={1} />}
         <Emojis m={m} u={u} />
-        {(!split && !shaped) || m.layout === "dynamic" ? <Titles m={m} u={u} /> : null}
+        {(!split && !shaped && m.layout !== "board") || m.layout === "dynamic" ? <Titles m={m} u={u} /> : null}
         <Logo m={m} u={u} />
         <Sfx m={m} />
         <GraphicSfx m={m} />

@@ -10,7 +10,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const admin = createAdminClient();
   const { data: job } = await admin.from("jobs").select("id,user_id,tool_id,status,input").eq("id", id).single();
   if (!job || job.user_id !== user.id) return NextResponse.json({ error: "العمل غير موجود." }, { status: 404 });
-  if (!["motion-video", "video-editing"].includes(job.tool_id) || job.status !== "done" || !job.input?.spec) {
+  if (!["motion-video", "video-editing", "lesson-video"].includes(job.tool_id) || job.status !== "done" || !job.input?.spec) {
     return NextResponse.json({ error: "ما نقدر نرجّع هذا العمل للتعديل." }, { status: 400 });
   }
   const { data: tool } = await admin.from("tools").select("edit_cost").eq("id", job.tool_id).single();

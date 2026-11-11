@@ -12,7 +12,7 @@ import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
-import { CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
+import { BOARD_STYLES, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
@@ -129,6 +129,19 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       : kind === "line" ? { ...base, text: L("نمو مستمر"), values: [2, 3, 2.6, 4, 5.2, 7] }
       : kind === "quote" ? { ...base, text: L("الجودة ما تحتاج إعلان"), sub: L("اسمك") }
       : kind === "arrow" ? { ...base, text: L("الرابط تحت"), fx: "underline" as const, hl: L("تحت") }
+      : kind === "definition" ? { ...base, text: L("المصطلح"), sub: L("معناه بكلمات بسيطة"), hl: L("تعريف") }
+      : kind === "quiz" ? { ...base, dur: 5, text: L("وش الجواب الصح؟"), items: [{ label: L("الخيار الأول") }, { label: L("الخيار الثاني") }, { label: L("الخيار الثالث") }], value: 2 }
+      : kind === "truefalse" ? { ...base, dur: 4, text: L("العبارة هنا"), value: 1 }
+      : kind === "timeline" ? { ...base, text: L("المراحل"), items: [{ label: L("البداية") }, { label: L("الوسط") }, { label: L("النهاية") }] }
+      : kind === "cycle" ? { ...base, text: L("الدورة"), items: [{ label: L("مرحلة ١") }, { label: L("مرحلة ٢") }, { label: L("مرحلة ٣") }, { label: L("مرحلة ٤") }] }
+      : kind === "mindmap" ? { ...base, text: L("الموضوع"), items: [{ label: L("فرع ١") }, { label: L("فرع ٢") }, { label: L("فرع ٣") }, { label: L("فرع ٤") }] }
+      : kind === "proscons" ? { ...base, items: [{ label: L("ميزة"), value: 1 }, { label: L("ميزة ثانية"), value: 1 }, { label: L("عيب"), value: 0 }] }
+      : kind === "equation" ? { ...base, text: "2 + 3 = 5" }
+      : kind === "fraction" ? { ...base, values: [3, 4], text: L("ثلاثة أرباع") }
+      : kind === "vocab" ? { ...base, text: "Knowledge", hl: "ˈnɒlɪdʒ", sub: L("المعرفة"), good: "Knowledge is power." }
+      : kind === "pyramid" ? { ...base, text: L("الأولويات"), items: [{ label: L("الأساس") }, { label: L("المستوى الثاني") }, { label: L("القمة") }] }
+      : kind === "table" ? { ...base, text: L("المقارنة"), items: [{ label: L("البند: القيمة") }, { label: L("البند الثاني: القيمة") }] }
+      : kind === "fillblank" ? { ...base, dur: 4, text: L("عاصمة الكويت هي ___"), good: L("مدينة الكويت") }
       : kind === "flow" ? { ...base, items: [{ icon: "bulb" as const, label: L("فكرتك") }, { icon: "sparkle" as const, label: L("شاهين") }, { icon: "video" as const, label: L("فيديو") }] }
       : { ...base, text: L("عنوان كبير") };
     setSpec({ ...spec, graphics: [...(spec.graphics ?? []), g].sort((a, b) => a.at - b.at) });
@@ -298,12 +311,18 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         <Card title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
           <Sub>{L("شكل الفيديو")}</Sub>
           <div className="flex flex-wrap gap-2">
-            {LAYOUTS.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.layout ?? "full") === v} onClick={() => setSpec({ ...spec, layout: v })} className="chip">{L(l)}</button>)}
+            {spec.layout === "board" ? <span className="text-[14px] text-subtle">{L("فيديو تعليمي متحرك: الرسوم تملأ الشاشة مع صوت الشرح.")}</span>
+              : LAYOUTS.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.layout ?? "full") === v} onClick={() => setSpec({ ...spec, layout: v })} className="chip">{L(l)}</button>)}
           </div>
           {spec.layout && spec.layout !== "full" && (
             <div className="flex flex-wrap gap-2">
               <button type="button" aria-pressed={(spec.panel ?? "light") === "light"} onClick={() => setSpec({ ...spec, panel: "light" })} className="chip">{L("لوحة فاتحة")}</button>
               <button type="button" aria-pressed={spec.panel === "dark"} onClick={() => setSpec({ ...spec, panel: "dark" })} className="chip">{L("لوحة داكنة")}</button>
+            </div>
+          )}
+          {spec.layout && spec.layout !== "full" && (
+            <div className="flex flex-col gap-2"><span className="text-[13px] font-semibold text-navy-800">{L("خلفية اللوحة")}</span>
+              <div className="flex flex-wrap gap-2">{BOARD_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.board ?? "soft") === v} onClick={() => setSpec({ ...spec, board: v })} className="chip">{L(l)}</button>)}</div>
             </div>
           )}
           <p className="text-[13px] leading-6 text-subtle">{L("المشاهد تطلع مع كلامك بالضبط. تقدر تكتب لشاهين تحت مثلاً: «لما أقول دقيقة حط ساعة فوق»، أو تضيفها بنفسك عند اللحظة اللي واقف عليها بالفيديو.")}</p>

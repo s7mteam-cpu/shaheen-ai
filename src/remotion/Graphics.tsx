@@ -2,23 +2,39 @@
 import React from "react";
 import { Easing, interpolate, spring } from "remotion";
 import { MIcon } from "./icons";
-import { MFPS, type Graphic, type MontageSpec } from "./montage";
+import { DARK_BOARDS, MFPS, type Graphic, type MontageSpec } from "./montage";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 const cl = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 export type Theme = { text: string; soft: string; accent: string; card: string; line: string; good: string; bad: string };
 export function themeFor(m: MontageSpec, light: boolean): Theme {
+  if (m.board === "chalk" && !light) return { text: "#F4F1E8", soft: "rgba(244,241,232,.7)", accent: m.colors.accent, card: "rgba(255,255,255,.07)", line: "rgba(244,241,232,.25)", good: "#8FE3A8", bad: "#FF8A80" };
   return light
     ? { text: "#0E1B2C", soft: "rgba(14,27,44,.62)", accent: m.colors.accent, card: "#FFFFFF", line: "rgba(14,27,44,.14)", good: "#1F9D55", bad: "#E0453A" }
     : { text: "#FFFFFF", soft: "rgba(255,255,255,.72)", accent: m.colors.accent, card: "rgba(255,255,255,.08)", line: "rgba(255,255,255,.2)", good: "#3DDC84", bad: "#FF6B5E" };
 }
 
-/** Background of the split panel. */
+/** Light or dark text for this panel (chalkboard, blueprint and night are always dark). */
+export const isLight = (m: MontageSpec) => !DARK_BOARDS.includes(m.board ?? "soft") && (m.panel ?? "light") === "light";
+
+/** Background of the graphics panel / lesson board. */
 export function panelBackground(m: MontageSpec, light: boolean) {
-  return light
-    ? "radial-gradient(120% 90% at 85% 10%, #FFF8EC 0%, #F3EEE6 45%, #E6ECEE 100%)"
-    : `radial-gradient(120% 90% at 85% 10%, ${m.colors.bg} 0%, #0A0F18 100%)`;
+  const a = m.colors.accent;
+  switch (m.board ?? "soft") {
+    case "paper": return "radial-gradient(130% 100% at 50% 0%, #FFFCF5 0%, #F6EFE1 100%)";
+    case "grid": return `linear-gradient(rgba(14,27,44,.06) 2px, transparent 2px) 0 0 / 64px 64px, linear-gradient(90deg, rgba(14,27,44,.06) 2px, transparent 2px) 0 0 / 64px 64px, #F7F8FA`;
+    case "dots": return `radial-gradient(rgba(14,27,44,.13) 3px, transparent 3.5px) 0 0 / 48px 48px, linear-gradient(180deg, #FFFFFF, #F1F4F7)`;
+    case "notebook": return `linear-gradient(90deg, transparent calc(100% - 92px), rgba(224,69,58,.45) calc(100% - 92px), rgba(224,69,58,.45) calc(100% - 88px), transparent calc(100% - 88px)), repeating-linear-gradient(180deg, transparent 0 70px, rgba(47,91,234,.16) 70px 73px), #FFFDF8`;
+    case "chalk": return "radial-gradient(120% 90% at 50% 30%, #2C4538 0%, #1C2E25 70%, #14221B 100%)";
+    case "blueprint": return `linear-gradient(rgba(255,255,255,.07) 2px, transparent 2px) 0 0 / 60px 60px, linear-gradient(90deg, rgba(255,255,255,.07) 2px, transparent 2px) 0 0 / 60px 60px, radial-gradient(120% 90% at 50% 20%, #165A9A 0%, #0D3966 100%)`;
+    case "night": return `radial-gradient(120% 90% at 85% 10%, ${m.colors.bg} 0%, #070B14 100%)`;
+    case "pastel": return "linear-gradient(160deg, #FFE9F0 0%, #FFF6DD 45%, #E3F4FF 100%)";
+    case "sunrise": return `radial-gradient(110% 80% at 80% 0%, ${a}33 0%, transparent 60%), linear-gradient(180deg, #FFF4E6 0%, #FDE7D3 100%)`;
+    default: return light
+      ? "radial-gradient(120% 90% at 85% 10%, #FFF8EC 0%, #F3EEE6 45%, #E6ECEE 100%)"
+      : `radial-gradient(120% 90% at 85% 10%, ${m.colors.bg} 0%, #0A0F18 100%)`;
+  }
 }
 
 const pop = (f: number, delay = 0, damping = 12) => spring({ frame: f - delay, fps: MFPS, config: { damping, mass: 0.6 } });
@@ -72,9 +88,9 @@ function Tile({ children, s, th, light, q }: { children: React.ReactNode; s: num
 }
 
 /** One graphic. f = frames since it started, len = its length in frames, w/h = box size. */
-export function GraphicView({ g, m, f, len, w, h, light }: { g: Graphic; m: MontageSpec; f: number; len: number; w: number; h: number; light: boolean }) {
+export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graphic; m: MontageSpec; f: number; len: number; w: number; h: number; light: boolean; boost?: number }) {
   const th = themeFor(m, light);
-  const s = Math.min(w / 1080, h / 760);
+  const s = Math.min(w / 1080, h / 760) * boost;
   const out = interpolate(f, [len - 8, len], [1, 0], cl);
   const big = 104 * s;
   let body: React.ReactNode = null;
@@ -287,6 +303,239 @@ export function GraphicView({ g, m, f, len, w, h, light }: { g: Graphic; m: Mont
           <svg width={160 * s} height={200 * s} viewBox="0 0 80 100" style={{ transform: `translateY(${bob}px)`, opacity: k }}>
             <path d="M40 6 C42 40 38 60 40 88 M18 66 L40 90 L62 66" fill="none" stroke={th.accent} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - k} />
           </svg>
+        </div>
+      );
+      break;
+    }
+    case "definition": {
+      const q = Math.min(1, pop(f, 0, 14));
+      const line = interpolate(f, [8, 22], [0, 1], { ...cl, easing: ease });
+      body = (
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 22 * s, padding: `${36 * s}px ${40 * s}px`, borderRadius: 36 * s, background: th.card, border: `${3 * s}px solid ${th.line}`, transform: `scale(${0.85 + 0.15 * q})`, opacity: q }}>
+          <div style={{ fontSize: 34 * s, fontWeight: 800, color: th.accent, letterSpacing: 1 }}>{g.hl || "تعريف"}</div>
+          <div style={{ fontSize: big * 0.95, fontWeight: 900, color: th.text, lineHeight: 1.15, textAlign: "center" }}>{g.text}</div>
+          <div style={{ width: `${line * 60}%`, height: 8 * s, borderRadius: 9, background: th.accent }} />
+          {g.sub && <Words text={g.sub} f={f} size={big * 0.5} th={{ ...th, text: th.soft }} delay={14} />}
+        </div>
+      );
+      break;
+    }
+    case "quiz": {
+      const items = (g.items ?? []).slice(0, 4);
+      const right = Math.max(1, Math.min(items.length, Math.round(g.value ?? 1))) - 1;
+      const reveal = f > len * 0.62;
+      const letters = ["أ", "ب", "ج", "د"];
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 * s, width: "100%", direction: "rtl" }}>
+          {g.text && <div style={{ display: "flex", alignItems: "center", gap: 18 * s, justifyContent: "center" }}><MIcon name="question" size={70 * s} color={th.accent} stroke={2.2} /><Words text={g.text} hl={g.hl} f={f} size={big * 0.6} th={th} /></div>}
+          {items.map((it, i) => {
+            const q = Math.min(1, pop(f, 8 + i * 6, 14));
+            const ok = reveal && i === right, dim = reveal && i !== right;
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 20 * s, padding: `${16 * s}px ${24 * s}px`, borderRadius: 24 * s, background: ok ? th.good : th.card, border: `${3 * s}px solid ${ok ? th.good : th.line}`, opacity: q * (dim ? 0.45 : 1), transform: `translateY(${(1 - q) * 30 * s}px) scale(${ok ? 1.04 : 1})` }}>
+                <div style={{ width: 62 * s, height: 62 * s, borderRadius: 999, flexShrink: 0, background: ok ? "#fff" : th.accent, color: ok ? th.good : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34 * s, fontWeight: 900 }}>{ok ? <MIcon name="check" size={40 * s} color={th.good} stroke={3.2} /> : letters[i]}</div>
+                <div style={{ fontSize: 48 * s, fontWeight: 700, color: ok ? "#fff" : th.text }}>{it.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      );
+      break;
+    }
+    case "truefalse": {
+      const yes = (g.value ?? 1) >= 1;
+      const k = Math.min(1, pop(f, Math.round(len * 0.55), 9));
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 34 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.72} th={th} />}
+          <div style={{ display: "flex", gap: 30 * s }}>
+            {[true, false].map((v) => {
+              const on = v === yes && k > 0.05;
+              return <div key={String(v)} style={{ display: "flex", alignItems: "center", gap: 14 * s, padding: `${16 * s}px ${36 * s}px`, borderRadius: 999, fontSize: 50 * s, fontWeight: 900, color: on ? "#fff" : th.soft, background: on ? (v ? th.good : th.bad) : th.card, border: `${3 * s}px solid ${v ? th.good : th.bad}`, transform: `scale(${on ? 1 + 0.15 * k : 1})`, opacity: k > 0.05 && !on ? 0.4 : 1 }}><MIcon name={v ? "check" : "x"} size={46 * s} color={on ? "#fff" : v ? th.good : th.bad} stroke={3.2} />{v ? "صح" : "خطأ"}</div>;
+            })}
+          </div>
+          {g.sub && <div style={{ fontSize: 40 * s, fontWeight: 600, color: th.soft, opacity: k, textAlign: "center" }}>{g.sub}</div>}
+        </div>
+      );
+      break;
+    }
+    case "timeline": {
+      const items = (g.items ?? []).slice(0, 5);
+      const n = Math.max(1, items.length);
+      const grow = interpolate(f, [4, 4 + n * 10], [0, 1], cl);
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 30 * s, width: "100%" }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.6} th={th} />}
+          <div style={{ position: "relative", width: "100%", height: 260 * s, direction: "rtl" }}>
+            <div style={{ position: "absolute", top: 90 * s, right: "6%", width: `${88 * grow}%`, height: 8 * s, borderRadius: 9, background: th.accent }} />
+            {items.map((it, i) => {
+              const q = Math.min(1, pop(f, 6 + i * 10, 12));
+              const x = 6 + (88 * (i + 0.5)) / n;
+              return (
+                <div key={i} style={{ position: "absolute", top: 0, right: `${x}%`, transform: `translateX(50%) scale(${q})`, display: "flex", flexDirection: "column", alignItems: "center", width: (900 / n) * s, gap: 10 * s }}>
+                  <div style={{ height: 60 * s, display: "flex", alignItems: "flex-end", fontSize: 34 * s, fontWeight: 900, color: th.accent }}>{it.icon ? <MIcon name={it.icon} size={50 * s} color={th.accent} stroke={2} /> : ""}</div>
+                  <div style={{ width: 44 * s, height: 44 * s, borderRadius: 999, background: th.card, border: `${8 * s}px solid ${th.accent}` }} />
+                  <div style={{ fontSize: 34 * s, fontWeight: 700, color: th.text, textAlign: "center", lineHeight: 1.2 }}>{it.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+      break;
+    }
+    case "cycle": {
+      const items = (g.items ?? []).slice(0, 5);
+      const n = Math.max(2, items.length);
+      const R = 210 * s;
+      const spin = interpolate(f, [0, len], [0, 360]);
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 * s }}>
+          <div style={{ position: "relative", width: R * 2 + 240 * s, height: R * 2 + 140 * s }}>
+            <svg width="100%" height="100%" style={{ position: "absolute", inset: 0 }} viewBox={`0 0 ${R * 2 + 240 * s} ${R * 2 + 140 * s}`}>
+              <circle cx={R + 120 * s} cy={R + 70 * s} r={R} fill="none" stroke={th.line} strokeWidth={6 * s} strokeDasharray={`${14 * s} ${12 * s}`} />
+              <g transform={`rotate(${spin} ${R + 120 * s} ${R + 70 * s})`}><circle cx={R + 120 * s} cy={70 * s} r={14 * s} fill={th.accent} /></g>
+            </svg>
+            {g.text && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${R * 0.6}px` }}><Words text={g.text} hl={g.hl} f={f} size={big * 0.5} th={th} delay={n * 6} /></div>}
+            {items.map((it, i) => {
+              const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+              const q = Math.min(1, pop(f, i * 6, 12));
+              return (
+                <div key={i} style={{ position: "absolute", left: R + 120 * s + Math.cos(ang) * R, top: R + 70 * s + Math.sin(ang) * R, transform: `translate(-50%,-50%) scale(${q})`, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 * s }}>
+                  <div style={{ width: 96 * s, height: 96 * s, borderRadius: 999, background: th.accent, display: "flex", alignItems: "center", justifyContent: "center" }}>{it.icon ? <MIcon name={it.icon} size={54 * s} color="#fff" stroke={2.2} /> : <span style={{ color: "#fff", fontSize: 44 * s, fontWeight: 900 }}>{(i + 1).toLocaleString("ar-EG")}</span>}</div>
+                  <div style={{ fontSize: 32 * s, fontWeight: 800, color: th.text, whiteSpace: "nowrap", padding: `${4 * s}px ${12 * s}px`, borderRadius: 12 * s, background: th.card }}>{it.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+      break;
+    }
+    case "mindmap": {
+      const items = (g.items ?? []).slice(0, 6);
+      const n = Math.max(1, items.length);
+      const W = Math.min(w * 0.94, 940 * s), H = Math.min(h * 0.86, 560 * s), cx = W / 2, cy = H / 2;
+      const rx = W * 0.34, ry = H * 0.36;
+      const q0 = Math.min(1, pop(f, 0, 12));
+      body = (
+        <div style={{ position: "relative", width: W, height: H }}>
+          <svg width={W} height={H} style={{ position: "absolute", inset: 0 }}>
+            {items.map((_, i) => { const ang = (i / n) * Math.PI * 2 - Math.PI / 2 + (n % 2 === 0 ? Math.PI / n : 0); const k = interpolate(f, [6 + i * 5, 14 + i * 5], [0, 1], cl); return <line key={i} x1={cx} y1={cy} x2={cx + Math.cos(ang) * rx * k} y2={cy + Math.sin(ang) * ry * k} stroke={th.accent} strokeWidth={6 * s} strokeLinecap="round" opacity={0.7} />; })}
+          </svg>
+          {items.map((it, i) => {
+            const ang = (i / n) * Math.PI * 2 - Math.PI / 2 + (n % 2 === 0 ? Math.PI / n : 0);
+            const q = Math.min(1, pop(f, 12 + i * 5, 12));
+            return <div key={i} style={{ position: "absolute", left: cx + Math.cos(ang) * rx, top: cy + Math.sin(ang) * ry, transform: `translate(-50%,-50%) scale(${q})`, padding: `${12 * s}px ${22 * s}px`, borderRadius: 22 * s, background: th.card, border: `${3 * s}px solid ${th.accent}`, fontSize: 34 * s, fontWeight: 800, color: th.text, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 8 * s }}>{it.icon && <MIcon name={it.icon} size={36 * s} color={th.accent} stroke={2.2} />}{it.label}</div>;
+          })}
+          <div style={{ position: "absolute", left: cx, top: cy, transform: `translate(-50%,-50%) scale(${q0})`, padding: `${22 * s}px ${36 * s}px`, borderRadius: 999, background: th.accent, color: "#fff", fontSize: 50 * s, fontWeight: 900, whiteSpace: "nowrap", boxShadow: `0 ${10 * s}px ${30 * s}px rgba(0,0,0,.2)` }}>{g.text}</div>
+        </div>
+      );
+      break;
+    }
+    case "proscons": {
+      const items = (g.items ?? []).slice(0, 6);
+      const col = (pro: boolean) => (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 * s, padding: `${20 * s}px`, borderRadius: 26 * s, background: th.card, border: `${3 * s}px solid ${pro ? th.good : th.bad}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 * s, fontSize: 42 * s, fontWeight: 900, color: pro ? th.good : th.bad }}><MIcon name={pro ? "check" : "x"} size={42 * s} color={pro ? th.good : th.bad} stroke={3} />{pro ? "المزايا" : "العيوب"}</div>
+          {items.filter((i) => (i.value ?? 1) >= 1 === pro).map((it, i) => { const q = Math.min(1, pop(f, (pro ? 6 : 14) + i * 6, 14)); return <div key={i} style={{ fontSize: 38 * s, fontWeight: 700, color: th.text, opacity: q, transform: `translateY(${(1 - q) * 20 * s}px)` }}>• {it.label}</div>; })}
+        </div>
+      );
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", gap: 22 * s, width: "100%" }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.6} th={th} />}
+          <div style={{ display: "flex", gap: 22 * s, direction: "rtl" }}>{col(true)}{col(false)}</div>
+        </div>
+      );
+      break;
+    }
+    case "equation": {
+      const toks = String(g.text ?? "").split(/\s+/).filter(Boolean);
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 26 * s }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 24 * s, direction: "ltr", flexWrap: "wrap", justifyContent: "center" }}>
+            {toks.map((tk, i) => {
+              const q = Math.min(1, pop(f, i * 6, 10));
+              const op = /^[=+\-×÷x*/<>≤≥≠]$/.test(tk);
+              const res = i === toks.length - 1 && toks.includes("=");
+              return <span key={i} style={{ fontSize: (op ? 110 : 140) * s, fontWeight: 900, color: res ? th.accent : op ? th.soft : th.text, opacity: q, transform: `scale(${0.6 + 0.4 * q})`, display: "inline-block", padding: res ? `0 ${20 * s}px` : 0, borderRadius: 20 * s, border: res ? `${6 * s}px solid ${th.accent}` : "none" }}>{tk}</span>;
+            })}
+          </div>
+          {g.sub && <Words text={g.sub} hl={g.hl} f={f} size={big * 0.5} th={th} delay={toks.length * 6} />}
+        </div>
+      );
+      break;
+    }
+    case "fraction": {
+      const [num, den] = [Math.max(0, Math.round(g.values?.[0] ?? g.value ?? 1)), Math.max(1, Math.min(16, Math.round(g.values?.[1] ?? 4)))];
+      const R = 170 * s;
+      const slice = (i: number) => { const a0 = (i / den) * Math.PI * 2 - Math.PI / 2, a1 = ((i + 1) / den) * Math.PI * 2 - Math.PI / 2; return `M${R},${R} L${R + Math.cos(a0) * R},${R + Math.sin(a0) * R} A${R},${R} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${R + Math.cos(a1) * R},${R + Math.sin(a1) * R} Z`; };
+      body = (
+        <div style={{ display: "flex", alignItems: "center", gap: 60 * s, direction: "rtl" }}>
+          <svg width={R * 2} height={R * 2} style={{ flexShrink: 0, overflow: "visible" }}>
+            {Array.from({ length: den }, (_, i) => { const on = i < num && f > 8 + i * 5; return <path key={i} d={slice(i)} fill={on ? th.accent : th.card} stroke={light ? "#fff" : "rgba(0,0,0,.3)"} strokeWidth={5 * s} style={{ transformOrigin: `${R}px ${R}px`, transform: on ? `scale(${Math.min(1.04, pop(f, 8 + i * 5, 12))})` : "none" }} />; })}
+          </svg>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 * s }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", fontSize: 120 * s, fontWeight: 900, color: th.text, lineHeight: 1 }}><span style={{ color: th.accent }}>{num}</span><span style={{ width: 120 * s, height: 10 * s, background: th.text, borderRadius: 9, margin: `${10 * s}px 0` }} /><span>{den}</span></div>
+            {g.text && <div style={{ marginTop: 16 * s, fontSize: 42 * s, fontWeight: 700, color: th.soft }}>{g.text}</div>}
+          </div>
+        </div>
+      );
+      break;
+    }
+    case "vocab": {
+      const q = Math.min(1, pop(f, 0, 12));
+      const rtl = /[\u0600-\u06FF]/.test(g.text ?? "");
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 * s, width: "100%" }}>
+          <div dir={rtl ? "rtl" : "ltr"} style={{ fontSize: 150 * s, fontWeight: 900, color: th.accent, transform: `scale(${q})`, lineHeight: 1.1 }}>{g.text}</div>
+          {g.hl && <div dir="ltr" style={{ fontSize: 38 * s, fontWeight: 600, color: th.soft, opacity: interpolate(f, [8, 16], [0, 1], cl) }}>/{g.hl}/</div>}
+          {g.sub && <div style={{ fontSize: 60 * s, fontWeight: 800, color: th.text, opacity: interpolate(f, [12, 22], [0, 1], cl) }}>= {g.sub}</div>}
+          {g.good && <div dir="auto" style={{ marginTop: 10 * s, padding: `${14 * s}px ${26 * s}px`, borderRadius: 22 * s, background: th.card, border: `${2 * s}px solid ${th.line}`, fontSize: 40 * s, fontWeight: 600, color: th.text, opacity: interpolate(f, [22, 32], [0, 1], cl) }}>{g.good}</div>}
+        </div>
+      );
+      break;
+    }
+    case "pyramid": {
+      const items = (g.items ?? []).slice(0, 5);
+      const n = Math.max(1, items.length);
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 * s, width: "100%" }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.58} th={th} />}
+          {[...items].reverse().map((it, j) => {
+            const i = n - 1 - j; // items[0] = base
+            const q = Math.min(1, pop(f, 4 + i * 7, 13));
+            return <div key={j} style={{ width: `${40 + (60 * (i + 1)) / n}%`, padding: `${14 * s}px`, textAlign: "center", fontSize: 40 * s, fontWeight: 800, color: "#fff", background: th.accent, opacity: (0.55 + (0.45 * (n - i)) / n) * q, borderRadius: 16 * s, transform: `scaleX(${q})`, filter: `brightness(${0.85 + (0.25 * j) / n})` }}>{it.label}</div>;
+          })}
+        </div>
+      );
+      break;
+    }
+    case "table": {
+      const items = (g.items ?? []).slice(0, 6);
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0, width: "100%", borderRadius: 26 * s, overflow: "hidden", border: `${3 * s}px solid ${th.line}`, direction: "rtl" }}>
+          {g.text && <div style={{ padding: `${16 * s}px ${26 * s}px`, background: th.accent, color: "#fff", fontSize: 44 * s, fontWeight: 900, textAlign: "center" }}>{g.text}</div>}
+          {items.map((it, i) => {
+            const q = interpolate(f, [6 + i * 5, 14 + i * 5], [0, 1], cl);
+            const [k, v] = it.label.includes(":") ? it.label.split(/:(.+)/) : [it.label, it.value !== undefined ? `${it.value}${g.suffix ?? ""}` : ""];
+            return <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 20 * s, padding: `${16 * s}px ${26 * s}px`, background: i % 2 ? th.card : "transparent", opacity: q, fontSize: 40 * s }}><span style={{ fontWeight: 700, color: th.text }}>{k}</span><span style={{ fontWeight: 900, color: th.accent }}>{v}</span></div>;
+          })}
+        </div>
+      );
+      break;
+    }
+    case "fillblank": {
+      const parts = String(g.text ?? "").split(/_{2,}|…|\.\.\./);
+      const fill = Math.min(1, pop(f, Math.round(len * 0.55), 12));
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 30 * s }}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "center", gap: 16 * s, direction: "rtl", fontSize: big * 0.72, fontWeight: 800, color: th.text, opacity: Math.min(1, pop(f, 0, 14)) }}>
+            <span>{parts[0]}</span>
+            <span style={{ display: "inline-flex", justifyContent: "center", minWidth: 240 * s, padding: `0 ${14 * s}px`, borderBottom: `${8 * s}px solid ${th.accent}`, color: th.accent }}><span style={{ transform: `scale(${fill})`, display: "inline-block" }}>{fill > 0.05 ? g.good ?? "" : "\u00a0"}</span></span>
+            {parts[1] && <span>{parts[1]}</span>}
+          </div>
+          {g.sub && <div style={{ fontSize: 38 * s, color: th.soft, fontWeight: 600 }}>{g.sub}</div>}
         </div>
       );
       break;

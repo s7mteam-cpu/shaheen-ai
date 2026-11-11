@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ToolRunner } from "@/components/app/ToolRunner";
 import { MotionStart } from "@/components/app/MotionStart";
+import { LessonStart } from "@/components/app/LessonStart";
 import { MotionStudio } from "@/components/app/MotionStudio";
 import { MontageStudio } from "@/components/app/MontageStudio";
 import { DesignStart } from "@/components/app/DesignStart";
@@ -46,7 +47,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         </div>
         <p className="mt-1 text-muted">{tool.description}</p>
       </div>
-      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content) : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -81,15 +82,17 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
 }
 
 /** Smart montage: once the worker planned the edit, the customer edits it live here. */
-async function montage(jobId: string, tool: ToolRow, content: Content) {
+async function montage(jobId: string, tool: ToolRow, content: Content, toolId = "video-editing") {
   const L = await getL();
   const supabase = await createClient();
   const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
   const spec = (data?.input as { spec?: MontageSpec } | null)?.spec;
-  if (data?.status === "done" && spec?.segments) return await reopen(data.id, "video-editing", tool);
+  if (data?.status === "done" && spec?.segments) return await reopen(data.id, toolId, tool);
+  if (data && data.status !== "draft" && toolId === "lesson-video") return <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
   if (!data || data.status !== "draft" || !spec) return null;
-  const { data: signed } = await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6);
-  if (!signed?.signedUrl) return <p className="card p-6 text-center">{L("ما لقينا الفيديو الأصلي. ارفعه مرة ثانية.")}</p>;
+  // animated lessons have no source footage
+  const { data: signed } = spec.srcPath ? await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6) : { data: { signedUrl: "" } };
+  if (spec.srcPath && !signed?.signedUrl) return <p className="card p-6 text-center">{L("ما لقينا الفيديو الأصلي. ارفعه مرة ثانية.")}</p>;
   const logoUrl = spec.logo?.path ? (await createAdminClient().storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" : "";
   const brollPaths = (spec.broll ?? []).map((b) => b.path);
   const brollUrls = brollPaths.length ? (await createAdminClient().storage.from("uploads").createSignedUrls(brollPaths, 60 * 60 * 6)).data ?? [] : [];
@@ -99,7 +102,7 @@ async function montage(jobId: string, tool: ToolRow, content: Content) {
   const vo = spec.vo ? { ...spec.vo, url: await sign(spec.vo.path) } : null;
   const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name").maybeSingle();
   const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null } : null;
-  return <MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed.signedUrl, logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
+  return <MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed?.signedUrl ?? "", logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
 }
 
 /** Posts, carousels and ads: the info form, or the live design studio for one of the user's designs. */

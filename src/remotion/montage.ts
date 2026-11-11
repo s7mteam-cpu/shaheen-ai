@@ -49,15 +49,17 @@ export type MontageSpec = {
   vignette?: boolean;                                             // soft dark edges
   layout?: Layout;                                                // full screen, or graphics panel + speaker (split)
   panel?: "light" | "dark";                                       // look of the graphics panel in split layout
+  board?: BoardStyle;                                             // background pattern of the panel
   graphics?: Graphic[];                                           // animated scenes synced to the speech
   quality?: "1080" | "4k";                                         // export size
   domain?: string;                                                // field from the playbook (education, restaurant…)
 };
 
 /** Split = animated graphics on top (or the side) and the speaker below — the "explainer reel" look. */
-export type Layout = "full" | "split" | "circle" | "corner" | "card" | "dynamic";
+export type Layout = "full" | "split" | "circle" | "corner" | "card" | "dynamic" | "board"; // board = no footage (animated lesson)
 export const LAYOUTS: [Layout, string][] = [["full", "ملء الشاشة"], ["split", "مقسومة: رسوم فوق وأنت تحت"], ["dynamic", "ذكي: تصغر لدائرة لما يطلع مشهد"], ["circle", "أنت داخل دائرة"], ["corner", "أنت بمربع صغير بالزاوية"], ["card", "أنت ببطاقة بحواف ناعمة"]];
-export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist" | "bars" | "donut" | "line" | "quote" | "arrow";
+export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist" | "bars" | "donut" | "line" | "quote" | "arrow"
+  | "definition" | "quiz" | "truefalse" | "timeline" | "cycle" | "mindmap" | "proscons" | "equation" | "fraction" | "vocab" | "pyramid" | "table" | "fillblank";
 export type Graphic = {
   kind: GraphicKind;
   at: number; dur: number;                 // output seconds (video part)
@@ -77,7 +79,14 @@ export const GRAPHIC_KINDS: [GraphicKind, string][] = [
   ["headline", "عنوان متحرك كبير"], ["timer", "ساعة / مؤقّت"], ["counter", "رقم يعدّ"], ["steps", "خطوات مرقّمة"],
   ["compare", "خطأ ✗ / صح ✓"], ["icon", "أيقونة مع جملة"], ["flow", "سلسلة أيقونات بأسهم"], ["checklist", "قائمة صح"],
   ["bars", "رسم بياني أعمدة"], ["donut", "دائرة نسبة"], ["line", "خط صاعد"], ["quote", "اقتباس"], ["arrow", "سهم يأشّر"],
+  ["definition", "تعريف مصطلح"], ["quiz", "سؤال اختيارات"], ["truefalse", "صح أو خطأ"], ["timeline", "خط زمني"], ["cycle", "دورة متكررة"],
+  ["mindmap", "خريطة ذهنية"], ["proscons", "مزايا وعيوب"], ["equation", "معادلة / حساب"], ["fraction", "كسر بالدائرة"], ["vocab", "كلمة ومعناها"],
+  ["pyramid", "هرم"], ["table", "جدول"], ["fillblank", "املأ الفراغ"],
 ];
+/** Board backgrounds — each lesson can look different. */
+export type BoardStyle = "soft" | "paper" | "grid" | "dots" | "notebook" | "chalk" | "blueprint" | "night" | "pastel" | "sunrise";
+export const BOARD_STYLES: [BoardStyle, string][] = [["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"]];
+export const DARK_BOARDS: BoardStyle[] = ["chalk", "blueprint", "night"];
 export { ICONS };
 
 /** Clean up graphics coming from the AI or the editor. */
@@ -88,7 +97,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
   const c = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
   return (Array.isArray(arr) ? arr : []).slice(0, 24).map((x: Record<string, unknown>) => {
     const kind = kinds.includes(x?.kind as GraphicKind) ? (x.kind as GraphicKind) : "headline";
-    const items = Array.isArray(x?.items) ? (x.items as unknown[]).slice(0, kind === "flow" ? 3 : kind === "bars" ? 5 : 4).map((i) => typeof i === "string" ? { label: i.slice(0, 40) } : { label: String((i as { label?: unknown })?.label ?? "").slice(0, 40), icon: icon((i as { icon?: unknown })?.icon), value: Number.isFinite(Number((i as { value?: unknown })?.value)) ? Number((i as { value?: unknown }).value) : undefined }).filter((i) => i.label || i.icon).map((i) => { if (i.icon === undefined) delete i.icon; if (i.value === undefined) delete i.value; return i; }) : undefined;
+    const items = Array.isArray(x?.items) ? (x.items as unknown[]).slice(0, kind === "flow" ? 3 : kind === "mindmap" || kind === "table" || kind === "proscons" ? 6 : kind === "bars" || kind === "timeline" || kind === "cycle" || kind === "pyramid" ? 5 : 4).map((i) => typeof i === "string" ? { label: i.slice(0, 40) } : { label: String((i as { label?: unknown })?.label ?? "").slice(0, 40), icon: icon((i as { icon?: unknown })?.icon), value: Number.isFinite(Number((i as { value?: unknown })?.value)) ? Number((i as { value?: unknown }).value) : undefined }).filter((i) => i.label || i.icon).map((i) => { if (i.icon === undefined) delete i.icon; if (i.value === undefined) delete i.value; return i; }) : undefined;
     const g: Graphic = {
       kind, at: +c(Number(x?.at) || 0, 0, Math.max(0, len - 0.5)).toFixed(2), dur: +c(Number(x?.dur) || 2.5, 1, 8).toFixed(2),
       text: str(x?.text, 70), hl: str(x?.hl, 30), sub: str(x?.sub, 40),
