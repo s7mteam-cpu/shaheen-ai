@@ -196,7 +196,7 @@ export const REFUND_AR = `> **باختصار**
 ## 8. حذف الحساب
 حذف الحساب نهائي، ويحذف رصيد الريش وجميع أعمالك وطرق الدفع المحفوظة ويلغي الاشتراك. حذف الحساب بحد ذاته لا يعني استرداد أي مبلغ؛ إذا كنت مستحقاً للاسترداد حسب البند 3، اطلبه قبل حذف حسابك.
 
-## 9. باقة الإدارة الكاملة للسوشال ميديا ({managed_price} د.ك)
+## 9. باقة الإدارة الكاملة للسوشال ميديا
 هذه الخدمة يقدّمها فريق بشري. يحق لك استرداد كامل قبل بدء العمل على حسابك. بعد بدء العمل يُلغى التجديد القادم عند طلبك، ولا يُسترد مبلغ الشهر الجاري.
 
 ## 10. طريقة طلب الاسترداد
@@ -239,7 +239,7 @@ You can upgrade or downgrade from your account page. Changes apply as shown by t
 ## 8. Deleting your account
 Account deletion is permanent and removes your credits, all your work and saved payment methods, and cancels your subscription. Deleting your account does not by itself trigger a refund; if you qualify under section 3, request it before deleting.
 
-## 9. Managed social media service ({managed_price} KWD)
+## 9. Managed social media service
 This service is delivered by our team. You are entitled to a full refund before work on your account starts. After work starts, we cancel the next renewal on request, but the current month is not refunded.
 
 ## 10. How to request a refund
