@@ -54,6 +54,7 @@ export type MontageSpec = {
   quality?: "1080" | "4k";                                         // export size
   domain?: string;                                                // field from the playbook (education, restaurant…)
   illus?: string;                                                 // default illustration style for AI-drawn scenes
+  borrowed?: string[];                                            // scenes the AI borrowed from other fields' packs (for the library report)
 };
 
 /** Split = animated graphics on top (or the side) and the speaker below — the "explainer reel" look. */
@@ -62,7 +63,8 @@ export const LAYOUTS: [Layout, string][] = [["full", "ملء الشاشة"], ["s
 export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist" | "bars" | "donut" | "line" | "quote" | "arrow"
   | "definition" | "quiz" | "truefalse" | "timeline" | "cycle" | "mindmap" | "proscons" | "equation" | "fraction" | "vocab" | "pyramid" | "table" | "fillblank"
   | "scene" | "cube" | "globe" | "text3d" | "plot" | "geometry" | "burst" | "confetti" | "dotgrid" | "sketchbars"
-  | "price" | "offer" | "menu" | "rating" | "testimonial" | "contact" | "specs" | "appointment" | "beforeafter" | "countdown" | "delivery" | "hours";
+  | "price" | "offer" | "menu" | "rating" | "testimonial" | "contact" | "specs" | "appointment" | "beforeafter" | "countdown" | "delivery" | "hours"
+  | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring";
 export type Graphic = {
   kind: GraphicKind;
   at: number; dur: number;                 // output seconds (video part)
@@ -94,6 +96,8 @@ export const GRAPHIC_KINDS: [GraphicKind, string][] = [
   ["plot", "رسم دالة رياضية"], ["geometry", "شكل هندسي"], ["burst", "ختم وانفجار «تم»"], ["confetti", "احتفال كونفيتي"], ["dotgrid", "شبكة نقاط متحركة"], ["sketchbars", "رسم بياني مرسوم باليد"],
   ["price", "سعر قبل وبعد"], ["offer", "شارة خصم"], ["menu", "منيو بالأسعار"], ["rating", "تقييم بالنجوم"], ["testimonial", "رأي عميل"], ["contact", "بطاقة تواصل"],
   ["specs", "مواصفات بأيقونات"], ["appointment", "حجز موعد"], ["beforeafter", "قبل وبعد"], ["countdown", "العرض ينتهي بعد"], ["delivery", "توصيل"], ["hours", "ساعات العمل"],
+  ["dish", "طبق ساخن بالبخار"], ["shine", "لمعة وبريق"], ["mist", "عطر ورذاذ"], ["ecg", "نبض القلب"], ["flight", "رحلة طيران"], ["scales", "ميزان العدالة"],
+  ["shutter", "فلاش الكاميرا"], ["giftbox", "هدية تنفتح"], ["house", "بيت ينرسم ومفتاح"], ["ring", "حلقة تقدّم"],
 ];
 /** Board backgrounds — each lesson can look different. */
 export type BoardStyle = "soft" | "paper" | "grid" | "dots" | "notebook" | "chalk" | "blueprint" | "night" | "pastel" | "sunrise" | "sketch";
@@ -124,7 +128,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];

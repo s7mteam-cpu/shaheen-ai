@@ -154,6 +154,28 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       : kind === "confetti" ? { ...base, text: L("مبروك!") }
       : kind === "dotgrid" ? { ...base, text: L("واحد من كل ٦٣"), value: 31 }
       : kind === "sketchbars" ? { ...base, text: L("قبل وبعد"), items: [{ label: L("قبل"), value: 30 }, { label: L("بعد"), value: 90 }] }
+      : kind === "price" ? { ...base, text: L("اسم المنتج"), values: [12, 8], sub: L("اليوم بس") }
+      : kind === "offer" ? { ...base, value: 30, text: L("على كل المنتجات") }
+      : kind === "menu" ? { ...base, dur: 4, text: L("المنيو"), items: [{ label: L("الصنف الأول"), value: 3 }, { label: L("الصنف الثاني"), value: 4 }] }
+      : kind === "rating" ? { ...base, value: 5, suffix: "4.9", text: L("تقييم عملائنا") }
+      : kind === "testimonial" ? { ...base, dur: 4, value: 5, text: L("خدمة ممتازة وسريعة"), sub: L("اسم العميل") }
+      : kind === "contact" ? { ...base, text: L("تواصل معنا"), items: [{ label: L("واتساب: 99999999"), icon: "chat" as const }, { label: L("الموقع: الكويت"), icon: "pin" as const }] }
+      : kind === "hours" ? { ...base, text: L("ساعات العمل"), items: [{ label: L("السبت - الخميس: 9ص - 10م") }] }
+      : kind === "specs" ? { ...base, text: L("المواصفات"), items: [{ label: L("غرف"), value: 3, icon: "home" as const }, { label: L("متر"), value: 200, icon: "chart" as const }] }
+      : kind === "appointment" ? { ...base, dur: 4, text: L("احجز موعدك"), value: 2 }
+      : kind === "beforeafter" ? { ...base, dur: 4, text: L("قبل وبعد"), bad: L("قبل"), good: L("بعد") }
+      : kind === "countdown" ? { ...base, text: L("العرض ينتهي بعد") }
+      : kind === "delivery" ? { ...base, text: L("توصيل خلال ٣٠ دقيقة") }
+      : kind === "dish" ? { ...base, emoji: "🍲", text: L("طازج ومن القلب") }
+      : kind === "shine" ? { ...base, emoji: "🚗", text: L("لمعة ما تنقاوم") }
+      : kind === "mist" ? { ...base, text: L("عطر يدوم") }
+      : kind === "ecg" ? { ...base, value: 72, text: L("صحتك أولاً") }
+      : kind === "flight" ? { ...base, dur: 4, text: L("رحلتك الجاية"), items: [{ label: L("الكويت") }, { label: L("جورجيا") }] }
+      : kind === "scales" ? { ...base, text: L("حقك محفوظ"), items: [{ label: L("حقوقك") }, { label: L("واجباتك") }], value: 1 }
+      : kind === "shutter" ? { ...base, text: L("لحظتك الحلوة") }
+      : kind === "giftbox" ? { ...base, text: L("مفاجأة!"), sub: L("هدية مع كل طلب") }
+      : kind === "house" ? { ...base, text: L("بيت أحلامك"), sub: L("المفتاح بإيدك") }
+      : kind === "ring" ? { ...base, value: 80, text: L("وصلت لهدفك") }
       : kind === "flow" ? { ...base, items: [{ icon: "bulb" as const, label: L("فكرتك") }, { icon: "sparkle" as const, label: L("شاهين") }, { icon: "video" as const, label: L("فيديو") }] }
       : { ...base, text: L("عنوان كبير") };
     setSpec({ ...spec, graphics: [...(spec.graphics ?? []), g].sort((a, b) => a.at - b.at) });

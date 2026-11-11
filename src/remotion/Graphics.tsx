@@ -95,6 +95,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
   const out = interpolate(f, [len - 8, len], [1, 0], cl);
   const big = 104 * s;
   let body: React.ReactNode = null;
+  let overlay: React.ReactNode = null;
 
   switch (g.kind) {
     case "timer": {
@@ -912,6 +913,207 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
       );
       break;
     }
+    case "dish": {
+      // a hot dish (or cup) with steam rising
+      const q = Math.min(1, pop(f, 0, 12));
+      const E = g.emoji || "🍲";
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 * s }}>
+          <div style={{ position: "relative", width: 420 * s, height: 420 * s, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+            <svg width={420 * s} height={260 * s} style={{ position: "absolute", top: 0, left: 0, overflow: "visible" }}>
+              {[0, 1, 2].map((i) => {
+                const ph = (f + i * 14) % 42, o = interpolate(ph, [0, 10, 32, 42], [0, 0.75, 0.5, 0], cl);
+                const x = 150 * s + i * 60 * s, y = 230 * s - ph * 5 * s;
+                return <path key={i} d={`M${x},${y + 60 * s} C${x - 26 * s},${y + 40 * s} ${x + 26 * s},${y + 20 * s} ${x},${y}`} fill="none" stroke={light ? "rgba(14,27,44,.35)" : "rgba(255,255,255,.7)"} strokeWidth={9 * s} strokeLinecap="round" opacity={o * q} />;
+              })}
+            </svg>
+            <span style={{ fontSize: 250 * s, lineHeight: 1, transform: `scale(${q}) translateY(${(1 - q) * 40 * s}px)`, filter: `drop-shadow(0 ${20 * s}px ${30 * s}px rgba(0,0,0,.3))` }}>{E}</span>
+          </div>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.75} th={th} delay={8} fx={g.fx} />}
+          {g.sub && <Badge text={g.sub} f={f} delay={16} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "shine": {
+      // any product (car, ring, phone, dress…) with a light sweep and sparkles
+      const q = Math.min(1, pop(f, 0, 12));
+      const sweep = interpolate(f % 50, [0, 30], [-60, 160], cl);
+      const E = g.emoji || "✨";
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24 * s }}>
+          <div style={{ position: "relative", width: 440 * s, height: 360 * s, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 260 * s, lineHeight: 1, transform: `scale(${q})`, WebkitMaskImage: "none" }}>{E}</span>
+            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(110deg, transparent ${sweep - 14}%, rgba(255,255,255,.75) ${sweep}%, transparent ${sweep + 14}%)`, mixBlendMode: "overlay" }} />
+            {Array.from({ length: 6 }, (_, i) => { const ph = (f + i * 9) % 36, k = interpolate(ph, [0, 8, 18], [0, 1, 0], cl); return <svg key={i} width={60 * s} height={60 * s} viewBox="0 0 24 24" style={{ position: "absolute", left: `${12 + random(`sx${i}`) * 72}%`, top: `${8 + random(`sy${i}`) * 70}%`, transform: `scale(${k}) rotate(${ph * 5}deg)` }}><path d="M12 1l2.2 8.8L23 12l-8.8 2.2L12 23l-2.2-8.8L1 12l8.8-2.2z" fill={i % 2 ? "#fff" : th.accent} /></svg>; })}
+          </div>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.75} th={th} delay={8} fx={g.fx} />}
+          {g.sub && <Badge text={g.sub} f={f} delay={16} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "mist": {
+      // perfume bottle drawn in SVG, golden mist drifting out
+      const q = Math.min(1, pop(f, 0, 14));
+      const W = 300 * s, H = 420 * s;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 * s }}>
+          <div style={{ position: "relative", width: W * 2, height: H }}>
+            {Array.from({ length: 22 }, (_, i) => { const ph = (f + i * 5) % 60, x = W * 1.05 + ph * 6 * s * (0.6 + random(`m${i}`)), y = H * 0.18 - ph * 1.6 * s + Math.sin((f + i * 10) / 7) * 14 * s; return <div key={i} style={{ position: "absolute", left: x, top: y, width: (8 + (i % 4) * 6) * s, height: (8 + (i % 4) * 6) * s, borderRadius: 999, background: th.accent, opacity: interpolate(ph, [0, 10, 60], [0, 0.55, 0], cl) * q, filter: `blur(${(i % 3) * 2 * s}px)` }} />; })}
+            <svg width={W} height={H} viewBox="0 0 100 140" style={{ position: "absolute", left: W * 0.5, top: 0, transform: `scale(${q})`, filter: `drop-shadow(0 ${16 * s}px ${30 * s}px rgba(0,0,0,.35))` }}>
+              <defs><linearGradient id="btl" x1="0" x2="1"><stop offset="0" stopColor={th.accent} stopOpacity=".95" /><stop offset=".5" stopColor="#fff" stopOpacity=".55" /><stop offset="1" stopColor={th.accent} stopOpacity=".9" /></linearGradient></defs>
+              <rect x="40" y="6" width="20" height="16" rx="3" fill={light ? "#1A2433" : "#E9E2D2"} />
+              <rect x="44" y="22" width="12" height="10" fill={light ? "#2A3646" : "#CFC6B2"} />
+              <rect x="14" y="32" width="72" height="100" rx="18" fill="url(#btl)" stroke="rgba(255,255,255,.6)" strokeWidth="1.5" />
+              <rect x="30" y="66" width="40" height="30" rx="4" fill="rgba(255,255,255,.75)" />
+              <rect x={-60 + ((f * 3) % 220)} y="32" width="14" height="100" fill="rgba(255,255,255,.35)" transform="skewX(-12)" />
+            </svg>
+          </div>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.72} th={th} delay={8} fx={g.fx} />}
+          {g.sub && <Badge text={g.sub} f={f} delay={16} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "ecg": {
+      const W = Math.min(w * 0.88, 900 * s), H = 260 * s;
+      const beat = (x: number) => { const p = x % 1; return p < 0.4 ? 0 : p < 0.45 ? -0.2 : p < 0.5 ? 1 : p < 0.55 ? -0.6 : p < 0.62 ? 0.15 : 0; };
+      const pts = Array.from({ length: 241 }, (_, i) => `${(i / 240) * W},${H / 2 - beat(i / 60) * H * 0.42}`).join(" ");
+      const k = interpolate(f, [0, Math.max(20, len - 8)], [0, 1], cl);
+      const pulse = 1 + Math.max(0, Math.sin((f / MFPS) * Math.PI * 2 * 1.2)) * 0.12;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24 * s }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 * s, direction: "ltr" }}>
+            <svg width={90 * s} height={90 * s} viewBox="0 0 24 24" style={{ transform: `scale(${pulse})` }}><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill={th.bad} /></svg>
+            <span style={{ fontSize: 90 * s, fontWeight: 900, color: th.text }}>{g.value ?? 72}</span><span style={{ fontSize: 36 * s, fontWeight: 700, color: th.soft }}>{g.suffix ?? "BPM"}</span>
+          </div>
+          <svg width={W} height={H} style={{ overflow: "visible" }}><polyline points={pts} fill="none" stroke={th.good} strokeWidth={7 * s} strokeLinejoin="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - k} /></svg>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.62} th={th} delay={10} />}
+        </div>
+      );
+      break;
+    }
+    case "flight": {
+      const W = Math.min(w * 0.9, 900 * s), H = 300 * s;
+      const k = interpolate(f, [4, Math.max(20, len - 10)], [0, 1], { ...cl, easing: Easing.inOut(Easing.quad) });
+      const P = (t: number) => ({ x: W * 0.06 + t * W * 0.88, y: H * 0.85 - Math.sin(t * Math.PI) * H * 0.7 });
+      const a = P(k), b = P(Math.min(1, k + 0.01));
+      const [from, to] = [g.items?.[0]?.label ?? "الكويت", g.items?.[1]?.label ?? ""];
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.7} th={th} />}
+          <div style={{ position: "relative", width: W, height: H + 60 * s, direction: "ltr" }}>
+            <svg width={W} height={H} style={{ position: "absolute", inset: 0, overflow: "visible" }}>
+              <path d={`M${P(0).x},${P(0).y} Q${W / 2},${-H * 0.55} ${P(1).x},${P(1).y}`} fill="none" stroke={th.line} strokeWidth={5 * s} strokeDasharray={`${12 * s} ${10 * s}`} />
+              <circle cx={P(0).x} cy={P(0).y} r={14 * s} fill={th.accent} /><circle cx={P(1).x} cy={P(1).y} r={14 * s} fill={th.accent} />
+            </svg>
+            <div style={{ position: "absolute", left: a.x, top: a.y, fontSize: 80 * s, transform: `translate(-50%,-50%) rotate(${(Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI + 45}deg)` }}>✈️</div>
+            <div style={{ position: "absolute", left: 0, top: H + 6 * s, fontSize: 38 * s, fontWeight: 800, color: th.text }}>{from}</div>
+            <div style={{ position: "absolute", right: 0, top: H + 6 * s, fontSize: 38 * s, fontWeight: 800, color: th.accent, opacity: interpolate(k, [0.8, 1], [0.3, 1], cl) }}>{to}</div>
+          </div>
+          {g.sub && <Badge text={g.sub} f={f} delay={14} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "scales": {
+      const tilt = interpolate(f, [8, 30], [0, (g.value ?? 1) >= 1 ? -12 : 12], { ...cl, easing: Easing.out(Easing.back(2)) });
+      const S = 440 * s, ink = th.accent;
+      const pan = (x: number, lbl?: string) => <g transform={`translate(${x},${0})`}><line x1={0} y1={0} x2={-50 * s} y2={110 * s} stroke={ink} strokeWidth={4 * s} /><line x1={0} y1={0} x2={50 * s} y2={110 * s} stroke={ink} strokeWidth={4 * s} /><path d={`M${-80 * s},${110 * s} Q0,${170 * s} ${80 * s},${110 * s} Z`} fill={ink} />{lbl && <text x={0} y={205 * s} textAnchor="middle" fontSize={34 * s} fontWeight={800} fill={th.text}>{lbl}</text>}</g>;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 * s }}>
+          <svg width={S} height={S * 0.9} style={{ overflow: "visible" }}>
+            <rect x={S / 2 - 8 * s} y={60 * s} width={16 * s} height={S * 0.62} fill={ink} /><rect x={S / 2 - 90 * s} y={S * 0.7} width={180 * s} height={22 * s} rx={8 * s} fill={ink} /><circle cx={S / 2} cy={50 * s} r={20 * s} fill={ink} />
+            <g transform={`rotate(${tilt} ${S / 2} ${60 * s})`}>
+              <line x1={40 * s} y1={60 * s} x2={S - 40 * s} y2={60 * s} stroke={ink} strokeWidth={10 * s} strokeLinecap="round" />
+              <g transform={`translate(0,${60 * s})`}>{pan(40 * s, g.items?.[0]?.label)}{pan(S - 40 * s, g.items?.[1]?.label)}</g>
+            </g>
+          </svg>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.62} th={th} delay={10} />}
+        </div>
+      );
+      break;
+    }
+    case "shutter": {
+      const flash = interpolate(f, [10, 13, 22], [0, 1, 0], cl);
+      const close = interpolate(f, [4, 10, 14, 20], [0, 1, 1, 0], cl);
+      const R = 170 * s;
+      overlay = <div style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash * 0.85 }} />;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 26 * s }}>
+          <div style={{ position: "relative", width: R * 2, height: R * 2 }}>
+            <svg width={R * 2} height={R * 2}>
+              <circle cx={R} cy={R} r={R - 6 * s} fill={light ? "#16202C" : "#0A0F18"} stroke={th.accent} strokeWidth={10 * s} />
+              {Array.from({ length: 6 }, (_, i) => <path key={i} d={`M${R},${R} L${R + Math.cos((i / 6) * Math.PI * 2) * R},${R + Math.sin((i / 6) * Math.PI * 2) * R} L${R + Math.cos(((i + 1) / 6) * Math.PI * 2) * R},${R + Math.sin(((i + 1) / 6) * Math.PI * 2) * R} Z`} fill={i % 2 ? "#2A3646" : "#3A4658"} transform={`rotate(${close * 30} ${R} ${R})`} opacity={close} />)}
+              <circle cx={R} cy={R} r={(R - 30 * s) * (1 - close * 0.8)} fill="none" stroke="rgba(255,255,255,.25)" strokeWidth={4 * s} />
+            </svg>
+          </div>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.72} th={th} delay={16} fx={g.fx} />}
+        </div>
+      );
+      break;
+    }
+    case "giftbox": {
+      const open = Math.min(1, pop(f, 14, 9));
+      const shake = f < 14 ? Math.sin(f * 1.6) * 6 * (f / 14) : 0;
+      const B = 260 * s;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 * s }}>
+          <div style={{ position: "relative", width: B * 1.5, height: B * 1.5, transform: `rotate(${shake}deg)` }}>
+            {Array.from({ length: 16 }, (_, i) => { const a = -Math.PI / 2 + ((i / 15) - 0.5) * 2.2, r = open * (160 + random(`g${i}`) * 120) * s; return <div key={i} style={{ position: "absolute", left: B * 0.75 + Math.cos(a) * r, top: B * 0.55 + Math.sin(a) * r, width: 16 * s, height: 16 * s, borderRadius: i % 2 ? 999 : 3 * s, background: [th.accent, th.good, th.bad, "#4F8BFF"][i % 4], opacity: interpolate(f, [14, 20, 40], [0, 1, 0], cl) }} />; })}
+            <div style={{ position: "absolute", left: B * 0.25, top: B * 0.6, width: B, height: B * 0.8, borderRadius: 18 * s, background: th.accent }} />
+            <div style={{ position: "absolute", left: B * 0.25 + B / 2 - 18 * s, top: B * 0.6, width: 36 * s, height: B * 0.8, background: th.bad }} />
+            <div style={{ position: "absolute", left: B * 0.18, top: B * 0.42, width: B * 1.14, height: B * 0.22, borderRadius: 14 * s, background: th.accent, filter: "brightness(1.1)", transform: `translate(${open * 60 * s}px, ${-open * 140 * s}px) rotate(${open * 24}deg)` }} />
+          </div>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.75} th={th} delay={16} fx={g.fx} />}
+          {g.sub && <Badge text={g.sub} f={f} delay={22} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "house": {
+      const k = interpolate(f, [2, 30], [0, 1], { ...cl, easing: ease });
+      const key = Math.min(1, pop(f, 30, 10));
+      const S = 420 * s;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 * s }}>
+          <div style={{ position: "relative", width: S, height: S * 0.85 }}>
+            <svg width={S} height={S * 0.85} viewBox="0 0 120 100" style={{ overflow: "visible" }}>
+              <path d="M10 48 L60 8 L110 48 M22 40 V94 H98 V40 M50 94 V66 H70 V94 M30 54 H44 V66 H30 Z M76 54 H90 V66 H76 Z" fill="none" stroke={th.accent} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - k} />
+              <rect x="22" y="40" width="76" height="54" fill={th.accent} opacity={0.12 * k} />
+            </svg>
+            <div style={{ position: "absolute", right: -20 * s, bottom: 10 * s, fontSize: 110 * s, transform: `scale(${key}) rotate(${(1 - key) * -60}deg)` }}>🔑</div>
+          </div>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.72} th={th} delay={12} fx={g.fx} />}
+          {g.sub && <Badge text={g.sub} f={f} delay={30} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "ring": {
+      const v = Math.max(0, Math.min(100, g.value ?? 80));
+      const R = 180 * s, sw = 34 * s, C = 2 * Math.PI * (R - sw / 2);
+      const k = interpolate(f, [4, 36], [0, 1], { ...cl, easing: ease });
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 * s }}>
+          <div style={{ position: "relative", width: R * 2, height: R * 2 }}>
+            <svg width={R * 2} height={R * 2}>
+              <circle cx={R} cy={R} r={R - sw / 2} fill="none" stroke={th.line} strokeWidth={sw} />
+              <circle cx={R} cy={R} r={R - sw / 2} fill="none" stroke={th.good} strokeWidth={sw} strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - (v / 100) * k)} transform={`rotate(-90 ${R} ${R})`} />
+              <circle cx={R} cy={R} r={R - sw * 1.6} fill="none" stroke={th.accent} strokeWidth={sw * 0.6} strokeLinecap="round" strokeDasharray={C * 0.8} strokeDashoffset={C * 0.8 * (1 - Math.min(1, (v / 100) * k * 1.15))} transform={`rotate(-90 ${R} ${R})`} opacity={0.85} />
+            </svg>
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+              {g.icon && <MIcon name={g.icon} size={60 * s} color={th.accent} stroke={2.2} />}
+              <span style={{ fontSize: 90 * s, fontWeight: 900, color: th.text }}>{g.suffix ? `${Math.round((g.values?.[0] ?? v) * k)}` : `${Math.round(v * k)}%`}</span>
+              {g.suffix && <span style={{ fontSize: 34 * s, fontWeight: 700, color: th.soft }}>{g.suffix}</span>}
+            </div>
+          </div>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.65} th={th} delay={10} />}
+        </div>
+      );
+      break;
+    }
     default: // headline
       body = (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -925,6 +1127,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
     <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: `${40 * s}px ${60 * s}px`, opacity: out, transform: `translateY(${(1 - out) * -20 * s}px)` }}>
       <svg width={0} height={0} style={{ position: "absolute" }}><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves={2} seed={Math.floor(f / 4) % 3} /><feDisplacementMap in="SourceGraphic" scale={4 * s} /></filter></svg>
       <div style={{ width: "100%", display: "flex", justifyContent: "center", filter: sketch ? "url(#rough)" : undefined }}>{body}</div>
+      {overlay}
     </div>
   );
 }

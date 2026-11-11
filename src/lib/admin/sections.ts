@@ -10,7 +10,7 @@ export const SECTIONS = [
   { key: "leads", path: "/admin/leads", label: "طلبات الإدارة" },
   { key: "jobs", path: "/admin/jobs", label: "الطلبات" },
   { key: "gallery", path: "/admin/gallery", label: "معرض الأعمال" },
-  { key: "packs", path: "/admin/packs", label: "حزم المجالات" },
+  { key: "packs", path: "/admin/packs", label: "مكتبة المجالات" },
   { key: "changes", path: "/admin/changes", label: "آخر التعديلات" },
   { key: "reset", path: "/admin/reset", label: "تصفير المنصة" },
 ] as const;

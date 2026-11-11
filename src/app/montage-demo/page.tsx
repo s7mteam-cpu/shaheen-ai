@@ -3,7 +3,7 @@ import { MontageStudio } from "@/components/app/MontageStudio";
 import type { MontageSpec } from "@/remotion/montage";
 
 // Local design preview only — never served in production.
-export default async function Page({ searchParams }: { searchParams: Promise<{ split?: string; dark?: string; layout?: string; cap?: string; tr?: string; board?: string; edu?: string; p3?: string; p4?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ split?: string; dark?: string; layout?: string; cap?: string; tr?: string; board?: string; edu?: string; p3?: string; p4?: string; p5?: string }> }) {
   const sp = await searchParams;
   if (process.env.NODE_ENV === "production") notFound();
   const words: MontageSpec["words"] = [];
@@ -16,7 +16,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     titles: [{ text: "أهم سر بالتسويق", at: 2.6, dur: 2.5, pos: "top" }], zooms: [{ at: 5.5, dur: 2, scale: 1.18 }],
     layout: (sp.layout as MontageSpec["layout"]) ?? (sp.split ? "split" : "full"), transition: (sp.tr as MontageSpec["transition"]) ?? "none", panel: sp.dark ? "dark" : "light",
     board: (sp.board as MontageSpec["board"]) ?? undefined,
-    graphics: sp.p4 ? [
+    graphics: sp.p5 ? [
+      { kind: "dish", at: 0.2, dur: 1.1, emoji: "🍖", text: "مشاوي على الفحم", hl: "الفحم" },
+      { kind: "shine", at: 1.4, dur: 1.1, emoji: "🚗", text: "لمعة ما تنقاوم" },
+      { kind: "mist", at: 2.6, dur: 1.1, text: "دهن عود كمبودي", sub: "كمية محدودة" },
+      { kind: "ecg", at: 3.8, dur: 1.1, value: 72, text: "صحتك أولاً" },
+      { kind: "flight", at: 5.0, dur: 1.2, text: "رحلتك الجاية", items: [{ label: "الكويت" }, { label: "جورجيا" }] },
+      { kind: "scales", at: 6.3, dur: 1.1, text: "حقك محفوظ", items: [{ label: "حقوقك" }, { label: "واجباتك" }], value: 1 },
+      { kind: "shutter", at: 7.5, dur: 1.0, text: "لحظتك الحلوة" },
+      { kind: "giftbox", at: 8.6, dur: 1.2, text: "مفاجأة!", sub: "هدية مع كل طلب" },
+      { kind: "house", at: 9.9, dur: 1.3, text: "بيت أحلامك", sub: "المفتاح بإيدك" },
+      { kind: "ring", at: 11.3, dur: 1.0, value: 80, text: "وصلت لهدفك" },
+    ] : sp.p4 ? [
       { kind: "price", at: 0.2, dur: 1.2, text: "مشاوي مشكّلة", values: [12, 8], sub: "اليوم بس" },
       { kind: "offer", at: 1.5, dur: 1.0, value: 30, text: "على كل المنيو", sub: "الويكند" },
       { kind: "menu", at: 2.6, dur: 1.2, text: "المنيو", items: [{ label: "كباب", value: 3 }, { label: "تكة", value: 3.5 }, { label: "مشاوي مشكّلة", value: 8 }] },
