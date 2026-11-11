@@ -17,7 +17,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: { default: "شاهين — استوديو المحتوى العربي بالذكاء الاصطناعي", template: "%s | شاهين" },
   description: "صور منتجات، فيديوهات، إعلانات وتعليق صوتي بلهجة جمهورك — من فكرة مكتوبة بالعربي إلى عمل جاهز للنشر.",
-  openGraph: { title: "شاهين", description: "استوديو المحتوى العربي بالذكاء الاصطناعي", locale: "ar_KW", type: "website" },
+  openGraph: { title: "شاهين", description: "استوديو المحتوى العربي بالذكاء الاصطناعي", locale: "ar_KW", type: "website", siteName: "شاهين", url: "/" },
+  // The preview picture itself is src/app/opengraph-image.jpg (WhatsApp, X, Telegram… show it with the link).
+  twitter: { card: "summary_large_image", title: "شاهين", description: "استوديو المحتوى العربي بالذكاء الاصطناعي" },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
