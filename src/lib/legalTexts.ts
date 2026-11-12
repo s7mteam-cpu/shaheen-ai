@@ -248,60 +248,124 @@ Email {email}, WhatsApp {whatsapp}, or use “Contact support” in the app, wit
 ## 11. Governing law
 This policy is governed by the laws of the State of Kuwait and does not limit any rights you have as a consumer under the law. See also our [Terms of Service](/terms) and [Privacy Policy](/privacy).`;
 
-export const CONTENT_AR = `منصة «شاهين» ({site}) منصة محترمة لصناعة محتوى الأعمال، وتلتزم بقوانين دولة الكويت وبالآداب العامة والقيم الإسلامية. هذه السياسة جزء من [شروط الاستخدام](/terms)، وتنطبق على كل ما تكتبه أو ترفعه أو تطلب إنشاءه في المنصة.
+export const CONTENT_AR = `منصة «شاهين» ({site}) منصة كويتية محترمة لصناعة محتوى الأعمال بالذكاء الاصطناعي، وتلتزم بقوانين دولة الكويت وبالآداب العامة والقيم الإسلامية. هذه السياسة جزء لا يتجزأ من [شروط الاستخدام](/terms)، وتنطبق على كل ما تكتبه أو ترفعه أو تطلب إنشاءه أو تنشره من نتائج المنصة. استخدامك لأي أداة يعني موافقتك عليها.
 
-> **باختصار:** أي محتوى غير أخلاقي ممنوع منعاً باتاً، ونوقف الحساب اللي يحاول ينشئه.
+> **باختصار:** أي محتوى غير أخلاقي أو مسيء أو مخالف للقانون ممنوع منعاً باتاً، وما يجوز تستخدم صورة أو صوت أو اسم أي شخص بدون إذنه. المخالف يتوقف حسابه، وقد نبلّغ الجهات المختصة.
 
 ## 1. المحتوى الممنوع نهائياً
+**أ) الآداب العامة**
 - العري الكامل أو الجزئي، والمحتوى الجنسي أو الإباحي أو الإيحائي، والصور أو الفيديوهات أو الإعلانات المثيرة أو الخادشة للحياء.
-- أي محتوى يمس الأطفال أو يظهرهم بشكل غير لائق بأي صورة.
-- الترويج للخدمات الجنسية أو المواعدة غير الأخلاقية.
-- الترويج للمخدرات أو المسكرات أو القمار أو أي نشاط مخالف للقانون في الكويت.
-- الإساءة للأديان أو المقدسات أو السخرية منها، أو استخدام آيات القرآن الكريم بشكل غير لائق أو محرّف.
-- العنف المفرط والدموي، والتحريض على الكراهية أو العنف أو التمييز.
-- انتحال شخصية شخص أو جهة، أو استخدام صور الناس بدون إذنهم، أو التضليل والاحتيال.
+- أي محتوى يمس الأطفال أو يظهرهم بشكل غير لائق بأي صورة، وأي استغلال لهم.
+- الترويج للخدمات الجنسية أو العلاقات أو المواعدة غير الأخلاقية.
 
-## 2. كيف نطبّق السياسة
+**ب) الدين والمجتمع**
+- الإساءة للذات الإلهية أو الأنبياء أو الصحابة أو الأديان أو المقدسات، أو السخرية منها.
+- استخدام آيات القرآن الكريم أو الأحاديث بشكل محرّف أو مقرون بموسيقى أو محتوى غير لائق.
+- إثارة النعرات الطائفية أو القبلية أو العنصرية، والتحريض على الكراهية أو العنف أو التمييز.
+
+**ج) الأشخاص وحقوقهم**
+- **انتحال الشخصية والتزييف العميق (Deepfake):** استخدام وجه أو صورة أو صوت أو اسم أي شخص حقيقي (شخص عادي أو مشهور أو مسؤول) بدون موافقته الصريحة المكتوبة، أو تقليده ليبين كأنه قال أو سوّى شي ما سواه.
+- **استنساخ الأصوات:** مسموح فقط لصوتك أنت، أو لصوت شخص عندك إذن مكتوب منه. ممنوع استنساخ صوت أي شخص بدون إذنه، ومنهم المشاهير والقرّاء والمسؤولين.
+- السب والقذف والتشهير والإهانة والسخرية من أي شخص أو جهة، ونشر ما يمس سمعتهم أو كرامتهم.
+- نشر البيانات أو الصور أو المعلومات الشخصية لأي شخص بدون إذنه، أو أي محتوى ينتهك خصوصيته.
+- التحرش أو التهديد أو الابتزاز أو التنمّر بأي شكل.
+
+**د) الدولة والنظام العام**
+- المساس بالذات الأميرية، أو الإساءة للدولة أو مؤسساتها أو رموزها، أو للدول الشقيقة والصديقة.
+- الأخبار الكاذبة والشائعات والمحتوى المضلّل، وتزوير المستندات أو الشعارات أو الأختام الرسمية.
+
+**هـ) التجارة والقانون**
+- الترويج للمخدرات أو المسكرات أو القمار أو الأسلحة أو البضائع المقلّدة أو أي نشاط غير مرخّص أو ممنوع في الكويت.
+- الاحتيال والنصب والإعلانات الكاذبة أو المضلّلة للمستهلك، والادعاءات الطبية أو العلاجية بدون ترخيص.
+- انتهاك حقوق الملكية الفكرية: استخدام شعارات أو علامات تجارية أو شخصيات أو موسيقى أو صور أو أعمال لغيرك بدون إذن.
+- البريد المزعج والرسائل الجماعية غير المرغوب فيها.
+- العنف المفرط والدموي، ومحتوى إيذاء النفس.
+
+## 2. حقوق وموافقات تتعهد فيها
+- إنك تملك كل محتوى ترفعه (صور، فيديوهات، أصوات، شعارات)، أو عندك إذن مكتوب باستخدامه.
+- إن أي شخص يظهر بصورته أو صوته بمحتواك وافق صراحة، وإنك تقدر تثبت هالموافقة لو طلبناها.
+- إنك ما تقدّم المحتوى المنشأ بالذكاء الاصطناعي (أشخاص أو أصوات مولّدة) كأنه حقيقي بهدف خداع الناس.
+- إنك تراجع أي نتيجة قبل نشرها، وتتحمل مسؤولية نشرها.
+
+## 3. كيف نطبّق السياسة
 - نفحص الطلبات تلقائياً قبل التنفيذ، ونرفض أي طلب مخالف بدون خصم ريش.
 - مزوّدو الذكاء الاصطناعي اللي نستخدمهم عندهم فلاتر أمان إضافية.
-- يصل لفريق الإدارة تنبيه عند أي محاولة مخالفة، ويحق لنا مراجعة المحتوى المخالف وحذفه.
+- يصل لفريق الإدارة تنبيه عند أي محاولة مخالفة، ويحق لنا مراجعة المحتوى المخالف وحذفه في أي وقت.
 
-## 3. العقوبات
-- أول مخالفة: رفض الطلب وتنبيه.
+## 4. العقوبات
+- أول مخالفة بسيطة: رفض الطلب وتنبيه.
 - تكرار المحاولة أو المخالفة الجسيمة: **إيقاف الحساب أو حذفه نهائياً بدون استرجاع للمبالغ أو الريش**، وحظر البريد من التسجيل مرة ثانية.
-- المحتوى المخالف للقانون، خصوصاً ما يمس الأطفال، نبلّغ عنه الجهات المختصة في دولة الكويت.
+- المحتوى المخالف للقانون، خصوصاً ما يمس الأطفال أو انتحال الشخصيات أو الابتزاز: نحتفظ بالسجلات اللازمة، ونبلّغ عنه الجهات المختصة في دولة الكويت، ونتعاون معها ونسلّمها البيانات عند الطلب الرسمي.
 
-## 4. مسؤوليتك
-أنت المسؤول قانونياً عن المحتوى اللي تطلب إنشاءه وتنشره، وتتعهد إنه ما يخالف هذه السياسة أو القوانين. شاهين غير مسؤولة عن أي استخدام مخالف للنتائج بعد تحميلها.
+## 5. مسؤوليتك القانونية
+أنت المسؤول وحدك قانونياً عن المحتوى اللي تطلب إنشاءه أو تنشره، وتتعهد بتعويض شاهين عن أي ضرر أو مطالبة أو غرامة تنتج عن مخالفتك لهذه السياسة أو للقوانين. شاهين أداة لإنشاء المحتوى، ولا تتحمل مسؤولية أي استخدام مخالف للنتائج بعد تحميلها.
 
-## 5. البلاغات
-إذا شفت محتوى مخالف أُنشئ بالمنصة، راسلنا على {email} أو واتساب {whatsapp}.`;
+## 6. البلاغات وإزالة المحتوى
+إذا شفت محتوى مخالف أُنشئ بالمنصة، أو استُخدمت صورتك أو صوتك أو عملك بدون إذنك، راسلنا على {email} أو واتساب {whatsapp} مع التفاصيل. نراجع البلاغ بأسرع وقت، ونوقف المحتوى أو الحساب المخالف إذا ثبتت المخالفة.
 
-export const CONTENT_EN = `Shaheen ({site}) is a respectful platform for business content. It follows the laws of the State of Kuwait, public morals and Islamic values. This policy is part of the [Terms of Service](/terms) and applies to everything you write, upload or ask the platform to create.
+## 7. القوانين المرجعية
+تخضع هذه السياسة لقوانين دولة الكويت، ومنها: قانون مكافحة جرائم تقنية المعلومات رقم 63 لسنة 2015، وقانون الجزاء، وقانون حقوق المؤلف والحقوق المجاورة، وتنظيمات حماية البيانات الشخصية الصادرة عن هيئة الاتصالات وتقنية المعلومات، وقانون المطبوعات والنشر، وأي قانون آخر نافذ.
 
-> **In short:** any immoral content is strictly forbidden, and accounts that try to create it are suspended.
+## 8. التعديلات
+قد نحدّث هذه السياسة، وننشر النسخة الجديدة هنا مع تاريخ آخر تحديث. استمرارك باستخدام المنصة بعد التحديث يعني موافقتك عليه.`;
+
+export const CONTENT_EN = `Shaheen ({site}) is a respectful Kuwaiti platform for AI business content. It follows the laws of the State of Kuwait, public morals and Islamic values. This policy is an integral part of the [Terms of Service](/terms) and applies to everything you write, upload, ask the platform to create, or publish from its results. Using any tool means you accept it.
+
+> **In short:** any immoral, abusive or illegal content is strictly forbidden, and you may not use anyone's image, voice or name without their permission. Violating accounts are suspended, and we may report them to the authorities.
 
 ## 1. Strictly forbidden
+**a) Public morals**
 - Full or partial nudity, sexual, pornographic or suggestive content, and indecent or provocative images, videos or ads.
-- Any content involving children in an inappropriate way, in any form.
-- Promoting sexual services or immoral dating.
-- Promoting drugs, alcohol, gambling or any activity illegal in Kuwait.
-- Insulting or mocking religions or sacred things, or using verses of the Holy Quran in an inappropriate or altered way.
-- Graphic or gory violence, and incitement to hatred, violence or discrimination.
-- Impersonating people or organizations, using people's images without permission, deception or fraud.
+- Any content involving children in an inappropriate way, in any form, and any exploitation of them.
+- Promoting sexual services or immoral relationships or dating.
 
-## 2. How we enforce it
+**b) Religion and society**
+- Insulting or mocking God, the prophets, the companions, religions or sacred things.
+- Using verses of the Holy Quran or hadith in an altered way, with music, or alongside inappropriate content.
+- Stirring sectarian, tribal or racial strife, and inciting hatred, violence or discrimination.
+
+**c) People and their rights**
+- **Impersonation and deepfakes:** using the face, image, voice or name of any real person (private, famous or official) without their explicit written consent, or imitating them so they appear to say or do something they did not.
+- **Voice cloning:** allowed only for your own voice, or the voice of someone who gave you written permission. Cloning anyone's voice without permission is forbidden, including celebrities, Quran reciters and officials.
+- Insult, slander, defamation, humiliation or mockery of any person or organization, and publishing anything that harms their reputation or dignity.
+- Publishing anyone's personal data, images or information without permission, or any content that violates their privacy.
+- Harassment, threats, blackmail or bullying in any form.
+
+**d) The state and public order**
+- Offending the Amir, insulting the state, its institutions or symbols, or brotherly and friendly countries.
+- Fake news, rumours and misleading content, and forging official documents, logos or seals.
+
+**e) Trade and the law**
+- Promoting drugs, alcohol, gambling, weapons, counterfeit goods, or any unlicensed or prohibited activity in Kuwait.
+- Fraud, scams, false or misleading advertising, and medical or therapeutic claims without a licence.
+- Infringing intellectual property: using others' logos, trademarks, characters, music, images or works without permission.
+- Spam and unsolicited bulk messages.
+- Graphic or gory violence, and self-harm content.
+
+## 2. Rights and consents you guarantee
+- You own all content you upload (images, videos, voices, logos), or have written permission to use it.
+- Anyone who appears with their image or voice in your content has explicitly agreed, and you can prove that consent if we ask.
+- You will not present AI-generated content (generated people or voices) as real in order to deceive people.
+- You review every result before publishing it and are responsible for publishing it.
+
+## 3. How we enforce it
 - Requests are checked automatically before they run; forbidden requests are refused without using credits.
 - The AI providers we use apply their own additional safety filters.
-- The admin team is alerted to every violating attempt, and we may review and delete violating content.
+- The admin team is alerted to every violating attempt, and we may review and delete violating content at any time.
 
-## 3. Penalties
-- First violation: the request is refused with a warning.
+## 4. Penalties
+- A first minor violation: the request is refused with a warning.
 - Repeated attempts or a serious violation: **the account is suspended or permanently deleted without any refund of payments or credits**, and the email is blocked from signing up again.
-- Illegal content, especially anything involving children, is reported to the competent authorities in the State of Kuwait.
+- Illegal content, especially anything involving children, impersonation or blackmail: we keep the necessary records, report it to the competent authorities in the State of Kuwait, cooperate with them and hand over data upon an official request.
 
-## 4. Your responsibility
-You are legally responsible for the content you ask to create and publish, and you undertake that it does not break this policy or the law. Shaheen is not responsible for any misuse of results after they are downloaded.
+## 5. Your legal responsibility
+You alone are legally responsible for the content you ask to create or publish, and you undertake to compensate Shaheen for any damage, claim or fine resulting from your breach of this policy or the law. Shaheen is a content-creation tool and is not responsible for any misuse of results after they are downloaded.
 
-## 5. Reporting
-If you see violating content made with the platform, contact us at {email} or WhatsApp {whatsapp}.`;
+## 6. Reports and takedowns
+If you see violating content made with the platform, or your image, voice or work was used without your permission, contact us at {email} or WhatsApp {whatsapp} with the details. We review reports as quickly as possible and stop the violating content or account when the violation is confirmed.
+
+## 7. Governing laws
+This policy is governed by the laws of the State of Kuwait, including the Law on Combating Information Technology Crimes No. 63 of 2015, the Penal Code, the Copyright and Related Rights Law, the personal data protection regulations issued by the Communication and Information Technology Regulatory Authority, the Press and Publications Law, and any other law in force.
+
+## 8. Changes
+We may update this policy and will publish the new version here with the date of the last update. Continuing to use the platform after an update means you accept it.`;

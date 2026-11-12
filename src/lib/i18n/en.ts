@@ -1541,4 +1541,6 @@ export const EN: Record<string, string> = {
   "ارسمها": "Draw it",
   "الصورة تتغيّر على طول بدون «حفظ». إذا ما فيه صورة، تطلع الرسمة الجاهزة اللي بالمعاينة.": "The picture changes right away, no «Save» needed. Without one, the ready drawing in the preview is shown.",
   "ارجع للرسمة الجاهزة (علّم واضغط «حفظ»)": "Back to the ready drawing (tick and press «Save»)",
+  "أقرّ إن الصورة صورتي أو عندي إذن مكتوب من صاحبها، وما راح أستخدمها لانتحال شخصية أو إساءة أو تضليل، وأوافق على سياسة المحتوى.": "I confirm this is my own photo or I have written permission from the person, I won't use it to impersonate, insult or mislead, and I accept the Content Policy.",
+  "أقرّ إن هذا صوتي أو عندي إذن مكتوب من صاحبه، وما راح أستخدمه لانتحال شخصية أو تضليل، وأوافق على سياسة المحتوى.": "I confirm this is my own voice or I have written permission from its owner, I won't use it to impersonate or mislead, and I accept the Content Policy.",
 };
