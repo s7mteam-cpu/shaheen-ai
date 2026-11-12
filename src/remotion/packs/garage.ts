@@ -69,7 +69,8 @@ const pack: Draft = {
     "appointment",
     "beforeafter",
     "timer",
-    "shine"
+    "shine",
+    "map"
   ]
 };
 export default pack;

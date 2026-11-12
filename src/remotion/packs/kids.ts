@@ -68,7 +68,8 @@ const pack: Draft = {
     "burst",
     "dotgrid",
     "truefalse",
-    "giftbox"
+    "giftbox",
+    "map"
   ]
 };
 export default pack;

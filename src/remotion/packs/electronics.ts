@@ -69,7 +69,8 @@ const pack: Draft = {
     "compare",
     "cube",
     "countdown",
-    "shine"
+    "shine",
+    "map"
   ]
 };
 export default pack;

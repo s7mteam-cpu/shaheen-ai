@@ -68,7 +68,8 @@ const pack: Draft = {
     "appointment",
     "contact",
     "counter",
-    "house"
+    "house",
+    "map"
   ]
 };
 export default pack;

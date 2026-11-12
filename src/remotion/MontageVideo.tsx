@@ -163,11 +163,25 @@ function BRollLayer({ m }: { m: MontageSpec }) {
         const len = Math.max(6, Math.round(b.dur * MFPS));
         return (
           <Sequence key={i} from={Math.round(b.at * MFPS)} durationInFrames={len} layout="none">
-            <BRollShot url={b.url} len={len} />
+            {b.cut ? <CutoutShot url={b.url} len={len} i={i} /> : <BRollShot url={b.url} len={len} />}
           </Sequence>
         );
       })}
     </>
+  );
+}
+/** Background-removed photo: floats over the video with a shadow instead of covering it. */
+function CutoutShot({ url, len, i }: { url: string; len: number; i: number }) {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const p = spring({ frame: f, fps, config: { damping: 11, mass: 0.7 } });
+  const out = interpolate(f, [len - 7, len], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const bob = Math.sin(f / 9) * 10;
+  return (
+    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: out }}>
+      <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 55%, rgba(0,0,0,.45), transparent 70%)", opacity: Math.min(1, p) }} />
+      <Img src={url} style={{ width: "78%", height: "62%", objectFit: "contain", transform: `translateY(${bob + (1 - Math.min(1, p)) * 120}px) scale(${0.6 + 0.4 * Math.min(1.05, p)}) rotate(${(1 - Math.min(1, p)) * (i % 2 ? 8 : -8)}deg)`, filter: "drop-shadow(0 30px 40px rgba(0,0,0,.55))" }} />
+    </AbsoluteFill>
   );
 }
 function BRollShot({ url, len }: { url: string; len: number }) {
@@ -521,6 +535,7 @@ export function MontageVideo(m: MontageSpec) {
     : { panel: { left: 0, top: 0, width: pw, height }, foot: { left: pw, top: 0, width: width - pw, height }, edge: { left: pw - 3, top: 0, width: 6, height } };
   return (
     <AbsoluteFill dir="rtl" style={{ background: "#000", fontFamily: `"${m.font}", Cairo, sans-serif` }}>
+     <BeatWrap m={m} u={u}>
       {intro > 0 && m.sfx && <Audio src={staticFile("sfx/ding.mp3")} volume={0.35} endAt={20} />}
       {intro > 0 && <Sequence durationInFrames={intro}><Card title={m.intro.title} subtitle={m.intro.subtitle} m={m} u={u} len={intro} /></Sequence>}
       <Sequence from={intro} durationInFrames={vid}>
@@ -548,6 +563,7 @@ export function MontageVideo(m: MontageSpec) {
         )}
         {m.vo?.on && m.vo.url && <Audio src={m.vo.url} volume={1} />}
         <Emojis m={m} u={u} />
+        <StickerLayer m={m} u={u} />
         {(!split && !shaped && m.layout !== "board") || m.layout === "dynamic" ? <Titles m={m} u={u} /> : null}
         <Logo m={m} u={u} />
         <Sfx m={m} />
@@ -557,6 +573,8 @@ export function MontageVideo(m: MontageSpec) {
       {/* music ducks under any voice: loud only for silent footage without a voice-over */}
       {m.music?.url && <MusicTrack m={m} total={intro + vid + outro} />}
       <ProgressBar m={m} u={u} frames={intro + vid + outro} />
+     </BeatWrap>
+      {(m.grain ?? 0) > 0 && <Grain level={m.grain!} />}
     </AbsoluteFill>
   );
 }
@@ -581,5 +599,170 @@ function MusicTrack({ m, total }: { m: MontageSpec; total: number }) {
     <Sequence from={from} durationInFrames={len} layout="none">
       <Audio src={mu.url} trimBefore={trim || undefined} volume={fi || fo ? vol : base} />
     </Sequence>
+  );
+}
+
+/** Seconds since the last beat (Infinity before the first). */
+function sinceBeat(beats: number[], t: number) {
+  let lo = 0, hi = beats.length - 1, best = -1;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (beats[mid] <= t) { best = mid; lo = mid + 1; } else hi = mid - 1; }
+  return best < 0 ? Infinity : t - beats[best];
+}
+
+/** Everything moves with the music: a small zoom pulse, a flash or a shake on every beat. */
+function BeatWrap({ m, u, children }: { m: MontageSpec; u: number; children: React.ReactNode }) {
+  const frame = useCurrentFrame();
+  const fx = m.beatFx ?? "none";
+  if (fx === "none" || !m.beats?.length) return <>{children}</>;
+  const d = sinceBeat(m.beats, frame / MFPS);
+  const e = Number.isFinite(d) ? Math.exp(-d * 9) : 0;
+  const style: React.CSSProperties = fx === "pulse" ? { transform: `scale(${1 + 0.045 * e})` }
+    : fx === "shake" ? { transform: `translate(${Math.sin(d * 70) * 14 * u * e}px, ${Math.cos(d * 55) * 8 * u * e}px) rotate(${Math.sin(d * 40) * 0.6 * e}deg)` } : {};
+  return (
+    <AbsoluteFill style={style}>
+      {children}
+      {fx === "flash" && e > 0.01 && <AbsoluteFill style={{ background: "#fff", opacity: 0.32 * e, mixBlendMode: "screen" }} />}
+    </AbsoluteFill>
+  );
+}
+
+/** Film grain: animated noise (+ flicker and dust for the strong level). Drawn at half size then scaled — cheap at 4K. */
+function Grain({ level }: { level: number }) {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+  const seed = Math.floor(frame / 2) % 97;
+  const strong = level >= 1;
+  const W = Math.round(width / 2), H = Math.round(height / 2);
+  const flicker = strong ? 0.04 * Math.sin(frame * 1.7) * Math.sin(frame * 0.53) : 0;
+  const dust = strong ? Array.from({ length: 3 }, (_, i) => ({ x: ((seed * 37 + i * 211) % 100) / 100, y: ((seed * 53 + i * 131) % 100) / 100, on: (seed + i * 7) % 5 === 0 })) : [];
+  return (
+    <AbsoluteFill style={{ pointerEvents: "none" }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", mixBlendMode: "overlay", opacity: strong ? 0.55 : 0.32 }}>
+        <filter id={`gr${seed}`}><feTurbulence type="fractalNoise" baseFrequency={strong ? 0.9 : 1.1} numOctaves={2} seed={seed} stitchTiles="stitch" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width={W} height={H} filter={`url(#gr${seed})`} />
+      </svg>
+      {strong && <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(30,20,5,.45) 100%)", mixBlendMode: "multiply" }} />}
+      {strong && <AbsoluteFill style={{ background: "#FFF3D6", opacity: 0.06 + flicker, mixBlendMode: "soft-light" }} />}
+      {dust.filter((p) => p.on).map((p, i) => <div key={i} style={{ position: "absolute", left: `${p.x * 100}%`, top: 0, width: 2, height: "100%", background: "rgba(255,255,255,.18)" }} />)}
+    </AbsoluteFill>
+  );
+}
+
+/** Animated stickers drawn in code, placed by the customer (x/y = centre, 0..1). */
+function StickerLayer({ m, u }: { m: MontageSpec; u: number }) {
+  const frame = useCurrentFrame();
+  const t = frame / MFPS;
+  return (
+    <>
+      {(m.stickers ?? []).map((st, i) => {
+        if (t < st.at || t > st.at + st.dur + 0.3) return null;
+        return <StickerView key={i} st={st} f={frame - Math.round(st.at * MFPS)} len={Math.round(st.dur * MFPS)} u={u} accent={m.colors.accent} />;
+      })}
+    </>
+  );
+}
+
+function StickerView({ st, f, len, u, accent }: { st: NonNullable<MontageSpec["stickers"]>[number]; f: number; len: number; u: number; accent: string }) {
+  const { width: W, height: H, fps } = useVideoConfig();
+  const S = 230 * u * (st.size ?? 1);
+  const p = spring({ frame: f, fps, config: { damping: 9, mass: 0.6 } });
+  const out = interpolate(f, [len, len + 8], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const draw = interpolate(f, [0, 14], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const ink = accent;
+  const shadow = `drop-shadow(0 ${6 * u}px ${14 * u}px rgba(0,0,0,.45))`;
+  const badge = (txt: string, bg: string, burst = false) => (
+    <div style={{ transform: `scale(${Math.min(1.15, p)}) rotate(${-8 + Math.sin(f / 6) * 3}deg)`, filter: shadow }}>
+      {burst ? (
+        <div style={{ position: "relative", width: S * 1.2, height: S * 1.2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width={S * 1.2} height={S * 1.2} viewBox="-50 -50 100 100" style={{ position: "absolute", inset: 0, transform: `rotate(${f * 1.5}deg)` }}>
+            <polygon points={Array.from({ length: 32 }, (_, k) => { const r = k % 2 ? 40 : 49; const a = (k / 32) * Math.PI * 2; return `${Math.cos(a) * r},${Math.sin(a) * r}`; }).join(" ")} fill={bg} />
+          </svg>
+          <span style={{ position: "relative", color: "#fff", fontSize: S * 0.24, fontWeight: 900, textAlign: "center", lineHeight: 1.1, maxWidth: S }}>{txt}</span>
+        </div>
+      ) : <div style={{ background: bg, color: "#fff", fontSize: S * 0.24, fontWeight: 900, padding: `${S * 0.06}px ${S * 0.16}px`, borderRadius: S * 0.12, whiteSpace: "nowrap" }}>{txt}</div>}
+    </div>
+  );
+  let el: React.ReactNode = null;
+  switch (st.id) {
+    case "arrow":
+      el = (
+        <svg width={S} height={S} viewBox="0 0 100 100" style={{ overflow: "visible", filter: shadow, transform: `translate(${Math.sin(f / 5) * 6 * u}px, ${Math.sin(f / 5) * 6 * u}px)` }}>
+          <path d="M88,10 C70,20 40,30 22,78" fill="none" stroke={ink} strokeWidth={9} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - draw} />
+          <path d="M8,62 L22,82 L42,70" fill="none" stroke={ink} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" opacity={draw > 0.9 ? 1 : 0} />
+        </svg>
+      );
+      break;
+    case "circle":
+      el = (
+        <svg width={S * 1.6} height={S} viewBox="0 0 160 100" style={{ overflow: "visible", filter: shadow }}>
+          <path d="M80,8 C140,6 156,40 150,58 C140,92 30,98 12,62 C0,34 40,10 92,14" fill="none" stroke={ink} strokeWidth={7} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - draw} />
+        </svg>
+      );
+      break;
+    case "underline":
+      el = (
+        <svg width={S * 1.8} height={S * 0.3} viewBox="0 0 180 30" style={{ overflow: "visible", filter: shadow }}>
+          <path d="M4,18 C40,6 70,26 100,14 C130,4 150,22 176,12" fill="none" stroke={ink} strokeWidth={9} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - draw} />
+        </svg>
+      );
+      break;
+    case "new": el = badge(st.text || "جديد", ink, true); break;
+    case "sale": el = badge(st.text || "خصم", "#E0453A", true); break;
+    case "hot": el = badge(st.text || "🔥 الأكثر طلباً", "#F07C1C"); break;
+    case "follow": {
+      const tapped = f > 18;
+      el = (
+        <div style={{ display: "flex", alignItems: "center", gap: S * 0.06, transform: `scale(${Math.min(1.1, p) * (f > 15 && f < 20 ? 0.92 : 1)})`, filter: shadow }}>
+          <div style={{ background: tapped ? "#2E3B4A" : ink, color: "#fff", fontSize: S * 0.2, fontWeight: 900, padding: `${S * 0.07}px ${S * 0.2}px`, borderRadius: 999, whiteSpace: "nowrap" }}>{tapped ? "✓ تمت المتابعة" : st.text || "تابعنا +"}</div>
+          <span style={{ fontSize: S * 0.32, transform: `translate(${interpolate(f, [0, 15], [40, 0], { extrapolateRight: "clamp" }) * u}px, ${S * 0.12}px)`, opacity: f < 26 ? 1 : 0 }}>👆</span>
+        </div>
+      );
+      break;
+    }
+    case "like": {
+      const hearts = [0, 1, 2, 3].map((k) => ({ x: (k - 1.5) * 26, y: -interpolate(f - k * 4, [0, 30], [0, 160], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }), o: interpolate(f - k * 4, [0, 6, 30], [0, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }));
+      el = (
+        <div style={{ position: "relative", filter: shadow }}>
+          {hearts.map((h, k) => <span key={k} style={{ position: "absolute", left: "50%", top: 0, fontSize: S * 0.2, opacity: h.o, transform: `translate(${h.x * u - S * 0.1}px, ${h.y * u}px)` }}>❤️</span>)}
+          <svg width={S} height={S} viewBox="0 0 24 24" style={{ transform: `scale(${Math.min(1.25, p) * (1 + 0.06 * Math.sin(f / 3))})` }}><path d="M12 21s-8-5-8-11a4.5 4.5 0 0 1 8-2.9A4.5 4.5 0 0 1 20 10c0 6-8 11-8 11z" fill="#FF3B5C" /></svg>
+        </div>
+      );
+      break;
+    }
+    case "star":
+      el = (
+        <svg width={S} height={S} viewBox="-50 -50 100 100" style={{ overflow: "visible", filter: shadow, transform: `scale(${Math.min(1.2, p)}) rotate(${f * 2}deg)` }}>
+          <polygon points={Array.from({ length: 10 }, (_, k) => { const r = k % 2 ? 20 : 46; const a = (k / 10) * Math.PI * 2 - Math.PI / 2; return `${Math.cos(a) * r},${Math.sin(a) * r}`; }).join(" ")} fill="#FFC531" stroke="#fff" strokeWidth={3} />
+        </svg>
+      );
+      break;
+    case "check":
+      el = (
+        <svg width={S} height={S} viewBox="0 0 100 100" style={{ filter: shadow, transform: `scale(${Math.min(1.15, p)})` }}>
+          <circle cx={50} cy={50} r={44} fill="#1F9D55" />
+          <path d="M28,52 L44,68 L74,36" fill="none" stroke="#fff" strokeWidth={10} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - interpolate(f, [6, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
+        </svg>
+      );
+      break;
+    case "click": {
+      const c = (f % 24) / 24;
+      el = (
+        <div style={{ position: "relative", width: S, height: S, display: "flex", alignItems: "center", justifyContent: "center", filter: shadow }}>
+          <div style={{ position: "absolute", width: S * (0.3 + c * 0.7), height: S * (0.3 + c * 0.7), borderRadius: "50%", border: `${5 * u}px solid ${ink}`, opacity: 1 - c }} />
+          <span style={{ fontSize: S * 0.5, transform: `translate(${S * 0.12}px, ${S * 0.18 + (c < 0.2 ? 8 : 0) * u}px) scale(${c < 0.2 ? 0.9 : 1})` }}>👆</span>
+        </div>
+      );
+      break;
+    }
+    case "sparkles":
+      el = (
+        <div style={{ position: "relative", width: S, height: S }}>
+          {[[0.2, 0.3, 0], [0.7, 0.2, 5], [0.5, 0.7, 10]].map(([x, y, d], k) => <span key={k} style={{ position: "absolute", left: `${x * 100}%`, top: `${y * 100}%`, fontSize: S * 0.32, transform: `translate(-50%,-50%) scale(${0.4 + 0.8 * Math.abs(Math.sin((f + d) / 7))})` }}>✨</span>)}
+        </div>
+      );
+      break;
+  }
+  return (
+    <div style={{ position: "absolute", left: st.x * W, top: st.y * H, transform: "translate(-50%, -50%)", opacity: out * Math.min(1, p * 1.5), direction: "rtl" }}>{el}</div>
   );
 }

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/server/auth";
 import { aiJson, speechReady } from "@/lib/providers/text";
 import { music, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveResult } from "@/lib/providers/storage";
+import { falRun } from "@/lib/providers/fal";
 import { config } from "@/lib/tools/run";
 import { PLAYBOOK, PLAYBOOK_RULES, playbookText } from "@/remotion/playbook";
 import { ILLUS_STYLES } from "@/remotion/styles";
@@ -12,7 +13,7 @@ import { packBrief, packById } from "@/remotion/packs";
 import { industryById } from "@/design/industries";
 import { illustrate, illustrateScenes } from "@/lib/server/illustrate";
 import { signedResultUrls } from "@/lib/providers/storage";
-import { BOARD_STYLES, CAPTION_STYLES, GRADES, ICONS, LAYOUTS, TITLE_STYLES, TRANSITIONS, captionLines, cleanGraphics, cleanMusicTiming, videoSeconds, type MontageSpec, type Music } from "@/remotion/montage";
+import { BOARD_STYLES, CAPTION_STYLES, GRADES, ICONS, LAYOUTS, TITLE_STYLES, TRANSITIONS, captionLines, cleanGraphics, cleanMusicTiming, cleanStickers, cleanBeats, BEAT_FX, videoSeconds, type MontageSpec, type Music } from "@/remotion/montage";
 
 const ok = <T extends string>(list: [T, string][], v: unknown): T | undefined => list.find((x) => x[0] === v)?.[0];
 
@@ -38,6 +39,8 @@ function cleanMusic(m: Partial<Music> | null | undefined, userId: string): Music
   }
   return { url: String(m.url ?? ""), name, ...(m.path ? { path: String(m.path) } : {}), ...t };
 }
+
+const spec0Orientation = (m: MontageSpec) => (m.aspect === "16:9" ? "landscape" : m.aspect === "1:1" ? "square" : "portrait");
 
 function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): MontageSpec {
   const len = videoSeconds(base);
@@ -94,7 +97,14 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     progress: typeof s.progress === "boolean" ? s.progress : base.progress ?? false,
     broll: (Array.isArray(s.broll) ? s.broll : base.broll ?? [])
       .filter((b) => typeof b.path === "string" && (b.path.startsWith(`${userId}/`) || (base.broll ?? []).some((x) => x.path === b.path)))
-      .slice(0, 12).map((b) => ({ path: b.path, url: "", at: clamp(Number(b.at) || 0, 0, Math.max(0, len - 1)), dur: clamp(Number(b.dur) || 2.5, 1, 6) })),
+      .slice(0, 12).map((b) => ({
+        path: b.path, url: "", at: clamp(Number(b.at) || 0, 0, Math.max(0, len - 1)), dur: clamp(Number(b.dur) || 2.5, 1, 6),
+        ...(b.bucket === "results" ? { bucket: "results" as const } : {}), ...(b.cut ? { cut: true } : {}), ...(b.credit ? { credit: String(b.credit).slice(0, 60) } : {}),
+      })),
+    grain: [0, 0.5, 1].includes(Number(s.grain)) ? Number(s.grain) : base.grain ?? 0,
+    stickers: cleanStickers(Array.isArray(s.stickers) ? s.stickers : base.stickers ?? [], len),
+    beats: Array.isArray(s.beats) ? cleanBeats(s.beats) : base.beats ?? [],
+    beatFx: ok(BEAT_FX, s.beatFx) ?? base.beatFx ?? "none",
     subs2: s.subs2 === null ? null : s.subs2 ?? base.subs2
       ? { lang: String((s.subs2 ?? base.subs2)!.lang).slice(0, 5), on: !!(s.subs2 ?? base.subs2)!.on, lines: ((s.subs2 ?? base.subs2)!.lines ?? []).slice(0, 400).map((l) => ({ s: Number(l.s) || 0, e: Number(l.e) || 0, t: String(l.t ?? "").slice(0, 200) })) }
       : null,
@@ -134,7 +144,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const c = await config("video-editing");
       const via = c.provider === "google" ? { provider: "gemini", model: "gemini-2.5-pro" } : { provider: "claude", model: "claude-sonnet-5-5" };
       const raw = await aiJson<Partial<MontageSpec>>(
-        `أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos,style: kinetic|editorial|pill|lower|marker (قلم تظليل على الكلمة hl)|typewriter (آلة كاتبة), hl (كلمة تتلوّن), sub (سطر صغير)}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (${TRANSITIONS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), drift (true/false حركة تكبير بطيئة سينمائية), vignette (true/false حواف داكنة), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), logo{on,pos: tl|tr|bl|br}, grade (ستايل الألوان: ${GRADES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), videoVolume (0..1 صوت الفيديو الأصلي، 0 صامت), layout (شكل الفيديو: ${LAYOUTS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), quality (1080 | 4k), panel (light فاتح | dark داكن، لون لوحة الرسوم), board (خلفية اللوحة: ${BOARD_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), graphics[مشاهد متحركة] كل مشهد {kind, at, dur, ...}: headline{text,hl,sub} عنوان كبير كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (لما يذكر رقم أو نسبة) | steps{text,items[{label,icon}]} خطوات مرقمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} خطأ مقابل صح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] 2-3,text} أيقونات بينها أسهم (مثلاً فكرة ← أداة ← نتيجة) | bars{text,suffix,items[{label,value}] 2-5} رسم أعمدة | donut{value 0-100,text} دائرة نسبة | line{text,values[أرقام]} خط صاعد أو نازل | quote{text,sub (القائل)} اقتباس | arrow{text} سهم يأشّر تحت (مثل: الرابط تحت، تابعني). ومشاهد إضافية: scene{prompt وصف إنجليزي للرسمة,text,hl,sub} مشهد مرسوم بالذكاء الاصطناعي | cube{text,items[{label,icon}]} مكعب 3D | globe{text} كرة أرضية | text3d{text,sub} نص 3D | plot{text,hl sin|cos|x2|x3|linear|exp|abs|sqrt} رسم دالة | geometry{shape triangle|square|circle|hexagon,text,items[{label}],sub} | burst{text,icon أو emoji} ختم «تم» | confetti{text} احتفال | dotgrid{text,value} شبكة نقاط | sketchbars{text,items[{label,value}]} رسم بياني مرسوم باليد. ستايل الرسومات illus من: ${ILLUS_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}. ومشاهد تجارية وخاصة بالمجالات: price{text,values[القديم,الجديد],suffix العملة,sub} | offer{value نسبة,hl,text,sub} | menu{text,items[{label,value السعر}],suffix} | rating{value 1-5,suffix,text} | testimonial{text,sub الاسم,value} | contact{text,items[{label: "واتساب: …",icon phone|pin|chat}]} | hours{text,items[{label}]} | specs{text,items[{label,value,icon}]} | appointment{text,value 0-4,sub} | beforeafter{text,bad,good} | countdown{text,value ثواني,sub} | delivery{text,sub} | dish{emoji,text,sub} طبق بالبخار | shine{emoji,text,sub} لمعة على منتج | mist{text,sub} عطر ورذاذ | ecg{value,suffix,text} نبض | flight{items[{label من},{label إلى}],text} | scales{items[{label},{label}],text,value} | shutter{text} | giftbox{text,sub} | house{text,sub} | ring{value,text,icon}. وللتعليم: definition{text المصطلح,sub المعنى,hl كلمة صغيرة فوق مثل "تعريف"} | quiz{text السؤال,items[{label}] 2-4 اختيارات,value رقم الجواب الصح من 1} | truefalse{text العبارة,value 1 صح أو 0 خطأ,sub التوضيح} | timeline{text,items[{label,icon}] 3-5 بالترتيب} | cycle{text,items[{label,icon}] 3-5 مراحل تتكرر} | mindmap{text الفكرة الرئيسية,items[{label,icon}] 3-6 فروع} | proscons{text,items[{label,value 1 ميزة أو 0 عيب}]} | equation{text معادلة بمسافات بين الرموز مثل "2 + 3 = 5",sub} | fraction{values[البسط,المقام],text} | vocab{text الكلمة,hl النطق,sub المعنى,good جملة مثال} | pyramid{text,items[{label}] من القاعدة للقمة 3-5} | table{text العنوان,items[{label: "البند: القيمة"}] 2-6} | fillblank{text جملة فيها ___ مكان الفراغ,good الجواب,sub}. headline و quote و arrow تقبل fx: marker (تظليل) | circle (دائرة مرسومة حول الكلمة hl) | underline (خط تحت) | typewriter (تنكتب حرف حرف). الأيقونات المتاحة: ${ICONS.join(", ")}. المشاهد تطلع بنفس لحظة الكلام عنها (at = وقت بداية الجملة) ومدتها مثل مدة الجملة (2-5 ثواني)، ولا تتداخل مع بعض ولا مع العناوين. إذا طلب العميل "حط فوق كذا" أو شكل معيّن عند كلمة معيّنة، أضف مشهد بالنوع المناسب عند وقت هالكلمة من الكلام بالتوقيت. إذا طلب شاشة مقسومة أو "رسوم فوق وأنا تحت" غيّر layout إلى split، و"خلني بدائرة" circle، و"بالزاوية" corner، و"لما يطلع رسم صغّرني" dynamic. العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: ${CAPTION_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top). أضف "domain" (id المجال). إذا طلب العميل شي عام مثل «خلّه احترافي» أو «سوّه مثل فيديوهات المطاعم» استخدم دليل المجال.\n\n${PLAYBOOK_RULES}\n${playbookText()}`,
+        `أنت مونتير ريلز خليجي محترف. تعدّل خطة مونتاج JSON حسب طلب العميل. الأوقات بالثواني على الفيديو النهائي (بدون بطاقة البداية). أعد JSON بنفس المفاتيح: font, colors{text,accent,bg}, captions{on,style,pos}, titles[{text,at,dur,pos,style: kinetic|editorial|pill|lower|marker (قلم تظليل على الكلمة hl)|typewriter (آلة كاتبة), hl (كلمة تتلوّن), sub (سطر صغير)}], zooms[{at,dur,scale}], intro{on,title,subtitle}, outro{on,title,subtitle}, transition (${TRANSITIONS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), drift (true/false حركة تكبير بطيئة سينمائية), vignette (true/false حواف داكنة), emojis[{e,at,dur}], sfx (true/false مؤثرات صوتية), progress (true/false شريط تقدّم), grain (0 بدون | 0.5 خفيف | 1 قوي: حبيبات فيلم), beatFx (none | pulse نبضة | flash وميض | shake اهتزاز: مع إيقاع الموسيقى), stickers[{id: arrow|circle|underline|new|sale|hot|like|follow|star|check|click|sparkles, at, dur, x 0-1, y 0-1, size 0.5-2, text اختياري للشارات}] (ستيكرات متحركة: سهم، دائرة تحديد، شارة جديد/خصم، زر تابعنا، قلب لايك…), logo{on,pos: tl|tr|bl|br}, grade (ستايل الألوان: ${GRADES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), videoVolume (0..1 صوت الفيديو الأصلي، 0 صامت), layout (شكل الفيديو: ${LAYOUTS.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), quality (1080 | 4k), panel (light فاتح | dark داكن، لون لوحة الرسوم), board (خلفية اللوحة: ${BOARD_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}), graphics[مشاهد متحركة] كل مشهد {kind, at, dur, ...}: headline{text,hl,sub} عنوان كبير كلمة كلمة | timer{text,hl,sub} ساعة تدور (لما يذكر وقت أو سرعة) | counter{value,suffix,text} رقم يعدّ (لما يذكر رقم أو نسبة) | steps{text,items[{label,icon}]} خطوات مرقمة | checklist{text,items[{label}]} قائمة صح | compare{text,bad,good} خطأ مقابل صح | icon{icon أو emoji,text,sub} أيقونة كبيرة مع جملة | flow{items[{icon,label}] 2-3,text} أيقونات بينها أسهم (مثلاً فكرة ← أداة ← نتيجة) | bars{text,suffix,items[{label,value}] 2-5} رسم أعمدة | donut{value 0-100,text} دائرة نسبة | line{text,values[أرقام]} خط صاعد أو نازل | quote{text,sub (القائل)} اقتباس | arrow{text} سهم يأشّر تحت (مثل: الرابط تحت، تابعني). ومشاهد إضافية: scene{prompt وصف إنجليزي للرسمة,text,hl,sub} مشهد مرسوم بالذكاء الاصطناعي | cube{text,items[{label,icon}]} مكعب 3D | globe{text} كرة أرضية | text3d{text,sub} نص 3D | plot{text,hl sin|cos|x2|x3|linear|exp|abs|sqrt} رسم دالة | geometry{shape triangle|square|circle|hexagon,text,items[{label}],sub} | burst{text,icon أو emoji} ختم «تم» | confetti{text} احتفال | dotgrid{text,value} شبكة نقاط | sketchbars{text,items[{label,value}]} رسم بياني مرسوم باليد. ستايل الرسومات illus من: ${ILLUS_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}. ومشاهد تجارية وخاصة بالمجالات: price{text,values[القديم,الجديد],suffix العملة,sub} | offer{value نسبة,hl,text,sub} | menu{text,items[{label,value السعر}],suffix} | rating{value 1-5,suffix,text} | testimonial{text,sub الاسم,value} | contact{text,items[{label: "واتساب: …",icon phone|pin|chat}]} | hours{text,items[{label}]} | specs{text,items[{label,value,icon}]} | appointment{text,value 0-4,sub} | beforeafter{text,bad,good} | countdown{text,value ثواني,sub} | delivery{text,sub} | dish{emoji,text,sub} طبق بالبخار | shine{emoji,text,sub} لمعة على منتج | mist{text,sub} عطر ورذاذ | ecg{value,suffix,text} نبض | flight{items[{label من},{label إلى}],text} | scales{items[{label},{label}],text,value} | shutter{text} | giftbox{text,sub} | house{text,sub} | ring{value,text,icon} | map{text اسم المحل أو المنطقة,sub العنوان أو "حياكم"} خريطة ودبوس الموقع | route{items[{label من},{label إلى}],text,sub المدة مثل "15 دقيقة"} طريق يمشي على الخريطة. وللتعليم: definition{text المصطلح,sub المعنى,hl كلمة صغيرة فوق مثل "تعريف"} | quiz{text السؤال,items[{label}] 2-4 اختيارات,value رقم الجواب الصح من 1} | truefalse{text العبارة,value 1 صح أو 0 خطأ,sub التوضيح} | timeline{text,items[{label,icon}] 3-5 بالترتيب} | cycle{text,items[{label,icon}] 3-5 مراحل تتكرر} | mindmap{text الفكرة الرئيسية,items[{label,icon}] 3-6 فروع} | proscons{text,items[{label,value 1 ميزة أو 0 عيب}]} | equation{text معادلة بمسافات بين الرموز مثل "2 + 3 = 5",sub} | fraction{values[البسط,المقام],text} | vocab{text الكلمة,hl النطق,sub المعنى,good جملة مثال} | pyramid{text,items[{label}] من القاعدة للقمة 3-5} | table{text العنوان,items[{label: "البند: القيمة"}] 2-6} | fillblank{text جملة فيها ___ مكان الفراغ,good الجواب,sub}. headline و quote و arrow تقبل fx: marker (تظليل) | circle (دائرة مرسومة حول الكلمة hl) | underline (خط تحت) | typewriter (تنكتب حرف حرف). الأيقونات المتاحة: ${ICONS.join(", ")}. المشاهد تطلع بنفس لحظة الكلام عنها (at = وقت بداية الجملة) ومدتها مثل مدة الجملة (2-5 ثواني)، ولا تتداخل مع بعض ولا مع العناوين. إذا طلب العميل "حط فوق كذا" أو شكل معيّن عند كلمة معيّنة، أضف مشهد بالنوع المناسب عند وقت هالكلمة من الكلام بالتوقيت. إذا طلب شاشة مقسومة أو "رسوم فوق وأنا تحت" غيّر layout إلى split، و"خلني بدائرة" circle، و"بالزاوية" corner، و"لما يطلع رسم صغّرني" dynamic. العناوين قصيرة جداً ومن مضمون الكلام. الخطوط المتاحة: Cairo, Tajawal, Almarai, Changa, Amiri. أنماط الترجمة: ${CAPTION_STYLES.map((x) => `${x[0]} ${x[1]}`).join(" | ")}. مكان الترجمة captions.pos: bottom (تحت), middle (الوسط), top (فوق). إذا طلب العميل تغيير مكان الترجمة غيّر captions.pos ولا تضف عناوين بدلها. إذا كانت الترجمة بالوسط فخلّ العناوين المتحركة فوق (pos: top). أضف "domain" (id المجال). إذا طلب العميل شي عام مثل «خلّه احترافي» أو «سوّه مثل فيديوهات المطاعم» استخدم دليل المجال.\n\n${PLAYBOOK_RULES}\n${playbookText()}`,
         `${packById(current.domain) && industryById(current.domain) ? `${packBrief(packById(current.domain)!, industryById(current.domain)!.label)}\n\n` : ""}مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, drift: current.drift, vignette: current.vignette, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, grade: current.grade, videoVolume: current.videoVolume, domain: current.domain ?? "", layout: current.layout ?? "full", quality: current.quality ?? "1080", panel: current.panel ?? "light", board: current.board ?? "soft", illus: current.illus ?? "", graphics: (current.graphics ?? []).map(({ url: _u, ...g }) => g), logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
         6000, via);
       const spec = sanitize(current, { ...raw, broll: current.broll, subs2: current.subs2 }, user.id);
@@ -251,6 +261,60 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       await refund("music");
       return NextResponse.json({ error: "ما ضبطت الموسيقى، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
     }
+  }
+
+  // ✂️ remove the background of one of the customer's photos (b-roll) → transparent PNG that floats over the video
+  if (action === "cutout") {
+    const path = String((body as { path?: string }).path ?? "");
+    const bucket = (body as { bucket?: string }).bucket === "results" ? "results" : "uploads";
+    if (!path.startsWith(`${user.id}/`) || path.includes("..")) return NextResponse.json({ error: "الصورة غير موجودة." }, { status: 400 });
+    const signed = await admin.storage.from(bucket).createSignedUrl(path, 60 * 30);
+    if (!signed.data?.signedUrl) return NextResponse.json({ error: "الصورة غير موجودة." }, { status: 404 });
+    const denied = await charge();
+    if (denied) return denied;
+    try {
+      const out = await falRun<{ image?: { url: string } }>("fal-ai/birefnet/v2", { image_url: signed.data.signedUrl, output_format: "png", refine_foreground: true });
+      if (!out.image?.url) throw new Error("no image");
+      const res = await fetch(out.image.url);
+      if (!res.ok) throw new Error(`download ${res.status}`);
+      const newPath = await saveResult(user.id, job.id, await res.arrayBuffer(), "image/png", "png");
+      const [url] = await signedResultUrls([newPath], 60 * 60 * 6);
+      return NextResponse.json({ path: newPath, url });
+    } catch (e) {
+      console.error("montage cutout", e);
+      await refund("cutout");
+      return NextResponse.json({ error: "ما قدرنا نشيل الخلفية، ورجّعنا لك الريش. جرّب صورة أوضح." }, { status: 502 });
+    }
+  }
+
+  // 🎞️ free stock photos (Pexels — free for commercial use)
+  if (action === "stock") {
+    const key = process.env.PEXELS_API_KEY;
+    if (!key) return NextResponse.json({ error: "مكتبة الصور الجاهزة مو مفعّلة بعد (تحتاج مفتاح Pexels من الإدارة)." }, { status: 503 });
+    let q = String((body as { q?: string }).q ?? "").trim().slice(0, 80);
+    if (q.length < 2) return NextResponse.json({ error: "اكتب وش تدوّر عليه." }, { status: 400 });
+    if (/[\u0600-\u06FF]/.test(q)) {
+      try { q = (await aiJson<{ en: string }>("Translate this Arabic stock-photo search into a short English search query (2-4 words). Return JSON {\"en\":\"...\"}.", q, 200, { provider: "claude", model: "claude-haiku-5-5" })).en?.slice(0, 80) || q; } catch { /* search in Arabic */ }
+    }
+    const orient = spec0Orientation(base);
+    const r = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=18&orientation=${orient}`, { headers: { Authorization: key } });
+    if (!r.ok) return NextResponse.json({ error: "تعذّر البحث بالمكتبة، حاول بعد شوي." }, { status: 502 });
+    const d = (await r.json()) as { photos?: { id: number; alt?: string; photographer: string; src: { medium: string; large2x: string } }[] };
+    return NextResponse.json({ q, photos: (d.photos ?? []).map((p) => ({ id: p.id, thumb: p.src.medium, full: p.src.large2x, by: p.photographer, alt: p.alt ?? "" })) });
+  }
+  if (action === "stockadd") {
+    const full = String((body as { url?: string }).url ?? "");
+    let host = "";
+    try { host = new URL(full).hostname; } catch { /* invalid */ }
+    if (host !== "images.pexels.com") return NextResponse.json({ error: "الصورة مو من المكتبة." }, { status: 400 });
+    const res = await fetch(full);
+    if (!res.ok) return NextResponse.json({ error: "تعذّر تحميل الصورة." }, { status: 502 });
+    const type = res.headers.get("content-type") || "image/jpeg";
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength > 15 * 1024 * 1024) return NextResponse.json({ error: "الصورة كبيرة." }, { status: 400 });
+    const newPath = await saveResult(user.id, job.id, buf, type, type.includes("png") ? "png" : "jpg");
+    const [url] = await signedResultUrls([newPath], 60 * 60 * 6);
+    return NextResponse.json({ path: newPath, url });
   }
 
   if (action === "export") {

@@ -70,7 +70,8 @@ const pack: Draft = {
     "offer",
     "countdown",
     "testimonial",
-    "dish"
+    "dish",
+    "map"
   ]
 };
 export default pack;

@@ -38,6 +38,10 @@ export type MontageSpec = {
   sfx?: boolean;                                                  // whoosh on titles/cuts, pop on emojis
   progress?: boolean;                                             // thin progress bar on top
   broll?: BRoll[];                                                // extra shots shown over the speech
+  grain?: number;                                                 // film grain 0 (off) .. 1 (strong)
+  stickers?: Sticker[];                                           // animated stickers (arrows, badges, highlight circles…)
+  beats?: number[];                                               // music beats, seconds on the whole timeline
+  beatFx?: BeatFx;                                                // what happens on every beat
   subs2?: { lang: string; on: boolean; lines: { s: number; e: number; t: string }[] } | null; // second-language subtitles
   face?: { t: number; x: number; y: number }[];                  // face track (source seconds, 0..1) for auto-reframe
   track?: boolean;                                                // follow the face when cropping
@@ -64,7 +68,7 @@ export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare"
   | "definition" | "quiz" | "truefalse" | "timeline" | "cycle" | "mindmap" | "proscons" | "equation" | "fraction" | "vocab" | "pyramid" | "table" | "fillblank"
   | "scene" | "cube" | "globe" | "text3d" | "plot" | "geometry" | "burst" | "confetti" | "dotgrid" | "sketchbars"
   | "price" | "offer" | "menu" | "rating" | "testimonial" | "contact" | "specs" | "appointment" | "beforeafter" | "countdown" | "delivery" | "hours"
-  | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring";
+  | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring" | "map" | "route";
 export type Graphic = {
   kind: GraphicKind;
   at: number; dur: number;                 // output seconds (video part)
@@ -98,6 +102,7 @@ export const GRAPHIC_KINDS: [GraphicKind, string][] = [
   ["specs", "مواصفات بأيقونات"], ["appointment", "حجز موعد"], ["beforeafter", "قبل وبعد"], ["countdown", "العرض ينتهي بعد"], ["delivery", "توصيل"], ["hours", "ساعات العمل"],
   ["dish", "طبق ساخن بالبخار"], ["shine", "لمعة وبريق"], ["mist", "عطر ورذاذ"], ["ecg", "نبض القلب"], ["flight", "رحلة طيران"], ["scales", "ميزان العدالة"],
   ["shutter", "فلاش الكاميرا"], ["giftbox", "هدية تنفتح"], ["house", "بيت ينرسم ومفتاح"], ["ring", "حلقة تقدّم"],
+  ["map", "خريطة ودبوس الموقع"], ["route", "طريق على الخريطة"],
 ];
 /** Board backgrounds — each lesson can look different. */
 export type BoardStyle = "soft" | "paper" | "grid" | "dots" | "notebook" | "chalk" | "blueprint" | "night" | "pastel" | "sunrise" | "sketch";
@@ -128,7 +133,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];
@@ -164,7 +169,12 @@ export function faceAt(m: MontageSpec, t: number) {
   for (const p of near) { const k = 1.3 - Math.abs(p.t - t); wx += p.x * k; wy += p.y * k; w += k; }
   return { x: wx / w, y: wy / w };
 }
-export type BRoll = { path: string; url: string; at: number; dur: number }; // image, output seconds (video part)
+export type BRoll = {
+  path: string; url: string; at: number; dur: number;   // image, output seconds (video part)
+  bucket?: "uploads" | "results";                        // results = background-removed or stock photo we saved
+  cut?: boolean;                                         // transparent cut-out: floats over the video instead of covering it
+  credit?: string;                                       // stock photographer (Pexels)
+};
 export const SUB_LANGS = [{ id: "en", label: "English" }, { id: "fr", label: "Français" }, { id: "ur", label: "اردو" }, { id: "hi", label: "हिन्दी" }, { id: "tl", label: "Filipino" }];
 
 export const EMOJIS = ["🔥", "💡", "✅", "❤️", "👏", "😍", "🤲", "⭐", "💰", "🎯", "⚡", "👇", "📌", "🙏", "😂", "😮"];
@@ -271,4 +281,29 @@ export function cleanMusicTiming(m: Partial<Music>): Pick<Music, "dur" | "start"
     fadeIn: num(m.fadeIn, 0, 10, 0),
     fadeOut: num(m.fadeOut, 0, 10, 0),
   };
+}
+
+/** Animated stickers drawn in code (no image files) — placed by centre x/y (0..1). */
+export type StickerId = "arrow" | "circle" | "underline" | "new" | "sale" | "hot" | "like" | "follow" | "star" | "check" | "click" | "sparkles";
+export type Sticker = { id: StickerId; at: number; dur: number; x: number; y: number; size?: number; text?: string }; // output seconds (video part)
+export const STICKER_FX: [StickerId, string][] = [
+  ["arrow", "سهم يأشّر"], ["circle", "دائرة تحديد"], ["underline", "خط تحت"], ["new", "شارة «جديد»"], ["sale", "شارة «خصم»"], ["hot", "شارة «الأكثر طلباً»"],
+  ["like", "قلب لايك"], ["follow", "زر «تابعنا»"], ["star", "نجمة تلمع"], ["check", "علامة صح"], ["click", "يد تضغط"], ["sparkles", "بريق"],
+];
+export type BeatFx = "none" | "pulse" | "flash" | "shake";
+export const BEAT_FX: [BeatFx, string][] = [["none", "بدون"], ["pulse", "نبضة تكبير"], ["flash", "وميض"], ["shake", "اهتزاز"]];
+export const GRAIN_LEVELS: [number, string][] = [[0, "بدون"], [0.5, "خفيف"], [1, "قوي (فيلم قديم)"]];
+
+export function cleanStickers(arr: unknown, len: number): Sticker[] {
+  const ids = STICKER_FX.map((x) => x[0]);
+  const n = (v: unknown, a: number, b: number, d: number) => { const x = Number(v); return Number.isFinite(x) ? Math.min(b, Math.max(a, x)) : d; };
+  return (Array.isArray(arr) ? arr : []).slice(0, 16).map((x: Record<string, unknown>) => ({
+    id: ids.includes(x?.id as StickerId) ? (x.id as StickerId) : "arrow",
+    at: n(x?.at, 0, Math.max(0, len - 0.3), 0), dur: n(x?.dur, 0.6, 6, 2),
+    x: n(x?.x, 0.05, 0.95, 0.5), y: n(x?.y, 0.05, 0.95, 0.5), size: n(x?.size, 0.5, 2, 1),
+    ...(x?.text ? { text: String(x.text).slice(0, 24) } : {}),
+  })).sort((a, b) => a.at - b.at);
+}
+export function cleanBeats(arr: unknown): number[] {
+  return (Array.isArray(arr) ? arr : []).map(Number).filter((v) => Number.isFinite(v) && v >= 0 && v < 3600).sort((a, b) => a - b).slice(0, 600).map((v) => +v.toFixed(3));
 }

@@ -96,9 +96,12 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
   const { data: signed } = spec.srcPath ? await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6) : { data: { signedUrl: "" } };
   if (spec.srcPath && !signed?.signedUrl) return <p className="card p-6 text-center">{L("ما لقينا الفيديو الأصلي. ارفعه مرة ثانية.")}</p>;
   const logoUrl = spec.logo?.path ? (await createAdminClient().storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" : "";
-  const brollPaths = (spec.broll ?? []).map((b) => b.path);
-  const brollUrls = brollPaths.length ? (await createAdminClient().storage.from("uploads").createSignedUrls(brollPaths, 60 * 60 * 6)).data ?? [] : [];
-  const broll = (spec.broll ?? []).map((b, i) => ({ ...b, url: brollUrls[i]?.signedUrl ?? "" }));
+  // photos: the customer's uploads, or our own copies (background removed / stock) in results
+  const signAll = async (bucket: "uploads" | "results", paths: string[]) => (paths.length ? (await createAdminClient().storage.from(bucket).createSignedUrls(paths, 60 * 60 * 6)).data ?? [] : []);
+  const upPaths = (spec.broll ?? []).filter((b) => b.bucket !== "results").map((b) => b.path);
+  const resPaths = (spec.broll ?? []).filter((b) => b.bucket === "results").map((b) => b.path);
+  const [upUrls, resUrls] = await Promise.all([signAll("uploads", upPaths), signAll("results", resPaths)]);
+  const broll = (spec.broll ?? []).map((b) => ({ ...b, url: (b.bucket === "results" ? resUrls[resPaths.indexOf(b.path)] : upUrls[upPaths.indexOf(b.path)])?.signedUrl ?? "" }));
   const sign = async (p?: string) => (p ? (await createAdminClient().storage.from("results").createSignedUrl(p, 60 * 60 * 6)).data?.signedUrl ?? "" : "");
   const music = spec.music?.path
     ? { ...spec.music, url: spec.music.bucket === "uploads" ? (await createAdminClient().storage.from("uploads").createSignedUrl(spec.music.path, 60 * 60 * 6)).data?.signedUrl ?? "" : await sign(spec.music.path) }

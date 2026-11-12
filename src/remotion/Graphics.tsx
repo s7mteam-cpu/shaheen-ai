@@ -16,6 +16,7 @@ export function themeFor(m: MontageSpec, light: boolean): Theme {
 }
 
 /** Light or dark text for this panel (chalkboard, blueprint and night are always dark). */
+const lum = (hex: string) => { const n = parseInt(hex.replace("#", "").padEnd(6, "0").slice(0, 6), 16); return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; };
 export const isLight = (m: MontageSpec) => !DARK_BOARDS.includes(m.board ?? "soft") && (m.panel ?? "light") === "light";
 
 /** Background of the graphics panel / lesson board. */
@@ -1110,6 +1111,66 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
             </div>
           </div>
           {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.65} th={th} delay={10} />}
+        </div>
+      );
+      break;
+    }
+    case "map":
+    case "route": {
+      // stylised city map (not a real map): streets, a park, the sea; a pin drops (map) or a route draws itself (route)
+      const W = Math.min(w * 0.9, 860 * s), H = W * 0.78, r = 34 * s;
+      const land = light ? "#EEF0EA" : "#1C2733", road = light ? "#FFFFFF" : "#2E3B4A", park = light ? "#CFE8C6" : "#23402F", sea = light ? "#BFE0F2" : "#183650", edge = light ? "rgba(0,0,0,.08)" : "rgba(255,255,255,.08)";
+      const reveal = interpolate(f, [0, 10], [0, 1], { ...cl, easing: ease });
+      const streets = [0.18, 0.42, 0.66, 0.88].map((y) => `M0,${y * H} L${W},${y * H}`).concat([0.14, 0.38, 0.62, 0.84].map((x) => `M${x * W},0 L${x * W},${H}`));
+      // route follows the streets: from bottom-left block to top-right block
+      const pts = [[0.14, 0.88], [0.38, 0.88], [0.38, 0.66], [0.62, 0.66], [0.62, 0.42], [0.84, 0.42], [0.84, 0.18]].map(([x, y]) => [x * W, y * H]);
+      const segs = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]));
+      const total = segs.reduce((a, b) => a + b, 0);
+      const k = g.kind === "route" ? interpolate(f, [10, Math.max(26, len - 14)], [0, 1], { ...cl, easing: Easing.inOut(Easing.quad) }) : 0;
+      let d = k * total, i = 0;
+      while (i < segs.length - 1 && d > segs[i]) { d -= segs[i]; i++; }
+      const t = segs[i] ? Math.min(1, d / segs[i]) : 1;
+      const car = [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t];
+      const target = g.kind === "route" ? pts[pts.length - 1] : [W * 0.5, H * 0.54];
+      const drop = g.kind === "route" ? pop(f, Math.max(20, len - 16), 9) : pop(f, 10, 8);
+      const ripple = ((f - 16) % 30) / 30;
+      const Pin = ({ x, y, sc, color }: { x: number; y: number; sc: number; color: string }) => (
+        <g transform={`translate(${x},${y}) scale(${sc})`}>
+          <ellipse cx={0} cy={4 * s} rx={22 * s} ry={8 * s} fill="rgba(0,0,0,.25)" />
+          <path d={`M0,0 C${-10 * s},${-22 * s} ${-38 * s},${-40 * s} ${-38 * s},${-70 * s} A${38 * s},${38 * s} 0 1 1 ${38 * s},${-70 * s} C${38 * s},${-40 * s} ${10 * s},${-22 * s} 0,0 Z`} fill={color} />
+          <circle cx={0} cy={-70 * s} r={15 * s} fill="#fff" />
+        </g>
+      );
+      const [from, to] = [g.items?.[0]?.label, g.items?.[1]?.label];
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.66} th={th} />}
+          <div style={{ position: "relative", width: W, height: H, borderRadius: r, overflow: "hidden", boxShadow: `0 ${20 * s}px ${60 * s}px rgba(0,0,0,.3)`, border: `${3 * s}px solid ${edge}`, opacity: reveal, transform: `scale(${0.92 + 0.08 * reveal})`, direction: "ltr" }}>
+            <svg width={W} height={H} style={{ position: "absolute", inset: 0 }}>
+              <rect width={W} height={H} fill={land} />
+              <path d={`M${W * 0.7},${H} C${W * 0.78},${H * 0.8} ${W * 0.95},${H * 0.78} ${W},${H * 0.62} L${W},${H} Z`} fill={sea} />
+              <rect x={W * 0.16} y={H * 0.2} width={W * 0.2} height={H * 0.2} rx={14 * s} fill={park} />
+              <rect x={W * 0.64} y={H * 0.68} width={W * 0.18} height={H * 0.18} rx={14 * s} fill={park} opacity={0.8} />
+              {streets.map((p, j) => <path key={j} d={p} stroke={road} strokeWidth={(j % 4 === 1 ? 26 : 16) * s} strokeLinecap="round" />)}
+              {g.kind === "route" && (
+                <>
+                  <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={th.accent} strokeOpacity={0.25} strokeWidth={14 * s} strokeLinejoin="round" strokeLinecap="round" />
+                  <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={th.accent} strokeWidth={14 * s} strokeLinejoin="round" strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - k} />
+                  <circle cx={pts[0][0]} cy={pts[0][1]} r={18 * s} fill={th.text === "#FFFFFF" ? "#fff" : "#0E1B2C"} stroke={th.accent} strokeWidth={7 * s} />
+                  <circle cx={car[0]} cy={car[1]} r={20 * s} fill={th.accent} stroke="#fff" strokeWidth={6 * s} />
+                </>
+              )}
+              {g.kind === "map" && f > 16 && <circle cx={target[0]} cy={target[1]} r={(20 + ripple * 120) * s} fill="none" stroke={th.accent} strokeWidth={6 * s} opacity={1 - ripple} />}
+              <Pin x={target[0]} y={target[1] - (1 - Math.min(1, drop)) * 140 * s} sc={Math.max(0.01, Math.min(1.15, drop))} color={th.accent} />
+            </svg>
+            {g.kind === "route" && from && <div style={{ position: "absolute", left: pts[0][0], top: pts[0][1] - 70 * s, transform: "translateX(-20%)", padding: `${6 * s}px ${16 * s}px`, borderRadius: 999, background: light ? "#fff" : "#0E1B2C", color: light ? "#0E1B2C" : "#fff", fontSize: 30 * s, fontWeight: 800, boxShadow: "0 4px 14px rgba(0,0,0,.2)", whiteSpace: "nowrap" }}>{from}</div>}
+            {(g.kind === "route" ? to : g.sub) && (
+              <div style={{ position: "absolute", left: g.kind === "route" ? undefined : W / 2, right: g.kind === "route" ? W - target[0] - 60 * s : undefined, transform: g.kind === "route" ? undefined : "translateX(-50%)", maxWidth: W * 0.92, overflow: "hidden", textOverflow: "ellipsis", top: target[1] + 18 * s, padding: `${8 * s}px ${20 * s}px`, borderRadius: 18 * s, background: th.accent, color: lum(th.accent) > 0.6 ? "#0E1B2C" : "#fff", fontSize: 32 * s, fontWeight: 800, whiteSpace: "nowrap", opacity: Math.min(1, drop), boxShadow: "0 6px 18px rgba(0,0,0,.25)" }}>
+                {g.kind === "route" ? to : g.sub}
+              </div>
+            )}
+          </div>
+          {g.kind === "route" && g.sub && <Badge text={g.sub} f={f} delay={Math.max(18, len - 14)} s={s} th={th} light={light} />}
         </div>
       );
       break;

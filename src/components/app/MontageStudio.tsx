@@ -15,6 +15,7 @@ import { MontageVideo } from "@/remotion/MontageVideo";
 import { ILLUS_STYLES } from "@/remotion/styles";
 import { CaptionDrag } from "@/components/app/CaptionDrag";
 import { MusicEditor } from "@/components/app/MusicEditor";
+import { BeatPanel, GrainPicker, StickerPanel, StockSearch } from "@/components/app/MontageExtras";
 import { BOARD_STYLES, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
@@ -178,6 +179,8 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       : kind === "giftbox" ? { ...base, text: L("مفاجأة!"), sub: L("هدية مع كل طلب") }
       : kind === "house" ? { ...base, text: L("بيت أحلامك"), sub: L("المفتاح بإيدك") }
       : kind === "ring" ? { ...base, value: 80, text: L("وصلت لهدفك") }
+      : kind === "map" ? { ...base, dur: 3.5, text: L("زورونا"), sub: L("السالمية - شارع سالم المبارك") }
+      : kind === "route" ? { ...base, dur: 4, text: L("نوصل لين بابك"), items: [{ label: L("المحل") }, { label: L("بيتك") }], sub: L("خلال 30 دقيقة") }
       : kind === "flow" ? { ...base, items: [{ icon: "bulb" as const, label: L("فكرتك") }, { icon: "sparkle" as const, label: L("شاهين") }, { icon: "video" as const, label: L("فيديو") }] }
       : { ...base, text: L("عنوان كبير") };
     setSpec({ ...spec, graphics: [...(spec.graphics ?? []), g].sort((a, b) => a.at - b.at) });
@@ -432,6 +435,15 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               <input type="checkbox" checked={!!spec.vignette} onChange={(e) => setSpec({ ...spec, vignette: e.target.checked })} className="h-5 w-5" /></label>
           </div>
 
+          <Sub>{L("🎞 حبيبات الفيلم")}</Sub>
+          <GrainPicker spec={spec} setSpec={setSpec} />
+
+          <Sub>{L("🥁 حركة مع إيقاع الموسيقى")}</Sub>
+          <BeatPanel spec={spec} setSpec={setSpec} total={totalFrames(spec) / MFPS} />
+
+          <Sub>{L("ستيكرات متحركة")}</Sub>
+          <StickerPanel spec={spec} setSpec={setSpec} nowAt={nowAt} />
+
           <Sub>{L("شعار نشاطك")}</Sub>
           {spec.logo ? (
             <>
@@ -529,6 +541,12 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {b.url && <img src={b.url} alt="" className="aspect-square w-full object-cover" />}
                   <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 text-[11px] text-white" dir="ltr">{b.at.toFixed(1)}s</span>
+                  {b.cut ? <span className="absolute right-1 top-1 rounded bg-emerald-600 px-1.5 text-[11px] text-white">{L("مقصوصة ✓")}</span> : (
+                    <button type="button" disabled={!!busy} title={L("شيل الخلفية")} className="absolute bottom-1 left-1 rounded-lg bg-white/95 px-1.5 py-0.5 text-[11px] font-semibold text-navy-900"
+                      onClick={async () => { const d = await call<{ path: string; url: string }>("cutout", { path: b.path, bucket: b.bucket ?? "uploads" }); if (d) setSpec((sp) => ({ ...sp, broll: (sp.broll ?? []).map((x) => (x.path === b.path ? { ...x, path: d.path, url: d.url, bucket: "results" as const, cut: true } : x)) })); }}>
+                      {busy === "cutout" ? "…" : L("✂️ شيل الخلفية")}
+                    </button>
+                  )}
                   <button type="button" onClick={() => removeBroll(i)} aria-label={L("حذف الصورة")} className="absolute left-1 top-1 rounded-full bg-white/90 px-2 text-red-700">×</button>
                 </li>
               ))}
@@ -538,6 +556,8 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             {uploading ? L("جاري رفع الصورة…") : L("＋ أضف صورة عند اللحظة اللي واقف عليها بالفيديو")}
             <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) addBroll(f); e.target.value = ""; }} />
           </label>
+          <p className="text-[12px] text-subtle">{LT(`«✂️ شيل الخلفية» يخلّي المنتج يطفو فوق الفيديو بدون خلفية (${editCost} ريشة).`, `“✂️ Remove background” makes the product float over the video (${editCost} credits).`)}</p>
+          <StockSearch jobId={jobId} disabled={!!busy} onAdd={(p) => setSpec((sp) => ({ ...sp, broll: [...(sp.broll ?? []), { path: p.path, url: p.url, bucket: "results" as const, credit: p.credit, at: +nowAt().toFixed(2), dur: 2.5 }].sort((a, b) => a.at - b.at) }))} />
         </Card>
 
         <Card title={L("ترجمة بلغة ثانية")} icon="🌍">
@@ -580,7 +600,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           <input value={musicPrompt} onChange={(e) => setMusicPrompt(e.target.value)} className="field" placeholder={L("مثال: موسيقى هادئة ملهمة خفيفة تحت الكلام")} />
           <button type="button" disabled={!musicPrompt.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
             onClick={async () => { const d = await call<{ url: string }>("music", { prompt: musicPrompt, seconds }); if (d) setSpec({ ...spec, music: { url: d.url, name: musicPrompt } }); }}>
-            {busy === "music" ? L("جاري التأليف…") : LT(`✨ ألّف موسيقى (${editCost} ريشة)`, `✨ Compose music (${editCost} credits)`)}
+            {busy === "music" ? L("جاري التأليف…") : LT(`✨ ألّف همهمة (${editCost} ريشة)`, `✨ Compose humming (${editCost} credits)`)}
           </button>
           <MusicEditor music={spec.music} onChange={(mu) => setSpec((sp) => ({ ...sp, music: mu }))} total={totalFrames(spec) / MFPS} playhead={() => (player.current?.getCurrentFrame() ?? 0) / MFPS} disabled={!!busy} />
         </Card>

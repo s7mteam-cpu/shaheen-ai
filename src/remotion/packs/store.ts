@@ -73,7 +73,8 @@ const pack: Draft = {
     "testimonial",
     "specs",
     "giftbox",
-    "shine"
+    "shine",
+    "map"
   ]
 };
 export default pack;

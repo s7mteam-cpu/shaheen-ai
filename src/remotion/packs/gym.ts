@@ -70,7 +70,8 @@ const pack: Draft = {
     "price",
     "offer",
     "ring",
-    "ecg"
+    "ecg",
+    "map"
   ]
 };
 export default pack;

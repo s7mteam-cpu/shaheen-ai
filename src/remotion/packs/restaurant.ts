@@ -78,7 +78,9 @@ const pack: Draft = {
     "delivery",
     "hours",
     "countdown",
-    "dish"
+    "dish",
+    "map",
+    "route"
   ]
 };
 export default pack;

@@ -73,7 +73,8 @@ const pack: Draft = {
     "beforeafter",
     "donut",
     "testimonial",
-    "ecg"
+    "ecg",
+    "map"
   ]
 };
 export default pack;

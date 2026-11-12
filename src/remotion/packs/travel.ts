@@ -69,7 +69,9 @@ const pack: Draft = {
     "price",
     "countdown",
     "specs",
-    "flight"
+    "flight",
+    "route",
+    "map"
   ]
 };
 export default pack;
