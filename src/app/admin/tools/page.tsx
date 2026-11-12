@@ -66,11 +66,10 @@ export default async function ToolsAdmin() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={t.cover_url || `/covers/${t.id}.svg`} alt="" className="aspect-[4/3] w-[110px] shrink-0 rounded-lg bg-navy-800 object-cover ring-1 ring-line" />
               <div className="flex min-w-0 flex-1 flex-col gap-3">
-                <label className="flex flex-col gap-1.5 text-sm"><span className="label">{L("الصورة التوضيحية (مقاس 4:3)")}</span>
-                  <input name="cover_file" type="file" accept="image/png,image/jpeg,image/webp" className="text-sm" />
-                  <span className="text-[12px] text-subtle">{L("إذا ما رفعت صورة، تطلع الصورة التوضيحية الجاهزة اللي بالمعاينة. ارفع صورتك لتستبدلها.")}</span></label>
+                <span className="label">{L("الصورة التوضيحية (مقاس 4:3)")}</span>
                 <CoversButton id={t.id} />
-                {t.cover_url && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="cover_clear" className="h-4 w-4 accent-red-700" />{L("احذف الصورة التوضيحية")}</label>}
+                <span className="text-[12px] text-subtle">{L("الصورة تتغيّر على طول بدون «حفظ». إذا ما فيه صورة، تطلع الرسمة الجاهزة اللي بالمعاينة.")}</span>
+                {t.cover_url && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="cover_clear" className="h-4 w-4 accent-red-700" />{L("ارجع للرسمة الجاهزة (علّم واضغط «حفظ»)")}</label>}
                 <span className="label">{L("فيديو «علّمني الطريقة»")}</span>
                 <DemoField tool={t.id} initial={t.tutorial_url ?? ""} name="tutorial_url" />
                 <span className="text-[12px] text-subtle">{L("رابط يوتيوب يفتح يوتيوب على طول، والفيديو المرفوع يشتغل داخل الموقع. إذا ما حطيت شي، الزر يطلع «الشرح قريباً».")}</span>

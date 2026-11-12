@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { geminiImage } from "@/lib/providers/google";
 import { falImages, falRun } from "@/lib/providers/fal";
 import { config } from "@/lib/tools/run";
+import { aiJson } from "@/lib/providers/text";
 
 export const maxDuration = 300;
 
@@ -41,16 +42,34 @@ async function draw(prompt: string) {
 /** Admin → «الأدوات»: draws realistic card pictures with the site's image AI and saves them as each tool's card picture. */
 export async function POST(req: Request) {
   if (!(await requireAdmin("tools"))) return NextResponse.json({ error: "غير مصرّح" }, { status: 403 });
-  const body = (await req.json().catch(() => ({}))) as { ids?: string[]; replace?: boolean };
   const admin = createAdminClient();
+  // ⬆️ a picture from the admin's device → the card picture straight away
+  if ((req.headers.get("content-type") ?? "").startsWith("multipart/form-data")) {
+    const form = await req.formData();
+    const id = String(form.get("id") ?? ""), file = form.get("file") as File | null;
+    if (!/^[\w-]+$/.test(id) || !file || !file.type.startsWith("image/")) return NextResponse.json({ error: "اختر صورة." }, { status: 400 });
+    if (file.size > 4 * 1024 * 1024) return NextResponse.json({ error: "الصورة أكبر من 4 ميجا، صغّرها وحاول مرة ثانية." }, { status: 413 });
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const path = `covers/${id}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const up = await admin.storage.from("site").upload(path, file, { contentType: file.type });
+    if (up.error) return NextResponse.json({ error: "تعذّر رفع الصورة." }, { status: 500 });
+    await admin.from("tools").update({ cover_url: admin.storage.from("site").getPublicUrl(path).data.publicUrl }).eq("id", id);
+    return NextResponse.json({ done: [id], failed: [], skipped: 0 });
+  }
+  const body = (await req.json().catch(() => ({}))) as { ids?: string[]; replace?: boolean; prompt?: string };
+  // ✍️ the admin's own description (any language) → a clear English photo prompt
+  let custom = String(body.prompt ?? "").trim().slice(0, 500);
+  if (custom && /[\u0600-\u06FF]/.test(custom)) {
+    try { custom = (await aiJson<{ en: string }>("Rewrite this picture request as one clear English prompt for a realistic photograph. Return JSON {\"en\":\"...\"}.", custom, 300, { provider: "claude", model: "claude-haiku-5-5" })).en || custom; } catch { /* use as written */ }
+  }
   const { data: tools } = await admin.from("tools").select("id,cover_url");
-  const todo = (tools ?? []).filter((t) => PROMPTS[t.id] && (!body.ids?.length || body.ids.includes(t.id)) && (body.replace || !t.cover_url));
+  const todo = (tools ?? []).filter((t) => (PROMPTS[t.id] || (custom && body.ids?.includes(t.id))) && (!body.ids?.length || body.ids.includes(t.id)) && (body.replace || !t.cover_url));
   const done: string[] = [], failed: string[] = [];
   // a few at a time so the image provider isn't flooded
   for (let i = 0; i < todo.length; i += 4) {
     await Promise.all(todo.slice(i, i + 4).map(async (t) => {
       try {
-        const img = await draw(`${PROMPTS[t.id]}. ${STYLE}`);
+        const img = await draw(`${custom && body.ids?.length === 1 ? custom : PROMPTS[t.id]}. ${STYLE}`);
         const ext = img.type.includes("png") ? "png" : img.type.includes("webp") ? "webp" : "jpg";
         const path = `covers/${t.id}-ai-${crypto.randomUUID().slice(0, 8)}.${ext}`;
         const up = await admin.storage.from("site").upload(path, img.bytes, { contentType: img.type });
