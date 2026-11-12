@@ -106,15 +106,17 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
   const second = m.subs2?.on ? m.subs2.lines.find((l) => t >= l.s - 0.05 && t <= l.e + 0.25) : undefined;
   if (!line && !second) return null;
   const st = m.captions.style;
+  const free = typeof m.captions.y === "number";
   const size = (st === "minimal" ? 52 : st === "pop" ? 104 : st === "outline" ? 78 : 70) * u;
   const appear = line ? (st === "pop" ? Math.min(1.06, spring({ frame: frame - Math.round(line[0].s * MFPS) + 2, fps: MFPS, config: { damping: 10, mass: 0.5 } })) : interpolate(t, [line[0].s - 0.05, line[0].s + 0.1], [0.85, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })) : 1;
   return (
-    <AbsoluteFill style={{
+    <AbsoluteFill style={free ? {} : {
       alignItems: "center",
       justifyContent: m.captions.pos === "middle" ? "center" : m.captions.pos === "top" ? "flex-start" : "flex-end",
       paddingBottom: m.captions.pos === "middle" || m.captions.pos === "top" ? 0 : "22%",
       paddingTop: m.captions.pos === "top" ? "26%" : m.captions.pos === "middle" ? "18%" : 0,
     }}>
+      <div style={free ? { position: "absolute", left: `${(m.captions.x ?? 0.5) * 100}%`, top: `${(m.captions.y ?? 0.75) * 100}%`, transform: "translate(-50%, -50%)", width: "90%", display: "flex", flexDirection: "column", alignItems: "center" } : { display: "contents" }}>
       {line && <div style={{
         display: "flex", flexWrap: "wrap", justifyContent: "center", columnGap: "0.3em", maxWidth: "86%", textAlign: "center",
         fontSize: size, fontWeight: 800, lineHeight: 1.35, transform: `scale(${appear})`,
@@ -148,6 +150,7 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
       {second && (
         <div dir="auto" style={{ marginTop: 14 * u, maxWidth: "86%", textAlign: "center", color: "#fff", fontSize: 42 * u, fontWeight: 600, lineHeight: 1.3, fontFamily: "Inter, Arial, sans-serif", background: "rgba(0,0,0,.5)", padding: `${8 * u}px ${18 * u}px`, borderRadius: 14 * u }}>{second.t}</div>
       )}
+      </div>
     </AbsoluteFill>
   );
 }
@@ -367,9 +370,11 @@ function Panel({ m, w, h, area, opacity = 1, words = true, titles = true, boost 
   const th = themeFor(m, light);
   const s = Math.min(A.w / 1080, A.h / 760);
   let inner: React.ReactNode = null;
+  let full = false;
   if (g) {
     const f0 = Math.round(g.at * MFPS);
-    inner = <GraphicView key={`${g.kind}${g.at}`} g={g} m={m} f={frame - f0} len={Math.round(g.dur * MFPS)} w={A.w} h={A.h} light={light} boost={boost} />;
+    inner = <GraphicView key={`${g.kind}${g.at}`} g={g} m={m} f={frame - f0} len={Math.round(g.dur * MFPS)} w={g.kind === "scene" ? w : A.w} h={g.kind === "scene" ? h : A.h} light={light} boost={boost} />;
+    if (g.kind === "scene") full = true;
   } else if (m.captions.on && words) {
     const line = lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.35);
     if (line) inner = (
@@ -390,7 +395,7 @@ function Panel({ m, w, h, area, opacity = 1, words = true, titles = true, boost 
         <circle cx={w * 0.9} cy={h * 0.12} r={Math.min(w, h) * 0.5} fill={m.colors.accent} opacity={0.08} />
         <circle cx={w * 0.05} cy={h * 1.05} r={Math.min(w, h) * 0.45} fill={m.colors.accent} opacity={0.06} />
       </svg>
-      <div style={{ position: "absolute", left: A.x, top: A.y, width: A.w, height: A.h }}>{inner}</div>
+      <div style={full ? { position: "absolute", inset: 0 } : { position: "absolute", left: A.x, top: A.y, width: A.w, height: A.h }}>{inner}</div>
     </div>
   );
 }
@@ -452,7 +457,9 @@ function Board({ m }: { m: MontageSpec }) {
   const light = isLight(m);
   const th = themeFor(m, light);
   const lines = React.useMemo(() => captionLines(m), [m]);
-  const busy = !!activeGraphic(m, t, true);
+  const active = activeGraphic(m, t, true);
+  const busy = !!active;
+  const onPic = active?.kind === "scene"; // a drawn scene fills the whole screen; the line sits on top of it
   const line = m.captions.on && busy ? lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.25) : undefined;
   const s = Math.min(W, H) / 1080;
   const capH = H * (H > W ? 0.16 : 0.18);
@@ -460,9 +467,11 @@ function Board({ m }: { m: MontageSpec }) {
     <>
       <Panel m={m} w={W} h={H} area={{ x: 0, y: H * 0.04, w: W, h: H - capH - H * 0.04 }} boost={H > W * 1.3 ? 1.22 : 1} />
       {line && (
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: H * 0.05, height: capH - H * 0.05, display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${60 * s}px` }}>
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `0 ${16 * s}px`, direction: "rtl", padding: `${12 * s}px ${30 * s}px`, borderRadius: 24 * s, background: light ? "rgba(14,27,44,.06)" : "rgba(255,255,255,.08)" }}>
-            {line.map((w, i) => <span key={i} style={{ fontSize: 50 * s, fontWeight: 700, color: t >= w.s && t <= w.e + 0.05 ? th.accent : t > w.e ? th.text : th.soft }}>{w.t}</span>)}
+        <div style={typeof m.captions.y === "number"
+          ? { position: "absolute", left: `${(m.captions.x ?? 0.5) * 100}%`, top: `${m.captions.y * 100}%`, transform: "translate(-50%, -50%)", width: "92%", display: "flex", justifyContent: "center" }
+          : { position: "absolute", left: 0, right: 0, bottom: H * 0.05, height: capH - H * 0.05, display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${60 * s}px` }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `0 ${16 * s}px`, direction: "rtl", padding: `${12 * s}px ${30 * s}px`, borderRadius: 24 * s, background: onPic ? "rgba(0,0,0,.6)" : light ? "rgba(14,27,44,.06)" : "rgba(255,255,255,.08)" }}>
+            {line.map((w, i) => <span key={i} style={{ fontSize: 50 * s, fontWeight: 700, color: onPic ? (t >= w.s && t <= w.e + 0.05 ? th.accent : "#fff") : t >= w.s && t <= w.e + 0.05 ? th.accent : t > w.e ? th.text : th.soft }}>{w.t}</span>)}
           </div>
         </div>
       )}

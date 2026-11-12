@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
 import { ILLUS_STYLES } from "@/remotion/styles";
+import { CaptionDrag } from "@/components/app/CaptionDrag";
 import { BOARD_STYLES, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
@@ -279,6 +280,11 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             <Player ref={player} component={MontageVideo} inputProps={spec} durationInFrames={totalFrames(spec)} fps={MFPS}
               compositionWidth={width} compositionHeight={height} style={{ width: "100%" }} controls acknowledgeRemotionLicense />
           ) : <div style={{ aspectRatio: `${width} / ${height}` }} />}
+          {spec.captions.on && typeof spec.captions.y === "number" && (
+            <div className="pointer-events-none absolute inset-x-0 top-0" style={{ aspectRatio: `${width} / ${height}` }}>
+              <CaptionDrag x={spec.captions.x ?? 0.5} y={spec.captions.y} onChange={(p) => setSpec((sp) => ({ ...sp, captions: { ...sp.captions, x: p.x, y: p.y } }))} />
+            </div>
+          )}
           {spec.logo?.on && spec.logo.box && (
             <div className="pointer-events-none absolute inset-x-0 top-0" style={{ aspectRatio: `${width} / ${height}` }}>
               <LogoDrag box={spec.logo.box} onChange={(b) => setSpec((p) => (p.logo ? { ...p, logo: { ...p.logo, box: b } } : p))} />
@@ -296,7 +302,11 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           </label>
           {spec.captions.on && <>
             <Sub>{L("مكان الترجمة")}</Sub>
-            <div className="flex flex-wrap gap-2">{positions.map(([p, l]) => <button key={p} type="button" aria-pressed={(spec.captions.pos ?? "bottom") === p} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, pos: p } })} className="chip">{L(l)}</button>)}</div>
+            <div className="flex flex-wrap gap-2">
+              {positions.map(([p, l]) => <button key={p} type="button" aria-pressed={typeof spec.captions.y !== "number" && (spec.captions.pos ?? "bottom") === p} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, pos: p, x: null, y: null } })} className="chip">{L(l)}</button>)}
+              <button type="button" aria-pressed={typeof spec.captions.y === "number"} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, x: spec.captions.x ?? 0.5, y: spec.captions.y ?? (spec.layout === "board" ? 0.88 : 0.75) } })} className="chip">{L("✋ تحريك حر")}</button>
+            </div>
+            {typeof spec.captions.y === "number" && <p className="text-[13px] text-subtle">{L("اسحب المستطيل الذهبي على الفيديو لأي مكان تبيه.")}</p>}
             <Sub>{L("شكل الترجمة")}</Sub>
           </>}
           {spec.captions.on && <div className="flex flex-wrap gap-2">{styles.map(([s, l]) => <button key={s} type="button" aria-pressed={spec.captions.style === s} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, style: s } })} className="chip">{L(l)}</button>)}</div>}

@@ -23,7 +23,7 @@ export type MontageSpec = {
   aspect: Aspect;
   font: string;
   colors: { text: string; accent: string; bg: string };
-  captions: { on: boolean; style: CaptionStyle; pos?: CaptionPos };
+  captions: { on: boolean; style: CaptionStyle; pos?: CaptionPos; x?: number | null; y?: number | null }; // x/y: free placement (centre, 0..1) dragged in the studio
   segments: Seg[];
   words: Word[];
   titles: Title[];

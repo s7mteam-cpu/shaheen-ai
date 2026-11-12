@@ -806,7 +806,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
           <div style={{ display: "flex", gap: 14 * s, direction: "ltr" }}>
             {Array.from({ length: 5 }, (_, i) => { const q = Math.min(1, pop(f, 4 + i * 4, 9)); return <div key={i} style={{ transform: `scale(${q}) rotate(${(1 - q) * 90}deg)` }}><svg width={86 * s} height={86 * s} viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5L2.5 9.3l6.6-.8z" fill={i < stars ? "#FFC83D" : th.line} /></svg></div>; })}
           </div>
-          {g.kind === "rating" && g.suffix && <div dir="ltr" style={{ fontSize: 64 * s, fontWeight: 900, color: th.text }}>{g.suffix}</div>}
+          {g.kind === "rating" && (g.suffix || g.value) && <div dir="ltr" style={{ fontSize: 64 * s, fontWeight: 900, color: th.text }}>{!g.suffix ? `${g.value}/5` : /^[/%]/.test(g.suffix) ? `${g.value ?? 5}${g.suffix}` : g.suffix}</div>}
           {g.text && <Words text={g.kind === "testimonial" ? `“${g.text}”` : g.text} hl={g.hl} f={f} size={big * (g.kind === "testimonial" ? 0.55 : 0.65)} th={th} delay={20} />}
           {g.sub && <div style={{ fontSize: 38 * s, fontWeight: 700, color: th.soft, opacity: interpolate(f, [28, 38], [0, 1], cl) }}>— {g.sub}</div>}
         </div>

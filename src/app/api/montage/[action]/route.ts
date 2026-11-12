@@ -36,6 +36,8 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
       on: s.captions?.on ?? base.captions.on,
       style: ok(CAPTION_STYLES, s.captions?.style) ?? base.captions.style,
       pos: ["bottom", "middle", "top"].includes(String(s.captions?.pos)) ? s.captions!.pos : base.captions.pos ?? "bottom",
+      // free placement from the studio (null = back to the preset position)
+      ...(() => { const c = s.captions ?? base.captions; const ok = (v: unknown) => typeof v === "number" && Number.isFinite(v); return ok(c.x) && ok(c.y) ? { x: clamp(Number(c.x), 0.1, 0.9), y: clamp(Number(c.y), 0.06, 0.94) } : { x: null, y: null }; })(),
     },
     titles: (Array.isArray(s.titles) ? s.titles : base.titles).slice(0, 15).map((t) => ({
       text: String(t.text ?? "").slice(0, 60), at: clamp(Number(t.at) || 0, 0, Math.max(0, len - 0.5)), dur: clamp(Number(t.dur) || 2.5, 1, 6), pos: t.pos === "center" ? "center" as const : "top" as const,

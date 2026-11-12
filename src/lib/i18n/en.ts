@@ -1385,4 +1385,7 @@ export const EN: Record<string, string> = {
   "❌ رفض": "❌ Reject",
   "ما فيه شي هنا للحين.": "Nothing here yet.",
   "كل المجالات": "All fields",
+  "✋ تحريك حر": "✋ Free move",
+  "اسحب الترجمة": "Drag captions",
+  "اسحب المستطيل الذهبي على الفيديو لأي مكان تبيه.": "Drag the gold box anywhere on the video.",
 };
