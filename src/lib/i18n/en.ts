@@ -1388,4 +1388,8 @@ export const EN: Record<string, string> = {
   "✋ تحريك حر": "✋ Free move",
   "اسحب الترجمة": "Drag captions",
   "اسحب المستطيل الذهبي على الفيديو لأي مكان تبيه.": "Drag the gold box anywhere on the video.",
+  "طلب جديد": "new request",
+  "هلا": "Hi",
+  "معك فريق شاهين بخصوص طلبك 🌟": "this is the Shaheen team about your request 🌟",
+  "واتساب": "WhatsApp",
 };

@@ -5,6 +5,8 @@ import { getL } from "@/lib/server/lang";
 
 export const dynamic = "force-dynamic";
 const st = [["new", "جديد"], ["contacted", "تم التواصل"], ["won", "اشترك"], ["closed", "مغلق"]] as const;
+/** wa.me needs the country code: a local Kuwaiti number (8 digits) gets 965. */
+const wa = (phone: string) => { const d = phone.replace(/\D/g, "").replace(/^00/, ""); return d.length === 8 ? `965${d}` : d; };
 
 export default async function Leads() {
   const L = await getL();
@@ -18,10 +20,11 @@ export default async function Leads() {
           <thead><tr className="text-right text-[13px] text-subtle"><th className="p-3 font-semibold">{L("التاريخ")}</th><th className="p-3 font-semibold">{L("الاسم")}</th><th className="p-3 font-semibold">{L("الجوال")}</th><th className="p-3 font-semibold">{L("الرسالة")}</th><th className="p-3 font-semibold">{L("الحالة")}</th></tr></thead>
           <tbody>
             {(data ?? []).map((l) => (
-              <tr key={l.id} className="border-t border-[#EDF1F6] align-top">
+              <tr key={l.id} className={`border-t border-[#EDF1F6] align-top ${l.status === "new" ? "bg-amber-50/60" : ""}`}>
                 <td className="whitespace-nowrap p-3">{new Date(l.created_at).toLocaleString("ar-KW")}</td>
                 <td className="p-3 font-semibold">{l.name}</td>
-                <td className="p-3"><a dir="ltr" href={`https://wa.me/${l.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="font-semibold text-navy-700">{l.phone}</a></td>
+                <td className="p-3"><div className="flex flex-col items-start gap-1.5"><span dir="ltr" className="font-semibold text-navy-900">{l.phone}</span>
+                  <a href={`https://wa.me/${wa(l.phone)}?text=${encodeURIComponent(`${L("هلا")} ${l.name}، ${L("معك فريق شاهين بخصوص طلبك 🌟")}`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-[13px] font-bold text-white">💬 {L("واتساب")}</a></div></td>
                 <td className="max-w-[320px] p-3 text-muted">{l.message}</td>
                 <td className="p-3">
                   <form action={setLeadStatus} className="flex gap-2"><input type="hidden" name="id" value={l.id} />
