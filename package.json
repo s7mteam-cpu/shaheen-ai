@@ -12,6 +12,7 @@
     "@fal-ai/client": "^1.10.1",
     "@fontsource/almarai": "^5.3.0",
     "@fontsource/amiri": "^5.3.0",
+    "@fontsource/amiri-quran": "^5.3.0",
     "@fontsource/cairo": "^5.3.0",
     "@fontsource/changa": "^5.3.0",
     "@fontsource/tajawal": "^5.3.0",
