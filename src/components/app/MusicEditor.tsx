@@ -47,7 +47,7 @@ export function MusicEditor({ music, onChange, total, playhead, disabled }: { mu
       const dur = await audioLength(URL.createObjectURL(file));
       const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "audio", type, size: file.size, name: file.name }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       const supabase = createClient();
       const up = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file, { contentType: type });
       if (up.error) throw new Error(L("تعذّر رفع الصوت."));

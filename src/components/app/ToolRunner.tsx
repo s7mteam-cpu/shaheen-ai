@@ -88,7 +88,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
         if (f.accept === "video") { setSqueeze(0); file = await compressVideo(original, setSqueeze); setSqueeze(null); }
         const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: f.accept, type: file.type, size: file.size, name: file.name }) });
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error);
+        if (!r.ok) throw new Error(L(d.error));
         const { error: upErr } = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
         if (upErr) throw new Error(/size|large|413/i.test(upErr.message) ? L("الملف أكبر من المسموح. صغّر حجمه وحاول مرة ثانية.") : L("تعذّر رفع الملف."));
         if (f.accept === "video") {
@@ -135,7 +135,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
     try {
       const r = await fetch("/api/jobs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tool: tool.id, input: values }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       if (typeof d.balance === "number") setBalance(d.balance);
       if (d.error) setError(d.error);
       watch(d.id);
@@ -150,7 +150,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
     try {
       const r = await fetch("/api/jobs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ edit_of: job.id, instruction: editText, file_index: fileIndex, options: editOpts }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       if (typeof d.balance === "number") setBalance(d.balance);
       setEditing(null); setEditText(""); setJob(null);
       watch(d.id);

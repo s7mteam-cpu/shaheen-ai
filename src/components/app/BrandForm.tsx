@@ -2,7 +2,7 @@
 import { L, LT } from "@/lib/i18n/ui";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { saveBrand } from "@/app/app/brand/actions";
+import { resetBrand, saveBrand } from "@/app/app/brand/actions";
 
 const FONTS = [["Cairo", "كايرو"], ["Tajawal", "تجوال"], ["Almarai", "المراعي"], ["Changa", "تشانغا"], ["Amiri", "أميري"]];
 
@@ -35,6 +35,14 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
     await createClient().storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
     setLogo(d.path); setPreview(URL.createObjectURL(file));
   }
+  const [confirmReset, setConfirmReset] = useState(false);
+  async function reset() {
+    const r = await resetBrand();
+    setConfirmReset(false);
+    if (!r.ok) { setMsg(L("تعذّر التصفير.")); return; }
+    setName(""); setLogo(null); setPreview(null); setColors([]); setHandle(""); setFont(""); setWebsite(""); setInstagram(""); setRefs([]);
+    setMsg(L("تم تصفير الهوية. التصاميم الجديدة بتكون بدون هوية لين تحفظ هوية جديدة."));
+  }
   async function save() {
     const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path) });
     setMsg(r.ok ? L("تم الحفظ. بتنطبق هويتك على كل تصميم جديد.") : L("تعذّر الحفظ."));
@@ -63,7 +71,15 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
           {colors.length < 5 && <button type="button" onClick={() => setColors([...colors, "#999999"])} className="btn btn-outline px-3 text-sm">{L("+ لون")}</button>}
         </div>
       </div>
-      <div className="flex flex-col gap-2"><label htmlFor="bh" className="label">{L("حسابك أو رقم التواصل")} <span className="font-normal text-subtle">{L("(يطلع بنهاية الفيديوهات)")}</span></label><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder={L("مثال: @aldeira.kw أو 9999 9999")} /></div>
+      <div className="flex flex-col gap-3">
+        <span className="label">{L("بيانات التواصل")}</span>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("موقعك الإلكتروني")}</span><input dir="ltr" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={200} className="field" placeholder="example.com" /></label>
+          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("حسابك على إنستغرام")}</span><input dir="ltr" value={instagram} onChange={(e) => setInstagram(e.target.value)} maxLength={120} className="field" placeholder="@yourbrand" /></label>
+        </div>
+        <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("حسابك أو رقم التواصل")} <span className="font-normal text-subtle">{L("(يطلع بنهاية الفيديوهات والتصاميم)")}</span></span><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder={L("مثال: @aldeira.kw أو 9999 9999")} /></label>
+        <p className="text-[12px] text-subtle">{L("شاهين يقرا موقعك عشان يفهم نشاطك، ويحط حسابك بالتصاميم إذا ما كتبت رقم تواصل.")}</p>
+      </div>
       <div className="flex flex-col gap-2">
         <span className="label">{L("خط الهوية")}</span>
         <div className="flex flex-wrap gap-2">
@@ -73,10 +89,6 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
       </div>
       <div className="flex flex-col gap-4 rounded-2xl bg-tint p-4">
         <div><span className="label">{L("ستايلك المفضّل")}</span><p className="text-[13px] text-subtle">{L("شاهين يتعلّم منها أسلوبك، ويصمّم لك بنفس الإحساس.")}</p></div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("موقعك الإلكتروني")}</span><input dir="ltr" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={200} className="field" placeholder="example.com" /></label>
-          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("حسابك على إنستغرام")}</span><input dir="ltr" value={instagram} onChange={(e) => setInstagram(e.target.value)} maxLength={120} className="field" placeholder="@yourbrand" /></label>
-        </div>
         <div className="flex flex-col gap-2">
           <span className="text-[14px] font-semibold">{L("ارفع 3-6 صور من أحلى بوستاتك")} <span className="font-normal text-subtle">{L("(سكرين شوت من إنستغرام يكفي)")}</span></span>
           <div className="flex flex-wrap gap-2.5">
@@ -92,7 +104,18 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
         </div>
       </div>
       {msg && <p role="status" className="text-sm text-navy-700">{L(msg)}</p>}
-      <button type="button" onClick={save} className="btn btn-primary self-start px-6 py-3">{L("حفظ الهوية")}</button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button type="button" onClick={save} className="btn btn-primary px-6 py-3">{L("حفظ الهوية")}</button>
+        {!confirmReset ? (
+          <button type="button" onClick={() => setConfirmReset(true)} className="text-[14px] font-semibold text-red-700 underline">{L("↺ تصفير الهوية")}</button>
+        ) : (
+          <div role="alertdialog" aria-label={L("تصفير الهوية")} className="flex flex-wrap items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-900">
+            <span>{L("بينمسح الاسم والشعار والألوان وبيانات التواصل والصور، كأنك ما حطيت هوية. متأكد؟")}</span>
+            <button type="button" onClick={reset} className="rounded-lg bg-red-700 px-3 py-1.5 font-bold text-white">{L("نعم، صفّرها")}</button>
+            <button type="button" onClick={() => setConfirmReset(false)} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 font-semibold">{L("لا")}</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

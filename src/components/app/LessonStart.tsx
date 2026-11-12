@@ -44,7 +44,7 @@ export function LessonStart({ costPer30, balance, voices }: { costPer30: number;
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic, notes, seconds, aspect, audience, dialect, panel, board, voice, music: withMusic, drawings, illus: illus === "auto" ? undefined : illus }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       setPct(100);
       router.push(`/app/tools/lesson-video?job=${d.jobId}`);
     } catch (err) { setError((err as Error).message || L("صار خطأ.")); setBusy(false); }

@@ -15,7 +15,7 @@ export function DemoField({ tool, initial, name = "demo_url" }: { tool: string; 
     try {
       const r = await fetch("/api/admin/demo-upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tool, type: file.type, size: file.size, name: file.name }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       const { error } = await createClient().storage.from("site").uploadToSignedUrl(d.path, d.token, file);
       if (error) throw new Error(L("تعذّر رفع الملف."));
       setUrl(d.url);

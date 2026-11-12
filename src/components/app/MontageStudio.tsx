@@ -219,7 +219,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
     try {
       const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "image", type: file.type, size: file.size, name: file.name }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       const supabase = createClient();
       const up = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
       if (up.error) throw new Error(L("تعذّر رفع الشعار."));
@@ -234,7 +234,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
     try {
       const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "image", type: file.type, size: file.size, name: file.name }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       const supabase = createClient();
       const up = await supabase.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
       if (up.error) throw new Error(L("تعذّر رفع الصورة."));

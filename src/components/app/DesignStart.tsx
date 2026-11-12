@@ -20,7 +20,7 @@ type Up = { path: string; preview: string };
 async function uploadImage(file: File): Promise<Up> {
   const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "image", type: file.type, size: file.size, name: file.name }) });
   const d = await r.json();
-  if (!r.ok) throw new Error(d.error);
+  if (!r.ok) throw new Error(L(d.error));
   const { error } = await createClient().storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
   if (error) throw new Error(L("ما نجح رفع الصورة."));
   return { path: d.path, preview: URL.createObjectURL(file) };
@@ -73,7 +73,7 @@ export function DesignStart({ toolId, cost, balance, industry: savedIndustry }: 
       const r = await fetch("/api/design/start", { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ tool: toolId, info, count, aspect, dialect, photos: photos.map((p) => p.path), person: person?.path, useBrand, aiImages, industry }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       setPct(100);
       router.push(`/app/tools/${toolId}?job=${d.jobId}`);
     } catch (err) { setError((err as Error).message || L("صار خطأ.")); setBusy(false); }

@@ -54,7 +54,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
       try {
         const r = await fetch("/api/quran/verses", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ surah: spec.surah, from: spec.from, to: spec.to, reciter: spec.reciter, basmala }) });
         const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error || L("تعذّر جلب الآيات، حاول مرة ثانية."));
+        if (!r.ok) throw new Error((d.error && L(d.error)) || L("تعذّر جلب الآيات، حاول مرة ثانية."));
         if (my !== seq.current) return;
         setReciters(d.reciters);
         const est = (a: { text: string }) => Math.max(3, a.text.length / 9);
@@ -85,7 +85,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
     try {
       const r = await fetch(`/api/quran/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || L("صار خطأ، حاول مرة ثانية."));
+      if (!r.ok) throw new Error((d.error && L(d.error)) || L("صار خطأ، حاول مرة ثانية."));
       return d as T;
     } catch (e) { setErr((e as Error).message || L("صار خطأ، حاول مرة ثانية.")); return null; } finally { setBusy(null); }
   }
@@ -96,7 +96,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
     try {
       const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, type: file.type, size: file.size, name: file.name }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       const sb = createClient();
       const up = await sb.storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
       if (up.error) throw new Error(L("تعذّر رفع الخلفية."));

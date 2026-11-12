@@ -111,7 +111,7 @@ export function StockSearch({ jobId, onAdd, disabled }: { jobId: string; onAdd: 
     try {
       const r = await fetch(`/api/montage/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId, ...body }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       return d as T;
     } catch (e) { setErr((e as Error).message || L("صار خطأ، حاول مرة ثانية.")); return null; } finally { setBusy(null); }
   }

@@ -14,7 +14,7 @@ export function ReopenCard({ jobId, url, cost, toolId }: { jobId: string; url?: 
     try {
       const r = await fetch(`/api/jobs/${jobId}/reopen`, { method: "POST" });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       router.refresh();
     } catch (e) { setError((e as Error).message || L("صار خطأ.")); setBusy(false); }
   }

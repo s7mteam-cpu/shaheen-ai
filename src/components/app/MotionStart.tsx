@@ -42,7 +42,7 @@ export function MotionStart({ costPer15, balance, brand, voices = [], industry: 
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "motion", topic: idea, brand: name, industry, seconds, aspect, dialect, voiceover, voice, drawings, illus: illus === "auto" ? undefined : illus, panel }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(L(d.error));
       setPct(100);
       router.push(`/app/tools/motion-video?job=${d.jobId}`);
     } catch (err) { setError((err as Error).message || L("صار خطأ.")); setBusy(false); }

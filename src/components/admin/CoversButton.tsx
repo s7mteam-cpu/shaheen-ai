@@ -20,7 +20,7 @@ export function CoversButton({ id }: { id?: string }) {
     try {
       const r = await fetch("/api/admin/covers", { method: "POST", ...init });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || L("صار خطأ، حاول مرة ثانية."));
+      if (!r.ok) throw new Error((d.error && L(d.error)) || L("صار خطأ، حاول مرة ثانية."));
       if (!d.done?.length) throw new Error(d.failed?.length ? L("ما ضبطت الصورة، حاول مرة ثانية.") : L("كل الأدوات عندها صور. علّم «استبدل» لترسم من جديد."));
       setMsg({ ok: LT(`✓ تجهزت ${d.done.length} صورة${d.failed.length ? ` · ما ضبطت ${d.failed.length}` : ""}`, `✓ ${d.done.length} pictures ready${d.failed.length ? ` · ${d.failed.length} failed` : ""}`) });
       router.refresh();
