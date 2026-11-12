@@ -29,7 +29,10 @@ export function DeleteAccount() {
             <li>{T("بينحذف رصيد الريش كامل، وبتنحذف طرق الدفع المحفوظة، ويتلغى اشتراكك.", "Your entire credit balance and saved payment methods will be removed, and your plan canceled.")}</li>
             <li><strong>{T("حذف الحساب لا يعني استرداد أي مبلغ مدفوع.", "Deleting your account does not refund any payment.")}</strong></li>
             <li>{T("الحذف نهائي، وما نقدر نرجّع أي شي بعده.", "Deletion is permanent and can't be undone.")}</li>
+            <li>{T("نحتفظ بسجل حسابك ومعاملاتك فقط (بدون أعمالك وملفاتك) لمدة 5 سنوات لأغراض قانونية ومحاسبية، ثم يُحذف تلقائياً، كما توضح «سياسة الخصوصية».", "We keep only your account and transactions record (not your works or files) for 5 years for legal and accounting purposes, then it's deleted automatically, as the Privacy Policy explains.")}</li>
           </ul>
+          <label htmlFor="why" className="label">{T("ليش تبي تحذف حسابك؟ (اختياري، يساعدنا نتحسّن)", "Why are you leaving? (optional, helps us improve)")}</label>
+          <input id="why" name="why" maxLength={200} autoComplete="off" className="field" />
           <label htmlFor="confirm" className="label">{T("للتأكيد اكتب كلمة ", "To confirm, type ")}<strong className="text-red-700">{word}</strong></label>
           <input id="confirm" name="confirm" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" className="field max-w-xs" />
           {state?.error && <p role="alert" className="text-sm font-semibold text-red-700">{state.error}</p>}

@@ -1,7 +1,7 @@
 "use client";
 import { useActionState, useState } from "react";
 import { adjustCredits, deleteCustomer } from "@/app/admin/customers/actions";
-import { L } from "@/lib/i18n/ui";
+import { L, LT } from "@/lib/i18n/ui";
 
 export function CreditsForm({ userId }: { userId: string }) {
   const [state, action, pending] = useActionState(adjustCredits, undefined);
@@ -33,9 +33,11 @@ export function DeleteCustomer({ userId, email }: { userId: string; email: strin
     <form action={action} className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50/60 p-4">
       <input type="hidden" name="user_id" value={userId} />
       <p className="font-bold text-red-800">{L("حذف الحساب نهائياً؟")}</p>
-      <p className="text-[13px] leading-6 text-navy-900">{L("بينحذف حسابه وأعماله وملفاته ورصيده وهويته التجارية، ويتلغى اشتراكه. يقدر يسجّل من جديد بنفس البريد كحساب جديد.")}</p>
+      <p className="text-[13px] leading-6 text-navy-900">{L("بينحذف حسابه وأعماله وملفاته ورصيده وهويته التجارية، ويتلغى اشتراكه. يقدر يسجّل من جديد بنفس البريد كحساب جديد.")} {LT("بياناته وسجله الكامل ينحفظون بـ«الحسابات المغلقة» 5 سنوات.", "His details and full history are kept in «Closed accounts» for 5 years.")}</p>
       <label htmlFor="confirm-email" className="text-[13px] font-semibold">{L("للتأكيد اكتب بريده:")} <span dir="ltr" className="font-latin">{email}</span></label>
       <input id="confirm-email" name="confirm" dir="ltr" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" className="field text-left" />
+      <label htmlFor="del-reason" className="text-[13px] font-semibold">{LT("سبب الحذف (يظهر بأرشيف «الحسابات المغلقة»):", "Reason (shown in the «Closed accounts» archive):")}</label>
+      <input id="del-reason" name="reason" maxLength={200} autoComplete="off" className="field" />
       {state?.error && <p role="alert" className="text-sm font-semibold text-red-700">{state.error}</p>}
       <div className="flex gap-2">
         <button disabled={!match || pending} className="btn flex-1 bg-red-700 py-2.5 font-semibold text-white hover:bg-red-800 disabled:opacity-40">{pending ? L("جارٍ الحذف…") : L("احذف نهائياً")}</button>

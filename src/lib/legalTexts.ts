@@ -94,7 +94,9 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 يُرسل لهؤلاء المزوّدين فقط ما يلزم لتنفيذ طلبك (مثل النص أو الصورة التي ترفعها).
 
 ## 5. مدة الاحتفاظ والحذف
-نحتفظ ببياناتك وأعمالك طالما حسابك فعّال لتتمكن من الرجوع إليها. يمكنك حذف أي عمل من «أعمالي» في أي وقت، ويمكنك حذف حسابك وكل بياناتك بنفسك من «الحساب والاشتراك» ← «بياناتي» ← «حذف الحساب»، أو بمراسلتنا على {email} وننفّذ الطلب خلال 30 يوماً، إلا ما يلزمنا القانون بالاحتفاظ به (مثل سجلات الفواتير).
+نحتفظ ببياناتك وأعمالك طالما حسابك فعّال لتتمكن من الرجوع إليها. يمكنك حذف أي عمل من «أعمالي» في أي وقت، ويمكنك حذف حسابك وكل بياناتك بنفسك من «الحساب والاشتراك» ← «بياناتي» ← «حذف الحساب»، أو بمراسلتنا على {email} وننفّذ الطلب خلال 30 يوماً.
+
+عند حذف الحساب أو إغلاقه تُحذف نهائياً أعمالك وملفاتك وهويتك التجارية وطرق الدفع المحفوظة. ونحتفظ فقط بسجل الحساب لمدة **5 سنوات** من تاريخ الإغلاق، لأغراض قانونية ومحاسبية ولمنع الاحتيال وإساءة الاستخدام، ويشمل: الاسم والبريد الإلكتروني ورقم الهاتف، وتواريخ التسجيل والإغلاق وسببه، وسجل المعاملات والمدفوعات والرصيد، وسجل استخدام المنصة والدخول إليها، وأي مخالفات لسياسة المحتوى. هذا السجل محفوظ بشكل آمن، ولا يطّلع عليه إلا فريق إدارة المنصة، ولا يُستخدم لأي غرض تسويقي، ويُحذف تلقائياً ونهائياً بعد انتهاء المدة.
 
 ## 6. حماية البيانات
 نستخدم اتصالاً مشفّراً (HTTPS)، وتخزيناً خاصاً لا يصل إليه إلا صاحب الحساب عبر روابط مؤقتة، وصلاحيات وصول محدودة. لا يوجد نظام آمن بنسبة 100٪، لكننا نتخذ إجراءات معقولة لحماية بياناتك.
@@ -143,7 +145,9 @@ When you sign in with Google we receive only your name, email address and profil
 These providers only receive what is needed to fulfil your request (for example the text or image you upload) and process it on our behalf under their own terms.
 
 ## 5. Retention and deletion
-We keep your data and work while your account is active. You can delete any item from “My works” at any time, and you can delete your account and all your data yourself from Account → My details → Delete account, or by emailing {email}; we complete it within 30 days, except records we must keep by law (such as invoices).
+We keep your data and work while your account is active. You can delete any item from “My works” at any time, and you can delete your account and all your data yourself from Account → My details → Delete account, or by emailing {email}; we complete it within 30 days.
+
+When an account is deleted or closed, your work, files, brand kit and saved payment methods are permanently deleted. We keep only an account record for **5 years** from the closing date, for legal and accounting purposes and to prevent fraud and abuse. It includes your name, email and phone number, the sign-up and closing dates and the reason, your transactions, payments and credits history, your platform usage and sign-in history, and any Content Policy violations. This record is stored securely, is seen only by the platform's admin team, is never used for marketing, and is deleted automatically and permanently when the period ends.
 
 ## 6. Security
 We use encrypted connections (HTTPS), private storage reachable only by the account owner through short-lived links, and limited access permissions. No system is 100% secure, but we take reasonable measures to protect your data.
@@ -194,7 +198,7 @@ export const REFUND_AR = `> **باختصار**
 تقدر ترقّي باقتك أو تخفّضها من صفحة الحساب. تُطبّق التغييرات حسب ما تعرضه بوابة الدفع وقت التغيير، بما في ذلك أي فرق في السعر للفترة المتبقية.
 
 ## 8. حذف الحساب
-حذف الحساب نهائي، ويحذف رصيد الريش وجميع أعمالك وطرق الدفع المحفوظة ويلغي الاشتراك. حذف الحساب بحد ذاته لا يعني استرداد أي مبلغ؛ إذا كنت مستحقاً للاسترداد حسب البند 3، اطلبه قبل حذف حسابك.
+حذف الحساب نهائي، ويحذف رصيد الريش وجميع أعمالك وطرق الدفع المحفوظة ويلغي الاشتراك. نحتفظ بسجل الحساب والمعاملات لمدة 5 سنوات كما توضح «سياسة الخصوصية». حذف الحساب بحد ذاته لا يعني استرداد أي مبلغ؛ إذا كنت مستحقاً للاسترداد حسب البند 3، اطلبه قبل حذف حسابك.
 
 ## 9. باقة الإدارة الكاملة للسوشال ميديا
 هذه الخدمة يقدّمها فريق بشري. يحق لك استرداد كامل قبل بدء العمل على حسابك. بعد بدء العمل يُلغى التجديد القادم عند طلبك، ولا يُسترد مبلغ الشهر الجاري.
@@ -237,7 +241,7 @@ Running a tool delivers the digital service immediately, so used credits are not
 You can upgrade or downgrade from your account page. Changes apply as shown by the payment portal at the time, including any price difference for the remaining period.
 
 ## 8. Deleting your account
-Account deletion is permanent and removes your credits, all your work and saved payment methods, and cancels your subscription. Deleting your account does not by itself trigger a refund; if you qualify under section 3, request it before deleting.
+Account deletion is permanent and removes your credits, all your work and saved payment methods, and cancels your subscription. We keep the account and transactions record for 5 years, as the Privacy Policy explains. Deleting your account does not by itself trigger a refund; if you qualify under section 3, request it before deleting.
 
 ## 9. Managed social media service
 This service is delivered by our team. You are entitled to a full refund before work on your account starts. After work starts, we cancel the next renewal on request, but the current month is not refunded.

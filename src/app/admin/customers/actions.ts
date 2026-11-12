@@ -93,7 +93,7 @@ export async function deleteCustomer(_prev: Res, form: FormData): Promise<Res> {
   if (p.id === me.id) return { error: L("ما تقدر تحذف حسابك أنت من هنا.") };
   if (p.role !== "user") return { error: L("هذا حساب من فريق الإدارة. أزله من الفريق أولاً.") };
   if (String(form.get("confirm") ?? "").trim().toLowerCase() !== String(p.email ?? "").toLowerCase()) return { error: L("اكتب بريد العميل بالضبط للتأكيد.") };
-  const res = await deleteUserCompletely(p);
+  const res = await deleteUserCompletely(p, { reason: "admin", by: me.email, note: String(form.get("reason") ?? "").trim().slice(0, 200) || null });
   if (res.error) return res;
   await audit(me, "delete_account", p);
   done();

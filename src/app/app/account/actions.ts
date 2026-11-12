@@ -106,7 +106,7 @@ export async function deleteAccount(_prev: { error?: string } | undefined, form:
   const word = String(form.get("confirm") ?? "").trim();
   if (word !== "حذف" && word.toUpperCase() !== "DELETE") return { error: T("اكتب كلمة «حذف» للتأكيد.", "Type «DELETE» to confirm.") };
   if (profile.role === "admin") return { error: T("حساب المدير لا يُحذف من هنا.", "The admin account can't be deleted here.") };
-  const res = await deleteUserCompletely(profile);
+  const res = await deleteUserCompletely(profile, { reason: "self", note: String(form.get("why") ?? "").trim().slice(0, 200) || null });
   if (res.error) return res;
 
   await (await createClient()).auth.signOut().catch(() => {});

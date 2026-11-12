@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
+import { archiveAccount } from "@/lib/server/archive";
 
 /** Removes every file under `prefix` (including nested job folders) from a bucket. */
 export async function emptyFolder(bucket: string, prefix: string, depth = 0): Promise<void> {
@@ -19,8 +20,10 @@ export async function emptyFolder(bucket: string, prefix: string, depth = 0): Pr
 
 /** Deletes a user completely: billing, files, and all their rows (via cascade).
  *  The same email can sign up again afterwards as a brand-new account. */
-export async function deleteUserCompletely(profile: { id: string; stripe_customer_id?: string | null }): Promise<{ error?: string }> {
+export async function deleteUserCompletely(profile: { id: string; stripe_customer_id?: string | null }, archive?: { reason: "self" | "admin"; by?: string | null; note?: string | null }): Promise<{ error?: string }> {
   const admin = createAdminClient();
+  // «الحسابات المغلقة»: keep who it was and the full history for 5 years (not for the test-data «تصفير المنصة»)
+  if (archive) await archiveAccount(profile.id, archive.reason, archive.by, archive.note);
   if (profile.stripe_customer_id && process.env.STRIPE_SECRET_KEY) {
     try {
       const subs = await stripe().subscriptions.list({ customer: profile.stripe_customer_id, status: "all", limit: 20 });

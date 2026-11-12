@@ -4,6 +4,7 @@ import { waLink } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setUserFlags, deleteCustomerWork, blockCustomer, unblockEmail, impersonate, requestAccess, cancelCustomerSub, resumeCustomerSub } from "./actions";
 import { latestAccess } from "@/lib/server/supportAccess";
+import { previousClosed, REASON_AR } from "@/lib/server/archive";
 import { AUDIT_AR } from "@/lib/server/audit";
 import { CreditsForm, DeleteCustomer, DeleteWork, BlockEmail, Impersonate, RequestAccess, CancelSub } from "@/components/admin/CustomerTools";
 import { getL, serverT } from "@/lib/server/lang";
@@ -26,6 +27,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   const blockedRes = await admin.from("blocked_emails").select("email,reason,created_at").order("created_at", { ascending: false }).limit(100);
   const blocked = blockedRes.error ? [] : blockedRes.data ?? [];
   const isBlocked = !!selected?.email && blocked.some((b) => b.email === String(selected.email).toLowerCase());
+  const previous = selected ? await previousClosed(selected.email, selected.phone).catch(() => []) : [];
   const auditRes = selected ? await admin.from("admin_audit").select("action,admin_email,note,created_at").eq("target_user", selected.id).order("created_at", { ascending: false }).limit(15) : null;
   const access = selected ? await latestAccess(selected.id) : null;
   const { data: sub } = selected
@@ -38,7 +40,10 @@ export default async function Customers({ searchParams }: { searchParams: Promis
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-[26px] font-bold text-navy-900">{L("العملاء")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[26px] font-bold text-navy-900">{L("العملاء")}</h1>
+        <Link href="/admin/customers/closed" className="btn btn-outline px-4 py-2 text-sm">🔒 {T("الحسابات المغلقة (المحذوفة والمحظورة)", "Closed accounts (deleted & banned)")}</Link>
+      </div>
       {deleted && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{L("انحذف حساب العميل وكل بياناته.")}</p>}
       <form className="flex max-w-md gap-2"><label htmlFor="q" className="sr-only">{L("بحث")}</label><input id="q" name="q" defaultValue={q} placeholder={L("ابحث بالاسم أو البريد أو الرقم")} className="field bg-white" /><button className="btn btn-primary px-5">{L("بحث")}</button></form>
       <div className="flex flex-col gap-5 xl:flex-row">
@@ -78,6 +83,12 @@ export default async function Customers({ searchParams }: { searchParams: Promis
         {selected && (
           <aside id="manage" className="card flex scroll-mt-24 flex-col gap-4 p-5 xl:w-[380px]">
             <h2 className="text-lg font-bold">{selected.full_name || selected.email}</h2>
+            {previous.length > 0 && (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-[13px] leading-6 text-amber-900">
+                <p className="font-bold">⚠️ {T("عنده حساب سابق مغلق بنفس البريد أو الرقم", "Had a closed account with the same email or phone")}</p>
+                {previous.map((p) => <Link key={p.id} href={`/admin/customers/log?archived=${p.id}`} className="block font-semibold underline">{T(REASON_AR[p.reason as keyof typeof REASON_AR]?.[0] ?? p.reason, REASON_AR[p.reason as keyof typeof REASON_AR]?.[1] ?? p.reason)} · {new Date(p.closed_at).toLocaleDateString("ar-KW", { timeZone: "Asia/Kuwait" })}{p.note ? ` — ${p.note}` : ""}</Link>)}
+              </div>
+            )}
             {selected.phone
               ? <a href={waLink(selected.phone, `السلام عليكم ${selected.full_name ?? ""}، معك فريق شاهين.`)} target="_blank" rel="noopener" className="btn bg-emerald-600 py-2.5 font-semibold text-white hover:bg-emerald-700">{L("واتساب:")} <span dir="ltr" className="font-latin">{selected.phone}</span></a>
               : <p className="text-sm text-subtle">{L("ما أضاف رقم واتساب للحين (بينطلب منه أول ما يدخل).")}</p>}

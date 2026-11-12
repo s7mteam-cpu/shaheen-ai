@@ -110,7 +110,7 @@ export const defaultContent: SiteContent = {
   final_cta: { title: "جاهز تحلّق بمحتواك؟", subtitle: "اختر باقتك واصنع أول إعلان لمشروعك اليوم.", cta: "اختر باقتك" },
   footer: { tagline: "أدوات الذكاء الاصطناعي لصناعة المحتوى، بالعربي.", company: "[اسم الشركة والسجل التجاري]", whatsapp: "+96550993895", email: "", instagram: "" },
   legal: {
-    updated: "11 نوفمبر 2026", updated_en: "November 11, 2026", refund_days: "14",
+    updated: "13 نوفمبر 2026", updated_en: "November 13, 2026", refund_days: "14",
     terms: TERMS_AR, terms_en: TERMS_EN, privacy: PRIVACY_AR, privacy_en: PRIVACY_EN, refund: REFUND_AR, refund_en: REFUND_EN, content: CONTENT_AR, content_en: CONTENT_EN,
   },
 
