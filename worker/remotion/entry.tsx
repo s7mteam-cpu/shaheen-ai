@@ -16,6 +16,7 @@ import "@fontsource/changa/arabic-500.css";
 import "@fontsource/changa/arabic-700.css";
 import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
+import "@fontsource/amiri-quran/arabic-400.css";
 import { Composition, Still, registerRoot } from "remotion";
 import { DesignStill } from "../../src/design/Design";
 import { DSIZE, type DesignSpec } from "../../src/design/spec";
@@ -23,6 +24,8 @@ import { MotionVideo } from "../../src/remotion/MotionVideo";
 import { FPS, SAMPLE, dimensions, type MotionSpec } from "../../src/remotion/spec";
 import { MontageVideo } from "../../src/remotion/MontageVideo";
 import { MFPS, totalFrames, type MontageSpec } from "../../src/remotion/montage";
+import { QuranVideo } from "../../src/remotion/QuranVideo";
+import { QFPS, qDims, qFrames, type QuranSpec } from "../../src/remotion/quran";
 
 function Root() {
   return (
@@ -50,6 +53,19 @@ function Root() {
       calculateMetadata={({ props }) => {
         const p = props as unknown as MontageSpec;
         return { durationInFrames: totalFrames(p), ...dimensions(p.aspect) };
+      }}
+    />
+    <Composition
+      id="Quran"
+      component={QuranVideo as unknown as React.FC<Record<string, unknown>>}
+      fps={QFPS}
+      durationInFrames={QFPS * 10}
+      width={1080}
+      height={1920}
+      defaultProps={{} as Record<string, unknown>}
+      calculateMetadata={({ props }) => {
+        const p = props as unknown as QuranSpec;
+        return { durationInFrames: qFrames(p), ...qDims(p.aspect) };
       }}
     />
     <Still

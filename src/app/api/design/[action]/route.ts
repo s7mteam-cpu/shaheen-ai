@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardContent } from "@/lib/server/moderation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { claudeVisionJson } from "@/lib/providers/text";
@@ -73,6 +74,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
   const body = ((await req.json().catch(() => null)) ?? {}) as Body;
   const admin = createAdminClient();
+  if (!["export", "save", "stock", "stockadd", "cutout", "subs", "translate"].includes(action)) { const bad = await guardContent(user.id, body, `design/${action}`); if (bad) return bad; }
 
   async function charge(jobId: string, amount: number) {
     if (amount <= 0) return null;

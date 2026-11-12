@@ -42,7 +42,24 @@ export default async function Customers({ searchParams }: { searchParams: Promis
       {deleted && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{L("انحذف حساب العميل وكل بياناته.")}</p>}
       <form className="flex max-w-md gap-2"><label htmlFor="q" className="sr-only">{L("بحث")}</label><input id="q" name="q" defaultValue={q} placeholder={L("ابحث بالاسم أو البريد أو الرقم")} className="field bg-white" /><button className="btn btn-primary px-5">{L("بحث")}</button></form>
       <div className="flex flex-col gap-5 xl:flex-row">
-        <section className="card min-w-0 flex-1 overflow-x-auto p-2">
+        {/* phones: one card per customer (the wide table hid the «إدارة» button off-screen) */}
+        <ul className="flex flex-col gap-2.5 md:hidden">
+          {(users ?? []).map((u) => {
+            const status = blocked.some((b) => b.email === String(u.email ?? "").toLowerCase()) ? <span className="font-semibold text-red-800">{L("محظور")}</span> : u.is_suspended ? <span className="text-red-700">{L("موقوف")}</span> : u.role === "admin" ? <span className="text-navy-700">{L("مدير")}</span> : u.role === "staff" ? <span className="text-navy-700">{L("فريق")}</span> : L("نشط");
+            const on = selected?.id === u.id;
+            return (
+              <li key={u.id} className={`card flex flex-col gap-2 p-4 text-sm ${on ? "border-2 border-gold-500" : ""}`}>
+                <div className="min-w-0"><div className="font-bold text-navy-900">{u.full_name || "—"}</div><div dir="ltr" className="truncate text-right text-xs text-subtle">{u.email}</div></div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted">
+                  {u.phone && <a href={waLink(u.phone)} target="_blank" rel="noopener" dir="ltr" className="font-latin font-semibold text-emerald-700">{u.phone}</a>}
+                  <span>{L("الباقة")}: {u.plan_id ?? "—"}</span><span>{L("الرصيد")}: <span className="font-latin">{u.credits}</span></span><span>{status}</span>
+                </div>
+                <Link href={`/admin/customers?id=${u.id}${q ? `&q=${q}` : ""}#manage`} className={`btn py-2.5 text-center text-[14px] ${on ? "btn-gold" : "btn-outline"}`}>{on ? L("✓ مفتوح تحت") : L("إدارة العميل")}</Link>
+              </li>
+            );
+          })}
+        </ul>
+        <section className="card hidden min-w-0 flex-1 overflow-x-auto p-2 md:block">
           <table className="w-full min-w-[640px] text-sm">
             <thead><tr className="text-right text-[13px] text-subtle"><th className="p-3 font-semibold">{L("العميل")}</th><th className="p-3 font-semibold">{L("الواتساب")}</th><th className="p-3 font-semibold">{L("الباقة")}</th><th className="p-3 font-semibold">{L("الرصيد")}</th><th className="p-3 font-semibold">{L("الحالة")}</th><th className="p-3"><span className="sr-only">{L("إدارة")}</span></th></tr></thead>
             <tbody>
@@ -59,7 +76,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
           </table>
         </section>
         {selected && (
-          <aside className="card flex flex-col gap-4 p-5 xl:w-[380px]">
+          <aside id="manage" className="card flex scroll-mt-24 flex-col gap-4 p-5 xl:w-[380px]">
             <h2 className="text-lg font-bold">{selected.full_name || selected.email}</h2>
             {selected.phone
               ? <a href={waLink(selected.phone, `السلام عليكم ${selected.full_name ?? ""}، معك فريق شاهين.`)} target="_blank" rel="noopener" className="btn bg-emerald-600 py-2.5 font-semibold text-white hover:bg-emerald-700">{L("واتساب:")} <span dir="ltr" className="font-latin">{selected.phone}</span></a>

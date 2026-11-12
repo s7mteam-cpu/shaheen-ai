@@ -247,3 +247,61 @@ Email {email}, WhatsApp {whatsapp}, or use “Contact support” in the app, wit
 
 ## 11. Governing law
 This policy is governed by the laws of the State of Kuwait and does not limit any rights you have as a consumer under the law. See also our [Terms of Service](/terms) and [Privacy Policy](/privacy).`;
+
+export const CONTENT_AR = `منصة «شاهين» ({site}) منصة محترمة لصناعة محتوى الأعمال، وتلتزم بقوانين دولة الكويت وبالآداب العامة والقيم الإسلامية. هذه السياسة جزء من [شروط الاستخدام](/terms)، وتنطبق على كل ما تكتبه أو ترفعه أو تطلب إنشاءه في المنصة.
+
+> **باختصار:** أي محتوى غير أخلاقي ممنوع منعاً باتاً، ونوقف الحساب اللي يحاول ينشئه.
+
+## 1. المحتوى الممنوع نهائياً
+- العري الكامل أو الجزئي، والمحتوى الجنسي أو الإباحي أو الإيحائي، والصور أو الفيديوهات أو الإعلانات المثيرة أو الخادشة للحياء.
+- أي محتوى يمس الأطفال أو يظهرهم بشكل غير لائق بأي صورة.
+- الترويج للخدمات الجنسية أو المواعدة غير الأخلاقية.
+- الترويج للمخدرات أو المسكرات أو القمار أو أي نشاط مخالف للقانون في الكويت.
+- الإساءة للأديان أو المقدسات أو السخرية منها، أو استخدام آيات القرآن الكريم بشكل غير لائق أو محرّف.
+- العنف المفرط والدموي، والتحريض على الكراهية أو العنف أو التمييز.
+- انتحال شخصية شخص أو جهة، أو استخدام صور الناس بدون إذنهم، أو التضليل والاحتيال.
+
+## 2. كيف نطبّق السياسة
+- نفحص الطلبات تلقائياً قبل التنفيذ، ونرفض أي طلب مخالف بدون خصم ريش.
+- مزوّدو الذكاء الاصطناعي اللي نستخدمهم عندهم فلاتر أمان إضافية.
+- يصل لفريق الإدارة تنبيه عند أي محاولة مخالفة، ويحق لنا مراجعة المحتوى المخالف وحذفه.
+
+## 3. العقوبات
+- أول مخالفة: رفض الطلب وتنبيه.
+- تكرار المحاولة أو المخالفة الجسيمة: **إيقاف الحساب أو حذفه نهائياً بدون استرجاع للمبالغ أو الريش**، وحظر البريد من التسجيل مرة ثانية.
+- المحتوى المخالف للقانون، خصوصاً ما يمس الأطفال، نبلّغ عنه الجهات المختصة في دولة الكويت.
+
+## 4. مسؤوليتك
+أنت المسؤول قانونياً عن المحتوى اللي تطلب إنشاءه وتنشره، وتتعهد إنه ما يخالف هذه السياسة أو القوانين. شاهين غير مسؤولة عن أي استخدام مخالف للنتائج بعد تحميلها.
+
+## 5. البلاغات
+إذا شفت محتوى مخالف أُنشئ بالمنصة، راسلنا على {email} أو واتساب {whatsapp}.`;
+
+export const CONTENT_EN = `Shaheen ({site}) is a respectful platform for business content. It follows the laws of the State of Kuwait, public morals and Islamic values. This policy is part of the [Terms of Service](/terms) and applies to everything you write, upload or ask the platform to create.
+
+> **In short:** any immoral content is strictly forbidden, and accounts that try to create it are suspended.
+
+## 1. Strictly forbidden
+- Full or partial nudity, sexual, pornographic or suggestive content, and indecent or provocative images, videos or ads.
+- Any content involving children in an inappropriate way, in any form.
+- Promoting sexual services or immoral dating.
+- Promoting drugs, alcohol, gambling or any activity illegal in Kuwait.
+- Insulting or mocking religions or sacred things, or using verses of the Holy Quran in an inappropriate or altered way.
+- Graphic or gory violence, and incitement to hatred, violence or discrimination.
+- Impersonating people or organizations, using people's images without permission, deception or fraud.
+
+## 2. How we enforce it
+- Requests are checked automatically before they run; forbidden requests are refused without using credits.
+- The AI providers we use apply their own additional safety filters.
+- The admin team is alerted to every violating attempt, and we may review and delete violating content.
+
+## 3. Penalties
+- First violation: the request is refused with a warning.
+- Repeated attempts or a serious violation: **the account is suspended or permanently deleted without any refund of payments or credits**, and the email is blocked from signing up again.
+- Illegal content, especially anything involving children, is reported to the competent authorities in the State of Kuwait.
+
+## 4. Your responsibility
+You are legally responsible for the content you ask to create and publish, and you undertake that it does not break this policy or the law. Shaheen is not responsible for any misuse of results after they are downloaded.
+
+## 5. Reporting
+If you see violating content made with the platform, contact us at {email} or WhatsApp {whatsapp}.`;

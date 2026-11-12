@@ -1,4 +1,5 @@
-import { TERMS_AR, TERMS_EN, PRIVACY_AR, PRIVACY_EN, REFUND_AR, REFUND_EN } from "./legalTexts";
+import { DEFAULT_RECITERS } from "@/remotion/quran";
+import { TERMS_AR, TERMS_EN, PRIVACY_AR, PRIVACY_EN, REFUND_AR, REFUND_EN, CONTENT_AR, CONTENT_EN } from "./legalTexts";
 // Fallback content used until the database is connected.
 // The live values come from Supabase and are edited from /admin.
 
@@ -44,10 +45,11 @@ export type SiteContent = {
   faq: { items: { q: string; a: string }[] };
   final_cta: { title: string; subtitle: string; cta: string };
   footer: { tagline: string; company: string; whatsapp: string; email: string; instagram: string };
-  legal: { updated: string; updated_en: string; refund_days: string; terms: string; terms_en: string; privacy: string; privacy_en: string; refund: string; refund_en: string };
+  legal: { updated: string; updated_en: string; refund_days: string; terms: string; terms_en: string; privacy: string; privacy_en: string; refund: string; refund_en: string; content: string; content_en: string };
   voices: { items: { id: string; name: string; note: string; google_voice?: string }[] };
   /** Background-music library for the motion studio (royalty-free tracks you uploaded). */
   motion_music: { items: { name: string; mood?: string; url: string }[] };
+  quran_reciters: { items: { id: string; name: string; folder: string }[] };
   ai: { copy_provider: string; copy_model: string; chat_provider: string; chat_model: string };
   managed_service: { enabled: boolean; title: string; price_kwd: string; period: string; features: string[]; cta: string; whatsapp: string; whatsapp_message: string; thanks: string };
 };
@@ -64,6 +66,7 @@ export const defaultTools: Tool[] = [
   { id: "carousel", provider: "fal", name: "كاروسيل إنستغرام", description: "سلسلة شرائح متناسقة بعناوين عربية، تشرح فكرة أو منتج خطوة بخطوة.", category: "image", icon: "layers", credit_cost: 3, edit_cost: 2, cost_unit: "شريحة", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 2 },
   { id: "motion-video", provider: "claude", name: "إنشاء فيديو موشن جرافيك", description: "فيديو موشن جرافيك بنصوص عربية صحيحة، تعدّل ألوانه ونصوصه وخطه مباشرة، مع موسيقى وتعليق صوتي.", category: "video", icon: "film", credit_cost: 10, edit_cost: 5, cost_unit: "15 ثانية", provider_model: null, is_enabled: true, sort_order: 3 },
   { id: "lesson-video", provider: "claude", name: "فيديو تعليمي متحرك", description: "اكتب الدرس أو الفكرة، وشاهين يسوي فيديو شرح متحرك: رسوم وخطوات ومقارنات ورسوم بيانية، مع صوت بلهجتك وترجمة.", category: "video", icon: "film", credit_cost: 10, edit_cost: 5, cost_unit: "30 ثانية", provider_model: null, is_enabled: true, sort_order: 5 },
+  { id: "quran-video", provider: "claude", name: "فيديو قرآني", description: "اختر السورة والآيات والقارئ (مثل ياسر الدوسري)، وشاهين يسوي فيديو بخلفية متحركة هادئة ونص الآيات بالرسم العثماني مع التلاوة، بدون موسيقى.", category: "video", icon: "film", credit_cost: 3, edit_cost: 0, cost_unit: "30 ثانية", provider_model: null, is_enabled: true, sort_order: 6 },
   { id: "video-editing", provider: "elevenlabs", name: "مونتاج الفيديو", description: "ارفع فيديوك الخام، ونقصّ الأجزاء الفاضية ونضيف ترجمة عربية ونجهّزه لكل منصة.", category: "video", icon: "scissors", credit_cost: 10, edit_cost: 5, cost_unit: "دقيقة", provider_model: null, is_enabled: true, sort_order: 4 },
   { id: "product-video", provider: "google", name: "فيديو المنتج", description: "ارفع صورة منتجك، ونحوّلها لفيديو إعلاني واقعي: إضاءة سينمائية، حركة كاميرا، وموسيقى.", category: "video", icon: "film", credit_cost: 15, edit_cost: 5, cost_unit: "5 ثواني", provider_model: "gemini-omni-1.2-flash", is_enabled: true, sort_order: 6 },
   { id: "avatar-video", provider: "fal", name: "فيديو بشخصية واقعية", description: "شخصية تقدّم منتجك وتتكلم بلهجة جمهورك، بدون تصوير ولا ممثلين.", category: "video", icon: "user", credit_cost: 30, edit_cost: 5, cost_unit: "فيديو", provider_model: "fal-ai/kling-video/ai-avatar/v2/standard", is_enabled: true, sort_order: 5 },
@@ -108,7 +111,7 @@ export const defaultContent: SiteContent = {
   footer: { tagline: "أدوات الذكاء الاصطناعي لصناعة المحتوى، بالعربي.", company: "[اسم الشركة والسجل التجاري]", whatsapp: "+96550993895", email: "", instagram: "" },
   legal: {
     updated: "11 نوفمبر 2026", updated_en: "November 11, 2026", refund_days: "14",
-    terms: TERMS_AR, terms_en: TERMS_EN, privacy: PRIVACY_AR, privacy_en: PRIVACY_EN, refund: REFUND_AR, refund_en: REFUND_EN,
+    terms: TERMS_AR, terms_en: TERMS_EN, privacy: PRIVACY_AR, privacy_en: PRIVACY_EN, refund: REFUND_AR, refund_en: REFUND_EN, content: CONTENT_AR, content_en: CONTENT_EN,
   },
 
   ai: { copy_provider: "claude", copy_model: "claude-haiku-5-5", chat_provider: "claude", chat_model: "claude-haiku-5-5" },
@@ -130,6 +133,7 @@ export const defaultContent: SiteContent = {
     thanks: "وصلنا طلبك ✓ سيتم التواصل معكم في أسرع وقت.",
   },
   motion_music: { items: [] },
+  quran_reciters: { items: DEFAULT_RECITERS },
   // ElevenLabs voice ids. Replace with Gulf-dialect voices from the ElevenLabs voice library via /admin.
   voices: {
     items: [

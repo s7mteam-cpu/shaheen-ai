@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardContent } from "@/lib/server/moderation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson } from "@/lib/providers/text";
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
   const toolId = motion ? "motion-video" : "lesson-video";
   const topic = String(b.topic ?? "").trim().slice(0, 4000);
   if (topic.length < 5) return NextResponse.json({ error: motion ? "اكتب فكرة الفيديو." : "اكتب الدرس أو الفكرة." }, { status: 400 });
+  { const bad = await guardContent(user.id, b, motion ? "motion-video" : "lesson-video"); if (bad) return bad; }
   const seconds = motion ? ([15, 30, 60].includes(Number(b.seconds)) ? Number(b.seconds) : 30) : LENGTHS.includes(Number(b.seconds)) ? Number(b.seconds) : 60;
   // the field is optional: if the customer didn't pick one, read it from their text
   const ind = industryById(String(b.industry ?? "")) ?? (motion ? industryById(await guessIndustry(`${brand ? `${String(b.brand)}: ` : ""}${topic}`)) : undefined);

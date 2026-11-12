@@ -547,6 +547,50 @@ async function render(job, compositionId, props, lowMem = false) {
   }
 }
 
+// ---------- «فيديو قرآني» ----------
+/** Exact length of an audio file (seconds), straight from the URL. */
+async function audioSecs(url) {
+  try {
+    const { stdout } = await run("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", url], { timeout: 30000 });
+    const d = Number(stdout.trim());
+    return Number.isFinite(d) && d > 0 ? d : null;
+  } catch { return null; }
+}
+const stripHarakat = (t) => t.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, "").replace(/[ٱأإآ]/g, "ا");
+async function renderQuran(job) {
+  const spec = job.input.spec;
+  try {
+    // the text always comes from the mushaf API (Tanzil Uthmani), never from the request
+    const r = await fetch(`https://api.alquran.cloud/v1/surah/${spec.surah}/editions/quran-uthmani,en.sahih?offset=${spec.from - 1}&limit=${spec.to - spec.from + 1}`);
+    if (!r.ok) throw new Error(`quran api ${r.status}`);
+    const d = await r.json();
+    const ar = d.data?.[0]?.ayahs ?? [], tr = d.data?.[1]?.ayahs ?? [];
+    const text = new Map(ar.map((a, i) => {
+      let t = String(a.text).trim();
+      if (spec.surah !== 1 && spec.surah !== 9 && a.numberInSurah === 1) {
+        const w = t.split(/\s+/);
+        if (stripHarakat(w[0] ?? "") === "بسم" && stripHarakat(w[1] ?? "").includes("لله")) t = w.slice(4).join(" ");
+      }
+      return [a.numberInSurah, { text: t, en: tr[i]?.text }];
+    }));
+    await setProgress(job.id, 2);
+    const ayahs = [];
+    for (const a of spec.ayahs) {
+      const t = a.n === 0 ? { text: a.text, en: "In the name of Allah, the Entirely Merciful, the Especially Merciful." } : text.get(a.n);
+      if (!t) throw new Error(`ayah ${a.n} missing`);
+      const dur = await audioSecs(a.audio);
+      if (!dur) throw new Error(`audio missing for ayah ${a.n}`);
+      ayahs.push({ ...a, ...t, dur: +dur.toFixed(2) });
+    }
+    let bg = spec.bg ?? null;
+    if (bg?.path) {
+      const sgn = await db.storage.from(bg.bucket === "uploads" ? "uploads" : "results").createSignedUrl(bg.path, 60 * 60 * 3);
+      bg = sgn.data?.signedUrl ? { ...bg, url: sgn.data.signedUrl } : null;
+    }
+    return render(job, "Quran", { ...spec, ayahs, bg });
+  } catch (e) { return fail(job, e); }
+}
+
 async function renderMontage(job) {
   const spec = job.input.spec;
   // animated lessons (layout "board") have no source footage
@@ -628,7 +672,7 @@ console.log("Shaheen video worker started");
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
 async function recoverStale(minutes) {
   const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
-  const { data: videos } = await db.from("jobs").select("id,tool_id,input").in("tool_id", ["video-editing", "motion-video", "lesson-video"]).eq("status", "running").lt("updated_at", cutoff);
+  const { data: videos } = await db.from("jobs").select("id,tool_id,input").in("tool_id", ["video-editing", "motion-video", "lesson-video", "quran-video"]).eq("status", "running").lt("updated_at", cutoff);
   const { data: designs } = await db.from("jobs").select("id,tool_id,input").in("tool_id", DESIGN_TOOLS).eq("input->>render", "true").eq("status", "running").lt("updated_at", cutoff);
   for (const j of [...(videos ?? []), ...(designs ?? [])]) {
     const attempts = Number(j.input?.attempts ?? 0) + 1;
@@ -648,7 +692,7 @@ await recoverStale(3); // interrupted jobs stop updating; a job another instance
 setInterval(() => recoverStale(15).catch(() => {}), 60_000);
 
 for (;;) {
-  const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", ["video-editing", "motion-video", "lesson-video"]).eq("status", "queued").order("created_at").limit(1);
+  const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", ["video-editing", "motion-video", "lesson-video", "quran-video"]).eq("status", "queued").order("created_at").limit(1);
   const { data: designs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", DESIGN_TOOLS).eq("status", "queued").eq("input->>render", "true").order("updated_at").limit(1);
   // Designs are quick stills: they go first so customers don't wait behind long videos.
   const job = designs?.[0] ?? jobs?.[0];
@@ -666,6 +710,7 @@ for (;;) {
     }
     await render(job, "Motion", spec);
   }
+  else if (job.tool_id === "quran-video") await renderQuran(job);
   else if (job.input.render && job.input.spec) await renderMontage(job);
   else if (job.tool_id === "lesson-video") await fail(job, new Error("lesson job without render flag"));
   else await analyzeMontage(job);

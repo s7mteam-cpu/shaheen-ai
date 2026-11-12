@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardContent } from "@/lib/server/moderation";
 import { industryById } from "@/design/industries";
 import { GENERAL, packBrief, packById } from "@/remotion/packs";
 import { guessIndustry } from "@/lib/server/guessIndustry";
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     input = built.input;
   }
   if (toolId === "lesson-video") return NextResponse.json({ error: "استخدم نموذج الفيديو التعليمي." }, { status: 400 });
+  if (toolId === "quran-video") return NextResponse.json({ error: "استخدم استوديو الفيديو القرآني." }, { status: 400 });
   if (toolId === "motion-video") return NextResponse.json({ error: "استخدم استوديو الموشن جرافيك." }, { status: 400 });
   if (["post", "carousel", "ad-design"].includes(toolId) && !parent) return NextResponse.json({ error: "استخدم استوديو التصميم." }, { status: 400 });
   const spec = toolSpecs[toolId];
@@ -44,6 +46,7 @@ export async function POST(req: Request) {
 
   const invalid = parent ? null : validate(spec, input);
   if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+  { const bad = await guardContent(user.id, { input, title: body?.title, instruction: (body as { instruction?: string } | null)?.instruction }, toolId); if (bad) return bad; }
   if (toolId === "voice" && input.clone && !(Array.isArray(input.sample) && input.sample.length)) {
     return NextResponse.json({ error: "ارفع عينة صوتك." }, { status: 400 });
   }

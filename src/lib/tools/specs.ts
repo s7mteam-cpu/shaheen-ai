@@ -100,6 +100,11 @@ export const toolSpecs: Record<string, ToolSpec> = {
     ],
     units: (v) => n(v.count, 1),
   },
+  // Has its own studio (QuranStudio); this entry only registers the tool.
+  "quran-video": {
+    fields: [{ type: "text", name: "surah", label: "السورة", required: true, max: 3 }],
+    units: () => 1,
+  },
   // Has its own start form (LessonStart) and studio (MontageStudio); this entry only registers the tool.
   "lesson-video": {
     fields: [{ type: "text", name: "topic", label: "الدرس أو الفكرة", required: true, max: 4000 }],

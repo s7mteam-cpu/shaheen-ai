@@ -9,11 +9,11 @@ const labels: Record<string, string> = {
   badge: "الشارة الصغيرة", title: "العنوان", highlight: "الكلمة المميزة", subtitle: "الوصف", cta_primary: "نص الزر الرئيسي",
   cta_secondary: "نص الزر الثانوي", points: "النقاط", image: "صورة (اختياري)", items: "العناصر", body: "النص", q: "السؤال", a: "الجواب",
   eyebrow: "عنوان صغير", cta: "نص الزر", tagline: "الوصف", company: "اسم الشركة والسجل", whatsapp: "رقم واتساب", email: "البريد",
-  instagram: "إنستغرام", terms: "شروط الاستخدام (عربي)", privacy: "سياسة الخصوصية (عربي)", refund: "سياسة الاسترجاع (عربي)", terms_en: "شروط الاستخدام (English)", privacy_en: "سياسة الخصوصية (English)", refund_en: "سياسة الاسترجاع (English)", updated: "تاريخ آخر تحديث (عربي)", updated_en: "تاريخ آخر تحديث (English)", refund_days: "مدة الاسترداد بالأيام (تتغيّر بكل الصفحات)", id: "المعرّف (ID)", name: "الاسم", note: "ملاحظة",
+  instagram: "إنستغرام", folder: "مجلد التلاوة في everyayah.com", terms: "شروط الاستخدام (عربي)", privacy: "سياسة الخصوصية (عربي)", refund: "سياسة الاسترجاع (عربي)", content: "سياسة المحتوى الممنوع (عربي)", content_en: "سياسة المحتوى الممنوع (English)", terms_en: "شروط الاستخدام (English)", privacy_en: "سياسة الخصوصية (English)", refund_en: "سياسة الاسترجاع (English)", updated: "تاريخ آخر تحديث (عربي)", updated_en: "تاريخ آخر تحديث (English)", refund_days: "مدة الاسترداد بالأيام (تتغيّر بكل الصفحات)", id: "المعرّف (ID)", name: "الاسم", note: "ملاحظة",
   enabled: "ظاهرة في الموقع", price_kwd: "السعر (د.ك)", period: "المدة", features: "المميزات", whatsapp_message: "رسالة الواتساب الجاهزة", thanks: "رسالة الشكر بعد الإرسال",
 };
 const isImage = (k: string) => k === "image" || k.endsWith("_url");
-const isLong = (k: string, v: string) => ["subtitle", "body", "a", "terms", "privacy", "refund", "terms_en", "privacy_en", "refund_en", "tagline"].includes(k) || v.length > 90;
+const isLong = (k: string, v: string) => ["subtitle", "body", "a", "terms", "privacy", "refund", "terms_en", "privacy_en", "refund_en", "content", "content_en", "tagline"].includes(k) || v.length > 90;
 
 function blank(sample: J): J {
   if (typeof sample === "string") return "";

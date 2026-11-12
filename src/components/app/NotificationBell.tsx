@@ -7,7 +7,7 @@ import { useT } from "@/components/LangProvider";
 
 export type Note = { id: number; kind: string; title: string; body: string | null; link: string | null; read_at: string | null; created_at: string };
 
-const dot: Record<string, string> = { done: "bg-emerald-500", failed: "bg-red-500", credits: "bg-gold-500", access: "bg-navy-700", payment: "bg-emerald-600", info: "bg-subtle" };
+const dot: Record<string, string> = { done: "bg-emerald-500", failed: "bg-red-500", credits: "bg-gold-500", access: "bg-navy-700", payment: "bg-emerald-600", warn: "bg-red-600", lead: "bg-gold-500", info: "bg-subtle" };
 
 function ago(iso: string, T: (ar: string, en: string) => string) {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -48,7 +48,7 @@ export function NotificationBell({ notes }: { notes: Note[] }) {
         {unread > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 font-latin text-[11px] font-bold text-white">{unread > 9 ? "9+" : unread}</span>}
       </button>
       {open && (
-        <div className="card absolute left-0 top-12 z-40 flex max-h-[70vh] w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden shadow-lg">
+        <div className="card fixed inset-x-3 top-16 z-40 flex max-h-[75vh] flex-col overflow-hidden shadow-lg sm:absolute sm:inset-x-auto sm:left-0 sm:top-12 sm:w-[360px]">
           <div className="border-b border-line px-4 py-3 font-bold text-navy-900">{T("الإشعارات", "Notifications")}</div>
           {notes.length === 0
             ? <p className="px-4 py-8 text-center text-sm text-subtle">{T("ما فيه إشعارات للحين. أول ما يجهز عملك أو يتغيّر رصيدك بتشوفه هنا.", "No notifications yet. You'll see updates here when your work is ready or your balance changes.")}</p>

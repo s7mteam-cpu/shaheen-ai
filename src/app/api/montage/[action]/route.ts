@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardContent } from "@/lib/server/moderation";
 import { box } from "@/design/spec";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
@@ -117,6 +118,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
   const body = ((await req.json().catch(() => null)) ?? {}) as Body;
   const admin = createAdminClient();
+  if (!["export", "save", "stock", "stockadd", "cutout", "subs", "translate"].includes(action)) { const bad = await guardContent(user.id, body, `montage/${action}`); if (bad) return bad; }
 
   const { data: job } = await admin.from("jobs").select("id,user_id,status,input").eq("id", String(body.jobId)).single();
   if (!job || job.user_id !== user.id) return NextResponse.json({ error: "المشروع غير موجود." }, { status: 404 });

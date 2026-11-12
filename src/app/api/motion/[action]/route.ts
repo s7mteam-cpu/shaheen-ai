@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardContent } from "@/lib/server/moderation";
 import { box } from "@/design/spec";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
@@ -35,6 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
   const body = ((await req.json().catch(() => null)) ?? {}) as Body;
   const admin = createAdminClient();
+  if (!["export", "save", "stock", "stockadd", "cutout", "subs", "translate"].includes(action)) { const bad = await guardContent(user.id, body, `motion/${action}`); if (bad) return bad; }
 
   const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost,is_enabled").eq("id", "motion-video").single();
   if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const sections = [
   ["hero", "الواجهة الرئيسية"], ["steps", "خطوات الاستخدام"], ["tools_section", "عنوان قسم الأدوات"], ["gallery", "عنوان معرض الأعمال"],
   ["pricing", "عنوان قسم الأسعار"], ["faq", "الأسئلة الشائعة"], ["final_cta", "الدعوة الأخيرة"], ["footer", "الفوتر وبيانات التواصل"],
-  ["managed_service", "باقة إدارة السوشال ميديا"], ["legal", "الصفحات القانونية"], ["voices", "أصوات التعليق الصوتي (معرّفات ElevenLabs)"],
+  ["managed_service", "باقة إدارة السوشال ميديا"], ["legal", "الصفحات القانونية"], ["voices", "أصوات التعليق الصوتي (معرّفات ElevenLabs)"], ["quran_reciters", "قرّاء الفيديو القرآني"],
 ] as const;
 
 export default async function ContentAdmin({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
