@@ -1,4 +1,5 @@
 "use server";
+import { logEvent } from "@/lib/server/events";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -25,6 +26,7 @@ export async function resetBrand() {
   const files = [data?.logo_url, ...((data?.style_refs as string[] | null) ?? [])].filter((p): p is string => !!p && p.startsWith(`${user.id}/`));
   if (files.length) await createAdminClient().storage.from("uploads").remove(files).then(() => null, () => null);
   const { error } = await supabase.from("brand_kits").delete().eq("user_id", user.id);
+  if (!error) await logEvent(user.id, "brand_reset");
   revalidatePath("/app/brand");
   return { ok: !error };
 }

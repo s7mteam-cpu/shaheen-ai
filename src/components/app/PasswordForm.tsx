@@ -12,7 +12,7 @@ export function PasswordForm() {
     if (f.get("p1") !== f.get("p2")) return setMsg(T("كلمتا المرور غير متطابقتين.", "Passwords don't match."));
     const { error } = await createClient().auth.updateUser({ password: String(f.get("p1")) });
     setMsg(error ? T("تعذّر التحديث، حاول مرة ثانية.", "Couldn't update. Please try again.") : T("تم تحديث كلمة المرور.", "Password updated."));
-    if (!error) e.currentTarget.reset();
+    if (!error) { e.currentTarget.reset(); fetch("/api/auth/event", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "password" }) }).catch(() => {}); }
   }
   return (
     <form onSubmit={onSubmit} className="card flex flex-col gap-3 p-6">

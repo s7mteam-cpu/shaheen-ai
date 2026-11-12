@@ -17,6 +17,7 @@ export default function ResetPassword() {
     if (f.get("p1") !== f.get("p2")) return setError(T("كلمتا المرور غير متطابقتين.", "Passwords don't match."));
     const { error } = await createClient().auth.updateUser({ password: String(f.get("p1")) });
     if (error) return setError(T("ما قدرنا نحدّث كلمة المرور. اطلب رابطاً جديداً.", "We couldn't update your password. Please request a new link."));
+    await fetch("/api/auth/event", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "password" }) }).catch(() => {});
     router.replace("/app");
   }
   return (

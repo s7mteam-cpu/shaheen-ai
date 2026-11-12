@@ -2,6 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { aiJson } from "@/lib/providers/text";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logEvent } from "@/lib/server/events";
 
 /**
  * «سياسة المحتوى»: no sexual / indecent / immoral content on Shaheen — ever.
@@ -38,6 +39,7 @@ Answer JSON only: {"ok": true} or {"ok": false, "why": "short reason in Arabic"}
     } catch { /* checker unavailable → providers' own filters still apply */ }
   }
   if (!why) return null;
+  await logEvent(userId, "violation", `${where}${why !== "word" && why !== "ai" ? ` — ${why}` : ""}`);
   // let the admins know (bell), without storing the full request text
   const admin = createAdminClient();
   const { data: admins } = await admin.from("profiles").select("id").eq("role", "admin");

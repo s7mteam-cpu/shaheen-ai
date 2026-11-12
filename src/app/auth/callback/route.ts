@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { clientIp, logEvent } from "@/lib/server/events";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -12,6 +13,8 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // «السجل الكامل»: Google sign-ins and email-link confirmations come through here
+      if (data.user) await logEvent(data.user.id, "login", data.user.app_metadata?.provider === "google" ? "بحساب Google" : "برابط البريد", clientIp(request));
       // Attach referral for Google sign-ups (email sign-ups pass it in metadata).
       const jar = await cookies();
       const terms = jar.get("shaheen_terms")?.value;

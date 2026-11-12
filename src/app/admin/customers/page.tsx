@@ -83,6 +83,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
               : <p className="text-sm text-subtle">{L("ما أضاف رقم واتساب للحين (بينطلب منه أول ما يدخل).")}</p>}
             <p className="text-sm text-subtle">{L("الرصيد الحالي:")} <strong className="text-navy-900">{selected.credits} {L("ريشة")}</strong></p>
             <CreditsForm key={selected.id} userId={selected.id} />
+            <Link href={`/admin/customers/log?id=${selected.id}`} className="btn btn-outline py-2.5 font-semibold">📜 {T("السجل الكامل (أعماله، رصيده، مدفوعاته، دخوله)", "Full history (work, credits, payments, sign-ins)")}</Link>
             <div className="flex flex-col gap-2 rounded-2xl bg-canvas p-3">
               <p className="text-sm font-bold">{L("الاشتراك")}</p>
               {sub ? (

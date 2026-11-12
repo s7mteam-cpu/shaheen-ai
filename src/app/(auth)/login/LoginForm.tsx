@@ -28,9 +28,17 @@ export function LoginForm() {
     setLoading(true); setError("");
     const f = new FormData(e.currentTarget);
     setRemember(remember);
-    const { error } = await createClient().auth.signInWithPassword({ email: String(f.get("email")), password: String(f.get("password")) });
+    const email = String(f.get("email"));
+    const { error } = await createClient().auth.signInWithPassword({ email, password: String(f.get("password")) });
+    // «السجل الكامل»: record the sign-in, or a wrong password (repeated failures alert the admins)
+    const ev = (body: object) => fetch("/api/auth/event", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
+    if (error) {
+      if (/invalid login credentials/i.test(error.message)) ev({ kind: "login_failed", email });
+      setLoading(false);
+      return setError(arabicAuthError(error.message, lang));
+    }
+    await ev({ kind: "login" });
     setLoading(false);
-    if (error) return setError(arabicAuthError(error.message, lang));
     router.replace(next); router.refresh();
   }
 
