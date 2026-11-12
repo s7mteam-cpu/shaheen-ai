@@ -1453,4 +1453,12 @@ export const EN: Record<string, string> = {
   "قوي (فيلم قديم)": "Strong (old film)",
   "خريطة ودبوس الموقع": "Map with location pin",
   "طريق على الخريطة": "Route on a map",
+  "علّمني الطريقة": "Show me how",
+  "الشرح قريباً": "Tutorial coming soon",
+  "بطاقة الأداة بصفحة «الأدوات» عند العميل": "Tool card on the customer's «Tools» page",
+  "الصورة التوضيحية (مقاس 4:3)": "Card picture (4:3)",
+  "إذا ما رفعت صورة، تطلع صورة فيديو المثال، وإذا ما فيه تطلع أيقونة الأداة.": "Without a picture, the demo video's thumbnail shows, or the tool icon.",
+  "احذف الصورة التوضيحية": "Remove the card picture",
+  "فيديو «علّمني الطريقة»": "«Show me how» video",
+  "رابط يوتيوب يفتح يوتيوب على طول، والفيديو المرفوع يشتغل داخل الموقع. إذا ما حطيت شي، الزر يطلع «الشرح قريباً».": "A YouTube link opens YouTube directly; an uploaded video plays inside the site. If empty, the button shows «Tutorial coming soon».",
 };

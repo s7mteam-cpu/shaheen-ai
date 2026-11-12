@@ -287,26 +287,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     }
   }
 
-  // 🎞️ free stock photos (Pexels — free for commercial use)
+  // 🎞️ free stock photos: Pixabay (or Pexels when its key exists) — both free for commercial use
   if (action === "stock") {
-    const key = process.env.PEXELS_API_KEY;
-    if (!key) return NextResponse.json({ error: "مكتبة الصور الجاهزة مو مفعّلة بعد (تحتاج مفتاح Pexels من الإدارة)." }, { status: 503 });
+    const pixabay = process.env.PIXABAY_API_KEY, pexels = process.env.PEXELS_API_KEY;
+    if (!pixabay && !pexels) return NextResponse.json({ error: "مكتبة الصور الجاهزة مو مفعّلة بعد (تحتاج مفتاح Pixabay من الإدارة)." }, { status: 503 });
     let q = String((body as { q?: string }).q ?? "").trim().slice(0, 80);
     if (q.length < 2) return NextResponse.json({ error: "اكتب وش تدوّر عليه." }, { status: 400 });
     if (/[\u0600-\u06FF]/.test(q)) {
-      try { q = (await aiJson<{ en: string }>("Translate this Arabic stock-photo search into a short English search query (2-4 words). Return JSON {\"en\":\"...\"}.", q, 200, { provider: "claude", model: "claude-haiku-5-5" })).en?.slice(0, 80) || q; } catch { /* search in Arabic */ }
+      try { q = (await aiJson<{ en: string }>("Translate this Arabic stock-photo search into a short English search query (2-4 words). Return JSON {\"en\":\"...\"}.", q, 200, { provider: "claude", model: "claude-haiku-5-5" })).en?.slice(0, 80) || q; } catch { /* search as typed */ }
     }
     const orient = spec0Orientation(base);
-    const r = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=18&orientation=${orient}`, { headers: { Authorization: key } });
+    if (pixabay) {
+      const o = orient === "portrait" ? "vertical" : orient === "landscape" ? "horizontal" : "all";
+      // Pixabay asks for 24h caching of searches
+      const r = await fetch(`https://pixabay.com/api/?key=${encodeURIComponent(pixabay)}&q=${encodeURIComponent(q)}&image_type=photo&orientation=${o}&safesearch=true&per_page=18`, { next: { revalidate: 86400 } });
+      if (!r.ok) return NextResponse.json({ error: "تعذّر البحث بالمكتبة، حاول بعد شوي." }, { status: 502 });
+      const d = (await r.json()) as { hits?: { id: number; tags?: string; user: string; webformatURL: string; largeImageURL: string }[] };
+      return NextResponse.json({ q, source: "Pixabay", photos: (d.hits ?? []).map((p) => ({ id: p.id, thumb: p.webformatURL, full: p.largeImageURL, by: p.user, alt: p.tags ?? "" })) });
+    }
+    const r = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=18&orientation=${orient}`, { headers: { Authorization: pexels! } });
     if (!r.ok) return NextResponse.json({ error: "تعذّر البحث بالمكتبة، حاول بعد شوي." }, { status: 502 });
     const d = (await r.json()) as { photos?: { id: number; alt?: string; photographer: string; src: { medium: string; large2x: string } }[] };
-    return NextResponse.json({ q, photos: (d.photos ?? []).map((p) => ({ id: p.id, thumb: p.src.medium, full: p.src.large2x, by: p.photographer, alt: p.alt ?? "" })) });
+    return NextResponse.json({ q, source: "Pexels", photos: (d.photos ?? []).map((p) => ({ id: p.id, thumb: p.src.medium, full: p.src.large2x, by: p.photographer, alt: p.alt ?? "" })) });
   }
   if (action === "stockadd") {
     const full = String((body as { url?: string }).url ?? "");
     let host = "";
     try { host = new URL(full).hostname; } catch { /* invalid */ }
-    if (host !== "images.pexels.com") return NextResponse.json({ error: "الصورة مو من المكتبة." }, { status: 400 });
+    if (!["images.pexels.com", "cdn.pixabay.com", "pixabay.com"].includes(host)) return NextResponse.json({ error: "الصورة مو من المكتبة." }, { status: 400 });
     const res = await fetch(full);
     if (!res.ok) return NextResponse.json({ error: "تعذّر تحميل الصورة." }, { status: 502 });
     const type = res.headers.get("content-type") || "image/jpeg";

@@ -1,20 +1,17 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
-import { ToolsSheet, type NavTool } from "./ToolsSheet";
+import type { NavTool } from "./ToolsSheet";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/components/LangProvider";
 
 
 /** Simple, fixed menu so customers never feel lost. Tool names/order come from /admin. */
-export function SideNav({ isAdmin, support, tools }: { isAdmin: boolean; support?: string; tools: NavTool[] }) {
+export function SideNav({ isAdmin, support }: { isAdmin: boolean; support?: string; tools: NavTool[] }) {
   const path = usePathname();
   const T = useT();
   const tab = useSearchParams().get("tab");
   const onTools = path.startsWith("/app/tools");
-  const [open, setOpen] = useState(false);
-  const close = useCallback(() => setOpen(false), []);
 
   const item = (active: boolean) =>
     `flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] ${active ? "bg-navy-800 font-semibold text-white" : "text-ink hover:bg-tint"}`;
@@ -31,11 +28,7 @@ export function SideNav({ isAdmin, support, tools }: { isAdmin: boolean; support
     <nav aria-label={T("قائمة المنصة", "App menu")} className="card flex flex-col gap-1 self-start p-3 lg:sticky lg:top-24">
       <Link href="/app" aria-current={home ? "page" : undefined} className={item(home)}><Icon name="home" size={18} className={ic(home)} />{T("الرئيسية", "Home")}</Link>
 
-      <button type="button" aria-haspopup="dialog" onClick={() => setOpen(true)} className={`${item(onTools)} justify-between`}>
-        <span className="flex items-center gap-3"><Icon name="grid" size={18} className={ic(onTools)} />{T("الأدوات", "Tools")}</span>
-        <span aria-hidden className="text-lg">‹</span>
-      </button>
-      <ToolsSheet tools={tools} open={open} onClose={close} />
+      <Link href="/app/tools#tools-top" aria-current={onTools ? "page" : undefined} className={item(onTools)}><Icon name="grid" size={18} className={ic(onTools)} />{T("الأدوات", "Tools")}</Link>
 
       <Link href="/app/works" aria-current={works ? "page" : undefined} className={item(works)}><Icon name="folder" size={18} className={ic(works)} />{T("أعمالي", "My works")}</Link>
       <Link href="/app/brand" aria-current={brand ? "page" : undefined} className={item(brand)}><Icon name="palette" size={18} className={ic(brand)} />{T("هويتي التجارية", "Brand kit")}</Link>

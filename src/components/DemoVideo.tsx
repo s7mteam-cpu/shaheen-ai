@@ -7,7 +7,7 @@ import { useT } from "@/components/LangProvider";
  * «▶ شاهد مثال»: opens the tool's demo video in a window over the page (YouTube or an uploaded clip).
  * variant "thumb" = the 9:16 picture on a tool card; variant "button" = a small button (inside the app).
  */
-export function DemoVideo({ url, thumb, title, variant = "thumb" }: { url: string; thumb?: string | null; title: string; variant?: "thumb" | "button" }) {
+export function DemoVideo({ url, thumb, title, variant = "thumb", label, className }: { url: string; thumb?: string | null; title: string; variant?: "thumb" | "button"; label?: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const T = useT();
   const yt = youtubeId(url);
@@ -37,8 +37,8 @@ export function DemoVideo({ url, thumb, title, variant = "thumb" }: { url: strin
           <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1 pb-1.5 pt-4 text-center text-[11px] font-semibold text-white">{T("شاهد مثال", "Watch")}</span>
         </button>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="btn btn-outline gap-2 px-4 py-2 text-[14px]">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M8 5v14l11-7z" /></svg>{T("شرح الأداة", "How it works")}
+        <button type="button" onClick={() => setOpen(true)} className={className ?? "btn btn-outline gap-2 px-4 py-2 text-[14px]"}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M8 5v14l11-7z" /></svg>{label ?? T("شرح الأداة", "How it works")}
         </button>
       )}
 

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { L } from "@/lib/i18n/ui";
 
 /** «فيديو المثال»: paste a YouTube link, or upload a video (straight to storage), or remove it. Saved with the tool's «حفظ». */
-export function DemoField({ tool, initial }: { tool: string; initial: string }) {
+export function DemoField({ tool, initial, name = "demo_url" }: { tool: string; initial: string; name?: string }) {
   const [url, setUrl] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok?: string; error?: string }>({});
@@ -29,7 +29,7 @@ export function DemoField({ tool, initial }: { tool: string; initial: string }) 
   return (
     <div className="flex flex-col gap-2">
       <span className="label">{L("رابط يوتيوب")}</span>
-      <input name="demo_url" value={url} onChange={(e) => setUrl(e.target.value)} dir="ltr" placeholder="https://youtube.com/shorts/…" className="field text-left" />
+      <input name={name} value={url} onChange={(e) => setUrl(e.target.value)} dir="ltr" placeholder="https://youtube.com/shorts/…" className="field text-left" />
       <span className="text-[12px] text-subtle">{L("نصيحة: ارفعه على يوتيوب «غير مدرج» (Unlisted)، فما يطلع بالبحث ويطلع بس بموقعك. روابط Shorts تطلع طولية 9:16.")}</span>
       <div className="flex flex-wrap items-center gap-2">
         <label className={`btn btn-outline cursor-pointer px-4 py-2 text-[13px] ${busy ? "pointer-events-none opacity-50" : ""}`}>

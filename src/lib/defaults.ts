@@ -31,6 +31,8 @@ export type Tool = {
   sort_order: number;
   demo_url?: string | null;     // YouTube link or an uploaded clip
   demo_thumb?: string | null;   // 9:16 picture shown on the card
+  tutorial_url?: string | null; // «علّمني الطريقة»: YouTube link or an uploaded clip
+  cover_url?: string | null;    // picture on the tool's card in «الأدوات»
 };
 
 export type SiteContent = {

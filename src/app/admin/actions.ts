@@ -51,12 +51,19 @@ async function saveToolDemo(id: string, form: FormData) {
     const { error } = await admin.storage.from("site").upload(path, file, { contentType: file.type });
     return error ? null : admin.storage.from("site").getPublicUrl(path).data.publicUrl;
   };
-  const patch: { demo_url?: string | null; demo_thumb?: string | null } = {};
+  const patch: { demo_url?: string | null; demo_thumb?: string | null; tutorial_url?: string | null; cover_url?: string | null } = {};
   if (form.has("demo_url")) patch.demo_url = String(form.get("demo_url") || "").trim() || null;
+  if (form.has("tutorial_url")) patch.tutorial_url = String(form.get("tutorial_url") || "").trim() || null;
+  const cover = form.get("cover_file") as File | null;
+  if (cover && cover.size && cover.type.startsWith("image/")) patch.cover_url = await upload(cover, "covers");
+  if (form.get("cover_clear") === "on") patch.cover_url = null;
   const pic = form.get("demo_thumb_file") as File | null;
   if (pic && pic.size && pic.type.startsWith("image/")) patch.demo_thumb = await upload(pic, "demos");
   if (form.get("demo_thumb_clear") === "on") patch.demo_thumb = null;
-  if (Object.keys(patch).length) await admin.from("tools").update(patch).eq("id", id).then(() => null, () => null);
+  if (!Object.keys(patch).length) return;
+  const { error } = await admin.from("tools").update(patch).eq("id", id);
+  // before SQL 0022 the card columns don't exist yet — still save the demo video
+  if (error) { const { tutorial_url: _t, cover_url: _c, ...old } = patch; void _t; void _c; if (Object.keys(old).length) await admin.from("tools").update(old).eq("id", id).then(() => null, () => null); }
 }
 
 export async function savePlan(form: FormData) {

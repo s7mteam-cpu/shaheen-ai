@@ -99,10 +99,11 @@ export function BeatPanel({ spec, setSpec, total }: { spec: MontageSpec; setSpec
 
 type Photo = { id: number; thumb: string; full: string; by: string; alt: string };
 
-/** Free stock photos (Pexels) — saved to our storage and shown at the paused moment. */
+/** Free stock photos (Pixabay / Pexels) — saved to our storage and shown at the paused moment. */
 export function StockSearch({ jobId, onAdd, disabled }: { jobId: string; onAdd: (p: { path: string; url: string; credit: string }) => void; disabled?: boolean }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<Photo[] | null>(null);
+  const [src, setSrc] = useState("Pixabay");
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   async function post<T>(action: string, body: object): Promise<T | null> {
@@ -116,7 +117,7 @@ export function StockSearch({ jobId, onAdd, disabled }: { jobId: string; onAdd: 
   }
   return (
     <div className="flex flex-col gap-2.5 rounded-xl border border-line bg-tint p-3">
-      <form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); const d = await post<{ photos: Photo[] }>("stock", { q }); if (d) setRes(d.photos); }}>
+      <form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); const d = await post<{ photos: Photo[]; source?: string }>("stock", { q }); if (d) { setRes(d.photos); if (d.source) setSrc(d.source); } }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} className="field flex-1" placeholder={L("🔎 دوّر صور مجانية: قهوة، بحر، سيارة…")} />
         <button type="submit" disabled={q.trim().length < 2 || !!busy || disabled} className="btn btn-primary px-4 py-2 text-sm">{busy === "stock" ? L("جاري…") : L("دوّر")}</button>
       </form>
@@ -136,7 +137,7 @@ export function StockSearch({ jobId, onAdd, disabled }: { jobId: string; onAdd: 
         </ul>
       ) : <p className="text-[13px] text-subtle">{L("ما لقينا صور. جرّب كلمة ثانية.")}</p>)}
       {busy === "stockadd" && <p className="text-[13px] text-subtle">{L("جاري إضافة الصورة…")}</p>}
-      <p className="text-[11px] text-subtle">{L("الصور من Pexels ومجانية للاستخدام التجاري.")}</p>
+      <p className="text-[11px] text-subtle">{LT(`الصور من ${src} ومجانية للاستخدام التجاري.`, `Photos from ${src}, free for commercial use.`)}</p>
     </div>
   );
 }
