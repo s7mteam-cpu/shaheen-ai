@@ -9,7 +9,9 @@ export const TITLE_STYLES: [TitleStyle, string][] = [["kinetic", "حركي كب�
 export type Zoom = { at: number; dur: number; scale: number };    // output seconds (video part)
 export type CaptionStyle = "karaoke" | "box" | "minimal" | "pop" | "highlight" | "neon" | "outline";
 export const CAPTION_STYLES: [CaptionStyle, string][] = [["karaoke", "كلمة كلمة ملوّنة"], ["pop", "كلمتين كبار تنط"], ["highlight", "الكلمة بخلفية ملوّنة"], ["box", "داخل صندوق"], ["neon", "نيون مضيء"], ["outline", "إطار عريض"], ["minimal", "بسيطة"]];
-export type CaptionPos = "bottom" | "middle" | "top";
+export type CaptionPos = "bottom" | "lower" | "middle" | "top";
+/** Height of the caption line (0..1 from the top) for each preset; bottom keeps its own padding. */
+export const CAPTION_Y: Record<Exclude<CaptionPos, "bottom">, number> = { top: 0.2, middle: 0.55, lower: 0.68 };
 export type Transition = "none" | "flash" | "zoom" | "whip" | "blur" | "slide" | "spin" | "glitch" | "shake" | "dip";
 export const TRANSITIONS: [Transition, string][] = [["none", "بدون"], ["whip", "سحبة سريعة"], ["slide", "انزلاق"], ["zoom", "زووم سريع"], ["spin", "دوران"], ["glitch", "تشويش رقمي"], ["shake", "هزّة"], ["blur", "تمويه ناعم"], ["flash", "وميض أبيض"], ["dip", "تعتيم أسود"]];
 export type Corner = "tl" | "tr" | "bl" | "br";

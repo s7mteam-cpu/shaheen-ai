@@ -1,7 +1,7 @@
 import React from "react";
 import { AbsoluteFill, Audio, Easing, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { GraphicView, Words, isLight, panelBackground, themeFor } from "./Graphics";
-import { MFPS, captionLines, cutTimes, faceAt, gradeFilter, introFrames, outroFrames, videoSeconds, type Graphic, type MontageSpec, type Seg } from "./montage";
+import { CAPTION_Y, MFPS, captionLines, cutTimes, faceAt, gradeFilter, introFrames, outroFrames, videoSeconds, type Graphic, type MontageSpec, type Seg } from "./montage";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 
@@ -106,7 +106,9 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
   const second = m.subs2?.on ? m.subs2.lines.find((l) => t >= l.s - 0.05 && t <= l.e + 0.25) : undefined;
   if (!line && !second) return null;
   const st = m.captions.style;
-  const free = typeof m.captions.y === "number";
+  const preset = m.captions.pos && m.captions.pos !== "bottom" ? CAPTION_Y[m.captions.pos] : null;
+  const free = typeof m.captions.y === "number" || preset !== null;
+  const fy = typeof m.captions.y === "number" ? m.captions.y : preset ?? 0.75;
   const size = (st === "minimal" ? 52 : st === "pop" ? 104 : st === "outline" ? 78 : 70) * u;
   const appear = line ? (st === "pop" ? Math.min(1.06, spring({ frame: frame - Math.round(line[0].s * MFPS) + 2, fps: MFPS, config: { damping: 10, mass: 0.5 } })) : interpolate(t, [line[0].s - 0.05, line[0].s + 0.1], [0.85, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })) : 1;
   return (
@@ -116,7 +118,7 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
       paddingBottom: m.captions.pos === "middle" || m.captions.pos === "top" ? 0 : "22%",
       paddingTop: m.captions.pos === "top" ? "26%" : m.captions.pos === "middle" ? "18%" : 0,
     }}>
-      <div style={free ? { position: "absolute", left: `${(m.captions.x ?? 0.5) * 100}%`, top: `${(m.captions.y ?? 0.75) * 100}%`, transform: "translate(-50%, -50%)", width: "90%", display: "flex", flexDirection: "column", alignItems: "center" } : { display: "contents" }}>
+      <div style={free ? { position: "absolute", left: `${(typeof m.captions.y === "number" ? m.captions.x ?? 0.5 : 0.5) * 100}%`, top: `${fy * 100}%`, transform: "translate(-50%, -50%)", width: "90%", display: "flex", flexDirection: "column", alignItems: "center" } : { display: "contents" }}>
       {line && <div style={{
         display: "flex", flexWrap: "wrap", justifyContent: "center", columnGap: "0.3em", maxWidth: "86%", textAlign: "center",
         fontSize: size, fontWeight: 800, lineHeight: 1.35, transform: `scale(${appear})`,
@@ -477,15 +479,22 @@ function Board({ m }: { m: MontageSpec }) {
   const line = m.captions.on && busy ? lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.25) : undefined;
   const s = Math.min(W, H) / 1080;
   const capH = H * (H > W ? 0.16 : 0.18);
+  const pos = m.captions.pos ?? "bottom";
+  const boxed = onPic || ((pos === "middle" || pos === "lower") && typeof m.captions.y !== "number"); // dark box → white words
   return (
     <>
-      <Panel m={m} w={W} h={H} area={{ x: 0, y: H * 0.04, w: W, h: H - capH - H * 0.04 }} boost={H > W * 1.3 ? 1.22 : 1} />
+      {/* the caption strip follows «مكان الترجمة»: bottom (default), top, middle — or free placement */}
+      <Panel m={m} w={W} h={H} area={pos === "top" ? { x: 0, y: capH, w: W, h: H - capH - H * 0.04 } : { x: 0, y: H * 0.04, w: W, h: H - capH - H * 0.04 }} boost={H > W * 1.3 ? 1.22 : 1} />
       {line && (
         <div style={typeof m.captions.y === "number"
           ? { position: "absolute", left: `${(m.captions.x ?? 0.5) * 100}%`, top: `${m.captions.y * 100}%`, transform: "translate(-50%, -50%)", width: "92%", display: "flex", justifyContent: "center" }
-          : { position: "absolute", left: 0, right: 0, bottom: H * 0.05, height: capH - H * 0.05, display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${60 * s}px` }}>
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `0 ${16 * s}px`, direction: "rtl", padding: `${12 * s}px ${30 * s}px`, borderRadius: 24 * s, background: onPic ? "rgba(0,0,0,.6)" : light ? "rgba(14,27,44,.06)" : "rgba(255,255,255,.08)" }}>
-            {line.map((w, i) => <span key={i} style={{ fontSize: 50 * s, fontWeight: 700, color: onPic ? (t >= w.s && t <= w.e + 0.05 ? th.accent : "#fff") : t >= w.s && t <= w.e + 0.05 ? th.accent : t > w.e ? th.text : th.soft }}>{w.t}</span>)}
+          : pos === "middle" || pos === "lower"
+            ? { position: "absolute", left: "50%", top: `${CAPTION_Y[pos] * 100}%`, transform: "translate(-50%, -50%)", width: "92%", display: "flex", justifyContent: "center" }
+            : pos === "top"
+              ? { position: "absolute", left: 0, right: 0, top: H * 0.04, height: capH - H * 0.05, display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${60 * s}px` }
+              : { position: "absolute", left: 0, right: 0, bottom: H * 0.05, height: capH - H * 0.05, display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${60 * s}px` }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `0 ${16 * s}px`, direction: "rtl", padding: `${12 * s}px ${30 * s}px`, borderRadius: 24 * s, background: boxed ? "rgba(0,0,0,.6)" : light ? "rgba(14,27,44,.06)" : "rgba(255,255,255,.08)" }}>
+            {line.map((w, i) => <span key={i} style={{ fontSize: 50 * s, fontWeight: 700, color: boxed ? (t >= w.s && t <= w.e + 0.05 ? th.accent : "#fff") : t >= w.s && t <= w.e + 0.05 ? th.accent : t > w.e ? th.text : th.soft }}>{w.t}</span>)}
           </div>
         </div>
       )}

@@ -33,7 +33,7 @@ const Card = ({ title, icon, children }: { title: string; icon?: string; childre
 );
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 const styles: [CaptionStyle, string][] = CAPTION_STYLES;
-const positions: [CaptionPos, string][] = [["bottom", "تحت"], ["middle", "بالوسط"], ["top", "فوق"]];
+const positions: [CaptionPos, string][] = [["top", "فوق"], ["middle", "بالوسط"], ["lower", "تحت الوسط"], ["bottom", "تحت"]];
 const transitions: [Transition, string][] = TRANSITIONS;
 const corners: [Corner, string][] = [["tl", "فوق يسار"], ["tr", "فوق يمين"], ["bl", "تحت يسار"], ["br", "تحت يمين"]];
 const colorLabels = { text: "لون النص", accent: "اللون المميز", bg: "لون البطاقات" } as const;
@@ -310,6 +310,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               {positions.map(([p, l]) => <button key={p} type="button" aria-pressed={typeof spec.captions.y !== "number" && (spec.captions.pos ?? "bottom") === p} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, pos: p, x: null, y: null } })} className="chip">{L(l)}</button>)}
               <button type="button" aria-pressed={typeof spec.captions.y === "number"} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, x: spec.captions.x ?? 0.5, y: spec.captions.y ?? (spec.layout === "board" ? 0.88 : 0.75) } })} className="chip">{L("✋ تحريك حر")}</button>
             </div>
+            {["split", "circle", "corner", "card"].includes(spec.layout ?? "full") && <p className="text-[12px] text-subtle">{L("بهالتقسيمة الكلام يطلع كبير داخل اللوحة نفسها. «فوق/بالوسط/تحت» تشتغل بالشاشة الكاملة واللوحة المتحركة والموشن والفيديو التعليمي.")}</p>}
             {typeof spec.captions.y === "number" && <p className="text-[13px] text-subtle">{L("اسحب المستطيل الذهبي على الفيديو لأي مكان تبيه.")}</p>}
             <Sub>{L("شكل الترجمة")}</Sub>
           </>}

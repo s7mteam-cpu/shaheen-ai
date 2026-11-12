@@ -199,7 +199,7 @@ const PLAN_SYSTEM = () => `أنت مونتير محترف لريلز السوش�
  "colors": {"text":"#FFFFFF","accent":"#hex","bg":"#hex"},
  "font": "Cairo|Tajawal|Almarai|Changa|Amiri",
  "caption_style": "karaoke|pop|highlight|box|neon|outline|minimal",  // pop: كلمتين كبار تنط (ستايل ريلز المشاهير) | highlight: الكلمة الحالية بخلفية ملوّنة | neon: مضيء | outline: إطار أسود عريض
- "caption_pos": "bottom|middle|top",  // مكان الترجمة، الافتراضي bottom
+ "caption_pos": "bottom|lower|middle|top",  // مكان الترجمة، الافتراضي bottom
  "transition": "none|whip|slide|zoom|spin|glitch|shake|blur|flash|dip",  // انتقال عند كل قطع: whip سحبة سريعة، slide انزلاق، spin دوران، glitch تشويش رقمي (تقني وشبابي)، shake هزّة (حماس)، blur تمويه ناعم، flash وميض، dip تعتيم أسود (هادي وفخم)
  "drift": true,                        // حركة تكبير بطيئة سينمائية على كل لقطة (ممتازة للقطات الصامتة والمنتجات)
  "vignette": false,                    // حواف داكنة خفيفة (للستايل السينمائي والفاخر)
@@ -439,7 +439,7 @@ async function analyzeMontage(job) {
       colors: brandColors.length
         ? { text: "#FFFFFF", accent: brandColors[0], bg: brandColors[1] ?? hex(plan?.colors?.bg, "#0B2A4A") }
         : { text: hex(plan?.colors?.text, "#FFFFFF"), accent: hex(plan?.colors?.accent, "#C9A45C"), bg: hex(plan?.colors?.bg, "#0B2A4A") },
-      captions: { on: job.input.captions !== false, style: ["karaoke", "box", "minimal", "pop", "highlight", "neon", "outline"].includes(plan?.caption_style) ? plan.caption_style : "karaoke", pos: ["bottom", "middle", "top"].includes(plan?.caption_pos) ? plan.caption_pos : "bottom" },
+      captions: { on: job.input.captions !== false, style: ["karaoke", "box", "minimal", "pop", "highlight", "neon", "outline"].includes(plan?.caption_style) ? plan.caption_style : "karaoke", pos: ["bottom", "lower", "middle", "top"].includes(plan?.caption_pos) ? plan.caption_pos : "bottom" },
       segments, words,
       titles: place(plan?.titles, (x, at) => ({
         text: String(x.text ?? "").slice(0, 60), at, dur: clamp(Number(x.dur) || 2.5, 1.2, 5), pos: x.pos === "center" || (!speech && !vo) ? "center" : "top",

@@ -1522,4 +1522,6 @@ export const EN: Record<string, string> = {
   "قصيرة": "Short",
   "بدون سكتات": "No pauses",
   "ملفات التلاوة مقصوصة آية آية، فنرجّع النَّفَس الطبيعي بين الآيات. «بدون سكتات» يخلّي الآيات ورا بعض على طول. الوقفات داخل الآية نفسها ما تنقص أبداً.": "Recitation files are cut ayah by ayah, so we put back the natural breath between ayat. «No pauses» plays the ayat back to back. Pauses inside an ayah are never cut.",
+  "بهالتقسيمة الكلام يطلع كبير داخل اللوحة نفسها. «فوق/بالوسط/تحت» تشتغل بالشاشة الكاملة واللوحة المتحركة والموشن والفيديو التعليمي.": "In this layout the words appear large inside the panel itself. «Top/Middle/Bottom» work in full screen, dynamic, motion and lesson videos.",
+  "تحت الوسط": "Below middle",
 };
