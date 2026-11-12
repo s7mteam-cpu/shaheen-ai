@@ -70,7 +70,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     board: ok(BOARD_STYLES, s.board) ?? base.board,
     // pictures must be the customer's own (or already in this project)
     graphics: cleanGraphics(Array.isArray(s.graphics) ? s.graphics : base.graphics ?? [], len)
-      .map((g) => (g.img && !g.img.startsWith(`${userId}/`) && !(base.graphics ?? []).some((x) => x.img === g.img) ? { ...g, img: undefined, url: undefined } : g)),
+      .map((g) => (g.img && (!g.img.startsWith(`${userId}/`) || g.img.includes("..")) && !(base.graphics ?? []).some((x) => x.img === g.img) ? { ...g, img: undefined, url: undefined } : g)),
     illus: ILLUS_STYLES.some((x) => x[0] === s.illus) ? s.illus : base.illus,
     zooms: (Array.isArray(s.zooms) ? s.zooms : base.zooms).slice(0, 15).map((z) => ({ at: clamp(Number(z.at) || 0, 0, len), dur: clamp(Number(z.dur) || 2, 0.5, 6), scale: clamp(Number(z.scale) || 1.15, 1.02, 1.35) })),
     intro: { on: !!(s.intro?.on ?? base.intro.on), title: String(s.intro?.title ?? base.intro.title).slice(0, 60), subtitle: String(s.intro?.subtitle ?? base.intro.subtitle).slice(0, 60) },
@@ -97,7 +97,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     sfx: typeof s.sfx === "boolean" ? s.sfx : base.sfx ?? false,
     progress: typeof s.progress === "boolean" ? s.progress : base.progress ?? false,
     broll: (Array.isArray(s.broll) ? s.broll : base.broll ?? [])
-      .filter((b) => typeof b.path === "string" && (b.path.startsWith(`${userId}/`) || (base.broll ?? []).some((x) => x.path === b.path)))
+      .filter((b) => typeof b.path === "string" && !b.path.includes("..") && (b.path.startsWith(`${userId}/`) || (base.broll ?? []).some((x) => x.path === b.path)))
       .slice(0, 12).map((b) => ({
         path: b.path, url: "", at: clamp(Number(b.at) || 0, 0, Math.max(0, len - 1)), dur: clamp(Number(b.dur) || 2.5, 1, 6),
         ...(b.bucket === "results" ? { bucket: "results" as const } : {}), ...(b.cut ? { cut: true } : {}), ...(b.credit ? { credit: String(b.credit).slice(0, 60) } : {}),

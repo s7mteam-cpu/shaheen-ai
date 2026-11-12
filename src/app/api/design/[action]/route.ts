@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeFetch } from "@/lib/server/safeFetch";
 import { guardContent } from "@/lib/server/moderation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
@@ -59,7 +60,8 @@ type Raw = Partial<DesignSpec> & Record<string, unknown> & { slides?: (Record<st
 async function siteText(url?: string | null) {
   if (!url || !/^https?:\/\//.test(url)) return "";
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "Mozilla/5.0 ShaheenBot" } });
+    const r = await safeFetch(url, { headers: { "user-agent": "Mozilla/5.0 ShaheenBot" } });
+    if (!r?.ok || !(r.headers.get("content-type") ?? "").includes("text/html")) return "";
     const html = (await r.text()).slice(0, 300_000);
     const title = html.match(/<title[^>]*>([^<]*)/i)?.[1] ?? "";
     const desc = html.match(/name=["']description["'][^>]*content=["']([^"']*)/i)?.[1] ?? "";
