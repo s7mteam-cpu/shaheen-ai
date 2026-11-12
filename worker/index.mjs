@@ -564,7 +564,7 @@ async function renderMontage(job) {
   }
   let music = spec.music ?? null;
   if (music?.path) {
-    const s = await db.storage.from("results").createSignedUrl(music.path, 60 * 60 * 3);
+    const s = await db.storage.from(music.bucket === "uploads" ? "uploads" : "results").createSignedUrl(music.path, 60 * 60 * 3);
     music = { ...music, url: s.data?.signedUrl ?? "" };
   }
   let vo = spec.vo ?? null;

@@ -100,7 +100,9 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
   const brollUrls = brollPaths.length ? (await createAdminClient().storage.from("uploads").createSignedUrls(brollPaths, 60 * 60 * 6)).data ?? [] : [];
   const broll = (spec.broll ?? []).map((b, i) => ({ ...b, url: brollUrls[i]?.signedUrl ?? "" }));
   const sign = async (p?: string) => (p ? (await createAdminClient().storage.from("results").createSignedUrl(p, 60 * 60 * 6)).data?.signedUrl ?? "" : "");
-  const music = spec.music?.path ? { ...spec.music, url: await sign(spec.music.path) } : spec.music ?? null;
+  const music = spec.music?.path
+    ? { ...spec.music, url: spec.music.bucket === "uploads" ? (await createAdminClient().storage.from("uploads").createSignedUrl(spec.music.path, 60 * 60 * 6)).data?.signedUrl ?? "" : await sign(spec.music.path) }
+    : spec.music ?? null;
   const vo = spec.vo ? { ...spec.vo, url: await sign(spec.vo.path) } : null;
   const pics = (spec.graphics ?? []).filter((g) => g.img).map((g) => g.img!);
   const picUrls = pics.length ? (await createAdminClient().storage.from("results").createSignedUrls(pics, 60 * 60 * 6)).data ?? [] : [];

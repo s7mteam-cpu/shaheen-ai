@@ -30,7 +30,7 @@ export type MontageSpec = {
   zooms: Zoom[];
   intro: { on: boolean; title: string; subtitle: string };
   outro: { on: boolean; title: string; subtitle: string };
-  music?: { url: string; name: string; path?: string } | null;
+  music?: Music | null;
   // Pro touches (optional so older drafts keep working)
   transition?: Transition;                                       // at every cut / clip change
   logo?: { path: string; url: string; on: boolean; pos: Corner; box?: { x: number; y: number; w: number } | null } | null;
@@ -241,4 +241,34 @@ export function setMontageText(m: MontageSpec, key: string, value: string): Mont
   if (key.startsWith("titles.")) { const i = Number(key.split(".")[1]); return { ...m, titles: m.titles.map((t, j) => (j === i ? { ...t, text: value } : t)) }; }
   const [part, field] = key.split(".") as ["intro" | "outro", "title" | "subtitle"];
   return { ...m, [part]: { ...m[part], [field]: value } };
+}
+
+/** Background track + how it sits on the timeline (seconds). Older drafts only have url/name/path. */
+export type Music = {
+  url: string; name: string; path?: string;
+  bucket?: "uploads" | "results";   // where `path` lives (phone uploads go to "uploads")
+  own?: boolean;                     // uploaded by the customer from their phone
+  dur?: number | null;               // length of the source file, when known
+  start?: number;                    // trim: skip this much from the file start
+  end?: number | null;               // trim: stop at this point of the file (null = to the end)
+  at?: number;                       // where it starts in the final video
+  volume?: number | null;            // 0..1 (null = automatic ducking under speech)
+  fadeIn?: number;
+  fadeOut?: number;
+};
+
+const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+
+/** Keeps only sane numbers; never trusts url/path here (the server checks ownership). */
+export function cleanMusicTiming(m: Partial<Music>): Pick<Music, "dur" | "start" | "end" | "at" | "volume" | "fadeIn" | "fadeOut"> {
+  const dur = m.dur == null ? null : num(m.dur, 0, 3600, 0) || null;
+  const start = num(m.start, 0, dur ?? 3600, 0);
+  const end = m.end == null ? null : num(m.end, start + 0.5, dur ?? 3600, dur ?? start + 30);
+  return {
+    dur, start, end,
+    at: num(m.at, 0, 3600, 0),
+    volume: m.volume == null ? null : num(m.volume, 0, 1, 0.3),
+    fadeIn: num(m.fadeIn, 0, 10, 0),
+    fadeOut: num(m.fadeOut, 0, 10, 0),
+  };
 }

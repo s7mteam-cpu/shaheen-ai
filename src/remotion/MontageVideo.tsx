@@ -555,8 +555,31 @@ export function MontageVideo(m: MontageSpec) {
       </Sequence>
       {outro > 0 && <Sequence from={intro + vid} durationInFrames={outro}><Card title={m.outro.title} subtitle={m.outro.subtitle} m={m} u={u} len={outro} /></Sequence>}
       {/* music ducks under any voice: loud only for silent footage without a voice-over */}
-      {m.music?.url && <Audio src={m.music.url} volume={m.vo?.on ? 0.1 : (m.videoVolume ?? 1) < 0.5 ? 0.5 : 0.12} />}
+      {m.music?.url && <MusicTrack m={m} total={intro + vid + outro} />}
       <ProgressBar m={m} u={u} frames={intro + vid + outro} />
     </AbsoluteFill>
+  );
+}
+
+/** Background music: trimmed (start/end of the file), placed (at), with volume + fades.
+ *  Without a chosen volume it ducks under any voice: loud only for silent footage. */
+function MusicTrack({ m, total }: { m: MontageSpec; total: number }) {
+  const mu = m.music!;
+  const from = Math.min(total - 1, Math.max(0, Math.round((mu.at ?? 0) * MFPS)));
+  const trim = Math.max(0, Math.round((mu.start ?? 0) * MFPS));
+  const fileLen = mu.end != null ? Math.round(mu.end * MFPS) - trim : Infinity;
+  const len = Math.max(1, Math.min(total - from, fileLen));
+  const base = mu.volume ?? (m.vo?.on ? 0.1 : (m.videoVolume ?? 1) < 0.5 ? 0.5 : 0.12);
+  const fi = Math.round((mu.fadeIn ?? 0) * MFPS), fo = Math.round((mu.fadeOut ?? 0) * MFPS);
+  const vol = (f: number) => {
+    let v = base;
+    if (fi > 0) v *= Math.min(1, f / fi);
+    if (fo > 0) v *= Math.min(1, Math.max(0, (len - f) / fo));
+    return v;
+  };
+  return (
+    <Sequence from={from} durationInFrames={len} layout="none">
+      <Audio src={mu.url} trimBefore={trim || undefined} volume={fi || fo ? vol : base} />
+    </Sequence>
   );
 }

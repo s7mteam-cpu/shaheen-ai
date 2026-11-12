@@ -3,7 +3,7 @@ import { MontageStudio } from "@/components/app/MontageStudio";
 import type { MontageSpec } from "@/remotion/montage";
 
 // Local design preview only — never served in production.
-export default async function Page({ searchParams }: { searchParams: Promise<{ split?: string; dark?: string; layout?: string; cap?: string; tr?: string; board?: string; edu?: string; p3?: string; p4?: string; p5?: string; cy?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ split?: string; dark?: string; layout?: string; cap?: string; tr?: string; board?: string; edu?: string; p3?: string; p4?: string; p5?: string; cy?: string; mu?: string }> }) {
   const sp = await searchParams;
   if (process.env.NODE_ENV === "production") notFound();
   const words: MontageSpec["words"] = [];
@@ -75,7 +75,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       { kind: "donut", at: 11.2, dur: 0.6, value: 75, text: "من العملاء راضين" },
       { kind: "headline", at: 11.9, dur: 0.6, text: "السر هو الثقة", hl: "الثقة", fx: "circle" },
     ],
-    intro: { on: false, title: "محل الديرة", subtitle: "نصيحة اليوم" }, outro: { on: true, title: "تابعنا للمزيد", subtitle: "@aldeira.kw" }, music: null,
+    intro: { on: false, title: "محل الديرة", subtitle: "نصيحة اليوم" }, outro: { on: true, title: "تابعنا للمزيد", subtitle: "@aldeira.kw" }, music: sp.mu ? { url: "http://localhost:8765/tone.mp3", name: "صوت من جوالي", own: true, bucket: "uploads", path: "x/t.mp3", start: 2, end: 8, at: 1.5, volume: 0.6, fadeIn: 1, fadeOut: 0 } : null,
   } as unknown as MontageSpec;
   return <main dir="rtl" className="mx-auto max-w-6xl p-4 sm:p-6"><MontageStudio jobId="demo" initial={spec} editCost={3} tracks={[]} /></main>;
 }

@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
 import { ILLUS_STYLES } from "@/remotion/styles";
 import { CaptionDrag } from "@/components/app/CaptionDrag";
+import { MusicEditor } from "@/components/app/MusicEditor";
 import { BOARD_STYLES, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
@@ -61,7 +62,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         const d = JSON.parse(s) as MontageSpec;
         const urls = new Map((initial.broll ?? []).map((b) => [b.path, b.url]));
         // links expire: take fresh ones from the server, keep the customer's edits
-        setSpec({ ...d, src: initial.src, logo: d.logo ? (initial.logo && initial.logo.path === d.logo.path ? { ...d.logo, url: initial.logo.url } : d.logo) : initial.logo, broll: (d.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? b.url })), vo: initial.vo ? { ...initial.vo, on: d.vo?.on ?? initial.vo.on } : null, music: d.music?.path && initial.music?.path === d.music.path ? initial.music : d.music });
+        setSpec({ ...d, src: initial.src, logo: d.logo ? (initial.logo && initial.logo.path === d.logo.path ? { ...d.logo, url: initial.logo.url } : d.logo) : initial.logo, broll: (d.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? b.url })), vo: initial.vo ? { ...initial.vo, on: d.vo?.on ?? initial.vo.on } : null, music: d.music?.path && initial.music?.path === d.music.path ? { ...d.music, url: initial.music.url } : d.music });
       }
     } catch {}
   }, [key, initial.src, initial.logo, initial.broll, initial.music, initial.vo]);
@@ -556,7 +557,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         <Card title={L("تعديل متقدّم (بالوصف)")} icon="✨">
           <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} className="field" placeholder={L("مثال: زيد عناوين للأفكار الأساسية، وكبّر أكثر على الجمل القوية، وخلّ الألوان أحمر وأسود")} />
           <button type="button" disabled={!instruction.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
-            onClick={async () => { const d = await call<{ spec: MontageSpec }>("revise", { spec: { ...spec, src: "", words: [], face: [] }, instruction }); if (d) { const urls = new Map((spec.broll ?? []).map((b) => [b.path, b.url])); setSpec({ ...d.spec, src: spec.src, words: spec.words, segments: spec.segments, face: spec.face, logo: d.spec.logo ? { ...d.spec.logo, url: spec.logo?.url ?? "" } : null, broll: (d.spec.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? "" })), subs2: spec.subs2, vo: spec.vo, music: d.spec.music?.path && spec.music?.path === d.spec.music.path ? spec.music : d.spec.music }); setInstruction(""); } }}>
+            onClick={async () => { const d = await call<{ spec: MontageSpec }>("revise", { spec: { ...spec, src: "", words: [], face: [] }, instruction }); if (d) { const urls = new Map((spec.broll ?? []).map((b) => [b.path, b.url])); setSpec({ ...d.spec, src: spec.src, words: spec.words, segments: spec.segments, face: spec.face, logo: d.spec.logo ? { ...d.spec.logo, url: spec.logo?.url ?? "" } : null, broll: (d.spec.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? "" })), subs2: spec.subs2, vo: spec.vo, music: d.spec.music?.path && spec.music?.path === d.spec.music.path ? { ...d.spec.music, url: spec.music.url } : d.spec.music }); setInstruction(""); } }}>
             {busy === "revise" ? L("جاري التعديل…") : LT(`طبّق التعديل (${editCost} ريشة)`, `Apply edit (${editCost} credits)`)}
           </button>
           <p className="text-[12px] text-subtle">{L("يعدّل العناوين والتكبير والإيموجي والانتقالات والمؤثرات والألوان والخط والبطاقات ومكان الترجمة. القصّ نفسه يبقى مثل ما هو.")}</p>
@@ -581,7 +582,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             onClick={async () => { const d = await call<{ url: string }>("music", { prompt: musicPrompt, seconds }); if (d) setSpec({ ...spec, music: { url: d.url, name: musicPrompt } }); }}>
             {busy === "music" ? L("جاري التأليف…") : LT(`✨ ألّف موسيقى (${editCost} ريشة)`, `✨ Compose music (${editCost} credits)`)}
           </button>
-          {spec.music && <p className="text-[13px] text-subtle">{L("الموسيقى الحالية:")} {L(spec.music.name)} · <button type="button" className="text-red-700 underline" onClick={() => setSpec({ ...spec, music: null })}>{L("إزالة")}</button></p>}
+          <MusicEditor music={spec.music} onChange={(mu) => setSpec((sp) => ({ ...sp, music: mu }))} total={totalFrames(spec) / MFPS} playhead={() => (player.current?.getCurrentFrame() ?? 0) / MFPS} disabled={!!busy} />
         </Card>
 
         {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}

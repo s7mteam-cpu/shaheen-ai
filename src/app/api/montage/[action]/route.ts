@@ -12,7 +12,7 @@ import { packBrief, packById } from "@/remotion/packs";
 import { industryById } from "@/design/industries";
 import { illustrate, illustrateScenes } from "@/lib/server/illustrate";
 import { signedResultUrls } from "@/lib/providers/storage";
-import { BOARD_STYLES, CAPTION_STYLES, GRADES, ICONS, LAYOUTS, TITLE_STYLES, TRANSITIONS, captionLines, cleanGraphics, videoSeconds, type MontageSpec } from "@/remotion/montage";
+import { BOARD_STYLES, CAPTION_STYLES, GRADES, ICONS, LAYOUTS, TITLE_STYLES, TRANSITIONS, captionLines, cleanGraphics, cleanMusicTiming, videoSeconds, type MontageSpec, type Music } from "@/remotion/montage";
 
 const ok = <T extends string>(list: [T, string][], v: unknown): T | undefined => list.find((x) => x[0] === v)?.[0];
 
@@ -26,6 +26,19 @@ type Body = { jobId?: string; spec?: MontageSpec; instruction?: string; prompt?:
 
 
 /** Only the parts the customer may change; cuts, words and the source stay as the worker planned them. */
+/** Music from the studio: timing numbers cleaned; a phone upload must sit in the user's own folder. */
+function cleanMusic(m: Partial<Music> | null | undefined, userId: string): Music | null {
+  if (!m || typeof m !== "object") return null;
+  const name = String(m.name ?? "").slice(0, 80) || "موسيقى";
+  const t = cleanMusicTiming(m);
+  if (m.bucket === "uploads") {
+    const path = String(m.path ?? "");
+    if (!userId || !path.startsWith(`${userId}/`) || path.includes("..")) return null;
+    return { url: String(m.url ?? ""), name, path, bucket: "uploads", own: true, ...t };
+  }
+  return { url: String(m.url ?? ""), name, ...(m.path ? { path: String(m.path) } : {}), ...t };
+}
+
 function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): MontageSpec {
   const len = videoSeconds(base);
   return {
@@ -58,7 +71,9 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     zooms: (Array.isArray(s.zooms) ? s.zooms : base.zooms).slice(0, 15).map((z) => ({ at: clamp(Number(z.at) || 0, 0, len), dur: clamp(Number(z.dur) || 2, 0.5, 6), scale: clamp(Number(z.scale) || 1.15, 1.02, 1.35) })),
     intro: { on: !!(s.intro?.on ?? base.intro.on), title: String(s.intro?.title ?? base.intro.title).slice(0, 60), subtitle: String(s.intro?.subtitle ?? base.intro.subtitle).slice(0, 60) },
     outro: { on: !!(s.outro?.on ?? base.outro.on), title: String(s.outro?.title ?? base.outro.title).slice(0, 60), subtitle: String(s.outro?.subtitle ?? base.outro.subtitle).slice(0, 60) },
-    music: s.music === undefined ? base.music ?? null : s.music === null ? null : base.music?.path && s.music.name === base.music.name ? { ...base.music, url: "" } : s.music,
+    music: s.music === undefined ? base.music ?? null : s.music === null ? null
+      : s.music.bucket === "uploads" ? cleanMusic(s.music, userId)
+      : base.music?.path && s.music.name === base.music.name ? { ...base.music, url: "", ...cleanMusicTiming(s.music) } : cleanMusic(s.music, userId),
     face: base.face ?? [],
     track: typeof s.track === "boolean" ? s.track && (base.face ?? []).length > 0 : base.track ?? false,
     grade: ok(GRADES, s.grade) ?? base.grade ?? "none",
@@ -244,7 +259,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     const own = (u?: string) => !!u && /\/storage\/v1\/object\/sign\/results\//.test(u) && u.includes(`/${user.id}/`);
     const lib = await admin.from("site_content").select("value").eq("key", "motion_music").maybeSingle();
     const tracks = ((lib.data?.value as { items?: { url: string }[] })?.items ?? []).map((t) => t.url);
-    spec.music = body.spec.music && (own(body.spec.music.url) || tracks.includes(body.spec.music.url)) ? body.spec.music : null;
+    const m = cleanMusic(body.spec.music, user.id);
+    // phone uploads are re-signed by the renderer from their path; others must be our own result or a library track
+    spec.music = m && (m.bucket === "uploads" || own(m.url) || tracks.includes(m.url)) ? m : null;
     await admin.from("jobs").update({ status: "queued", progress: 0, input: { ...job.input, spec: { ...spec, src: "" }, render: true }, updated_at: new Date().toISOString() }).eq("id", job.id);
     return NextResponse.json({ ok: true });
   }
