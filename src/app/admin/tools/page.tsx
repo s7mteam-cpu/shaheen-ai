@@ -5,6 +5,7 @@ import { providerInfo, toolProviders, type ProviderId } from "@/lib/providers/re
 import { getL } from "@/lib/server/lang";
 import { demoThumb } from "@/lib/video";
 import { DemoField } from "@/components/admin/DemoField";
+import { CoversButton } from "@/components/admin/CoversButton";
 
 export const dynamic = "force-dynamic";
 const icons = ["sparkles", "camera", "megaphone", "film", "user", "scissors", "mic", "waves"];
@@ -16,6 +17,11 @@ export default async function ToolsAdmin() {
   return (
     <div className="flex flex-col gap-5">
       <div><h1 className="text-[26px] font-bold text-navy-900">{L("الأدوات والأسعار")}</h1><p className="mt-1 text-sm text-subtle">{L("السعر بالريشة لكل وحدة. الريشة الواحدة ≈ 0.06 د.ك في باقاتك الحالية. لكل أداة تختار المزوّد اللي يشغّلها — القائمة تعرض فقط المزودين اللي يقدرون على هذي المهمة. لما تغيّر المزوّد، فرّغ خانة النموذج ليستخدم الافتراضي، وتأكد أن مفتاح المزوّد موجود في إعدادات الاستضافة.")}</p></div>
+      <div className="card flex flex-col gap-2 p-5">
+        <p className="font-bold text-navy-900">{L("📸 صور واقعية لبطاقات الأدوات")}</p>
+        <p className="text-[13px] text-subtle">{L("ترسم صور واقعية لكل أداة بالذكاء الاصطناعي (نفس مزوّد أداة «إنشاء صورة»، تقريباً سنتات بسيطة للصورة) وتنحفظ صورة للبطاقة. تقدر بعدين تغيّر أي صورة برفع صورتك.")}</p>
+        <CoversButton />
+      </div>
       {tools.map((t) => (
         <form key={t.id} action={saveTool} className="card grid gap-4 p-5 md:grid-cols-2">
           <input type="hidden" name="id" value={t.id} />
@@ -63,6 +69,7 @@ export default async function ToolsAdmin() {
                 <label className="flex flex-col gap-1.5 text-sm"><span className="label">{L("الصورة التوضيحية (مقاس 4:3)")}</span>
                   <input name="cover_file" type="file" accept="image/png,image/jpeg,image/webp" className="text-sm" />
                   <span className="text-[12px] text-subtle">{L("إذا ما رفعت صورة، تطلع الصورة التوضيحية الجاهزة اللي بالمعاينة. ارفع صورتك لتستبدلها.")}</span></label>
+                <CoversButton id={t.id} />
                 {t.cover_url && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="cover_clear" className="h-4 w-4 accent-red-700" />{L("احذف الصورة التوضيحية")}</label>}
                 <span className="label">{L("فيديو «علّمني الطريقة»")}</span>
                 <DemoField tool={t.id} initial={t.tutorial_url ?? ""} name="tutorial_url" />

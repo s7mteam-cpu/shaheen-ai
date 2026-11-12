@@ -1524,4 +1524,10 @@ export const EN: Record<string, string> = {
   "ملفات التلاوة مقصوصة آية آية، فنرجّع النَّفَس الطبيعي بين الآيات. «بدون سكتات» يخلّي الآيات ورا بعض على طول. الوقفات داخل الآية نفسها ما تنقص أبداً.": "Recitation files are cut ayah by ayah, so we put back the natural breath between ayat. «No pauses» plays the ayat back to back. Pauses inside an ayah are never cut.",
   "بهالتقسيمة الكلام يطلع كبير داخل اللوحة نفسها. «فوق/بالوسط/تحت» تشتغل بالشاشة الكاملة واللوحة المتحركة والموشن والفيديو التعليمي.": "In this layout the words appear large inside the panel itself. «Top/Middle/Bottom» work in full screen, dynamic, motion and lesson videos.",
   "تحت الوسط": "Below middle",
+  "جاري التوليد… (لين دقيقتين)": "Generating… (up to two minutes)",
+  "✨ ولّد صورة واقعية": "✨ Generate a realistic picture",
+  "✨ ولّد صور واقعية لكل الأدوات": "✨ Generate realistic pictures for all tools",
+  "استبدل الصور اللي رفعتها بعد": "Also replace pictures I uploaded",
+  "📸 صور واقعية لبطاقات الأدوات": "📸 Realistic pictures for tool cards",
+  "ترسم صور واقعية لكل أداة بالذكاء الاصطناعي (نفس مزوّد أداة «إنشاء صورة»، تقريباً سنتات بسيطة للصورة) وتنحفظ صورة للبطاقة. تقدر بعدين تغيّر أي صورة برفع صورتك.": "Draws a realistic picture for each tool with AI (same provider as the «AI image» tool, a few cents per picture) and saves it as the card picture. You can still replace any picture by uploading your own.",
 };
