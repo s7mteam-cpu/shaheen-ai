@@ -1516,4 +1516,10 @@ export const EN: Record<string, string> = {
   "مربع": "Square",
   "عرضي (يوتيوب)": "Wide (YouTube)",
   "إذا ما رفعت صورة، تطلع الصورة التوضيحية الجاهزة اللي بالمعاينة. ارفع صورتك لتستبدلها.": "Without your own picture, the ready illustration shown here is used. Upload a picture to replace it.",
+  "السكتة بين الآيات": "Pause between ayat",
+  "طبيعية مثل التلاوة": "Natural, like the recitation",
+  "أطول (هادئة)": "Longer (calm)",
+  "قصيرة": "Short",
+  "بدون سكتات": "No pauses",
+  "ملفات التلاوة مقصوصة آية آية، فنرجّع النَّفَس الطبيعي بين الآيات. «بدون سكتات» يخلّي الآيات ورا بعض على طول. الوقفات داخل الآية نفسها ما تنقص أبداً.": "Recitation files are cut ayah by ayah, so we put back the natural breath between ayat. «No pauses» plays the ayat back to back. Pauses inside an ayah are never cut.",
 };

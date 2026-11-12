@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Icon } from "@/components/Icon";
+import { ToolCard } from "@/components/app/ToolCard";
 import { WorkCard } from "@/components/app/WorkCard";
 import { getToolsL } from "@/lib/data";
 import { listWorks } from "@/lib/works";
@@ -14,17 +14,10 @@ export default async function Dashboard() {
   return (
     <div className="flex flex-col gap-8">
       <h2 className="sr-only">{L("الرئيسية")}</h2>
-      <section aria-label={L("الأدوات")} className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {tools.map((t) => (
-          <Link key={t.id} href={`/app/tools/${t.id}`} className="card group flex items-center gap-4 rounded-2xl p-5 transition hover:-translate-y-0.5 hover:border-gold-500">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-navy-800 text-gold-500"><Icon name={t.icon} size={22} /></span>
-            <span className="flex min-w-0 flex-col gap-1">
-              <span className="text-[16px] font-bold text-navy-900">{t.name}</span>
-              <span className="text-[13px] text-subtle">{t.credit_cost} {L("ريشة /")} {t.cost_unit}</span>
-            </span>
-            <span aria-hidden className="ms-auto text-navy-700 transition group-hover:-translate-x-1">←</span>
-          </Link>
-        ))}
+      <section aria-label={L("الأدوات")}>
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+          {tools.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} /></li>)}
+        </ul>
       </section>
 
       {works.length > 0 && (

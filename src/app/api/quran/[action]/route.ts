@@ -104,7 +104,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     const bg = bgIn?.path && String(bgIn.path).startsWith(`${user.id}/`) && !String(bgIn.path).includes("..")
       ? { kind: bgIn.kind === "image" ? "image" as const : "video" as const, url: "", path: String(bgIn.path), bucket: bgIn.bucket === "uploads" ? "uploads" as const : "results" as const }
       : null;
-    const gap = clamp(Number(s.gap) || 0.4, 0, 2);
+    const gap = clamp(Number.isFinite(Number(s.gap)) ? Number(s.gap) : 1, 0, 2);
     const spec: QuranSpec = {
       aspect: s.aspect === "16:9" || s.aspect === "1:1" ? s.aspect : "9:16",
       surah, from, to, reciter: rec.id, reciterName: rec.name, folder: rec.folder, ayahs, bg,

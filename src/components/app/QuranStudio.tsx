@@ -19,7 +19,7 @@ type BgHit = { id: number; thumb: string; preview: string; full: string; by: str
 const START: QuranSpec = {
   aspect: "9:16", surah: 1, from: 1, to: 7, reciter: "dosari", reciterName: "ياسر الدوسري", folder: "", ayahs: [], bg: null,
   dim: 0.35, style: "classic", font: "Amiri Quran", textColor: "#FFFFFF", accent: "#C9A45C",
-  showSurah: true, showNumbers: true, showTranslation: false, showReciter: true, gap: 0.4, quality: "1080",
+  showSurah: true, showNumbers: true, showTranslation: false, showReciter: true, gap: 1, quality: "1080",
 };
 
 /** Reads the length of each ayah's recitation in the browser (the worker measures it again exactly). */
@@ -203,6 +203,13 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
           <h2 className="text-[18px] font-bold text-navy-900">🎨 {L("الشكل")}</h2>
           <div className="flex flex-wrap gap-2">{Q_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={spec.style === v} onClick={() => set({ style: v })} className="chip">{L(l)}</button>)}</div>
           <div className="flex flex-wrap gap-2">{([["9:16", "طولي (ريلز)"], ["1:1", "مربع"], ["16:9", "عرضي (يوتيوب)"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={spec.aspect === v} onClick={() => set({ aspect: v })} className="chip">{L(l)}</button>)}</div>
+          <div className="flex flex-col gap-1.5">
+            <span className="label">{L("السكتة بين الآيات")}</span>
+            <div className="flex flex-wrap gap-2">
+              {([[1, "طبيعية مثل التلاوة"], [1.6, "أطول (هادئة)"], [0.5, "قصيرة"], [0.1, "بدون سكتات"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={spec.gap === v} onClick={() => set({ gap: v })} className="chip">{L(l)}</button>)}
+            </div>
+            <p className="text-[12px] text-subtle">{L("ملفات التلاوة مقصوصة آية آية، فنرجّع النَّفَس الطبيعي بين الآيات. «بدون سكتات» يخلّي الآيات ورا بعض على طول. الوقفات داخل الآية نفسها ما تنقص أبداً.")}</p>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5"><span className="label">{L("الخط")}</span>
               <select value={spec.font} onChange={(e) => set({ font: e.target.value })} className="field">{Q_FONTS.map(([v, l]) => <option key={v} value={v}>{L(l)}</option>)}</select></label>

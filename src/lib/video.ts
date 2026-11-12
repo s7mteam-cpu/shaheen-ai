@@ -11,3 +11,10 @@ export function demoThumb(t: { demo_url?: string | null; demo_thumb?: string | n
   const id = youtubeId(t.demo_url);
   return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
 }
+
+/** Ready illustrations in /public/covers (the admin's own picture always wins). */
+const COVERS = ["post", "image", "carousel", "motion-video", "lesson-video", "quran-video", "video-editing", "product-video", "avatar-video", "ad-design", "voice", "nasheed", "product-photo"];
+/** The picture on a tool card: the admin's upload → our ready illustration → the demo video's thumbnail. */
+export function toolCover(t: { id: string; cover_url?: string | null; demo_url?: string | null; demo_thumb?: string | null }): string | null {
+  return t.cover_url || (COVERS.includes(t.id) ? `/covers/${t.id}.svg` : null) || demoThumb(t);
+}

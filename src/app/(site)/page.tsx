@@ -3,7 +3,7 @@ import { Icon } from "@/components/Icon";
 import { Circuit } from "@/components/Circuit";
 import { ManagedService } from "@/components/site/ManagedService";
 import { DemoVideo } from "@/components/DemoVideo";
-import { demoThumb } from "@/lib/video";
+import { toolCover } from "@/lib/video";
 import { getContent, getGallery, getPlans, getSessionProfile, getTools } from "@/lib/data";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
@@ -102,14 +102,19 @@ export default async function Home() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {tools.map((t) => (
-              <div key={t.id} className="card flex gap-4 p-6 transition hover:-translate-y-0.5 hover:border-gold-500">
-                <a href="#pricing" className="flex min-w-0 flex-1 flex-col gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-800 text-gold-500"><Icon name={t.icon} size={24} /></span>
+              <div key={t.id} className="card flex flex-col overflow-hidden rounded-2xl p-0 transition hover:-translate-y-0.5 hover:border-gold-500">
+                <div className="relative aspect-[4/3] overflow-hidden bg-navy-800">
+                  {toolCover(t)
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={toolCover(t)!} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    : <span className="absolute inset-0 flex items-center justify-center text-gold-500"><Icon name={t.icon} size={40} /></span>}
+                  {t.demo_url && <span className="absolute bottom-3 end-3"><DemoVideo url={t.demo_url} title={t.name} variant="button" label={T("شاهد مثال", "Watch example")} className="btn gap-2 rounded-full bg-white/95 px-4 py-2 text-[13px] font-bold text-navy-900 shadow-lg" /></span>}
+                </div>
+                <a href="#pricing" className="flex min-w-0 flex-1 flex-col gap-2 p-5">
                   <span className="text-xs font-semibold text-subtle">{catLabel[lang][t.category]}</span>
                   <span className="text-[19px] font-bold text-navy-900">{t.name}</span>
                   <span className="text-[15px] leading-7 text-muted">{t.description}</span>
                 </a>
-                {t.demo_url && <DemoVideo url={t.demo_url} thumb={demoThumb(t)} title={t.name} />}
               </div>
             ))}
           </div>
