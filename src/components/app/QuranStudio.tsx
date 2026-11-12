@@ -223,11 +223,12 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
       </div>
 
       <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
-        <div className="overflow-hidden rounded-2xl bg-black shadow-lg">
+        {/* the player measures itself left-to-right: inside an Arabic (RTL) page it slid off-screen and looked black */}
+        <div dir="ltr" className="mx-auto w-full overflow-hidden rounded-2xl bg-black shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 11rem) * 0.5625))" : "100%" }}>
           {spec.ayahs.length > 0 ? (
             <Player component={QuranVideo as unknown as React.FC<Record<string, unknown>>} inputProps={spec as unknown as Record<string, unknown>}
               durationInFrames={frames} fps={QFPS} compositionWidth={width} compositionHeight={height} controls acknowledgeRemotionLicense
-              style={{ width: "100%", aspectRatio: `${width}/${height}` }} />
+              initialFrame={Math.round((1.4 + 0.6) * QFPS)} style={{ width: "100%" }} />
           ) : <div className="flex aspect-[9/16] items-center justify-center text-white/70">{loading ? L("جاري التجهيز…") : L("اختر السورة والآيات")}</div>}
         </div>
         <p className="text-[13px] text-subtle">{LT(`المدة تقريباً ${Math.round(seconds)} ثانية · التكلفة ${cost} ريشة · رصيدك ${balance}`, `About ${Math.round(seconds)}s · costs ${cost} credits · balance ${balance}`)}</p>

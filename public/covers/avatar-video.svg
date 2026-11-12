@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0B2A4A"/><stop offset="1" stop-color="#28507E"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.45" r="0.55"><stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3D58F"/><stop offset="1" stop-color="#C9A45C"/></linearGradient>
+<linearGradient id="card" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E9EEF6"/></linearGradient>
+<filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000" flood-opacity=".35"/></filter>
+</defs>
+<rect width="800" height="600" fill="url(#bg)"/>
+<rect width="800" height="600" fill="url(#glow)"/>
+<circle cx="700" cy="90" r="120" fill="#fff" opacity=".05"/><circle cx="90" cy="540" r="160" fill="#fff" opacity=".04"/>
+<g fill="#E2B866" opacity=".55"><circle cx="120" cy="110" r="4"/><circle cx="680" cy="470" r="5"/><circle cx="160" cy="430" r="3"/><circle cx="640" cy="160" r="3"/></g>
+
+<g filter="url(#sh)"><rect x="250" y="70" width="300" height="470" rx="40" fill="#0E1B2C"/><rect x="266" y="88" width="268" height="434" rx="30" fill="#1D4E7E"/></g>
+<circle cx="400" cy="250" r="72" fill="#F1C9A5"/><path d="M328,240 Q330,160 400,160 Q470,160 472,240 Q460,195 400,195 Q340,195 328,240Z" fill="#2B1B12"/>
+<path d="M290,522 Q290,360 400,350 Q510,360 510,522Z" fill="url(#gold)"/><path d="M372,352 L400,400 L428,352" fill="#0B2A4A"/>
+<circle cx="376" cy="250" r="7" fill="#2B1B12"/><circle cx="424" cy="250" r="7" fill="#2B1B12"/><path d="M380,285 q20,14 40,0" fill="none" stroke="#9A4A3A" stroke-width="5" stroke-linecap="round"/>
+<g filter="url(#sh)"><path d="M560,140 h150 q20,0 20,20 v60 q0,20 -20,20 h-110 l-30,28 v-28 q-10,0 -10,-20 v-60 q0,-20 20,-20z" fill="url(#card)"/></g>
+<g fill="#7D8BA0"><rect x="580" y="166" width="110" height="10" rx="5"/><rect x="580" y="188" width="80" height="10" rx="5"/></g>
+<rect x="296" y="110" width="22" height="22" rx="11" fill="#E0453A"/><path transform="translate(170,420) scale(1)" d="M0,-22 C3,-6 6,-3 22,0 C6,3 3,6 0,22 C-3,6 -6,3 -22,0 C-6,-3 -3,-6 0,-22Z" fill="#E2B866"/>
+</svg>

@@ -1515,4 +1515,5 @@ export const EN: Record<string, string> = {
   "طولي (ريلز)": "Vertical (Reels)",
   "مربع": "Square",
   "عرضي (يوتيوب)": "Wide (YouTube)",
+  "إذا ما رفعت صورة، تطلع الصورة التوضيحية الجاهزة اللي بالمعاينة. ارفع صورتك لتستبدلها.": "Without your own picture, the ready illustration shown here is used. Upload a picture to replace it.",
 };

@@ -8,6 +8,8 @@ import type { Tool } from "@/lib/defaults";
 
 export async function generateMetadata() { return { title: (await getL())("الأدوات") }; }
 const groups = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"]] as const;
+/** Ready illustrations in /public/covers (the admin's own picture always wins). */
+const COVERS = ["post", "image", "carousel", "motion-video", "lesson-video", "quran-video", "video-editing", "product-video", "avatar-video", "ad-design", "voice", "nasheed", "product-photo"];
 
 /** «الأدوات»: a grid of cards (2 per row on phones). Each card = picture + name + «ابدأ الإنشاء» / «علّمني الطريقة». */
 export default async function ToolsPage() {
@@ -33,7 +35,7 @@ export default async function ToolsPage() {
 }
 
 function ToolCard({ t, L }: { t: Tool; L: (s: string) => string }) {
-  const pic = t.cover_url || demoThumb(t);
+  const pic = t.cover_url || (COVERS.includes(t.id) ? `/covers/${t.id}.svg` : null) || demoThumb(t);
   const learn = t.tutorial_url?.trim();
   const btn = "flex w-full items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[13px] font-bold sm:text-[14px]";
   return (

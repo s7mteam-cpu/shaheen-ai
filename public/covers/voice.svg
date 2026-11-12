@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A2E3A"/><stop offset="1" stop-color="#0F5560"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.45" r="0.55"><stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3D58F"/><stop offset="1" stop-color="#C9A45C"/></linearGradient>
+<linearGradient id="card" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E9EEF6"/></linearGradient>
+<filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000" flood-opacity=".35"/></filter>
+</defs>
+<rect width="800" height="600" fill="url(#bg)"/>
+<rect width="800" height="600" fill="url(#glow)"/>
+<circle cx="700" cy="90" r="120" fill="#fff" opacity=".05"/><circle cx="90" cy="540" r="160" fill="#fff" opacity=".04"/>
+<g fill="#E2B866" opacity=".55"><circle cx="120" cy="110" r="4"/><circle cx="680" cy="470" r="5"/><circle cx="160" cy="430" r="3"/><circle cx="640" cy="160" r="3"/></g>
+
+<g filter="url(#sh)"><rect x="350" y="120" width="100" height="200" rx="50" fill="url(#gold)"/></g>
+<g stroke="#0B2A4A" stroke-opacity=".35" stroke-width="5" stroke-linecap="round"><path d="M372,170 h56"/><path d="M372,200 h56"/><path d="M372,230 h56"/></g>
+<path d="M320,260 Q320,360 400,360 Q480,360 480,260" fill="none" stroke="#EAF5F7" stroke-width="12" stroke-linecap="round"/>
+<rect x="392" y="360" width="16" height="70" fill="#EAF5F7"/><rect x="340" y="426" width="120" height="16" rx="8" fill="#EAF5F7"/>
+<g stroke="#E2B866" stroke-width="10" stroke-linecap="round">
+<path d="M170,280 v40"/><path d="M200,250 v100"/><path d="M230,270 v60"/><path d="M260,230 v140"/><path d="M290,265 v70"/>
+<path d="M510,265 v70"/><path d="M540,230 v140"/><path d="M570,270 v60"/><path d="M600,250 v100"/><path d="M630,280 v40"/></g>
+</svg>

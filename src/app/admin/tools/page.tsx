@@ -57,14 +57,12 @@ export default async function ToolsAdmin() {
           <fieldset className="flex flex-col gap-3 rounded-2xl border border-line bg-canvas p-4 md:col-span-2">
             <legend className="px-1 text-sm font-bold text-navy-900">{L("بطاقة الأداة بصفحة «الأدوات» عند العميل")}</legend>
             <div className="flex flex-wrap items-start gap-4">
-              {t.cover_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={t.cover_url} alt="" className="aspect-[4/3] w-[110px] shrink-0 rounded-lg object-cover ring-1 ring-line" />
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={t.cover_url || `/covers/${t.id}.svg`} alt="" className="aspect-[4/3] w-[110px] shrink-0 rounded-lg bg-navy-800 object-cover ring-1 ring-line" />
               <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <label className="flex flex-col gap-1.5 text-sm"><span className="label">{L("الصورة التوضيحية (مقاس 4:3)")}</span>
                   <input name="cover_file" type="file" accept="image/png,image/jpeg,image/webp" className="text-sm" />
-                  <span className="text-[12px] text-subtle">{L("إذا ما رفعت صورة، تطلع صورة فيديو المثال، وإذا ما فيه تطلع أيقونة الأداة.")}</span></label>
+                  <span className="text-[12px] text-subtle">{L("إذا ما رفعت صورة، تطلع الصورة التوضيحية الجاهزة اللي بالمعاينة. ارفع صورتك لتستبدلها.")}</span></label>
                 {t.cover_url && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="cover_clear" className="h-4 w-4 accent-red-700" />{L("احذف الصورة التوضيحية")}</label>}
                 <span className="label">{L("فيديو «علّمني الطريقة»")}</span>
                 <DemoField tool={t.id} initial={t.tutorial_url ?? ""} name="tutorial_url" />
