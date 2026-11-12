@@ -234,7 +234,7 @@ async function claudePlan(user, shots = []) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: process.env.MONTAGE_MODEL || "claude-sonnet-5-5", max_tokens: 6000, system: PLAN_SYSTEM() + "\nأجب بـ JSON صالح فقط.",
+    body: JSON.stringify({ model: process.env.MONTAGE_MODEL || "claude-sonnet-5-5", max_tokens: 6000, system: [{ type: "text", text: PLAN_SYSTEM() + "\nأجب بـ JSON صالح فقط.", cache_control: { type: "ephemeral" } }], // cached 5 min: ~10% price on repeats
       messages: [{ role: "user", content: [
         ...shots.flatMap((f) => [{ type: "text", text: `[صورة من الفيديو عند ${f.t}s]` }, { type: "image", source: { type: "base64", media_type: "image/jpeg", data: f.data } }]),
         { type: "text", text: user },

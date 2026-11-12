@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cachedSystem } from "@/lib/providers/text";
 import { INDUSTRIES } from "@/design/industries";
 
 export type Scope = "all" | "post" | "ads" | "carousel" | "motion" | "montage" | "lesson";
@@ -53,7 +54,7 @@ async function viaClaude(system: string, ask: string) {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: process.env.TRENDS_MODEL || "claude-haiku-5-5", max_tokens: 4000, system,
+      model: process.env.TRENDS_MODEL || "claude-haiku-5-5", max_tokens: 4000, system: cachedSystem(system),
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
       messages: [{ role: "user", content: ask }],
     }),

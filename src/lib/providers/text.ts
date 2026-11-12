@@ -12,6 +12,13 @@ async function choice(purpose: Purpose) {
   return purpose === "chat" ? { provider: ai.chat_provider, model: ai.chat_model } : { provider: ai.copy_provider, model: ai.copy_model };
 }
 
+/**
+ * Prompt caching: long fixed instructions (playbook, packs, scene list…) are kept by Claude for 5 minutes,
+ * so the next request reads them at ~10% of the price. Short prompts are sent as they are (nothing to save).
+ */
+export const cachedSystem = (system: string) =>
+  system.length > 6000 ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : system;
+
 /** One entry point for all text AI. The admin chooses Claude or Gemini (and the model) in /admin/content → ai. */
 export async function aiChat(purpose: Purpose | { provider: string; model: string }, system: string, messages: ChatMsg[], maxTokens = 1200) {
   const { provider, model } = typeof purpose === "string" ? await choice(purpose) : purpose;
@@ -21,7 +28,7 @@ export async function aiChat(purpose: Purpose | { provider: string; model: strin
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: model || "claude-haiku-5-5", max_tokens: maxTokens, system, messages }),
+    body: JSON.stringify({ model: model || "claude-haiku-5-5", max_tokens: maxTokens, system: cachedSystem(system), messages }),
   });
   if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as { content: { text?: string }[] };
@@ -61,7 +68,7 @@ export async function claudeVisionJson<T>(system: string, text: string, images: 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system: `${system}\nأجب بـ JSON صالح فقط بدون أي نص آخر.`, messages: [{ role: "user", content }] }),
+    body: JSON.stringify({ model, max_tokens: maxTokens, system: cachedSystem(`${system}\nأجب بـ JSON صالح فقط بدون أي نص آخر.`), messages: [{ role: "user", content }] }),
   });
   if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as { content: { text?: string }[] };
