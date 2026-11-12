@@ -174,14 +174,24 @@ export async function POST(req: Request) {
       : boards.includes(plan.board as BoardStyle) && fits(plan.board as BoardStyle) ? (plan.board as BoardStyle)
       : pack && pack.boards.some(fits) ? pick(pack.boards.filter(fits))
       : panel === "dark" ? pick(DARK_BOARDS) : pick(boards.filter((x) => !DARK_BOARDS.includes(x)));
+    // «هويتي»: the customer's colours, font, logo and contact go into every new motion / lesson video
+    const { data: kit } = await admin.from("brand_kits").select("business_name,colors,font,handle,instagram,logo_url").eq("user_id", user.id).maybeSingle();
+    const lum = (h: string) => { const n = parseInt(h.slice(1), 16); return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; };
+    const kc = ((kit?.colors ?? []) as string[]).filter((c) => /^#[0-9a-f]{6}$/i.test(c));
+    const kitBg = kc.filter((c) => lum(c) < 0.35).sort((a, b) => lum(a) - lum(b))[0];
+    const kitAccent = kc.filter((c) => lum(c) >= 0.25 && lum(c) <= 0.85 && c !== kitBg)[0];
+    const kitFont = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(String(kit?.font)) ? String(kit!.font) : null;
+    const contact = String(kit?.handle || kit?.instagram || "").slice(0, 60);
     const spec: MontageSpec = {
       src: "", srcPath: "", srcW: 1080, srcH: 1920, aspect,
-      font: ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(String(plan.font)) ? String(plan.font) : "Cairo",
-      colors: { text: "#FFFFFF", accent: hex(plan.colors?.accent, "#E8B44C"), bg: hex(plan.colors?.bg, "#0B2A4A") },
+      font: kitFont ?? (["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(String(plan.font)) ? String(plan.font) : "Cairo"),
+      colors: { text: "#FFFFFF", accent: kitAccent ?? hex(plan.colors?.accent, "#E8B44C"), bg: kitBg ?? hex(plan.colors?.bg, "#0B2A4A") },
+      ...(kit?.logo_url ? { logo: { path: kit.logo_url, url: "", on: true, pos: "tl" as const } } : {}),
       captions: { on: !!vo, style: caps.includes(b.captions as never) ? (b.captions as MontageSpec["captions"]["style"]) : pick(["karaoke", "highlight", "karaoke"] as const), pos: "bottom" },
       segments: [{ s: 0, e: total }], words: [], titles: [], zooms: [],
       intro: { on: false, title: String(plan.title ?? brand).slice(0, 60), subtitle: "" },
-      outro: { on: false, title: "", subtitle: "" },
+      // motion (ads): end card with the business name + contact from «هويتي»
+      outro: motion && kit?.business_name ? { on: true, title: String(kit.business_name).slice(0, 60), subtitle: contact } : { on: false, title: "", subtitle: "" },
       illus: style, borrowed: kept.borrowed, music: musicTrack, layout: "board", panel: DARK_BOARDS.includes(board) ? "dark" : panel, board, graphics, domain,
       vo,
       videoVolume: 0, sfx: true, progress: !motion, quality: "1080",
