@@ -43,6 +43,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-bold text-navy-900">{L("العملاء")}</h1>
+        <Link href="/admin/customers/unsubscribed" className="btn btn-outline px-4 py-2 text-sm">🎁 {T("عملاء بدون اشتراك", "Customers without a plan")}</Link>
         <Link href="/admin/customers/closed" className="btn btn-outline px-4 py-2 text-sm">🔒 {T("الحسابات المغلقة (المحذوفة والمحظورة)", "Closed accounts (deleted & banned)")}</Link>
       </div>
       {deleted && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{L("انحذف حساب العميل وكل بياناته.")}</p>}

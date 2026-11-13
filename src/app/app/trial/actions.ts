@@ -4,7 +4,7 @@ import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getSessionProfile } from "@/lib/data";
 import { isImpersonating } from "@/lib/server/impersonation";
-import { claimTrial, DEVICE_COOKIE } from "@/lib/server/trial";
+import { claimTrial, DEVICE_COOKIE, isHuman } from "@/lib/server/trial";
 import { getL, serverT } from "@/lib/server/lang";
 
 type Res = { ok?: string; error?: string } | undefined;
@@ -22,7 +22,8 @@ export async function startTrial(_p: Res, form: FormData): Promise<Res> {
   const device = fromCookie || fromStorage || randomUUID();
   jar.set(DEVICE_COOKIE, device, { httpOnly: true, sameSite: "lax", secure: true, path: "/", maxAge: 60 * 60 * 24 * 730 });
   const ip = ((await headers()).get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
-  const r = await claimTrial(profile.id, ip, [...new Set([device, fromStorage].filter(Boolean))]);
+  const human = await isHuman(String(form.get("cf-turnstile-response") ?? ""), ip);
+  const r = await claimTrial(profile.id, ip, [...new Set([device, fromStorage].filter(Boolean))], human);
   if (r.error || !r.ok) return { error: (await getL())(r.error ?? "?") };
   revalidatePath("/app", "layout");
   return { ok: T(`🎉 بدأت تجربتك: ${r.ok.credits} ريشة لمدة ${r.ok.hours} ساعة. جرّب أي أداة الحين!`, `🎉 Your trial has started: ${r.ok.credits} credits for ${r.ok.hours} hours. Try any tool now!`) };

@@ -1714,4 +1714,7 @@ export const EN: Record<string, string> = {
   "انعطت تجارب كثيرة من نفس الشبكة اليوم. جرّب بكرة أو اشترك مباشرة.": "Too many trials from the same network today. Try tomorrow or subscribe directly.",
   "هالرقم أو الحساب أخذ تجربة من قبل.": "This number or account has already had a trial.",
   "التجربة المجانية": "Free trial",
+  "ما قدرنا نتأكد إنك إنسان. حدّث الصفحة وجرّب مرة ثانية.": "We couldn't verify you're human. Refresh the page and try again.",
+  "التجارب المجانية لليوم خلصت. جرّب بكرة، أو اشترك وابدأ الحين.": "Today's free trials are used up. Try tomorrow, or subscribe and start now.",
+  "عملاء بدون اشتراك": "Customers without a plan",
 };

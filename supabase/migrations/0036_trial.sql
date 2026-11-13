@@ -69,7 +69,7 @@ grant execute on function public.spend_credits(uuid,int,uuid) to service_role;
 
 -- الإعدادات الافتراضية (تعدّلها من لوحة الإدارة)
 insert into public.site_content (key, value)
-values ('trial', '{"enabled": true, "credits": 30, "hours": 24, "per_ip_day": 2}'::jsonb)
+values ('trial', '{"enabled": true, "credits": 30, "hours": 24, "per_ip_day": 2, "max_per_day": 30}'::jsonb)
 on conflict (key) do nothing;
 
 -- Google Sheets

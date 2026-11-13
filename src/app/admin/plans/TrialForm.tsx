@@ -8,16 +8,18 @@ function Save() {
   return <button disabled={pending} className="btn btn-primary px-6 py-2.5 disabled:opacity-60">{pending ? "…" : "حفظ"}</button>;
 }
 
-export function TrialForm({ s }: { s: { enabled: boolean; credits: number; hours: number; per_ip_day: number } }) {
+export function TrialForm({ s, turnstile }: { s: { enabled: boolean; credits: number; hours: number; per_ip_day: number; max_per_day: number }; turnstile: boolean }) {
   const [r, act] = useActionState(saveTrial, undefined);
   return (
     <form action={act} className="flex flex-col gap-4">
       <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" name="enabled" defaultChecked={s.enabled} className="h-5 w-5" />التجربة المجانية مفعّلة</label>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1.5"><span className="label">كم ريشة</span><input name="credits" type="number" min={1} max={1000} defaultValue={s.credits} className="field" /></label>
         <label className="flex flex-col gap-1.5"><span className="label">المدة (ساعات)</span><input name="hours" type="number" min={1} max={720} defaultValue={s.hours} className="field" /><span className="text-[12px] text-subtle">24 = يوم، 72 = 3 أيام</span></label>
         <label className="flex flex-col gap-1.5"><span className="label">حد التجارب من نفس الشبكة باليوم</span><input name="per_ip_day" type="number" min={1} max={50} defaultValue={s.per_ip_day} className="field" /></label>
+        <label className="flex flex-col gap-1.5"><span className="label">🛑 الحد الأقصى للتجارب باليوم (كل الناس)</span><input name="max_per_day" type="number" min={1} max={10000} defaultValue={s.max_per_day} className="field" /><span className="text-[12px] text-subtle">لو وصلها (هجوم بوتات مثلاً) تتوقف التجارب لين بكرة ويوصلك تنبيه.</span></label>
       </div>
+      <p className={`rounded-xl p-3 text-[13px] leading-6 ${turnstile ? "bg-green-50 text-green-900" : "bg-tint text-navy-900"}`}>{turnstile ? "🤖 فحص «هل أنت إنسان؟» (Cloudflare Turnstile) مفعّل على زر التجربة." : "🤖 فحص «هل أنت إنسان؟» (Cloudflare Turnstile) غير مفعّل. لتفعيله: سوّ حساب مجاني بـ cloudflare.com ← Turnstile ← Add site (اكتب shaheen-kw.com)، وحط المفتاحين بـ Vercel بنفسك: NEXT_PUBLIC_TURNSTILE_SITE_KEY و TURNSTILE_SECRET_KEY، وبعدها Redeploy."}</p>
       <div className="flex flex-wrap items-center gap-3"><Save />{r?.error && <span role="alert" className="text-sm font-semibold text-red-700">{r.error}</span>}{r?.ok && <span className="text-sm font-semibold text-green-700">{r.ok}</span>}</div>
     </form>
   );

@@ -6,7 +6,7 @@ import { getL } from "@/lib/server/lang";
 import { PriceHistory } from "@/components/admin/PriceHistory";
 import { L } from "@/lib/i18n/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { trialSettings } from "@/lib/server/trial";
+import { trialSettings, turnstileOn } from "@/lib/server/trial";
 import { TrialForm } from "./TrialForm";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +52,7 @@ async function TrialCard() {
   const s = await trialSettings();
   const admin = createAdminClient();
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const { data: claims, error } = await admin.from("trial_claims").select("user_id").gte("created_at", since);
+  const { data: claims, error } = await admin.from("trial_claims").select("user_id,created_at").gte("created_at", since);
   if (error) return <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">التجربة المجانية: شغّل ملف SQL الخاص بالتحديث v81 (v81-trial.sql) بـ Supabase أول.</p>;
   const ids = [...new Set((claims ?? []).map((c) => c.user_id).filter(Boolean))] as string[];
   const { data: paid } = ids.length ? await admin.from("subscriptions").select("user_id").in("user_id", ids) : { data: [] };
@@ -66,9 +66,10 @@ async function TrialCard() {
       </div>
       <div className="flex flex-wrap gap-6 text-sm">
         <span>آخر 30 يوم: <b className="text-navy-900">{claims?.length ?? 0}</b> تجربة</span>
+        <span>آخر 24 ساعة: <b className="text-navy-900">{(claims ?? []).filter((c) => (c as { created_at?: string }).created_at && Date.now() - new Date((c as { created_at: string }).created_at).getTime() < 86_400_000).length}</b> من {s.max_per_day}</span>
         <span>اشتركوا بعدها: <b className="text-navy-900">{converted}</b> ({rate}%)</span>
       </div>
-      <TrialForm s={s} />
+      <TrialForm s={s} turnstile={turnstileOn()} />
     </section>
   );
 }

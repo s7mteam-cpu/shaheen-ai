@@ -4,6 +4,7 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useT } from "@/components/LangProvider";
 import { startTrial } from "./actions";
+import { Turnstile } from "@/components/Turnstile";
 
 const KEY = "sh_dev";
 function deviceId() {
@@ -52,6 +53,7 @@ export function TrialBanner({ state, credits, hours, expiresAt }: { state: "offe
     <section className="flex flex-col gap-3 rounded-2xl border-2 border-gold-500/60 bg-gold-100 p-5">
       <form action={act} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <input type="hidden" name="device" value={dev} />
+        <Turnstile />
         <div className="flex flex-col gap-1">
           <b className="text-lg text-navy-900">{T(`🎁 جرّب شاهين مجاناً: ${credits} ريشة لمدة ${hours} ساعة`, `🎁 Try Shaheen free: ${credits} credits for ${hours} hours`)}</b>
           <span className="text-sm text-muted">{T("جرّب أي أداة بدون دفع. التجربة لمرة وحدة لكل شخص.", "Try any tool without paying. One trial per person.")}</span>

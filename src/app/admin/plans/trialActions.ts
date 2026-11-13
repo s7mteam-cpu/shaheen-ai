@@ -11,10 +11,10 @@ export async function saveTrial(_p: Res, form: FormData): Promise<Res> {
   const me = await requireAdmin("plans");
   if (!me) return { error: "غير مصرّح" };
   const n = (k: string, min: number, max: number) => Math.max(min, Math.min(max, Math.round(Number(form.get(k)) || 0)));
-  const value = { enabled: form.get("enabled") === "on", credits: n("credits", 1, 1000), hours: n("hours", 1, 720), per_ip_day: n("per_ip_day", 1, 50) };
+  const value = { enabled: form.get("enabled") === "on", credits: n("credits", 1, 1000), hours: n("hours", 1, 720), per_ip_day: n("per_ip_day", 1, 50), max_per_day: n("max_per_day", 1, 10000) };
   const { error } = await createAdminClient().from("site_content").upsert({ key: "trial", value, updated_at: new Date().toISOString() });
   if (error) return { error: "ما انحفظت." };
-  await audit(me, "trial_settings", undefined, `${value.enabled ? "مفعّلة" : "موقوفة"} · ${value.credits} ريشة · ${value.hours} ساعة · ${value.per_ip_day} لكل شبكة باليوم`);
+  await audit(me, "trial_settings", undefined, `${value.enabled ? "مفعّلة" : "موقوفة"} · ${value.credits} ريشة · ${value.hours} ساعة · ${value.per_ip_day} لكل شبكة باليوم · حد أقصى ${value.max_per_day} باليوم`);
   revalidatePath("/admin/plans"); revalidatePath("/app", "layout");
   return { ok: "انحفظت ✓ التغيير يطبّق على التجارب الجديدة." };
 }

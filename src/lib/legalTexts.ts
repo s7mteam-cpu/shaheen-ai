@@ -30,7 +30,7 @@ export const TERMS_AR = `باستخدامك منصة «شاهين» ({site}) ف�
 
 **الدفع بالتحويل:** في بعض الدول نتيح الدفع بالتحويل البنكي أو المحافظ الإلكترونية. ترسل صورة إيصال التحويل من المنصة، ويُفعَّل اشتراكك بعد التأكد من وصول المبلغ كاملاً، عادةً خلال يوم عمل. الاشتراك المدفوع بالتحويل لا يتجدد تلقائياً، ويمكن دفع أكثر من شهر مقدماً فتتجدد ريش الباقة كل شهر خلال المدة المدفوعة. رسوم التحويل وفروقات الصرف على المحوِّل، ونحتفظ بحق رفض أي إيصال لا يطابق المبلغ أو لم يصلنا مع إبلاغك بالسبب.
 
-**التجربة المجانية:** قد نتيح للعملاء الجدد تجربة مجانية برصيد ومدة محدّدين، مرة واحدة لكل شخص (لكل حساب وبريد إلكتروني ورقم واتساب وجهاز)، وتشترط تأكيد البريد الإلكتروني وإضافة رقم الواتساب. تنتهي أرصدة التجربة غير المستخدمة بانتهاء مدتها، ولا تُستبدل بمال. ويحق لنا إلغاء التجربة أو إيقاف الحساب عند محاولة الحصول على أكثر من تجربة بحسابات متعددة أو ببيانات غير صحيحة.
+**التجربة المجانية:** قد نتيح للعملاء الجدد تجربة مجانية برصيد ومدة محدّدين، مرة واحدة لكل شخص (لكل حساب وبريد إلكتروني ورقم واتساب وجهاز)، وتشترط تأكيد البريد الإلكتروني وإضافة رقم الواتساب. تنتهي أرصدة التجربة غير المستخدمة بانتهاء مدتها، ولا تُستبدل بمال. وقد تتوقف التجارب مؤقتاً عند بلوغ حدّ يومي. ويجوز لنا حذف الحسابات التي لم تشترك قط، مع أعمالها وملفاتها، بعد انتهاء التجربة أو عند عدم استخدامها. ويحق لنا إلغاء التجربة أو إيقاف الحساب عند محاولة الحصول على أكثر من تجربة بحسابات متعددة أو ببيانات غير صحيحة.
 
 ## 4. محتواك وحقوقك
 تبقى ملكية المحتوى الذي ترفعه لك، وتمنحنا إذناً محدوداً لمعالجته بالقدر اللازم لتقديم الخدمة. النتائج التي تنتجها لك المنصة يحق لك استخدامها تجارياً، مع مسؤوليتك عن مراجعتها.
@@ -61,7 +61,7 @@ Tools use “feather” credits according to your plan. Each tool shows its cost
 
 **Paying by transfer:** in some countries we offer payment by bank transfer or e-wallet. You upload the transfer receipt on the platform, and your plan is activated once we confirm the full amount has arrived, usually within one business day. Plans paid by transfer do not renew automatically; you may pay several months in advance, and your plan's credits then refill every month during the paid period. Transfer fees and exchange differences are borne by the sender, and we may reject any receipt that does not match the amount or was not received, telling you why.
 
-**Free trial:** we may offer new customers a free trial with set credits and duration, once per person (per account, email address, WhatsApp number and device); it requires a confirmed email and a WhatsApp number. Unused trial credits expire when the trial ends and cannot be exchanged for money. We may cancel the trial or suspend the account if someone tries to get more than one trial through multiple accounts or false details.
+**Free trial:** we may offer new customers a free trial with set credits and duration, once per person (per account, email address, WhatsApp number and device); it requires a confirmed email and a WhatsApp number. Unused trial credits expire when the trial ends and cannot be exchanged for money. Trials may pause temporarily when a daily limit is reached. We may delete accounts that never subscribed, with their works and files, after the trial ends or when they are not used. We may cancel the trial or suspend the account if someone tries to get more than one trial through multiple accounts or false details.
 
 ## 4. Your content
 You keep ownership of the content you upload and grant us a limited permission to process it only as needed to provide the service. You may use the results commercially and are responsible for reviewing them.
@@ -107,6 +107,7 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 - الاستضافة وقاعدة البيانات وتخزين الملفات: Vercel و Supabase و Railway.
 - الذكاء الاصطناعي لمعالجة طلباتك: Anthropic (Claude) لكتابة النصوص والتصاميم، و Google (Gemini) للصور والفيديو، و ElevenLabs للأصوات.
 - مزوّد الدفع لمعالجة المدفوعات.
+- Cloudflare (Turnstile): للتحقق من أن من يطلب التجربة المجانية إنسان وليس برنامجاً آلياً، بفحص إشارات تقنية من المتصفح.
 - Google (Google Sheets): لحفظ نسخة إدارية ومحاسبية خاصة من بيانات الحسابات والمعاملات، في حساب المنصة فقط، ولا يطّلع عليها إلا فريق الإدارة.
 
 يُرسل لهؤلاء المزوّدين فقط ما يلزم لتنفيذ طلبك (مثل النص أو الصورة التي ترفعها). وقد تُعالج بياناتك وتُخزَّن على خوادم خارج بلدك لدى هؤلاء المزوّدين، مع التزامهم بمعايير حماية مناسبة.
@@ -164,6 +165,7 @@ When you sign in with Google we receive only your name, email address and profil
 - Hosting, database and file storage: Vercel, Supabase and Railway.
 - AI processing of your requests: Anthropic (Claude) for text and design, Google (Gemini) for images and video, ElevenLabs for voice.
 - A payment provider for processing payments.
+- Cloudflare (Turnstile): to check that whoever asks for the free trial is a person and not a bot, using technical signals from the browser.
 - Google (Google Sheets): to keep a private administrative and accounting copy of account and transaction data, in the platform's own account only, accessible to the admin team only.
 
 These providers only receive what is needed to fulfil your request (for example the text or image you upload) and process it on our behalf under their own terms. Your data may be processed and stored on servers outside your country by these providers, who apply appropriate safeguards.
