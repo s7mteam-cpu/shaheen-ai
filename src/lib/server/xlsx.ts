@@ -27,8 +27,27 @@ export function newBook() {
   return wb;
 }
 
+/** Total column width (characters) a sheet is widened to: about a full laptop screen. */
+const MIN_WIDTH = 190;
+/** A phone number («+96550000000») shows as «96550000000+» in a right-to-left cell, so its cell reads left to right. */
+const isPhone = (v: unknown) => typeof v === "string" && /^\+\d[\d\s-]{5,}$/.test(v);
+/** Row height that shows every wrapped line (points). */
+function fitHeight(cols: Col[], values: Record<string, unknown>) {
+  let lines = 1;
+  for (const c of cols) {
+    const v = values[c.key];
+    if (typeof v !== "string" || !v) continue;
+    const perLine = Math.max(4, Math.floor(c.width * 1.05));
+    lines = Math.max(lines, v.split("\n").reduce((n, part) => n + Math.max(1, Math.ceil(part.length / perLine)), 0));
+  }
+  return Math.min(22 + (lines - 1) * 15, 160);
+}
+
 export function styledSheet(wb: ExcelJS.Workbook, name: string, opt: { title: string; subtitle?: string; columns: Col[]; tab?: string }) {
-  const cols = opt.columns;
+  // a sheet always fills a laptop screen: narrow sheets get their columns widened proportionally
+  const total = opt.columns.reduce((t, c) => t + c.width, 0);
+  const grow = total < MIN_WIDTH ? MIN_WIDTH / total : 1;
+  const cols = opt.columns.map((c) => ({ ...c, width: Math.round(c.width * grow * 10) / 10 }));
   const ws = wb.addWorksheet(name.slice(0, 31), {
     views: [{ rightToLeft: true, state: "frozen", ySplit: 3, showGridLines: false }],
     properties: { tabColor: { argb: opt.tab ?? NAVY } },
@@ -43,13 +62,13 @@ export function styledSheet(wb: ExcelJS.Workbook, name: string, opt: { title: st
   const t = ws.getCell("A1");
   t.value = opt.title; t.font = font({ size: 15, bold: true, color: { argb: "FFFFFFFF" } });
   t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NAVY } };
-  t.alignment = { horizontal: "right", vertical: "middle", indent: 1 };
+  t.alignment = { horizontal: "center", vertical: "middle" };
   ws.getRow(1).height = 30;
 
   ws.mergeCells(`A2:${last}2`);
   const s = ws.getCell("A2");
   s.value = opt.subtitle ?? `تاريخ إصدار الملف: ${new Date().toLocaleString("ar-KW", { timeZone: "Asia/Kuwait", dateStyle: "long", timeStyle: "short" })}`;
-  s.font = font({ size: 10, color: { argb: "FF5B6573" } }); s.alignment = { horizontal: "right", vertical: "middle", indent: 1 };
+  s.font = font({ size: 10, color: { argb: "FF5B6573" } }); s.alignment = { horizontal: "center", vertical: "middle" };
   ws.getRow(2).height = 20;
 
   const h = ws.getRow(3);
@@ -67,12 +86,12 @@ export function styledSheet(wb: ExcelJS.Workbook, name: string, opt: { title: st
   const border = { style: "thin" as const, color: { argb: LINE } };
   const add = (values: Record<string, unknown>) => {
     const r = ws.addRow(values);
-    r.height = 22;
+    r.height = fitHeight(cols, values);
     cols.forEach((c, i) => {
       const cell = r.getCell(i + 1);
       cell.font = font();
       cell.border = { top: border, bottom: border, left: border, right: border };
-      cell.alignment = { horizontal: c.align ?? (c.fmt ? "center" : "right"), vertical: "middle", wrapText: true };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true, ...(isPhone(values[c.key]) ? { readingOrder: "ltr" as const } : {}) };
       if (c.fmt) cell.numFmt = c.fmt;
       if (n % 2 === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } };
     });
@@ -94,7 +113,7 @@ export function styledSheet(wb: ExcelJS.Workbook, name: string, opt: { title: st
         cell.font = font({ bold: true }); if (c.fmt) cell.numFmt = c.fmt;
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL } };
         cell.border = { top: { style: "medium", color: { argb: NAVY } } };
-        cell.alignment = { horizontal: c.fmt ? "center" : "right", vertical: "middle" };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
       });
       return r;
     }

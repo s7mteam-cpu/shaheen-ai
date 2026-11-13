@@ -43,6 +43,9 @@ export async function backupBook(t: Record<string, Row[]>) {
   const paidKwd = new Map<string, number>();
   for (const c of t.tap_charges ?? []) if (s(c.status).toUpperCase() === "CAPTURED" && c.currency === "KWD") paidKwd.set(s(c.user_id), (paidKwd.get(s(c.user_id)) ?? 0) + Number(c.amount ?? 0));
   const METHOD: Record<string, string> = { email: "بريد وكلمة مرور", google: "Google" };
+  /** Payment methods in Arabic (Tap's codes and the manual ones). */
+  const PAYM: Record<string, string> = { knet: "كي نت", KNET: "كي نت", card: "بطاقة", VISA: "فيزا", MASTERCARD: "ماستركارد", MADA: "مدى", AMEX: "أمريكان إكسبريس", APPLE_PAY: "Apple Pay", apple_pay: "Apple Pay", applepay: "Apple Pay", cash: "نقداً", transfer: "تحويل بنكي", bank: "تحويل بنكي", benefit: "بنفت", BENEFIT: "بنفت", other: "أخرى" };
+  const paym = (v: unknown) => (s(v) ? PAYM[s(v)] ?? s(v) : "—");
   const rate = Number(((t.site_content ?? []).find((c) => c.key === "finance")?.value as { usd_kwd?: number } | undefined)?.usd_kwd ?? 0.307);
   const kwdOf = (a: unknown, c: unknown) => (c === "KWD" ? Number(a ?? 0) : Number(a ?? 0) * rate);
   /** «🇰🇼 الكويت»: the customer's country (the same label in every sheet, so the dashboard can group by it). */
@@ -120,7 +123,7 @@ export async function backupBook(t: Record<string, Row[]>) {
     { header: "الطريقة", key: "m", width: 12, align: "center" }, { header: "المبلغ", key: "a", width: 14, fmt: FMT.dec }, { header: "العملة", key: "cur", width: 9, align: "center" },
     { header: "وقت التسجيل", key: "rt", width: 18, fmt: FMT.datetime }, { header: "بالدينار", key: "kwd", width: 14, fmt: FMT.kd }, { header: "الدولة", key: "ctry", width: 16, align: "center" },
   ] });
-  for (const x of inc) m.add({ kwd: kwdOf(x.amount, x.currency), ctry: ctryOf(x.customer_id), rt: kwDate(s(x.created_at)), d: dayDate(s(x.received_on)), desc: s(x.description), cust: s(x.customer_name) || "—", m: s(x.method) || "—", a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency) });
+  for (const x of inc) m.add({ kwd: kwdOf(x.amount, x.currency), ctry: ctryOf(x.customer_id), rt: kwDate(s(x.created_at)), d: dayDate(s(x.received_on)), desc: s(x.description), cust: s(x.customer_name) || "—", m: paym(x.method), a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency) });
   m.finish();
 
   // 2b) every payment attempt (successful, failed, abandoned)
@@ -133,7 +136,7 @@ export async function backupBook(t: Record<string, Row[]>) {
   ] });
   for (const x of ch) {
     const [label, color] = chargeState(x.status);
-    const r = pa.add({ ctry: ctryOf(x.user_id), d: kwDate(s(x.created_at)), u: who(x.user_id), k: CHARGE_KIND[s(x.kind)] ?? s(x.kind), plan: x.plan_id ? plan(x.plan_id) : "—", a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency), m: s(x.method) || "—", st: label, up: kwDate(s(x.updated_at)), id: s(x.id) });
+    const r = pa.add({ ctry: ctryOf(x.user_id), d: kwDate(s(x.created_at)), u: who(x.user_id), k: CHARGE_KIND[s(x.kind)] ?? s(x.kind), plan: x.plan_id ? plan(x.plan_id) : "—", a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency), m: paym(x.method), st: label, up: kwDate(s(x.updated_at)), id: s(x.id) });
     r.getCell("st").font = { name: "Arial", size: 11, bold: true, color: { argb: color } };
   }
   pa.finish();

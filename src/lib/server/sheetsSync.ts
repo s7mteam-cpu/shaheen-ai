@@ -74,16 +74,17 @@ function format(cell: ExcelJS.Cell) {
     horizontalAlignment: H[a.horizontal ?? "right"] ?? "RIGHT",
     verticalAlignment: "MIDDLE",
     wrapStrategy: a.wrapText ? "WRAP" : "OVERFLOW_CELL",
+    ...(a.readingOrder === "ltr" ? { textDirection: "LEFT_TO_RIGHT" } : {}),
     ...(bg ? { backgroundColorStyle: { rgbColor: bg } } : {}),
     ...(numberFormat(cell.numFmt) ? { numberFormat: numberFormat(cell.numFmt) } : {}),
     borders: { top: border(b.top), bottom: border(b.bottom), left: border(b.left), right: border(b.right) },
   };
 }
 /** A data cell that looks like every other cell of its column (zebra rows come from Google's banding). */
-const plain = (cell: ExcelJS.Cell, colFmt: string | undefined) => {
+const plain = (cell: ExcelJS.Cell, colFmt: string | undefined, colLtr: boolean) => {
   const fill = cell.fill as ExcelJS.FillPattern | undefined;
   const bg = fill?.type === "pattern" && fill.pattern === "solid" ? fill.fgColor?.argb : undefined;
-  return !cell.font?.bold && (!bg || bg === ZEBRA) && (cell.numFmt || undefined) === colFmt && cell.font?.color?.argb === undefined;
+  return (cell.alignment?.readingOrder === "ltr") === colLtr && !cell.font?.bold && (!bg || bg === ZEBRA) && (cell.numFmt || undefined) === colFmt && cell.font?.color?.argb === undefined;
 };
 const a1 = (ref: string) => {
   const m = ref.match(/^([A-Z]+)(\d+)$/)!;
@@ -121,17 +122,18 @@ export function sheetRequests(ws: ExcelJS.Worksheet, sheetId: number, meta: Meta
 
   // column look for the data rows, then exact formats for the title, header and any special row (totals, highlights)
   const colFmt: (string | undefined)[] = [];
-  for (let c = 1; c <= C; c++) colFmt[c] = ws.getRow(FIRST).getCell(c).numFmt || undefined;
+  const colLtr: boolean[] = [];
+  for (let c = 1; c <= C; c++) { const fc = ws.getRow(FIRST).getCell(c); colFmt[c] = fc.numFmt || undefined; colLtr[c] = fc.alignment?.readingOrder === "ltr"; }
   const lastData = R;
   for (let c = 1; c <= C; c++) {
     req.push({ repeatCell: { range: { sheetId, startRowIndex: FIRST - 1, endRowIndex: lastData, startColumnIndex: c - 1, endColumnIndex: c },
-      cell: { userEnteredFormat: format(ws.getRow(FIRST).getCell(c)) }, fields: "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment,wrapStrategy,numberFormat,borders)" } });
+      cell: { userEnteredFormat: format(ws.getRow(FIRST).getCell(c)) }, fields: "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment,wrapStrategy,numberFormat,borders,textDirection)" } });
   }
   let bandEnd = lastData;
   for (let r = 1; r <= R; r++) {
     const row = ws.getRow(r);
     let special = r < FIRST;
-    for (let c = 1; c <= C && !special; c++) if (!plain(row.getCell(c), colFmt[c])) special = true;
+    for (let c = 1; c <= C && !special; c++) if (!plain(row.getCell(c), colFmt[c], colLtr[c])) special = true;
     if (!special) continue;
     const values: Record<string, unknown>[] = [];
     for (let c = 1; c <= C; c++) values.push({ userEnteredFormat: format(row.getCell(c)) });
@@ -147,7 +149,14 @@ export function sheetRequests(ws: ExcelJS.Worksheet, sheetId: number, meta: Meta
     req.push({ updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: c - 1, endIndex: c }, properties: { pixelSize: Math.round(w * 7.5 + 12) }, fields: "pixelSize" } });
   }
   [40, 27, 35].forEach((px, i) => req.push({ updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: i, endIndex: i + 1 }, properties: { pixelSize: px }, fields: "pixelSize" } }));
-  req.push({ updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 3, endIndex: R + 1 }, properties: { pixelSize: 29 }, fields: "pixelSize" } });
+  // data rows: the workbook's own heights (tall enough for wrapped notes), grouped into runs of equal height
+  for (let r = 4, start = 4; r <= R + 1; r++) {
+    const h = (x: number) => Math.round((ws.getRow(x).height ?? 22) * 1.33);
+    if (r === R + 1 || h(r) !== h(start)) {
+      req.push({ updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: start - 1, endIndex: r - 1 }, properties: { pixelSize: h(start) }, fields: "pixelSize" } });
+      start = r;
+    }
+  }
   const hasData = !(ws.getCell("A4").isMerged && String(ws.getCell("A4").value ?? "") === "لا توجد بيانات.");
   if (hasData && bandEnd >= FIRST) {
     req.push({ addBanding: { bandedRange: { range: { sheetId, startRowIndex: FIRST - 1, endRowIndex: bandEnd, startColumnIndex: 0, endColumnIndex: C },
