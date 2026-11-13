@@ -1,7 +1,10 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export const CATEGORY: Record<string, string> = { fixed: "ثابتة شهرية", yearly: "اشتراك سنوي", usage: "حسب الاستخدام", other: "أخرى" };
+export const CATEGORY: Record<string, string> = {
+  usage: "حسب الاستخدام", fixed: "ثابتة شهرية", yearly: "اشتراك سنوي", operations: "تشغيلية", marketing: "تسويق وإعلانات",
+  salaries: "رواتب ومستحقات", rent: "إيجار المكتب", residency: "إقامات وتأشيرات", government: "رخص ورسوم حكومية", setup: "تأسيس ومعدات", other: "أخرى",
+};
 export const DEFAULT_USD_KWD = 0.307;
 
 export type Expense = { id: string; spent_on: string; vendor: string; category: string; amount: number; currency: string; note: string | null; receipt_path: string | null; source: string; period: string | null };
@@ -84,4 +87,53 @@ export async function syncClaudeCosts(): Promise<{ ok?: string; error?: string }
     else await admin.from("expenses").insert(r);
   }
   return { ok: `تحدّثت تكاليف Claude لـ ${rows.length} شهر.` };
+}
+
+export type Partner = { id: string; name: string; share_percent: number; email: string | null; phone: string | null; joined_on: string | null; is_active: boolean; note: string | null };
+export type PartnerMove = { id: string; partner_id: string; kind: "withdrawal" | "capital"; amount: number; currency: string; moved_on: string; note: string | null; created_by: string | null };
+export type Period = { id: string; name: string; starts_on: string; ends_on: string; note: string | null };
+export type Employee = { id: string; name: string; job_title: string | null; phone: string | null; email: string | null; address: string | null; civil_id: string | null; salary: number | null; salary_currency: string; starts_on: string | null; ends_on: string | null; is_active: boolean; note: string | null };
+export const PAY_KIND: Record<string, string> = { salary: "راتب", bonus: "مكافأة", advance: "سلفة", allowance: "بدل", other: "دفعة أخرى" };
+
+/**
+ * One operating cycle (any dates): revenue − expenses = net profit, split by each partner's share,
+ * minus what each partner withdrew in the cycle = what is still owed to them. Deposits (capital) are shown
+ * apart: they are money the partner put in, not profit.
+ */
+export async function periodReport(from: string, to: string) {
+  const admin = createAdminClient();
+  const { usd_kwd: rate } = await financeSettings();
+  const [inc, ex, pa, mv, em] = await Promise.all([
+    admin.from("income").select("id,received_on,source,description,customer_name,amount,currency,method,note").gte("received_on", from).lte("received_on", to).order("received_on"),
+    admin.from("expenses").select("*").gte("spent_on", from).lte("spent_on", to).order("spent_on"),
+    admin.from("partners").select("*").order("created_at"),
+    admin.from("partner_moves").select("*").order("moved_on"),
+    admin.from("employees").select("*").order("created_at"),
+  ]);
+  const employees = (em.data ?? []) as Employee[];
+  const income = (inc.data ?? []) as Income[], expenses = (ex.data ?? []) as Expense[];
+  const partners = (pa.data ?? []) as Partner[], allMoves = (mv.data ?? []) as PartnerMove[];
+  const moves = allMoves.filter((m) => m.moved_on >= from && m.moved_on <= to);
+  const revenue = income.reduce((a, x) => a + toKwd(x.amount, x.currency, rate), 0);
+  const byCategory = Object.keys(CATEGORY).map((c) => ({ c, label: CATEGORY[c], v: expenses.filter((x) => x.category === c).reduce((a, x) => a + toKwd(x.amount, x.currency, rate), 0) })).filter((x) => x.v > 0);
+  const spent = byCategory.reduce((a, x) => a + x.v, 0);
+  const net = revenue - spent;
+  const shareTotal = partners.filter((p) => p.is_active).reduce((a, p) => a + Number(p.share_percent), 0);
+  const kwd = (m: PartnerMove) => toKwd(m.amount, m.currency, rate);
+  const perPartner = partners.map((p) => {
+    const mine = moves.filter((m) => m.partner_id === p.id), ever = allMoves.filter((m) => m.partner_id === p.id);
+    const share = p.is_active ? (net * Number(p.share_percent)) / 100 : 0;
+    const withdrawn = mine.filter((m) => m.kind === "withdrawal").reduce((a, m) => a + kwd(m), 0);
+    const capital = mine.filter((m) => m.kind === "capital").reduce((a, m) => a + kwd(m), 0);
+    return { ...p, share, withdrawn, capital, remaining: share - withdrawn,
+      everWithdrawn: ever.filter((m) => m.kind === "withdrawal").reduce((a, m) => a + kwd(m), 0),
+      everCapital: ever.filter((m) => m.kind === "capital").reduce((a, m) => a + kwd(m), 0) };
+  });
+  const exAll = expenses as (Expense & { employee_id?: string | null; pay_kind?: string | null })[];
+  const perEmployee = employees.map((e) => {
+    const paid = exAll.filter((x) => x.employee_id === e.id);
+    return { ...e, paid: paid.reduce((a, x) => a + toKwd(x.amount, x.currency, rate), 0), payments: paid.length };
+  });
+  return { from, to, rate, income, expenses, moves, partners: perPartner, employees: perEmployee, revenue, byCategory, spent, net, margin: revenue ? net / revenue : 0, shareTotal,
+    missing: !!(pa.error || mv.error || em.error) };
 }

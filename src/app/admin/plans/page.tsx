@@ -3,6 +3,7 @@ import { getPlans } from "@/lib/data";
 import type { Plan } from "@/lib/defaults";
 import { savePlan } from "../actions";
 import { getL } from "@/lib/server/lang";
+import { PriceHistory } from "@/components/admin/PriceHistory";
 import { L } from "@/lib/i18n/ui";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export default async function PlansAdmin() {
       {plans.map((p) => <PlanForm key={p.id} p={p} />)}
       <h2 className="text-lg font-bold">{L("باقة جديدة")}</h2>
       <PlanForm />
+      <PriceHistory kind="plan" />
     </div>
   );
 }

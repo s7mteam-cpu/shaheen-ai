@@ -1,3 +1,4 @@
+import { PriceHistory } from "@/components/admin/PriceHistory";
 import { guardPage } from "@/lib/server/auth";
 import { getTools } from "@/lib/data";
 import { saveTool } from "../actions";
@@ -80,6 +81,7 @@ export default async function ToolsAdmin() {
           <button className="btn btn-primary justify-self-end px-6 py-2.5">{L("حفظ")}</button>
         </form>
       ))}
+      <PriceHistory kind="tool" />
     </div>
   );
 }

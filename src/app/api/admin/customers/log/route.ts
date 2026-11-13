@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+import { newBook, styledSheet, kwDate, FMT, xlsxResponse } from "@/lib/server/xlsx";
 import { requireAdmin } from "@/lib/server/auth";
 import { getL, serverT } from "@/lib/server/lang";
 import { customerLog, GROUPS } from "@/lib/server/customerLog";
@@ -17,31 +17,24 @@ export async function GET(req: Request) {
   const { profile, items } = arch ?? await customerLog(id, T, await getL());
   if (!profile) return new Response("not found", { status: 404 });
 
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "منصة شاهين"; wb.created = new Date();
-  const ws = wb.addWorksheet(T("السجل", "History"), { views: [{ rightToLeft: true, state: "frozen", ySplit: arch ? (arch.archived.note ? 6 : 5) : 4 }] });
-  ws.columns = [{ width: 20 }, { width: 18 }, { width: 40 }, { width: 50 }, { width: 14 }];
-  const head = (r: ExcelJS.Row, fill?: string) => { r.font = { name: "Arial", bold: true, ...(fill ? { color: { argb: "FFFFFFFF" } } : {}) }; if (fill) r.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } }; };
-  head(ws.addRow([T("العميل", "Customer"), profile.full_name ?? "", profile.email ?? "", profile.phone ?? ""]));
-  head(ws.addRow([T("الرصيد الحالي", "Current balance"), profile.credits, T("تاريخ التسجيل", "Signed up"), String(profile.created_at).slice(0, 10)]));
-  if (arch) {
-    const a = arch.archived;
-    head(ws.addRow([T("حالة الحساب", "Account status"), T(REASON_AR[a.reason][0], REASON_AR[a.reason][1]), T("تاريخ الإغلاق", "Closed on"), new Date(a.closed_at).toLocaleDateString("en-GB", { timeZone: "Asia/Kuwait" }), a.closed_by ?? ""]));
-    if (a.note) head(ws.addRow([T("السبب", "Reason"), a.note]));
-  }
-  ws.addRow([]);
-  head(ws.addRow([T("الوقت", "Time"), T("النوع", "Type"), T("الحدث", "Event"), T("التفاصيل", "Details"), T("المبلغ", "Amount")]), "FF0B2A4A");
-  const groupName = (k: string) => { const g = GROUPS.find((x) => x.key === k); return g ? T(g.ar, g.en) : k; };
-  for (const i of items) {
-    const r = ws.addRow([new Date(i.at).toLocaleString("en-GB", { timeZone: "Asia/Kuwait", dateStyle: "short", timeStyle: "short" }), groupName(i.group), i.title, i.detail, i.amount ?? ""]);
-    r.font = { name: "Arial", size: 11 };
-  }
-  const buf = await wb.xlsx.writeBuffer();
-  const safe = (profile.full_name || profile.email || "customer").replace(/[^\p{L}\p{N}@._-]+/gu, "-").slice(0, 40);
-  return new Response(buf, {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="shaheen-customer-log.xlsx"; filename*=UTF-8''${encodeURIComponent(`سجل-${safe}.xlsx`)}`,
-    },
+  const wb = newBook();
+  const a = arch?.archived;
+  const status = a ? `${T(REASON_AR[a.reason][0], REASON_AR[a.reason][1])} · ${new Date(a.closed_at).toLocaleDateString("en-GB", { timeZone: "Asia/Kuwait" })}${a.note ? ` · ${a.note}` : ""}` : "";
+  const ws = styledSheet(wb, T("السجل", "History"), {
+    title: `${T("السجل الكامل", "Full history")}: ${profile.full_name || profile.email || ""}`,
+    subtitle: [profile.email, profile.phone, `${T("الرصيد", "Balance")}: ${profile.credits}`, `${T("تاريخ التسجيل", "Joined")}: ${String(profile.created_at).slice(0, 10)}`, status].filter(Boolean).join("   ·   "),
+    columns: [
+      { header: T("الوقت", "Time"), key: "t", width: 18, fmt: FMT.datetime }, { header: T("النوع", "Type"), key: "g", width: 16, align: "center" },
+      { header: T("الحدث", "Event"), key: "e", width: 38 }, { header: T("التفاصيل", "Details"), key: "d", width: 46 }, { header: T("المبلغ", "Amount"), key: "a", width: 14, align: "center" },
+    ],
   });
+  const groupName = (k: string) => { const g = GROUPS.find((x) => x.key === k); return g ? T(g.ar, g.en) : k; };
+  const tone: Record<string, string> = { good: "FF2E7D32", bad: "FFC62828", warn: "FFB26A00" };
+  for (const i of items) {
+    const r = ws.add({ t: kwDate(i.at), g: groupName(i.group), e: i.title, d: i.detail, a: i.amount ?? "" });
+    if (i.tone) for (const k of ["d", "a"]) r.getCell(k).font = { name: "Arial", size: 11, bold: k === "a", color: { argb: tone[i.tone] } };
+  }
+  ws.finish();
+  const safe = (profile.full_name || profile.email || "customer").replace(/[^\p{L}\p{N}@._-]+/gu, "-").slice(0, 40);
+  return xlsxResponse(wb, "shaheen-customer-log.xlsx", `سجل-${safe}.xlsx`);
 }

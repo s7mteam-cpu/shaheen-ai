@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import { requireAdmin } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { audit } from "@/lib/server/audit";
+import { backupWorkbook } from "@/lib/server/backupBook";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -16,7 +17,7 @@ export const maxDuration = 300;
 const TABLES = [
   "profiles", "subscriptions", "credit_ledger", "jobs", "income", "expenses", "recurring_expenses", "tap_charges",
   "plans", "tools", "site_content", "gallery_items", "brand_kits", "leads", "admin_audit", "blocked_emails",
-  "closed_accounts", "user_events", "support_access",
+  "closed_accounts", "user_events", "support_access", "price_history", "partners", "partner_moves", "employees", "finance_periods",
 ];
 const FOLDER = "_admin_backups";
 
@@ -43,8 +44,6 @@ async function listAll(bucket: string, prefix = ""): Promise<string[]> {
   return out;
 }
 
-const csvCell = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-
 export async function POST() {
   const me = await requireAdmin("reset"); // includes the «كلمات السر» lock when the owner locked this section
   if (!me) return NextResponse.json({ error: "locked" }, { status: 403 });
@@ -53,16 +52,29 @@ export async function POST() {
   const stamp = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Kuwait" }).replace(/[: ]/g, "-").slice(0, 16);
   const summary: string[] = [];
 
+  const all: Record<string, Record<string, unknown>[]> = {};
   for (const t of TABLES) {
     const { rows, error } = await allRows(t);
-    zip.file(`data/${t}.json`, JSON.stringify(rows, null, 1));
+    all[t] = rows as Record<string, unknown>[];
+    zip.file(`restore-data/${t}.json`, JSON.stringify(rows, null, 1));
     summary.push(`${t}: ${rows.length}${error ? ` (تنبيه: ${error})` : ""}`);
-    if (t === "profiles") {
-      const head = ["الاسم", "البريد", "الهاتف", "الرصيد", "الباقة", "الدور", "تاريخ التسجيل"];
-      const lines = (rows as Record<string, unknown>[]).map((p) => [p.full_name, p.email, p.phone, p.credits, p.plan_id, p.role, String(p.created_at ?? "").slice(0, 10)].map(csvCell).join(","));
-      zip.file("العملاء.csv", "﻿" + [head.join(","), ...lines].join("\n")); // BOM so Excel shows Arabic
-    }
   }
+  // sign-in accounts: method, confirmations and the terms each customer accepted (no passwords, ever)
+  const authUsers: Record<string, unknown>[] = [];
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error || !data?.users?.length) break;
+    for (const u of data.users) authUsers.push({
+      id: u.id, email: u.email, provider: u.app_metadata?.provider ?? null, providers: u.app_metadata?.providers ?? null,
+      created_at: u.created_at, email_confirmed_at: u.email_confirmed_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null,
+      terms_accepted: u.user_metadata?.terms_accepted ?? null, terms_accepted_at: u.user_metadata?.terms_accepted_at ?? null,
+    });
+    if (data.users.length < 1000) break;
+  }
+  all.auth_users = authUsers;
+  zip.file("restore-data/auth_users.json", JSON.stringify(authUsers, null, 1));
+  summary.push(`auth_users: ${authUsers.length}`);
+  zip.file("بيانات-شاهين.xlsx", await backupWorkbook(all));
 
   let files = 0, bytes = 0;
   for (const path of await listAll("site")) {
@@ -76,8 +88,8 @@ export async function POST() {
   zip.file("اقرأني.txt", [
     "نسخة بيانات منصة شاهين", `التاريخ: ${stamp} (بتوقيت الكويت)`, "",
     "⚠️ هالملف فيه بيانات العملاء الشخصية (أسماء وإيميلات وأرقام). احفظه بمكان آمن، ولا ترسله لأحد.", "",
-    "• data/  : كل جدول بملف JSON (للاسترجاع وقت الحاجة).",
-    "• العملاء.csv : قائمة العملاء، تنفتح بـ Excel.",
+    "• بيانات-شاهين.xlsx : افتحه بـ Excel. فيه العملاء، المدفوعات، المصاريف، حركات الرصيد، الطلبات، طلبات التواصل، الحسابات المغلقة، وسجل الإدارة.",
+    "• restore-data/ : نفس البيانات بصيغة تقنية (JSON)، للمبرمج لو احتجنا نرجّع الموقع. لا تعدّل فيها.",
     "• site-media/ : صور الموقع اللي رفعتها من الإدارة (البطاقات، المعرض، الفيديوهات).",
     "• كود الموقع مو هنا: نزّله من زر «تنزيل كود الموقع» (GitHub).", "",
     "المحتوى:", ...summary.map((s) => `  - ${s}`),

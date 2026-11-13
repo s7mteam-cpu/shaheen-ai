@@ -31,7 +31,7 @@ export function ExpenseForm() {
       <input name="vendor" required list="vendors" placeholder={L("الشركة (مثلاً Gemini)")} className="field" aria-label={L("الشركة")} />
       <datalist id="vendors">{["Claude (Anthropic)", "Google Gemini", "ElevenLabs", "Railway", "Vercel", "Supabase", "Stripe", L("الدومين")].map((v) => <option key={v} value={v} />)}</datalist>
       <Amount />
-      <select name="category" defaultValue="usage" className="field" aria-label={L("النوع")}><option value="usage">{L("حسب الاستخدام")}</option><option value="fixed">{L("ثابتة شهرية")}</option><option value="yearly">{L("اشتراك سنوي")}</option><option value="other">{L("أخرى")}</option></select>
+      <select name="category" defaultValue="usage" className="field" aria-label={L("النوع")}>{[["usage", "حسب الاستخدام"], ["fixed", "ثابتة شهرية"], ["yearly", "اشتراك سنوي"], ["operations", "تشغيلية"], ["marketing", "تسويق وإعلانات"], ["salaries", "رواتب ومستحقات"], ["rent", "إيجار المكتب"], ["residency", "إقامات وتأشيرات"], ["government", "رخص ورسوم حكومية"], ["setup", "تأسيس ومعدات"], ["other", "أخرى"]].map(([v, l]) => <option key={v} value={v}>{L(l)}</option>)}</select>
       <input name="date" type="date" defaultValue={today()} className="field" aria-label={L("التاريخ")} />
       <input name="note" placeholder={L("ملاحظة (اختياري)")} className="field sm:col-span-2" />
       <label className="flex flex-col gap-1 text-sm font-semibold text-navy-900 sm:col-span-2">{L("الفاتورة (PDF أو صورة، اختياري)")}<input name="receipt" type="file" accept="application/pdf,image/*" className="text-sm font-normal" /></label>

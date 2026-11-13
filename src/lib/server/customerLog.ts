@@ -20,7 +20,7 @@ const LIMIT = 1000;
 
 export async function customerLog(userId: string, T: T, L: (s: string) => string) {
   const admin = createAdminClient();
-  const [profile, jobs, ledger, income, audit, events, tools, subs] = await Promise.all([
+  const [profile, jobs, ledger, income, audit, events, tools, subs, charges] = await Promise.all([
     admin.from("profiles").select("id,full_name,email,phone,credits,plan_id,created_at").eq("id", userId).maybeSingle(),
     admin.from("jobs").select("id,tool_id,title,status,credits_charged,refunded,error,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(LIMIT),
     admin.from("credit_ledger").select("amount,reason,ref,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(LIMIT),
@@ -28,21 +28,22 @@ export async function customerLog(userId: string, T: T, L: (s: string) => string
     admin.from("admin_audit").select("action,admin_email,note,created_at").eq("target_user", userId).order("created_at", { ascending: false }).limit(LIMIT),
     admin.from("user_events").select("kind,detail,ip,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(LIMIT),
     admin.from("tools").select("id,name"),
-    admin.from("subscriptions").select("plan_id,status,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+    admin.from("subscriptions").select("plan_id,status,updated_at,current_period_end").eq("user_id", userId).order("updated_at", { ascending: false }).limit(50),
+    admin.from("tap_charges").select("id,kind,plan_id,amount,currency,method,status,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(LIMIT),
   ]);
   const toolName = (id: string) => L(tools.data?.find((t) => t.id === id)?.name ?? id);
   const REASON: Record<string, [string, string]> = {
     subscription: ["اشتراك", "Subscription"], renewal_reset: ["تصفير التجديد", "Renewal reset"], spend: ["استخدام", "Usage"],
     refund: ["استرجاع", "Refund"], admin: ["تعديل إداري", "Admin adjustment"], referral: ["دعوة", "Referral"],
   };
-  const STATUS: Record<string, [string, string]> = { done: ["✓ نجح", "✓ Done"], failed: ["✗ فشل", "✗ Failed"], running: ["قيد التنفيذ", "Running"], queued: ["بالانتظار", "Queued"] };
+  const STATUS: Record<string, [string, string]> = { done: ["✓ ناجح", "✓ Done"], failed: ["✗ فاشل", "✗ Failed"], running: ["قيد التنفيذ", "Running"], queued: ["بالانتظار", "Queued"] };
   const items: LogItem[] = [];
 
   for (const j of jobs.data ?? []) {
     const st = STATUS[j.status] ?? [j.status, j.status];
     items.push({
       at: j.created_at, group: "work", icon: "🎬", title: `${toolName(j.tool_id)}${j.title ? ` — ${j.title}` : ""}`,
-      detail: `${T(st[0], st[1])}${j.credits_charged ? ` · ${j.credits_charged} ${T("ريشة", "credits")}` : ""}${j.refunded ? ` · ${T("انرجعت الريش", "credits refunded")}` : ""}${j.status === "failed" && j.error ? ` · ${String(j.error).slice(0, 120)}` : ""}`,
+      detail: `${T(st[0], st[1])}${j.credits_charged ? ` · ${j.credits_charged} ${T("ريشة", "credits")}` : ""}${j.refunded ? ` · ${T("استُردّت الريش", "credits refunded")}` : ""}${j.status === "failed" && j.error ? ` · ${String(j.error).slice(0, 120)}` : ""}`,
       tone: j.status === "failed" ? "bad" : j.status === "done" ? "good" : undefined,
     });
   }
@@ -53,24 +54,32 @@ export async function customerLog(userId: string, T: T, L: (s: string) => string
   for (const m of income.data ?? []) {
     items.push({ at: m.created_at ?? m.received_on, group: "money", icon: "💳", title: m.description, detail: m.method ?? "", amount: `${Number(m.amount).toFixed(m.currency === "KWD" ? 3 : 2)} ${m.currency === "KWD" ? T("د.ك", "KWD") : "$"}`, tone: "good" });
   }
+  for (const c of charges.data ?? []) {
+    const st = String(c.status ?? "").toUpperCase();
+    const ok = st === "CAPTURED", open = ["INITIATED", "IN_PROGRESS", "PENDING"].includes(st);
+    items.push({ at: c.created_at, group: "money", icon: ok ? "💳" : open ? "⏳" : "⛔",
+      title: ok ? T("دفعة ناجحة", "Payment succeeded") : open ? T("دفعة لم تكتمل", "Payment not completed") : T("دفعة فاشلة", "Payment failed"),
+      detail: [c.kind === "renew" ? T("تجديد", "Renewal") : c.kind === "managed" ? T("إدارة كاملة", "Managed service") : T("اشتراك", "Subscription"), c.plan_id, c.method, ok ? "" : st].filter(Boolean).join(" · "),
+      amount: `${Number(c.amount).toFixed(c.currency === "KWD" ? 3 : 2)} ${c.currency === "KWD" ? T("د.ك", "KWD") : c.currency}`, tone: ok ? "good" : open ? "warn" : "bad" });
+  }
   for (const s of subs.data ?? []) {
-    items.push({ at: s.created_at, group: "money", icon: "📅", title: T(`اشتراك ${s.plan_id ?? ""}`, `Subscription ${s.plan_id ?? ""}`), detail: s.status });
+    items.push({ at: s.updated_at, group: "money", icon: "📅", title: T(`اشتراك ${s.plan_id ?? ""}`, `Subscription ${s.plan_id ?? ""}`), detail: ({ active: T("نشط", "Active"), canceled: T("ملغي", "Cancelled"), past_due: T("متأخر الدفع", "Past due"), trialing: T("تجربة", "Trial"), incomplete: T("غير مكتمل", "Incomplete") } as Record<string, string>)[s.status] ?? s.status });
   }
   for (const a of audit.data ?? []) {
     items.push({ at: a.created_at, group: "admin", icon: "👤", title: L(AUDIT_AR[a.action] ?? a.action), detail: `${a.note ?? ""}${a.admin_email ? ` · ${a.admin_email}` : ""}`.replace(/^ · /, "") });
   }
   const EV: Record<string, [string, string, string, LogGroup, LogItem["tone"]]> = {
-    login: ["🔑", "سجّل دخول", "Signed in", "account", undefined],
+    login: ["🔑", "تسجيل دخول", "Signed in", "account", undefined],
     login_failed: ["🔐", "محاولة دخول بكلمة مرور خاطئة", "Failed sign-in (wrong password)", "account", "warn"],
-    password: ["🔒", "غيّر كلمة المرور", "Changed password", "account", undefined],
-    brand_reset: ["↺", "صفّر هويته", "Reset brand kit", "account", undefined],
-    violation: ["⚠️", "طلب محتوى مخالف انمنع", "Blocked content-policy request", "violation", "bad"],
+    password: ["🔒", "تغيير كلمة المرور", "Changed password", "account", undefined],
+    brand_reset: ["↺", "إعادة ضبط الهوية التجارية", "Reset brand kit", "account", undefined],
+    violation: ["⚠️", "منع طلب مخالف لسياسة المحتوى", "Blocked content-policy request", "violation", "bad"],
   };
   for (const e of events.data ?? []) {
     const d = EV[e.kind] ?? ["•", e.kind, e.kind, "account", undefined];
     items.push({ at: e.created_at, group: d[3], icon: d[0], title: T(d[1], d[2]), detail: [e.detail, e.ip ? `IP ${e.ip}` : ""].filter(Boolean).join(" · "), tone: d[4] });
   }
-  if (profile.data) items.push({ at: profile.data.created_at, group: "account", icon: "🌱", title: T("أنشأ حسابه", "Created the account"), detail: "" });
+  if (profile.data) items.push({ at: profile.data.created_at, group: "account", icon: "🌱", title: T("إنشاء الحساب", "Created the account"), detail: "" });
 
   items.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   return { profile: profile.data, items };

@@ -3,6 +3,7 @@ import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CATEGORY, financeSettings, postRecurring, toKwd, type Expense, type Income, type Recurring } from "@/lib/server/finance";
 import { ExpenseForm, IncomeForm, RecurringForm, SyncClaudeButton } from "./FinanceForms";
+import { PeriodsTab, PartnersTab, EmployeesTab } from "./PeopleTabs";
 import { deleteExpense, deleteIncome, deleteRecurring, saveRate, toggleRecurring } from "./actions";
 import { getL, serverT } from "@/lib/server/lang";
 import { L } from "@/lib/i18n/ui";
@@ -12,13 +13,13 @@ export const dynamic = "force-dynamic";
 const MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 const kdIn = (cur: string) => (n: number) => `${n.toLocaleString("en", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${cur}`;
 
-export default async function Finance({ searchParams }: { searchParams: Promise<{ tab?: string; year?: string; cat?: string }> }) {
+export default async function Finance({ searchParams }: { searchParams: Promise<{ tab?: string; year?: string; cat?: string; pid?: string; from?: string; to?: string }> }) {
   const T = await serverT();
   const L = await getL();
   const kd = kdIn(L("د.ك"));
   const money = (n: number, c: string) => (c === "KWD" ? kd(n) : `$${Number(n).toLocaleString("en", { maximumFractionDigits: 2 })}`);
   await guardPage("finance");
-  const { tab = "summary", year: y, cat } = await searchParams;
+  const { tab = "summary", year: y, cat, pid, from: pFrom, to: pTo } = await searchParams;
   const year = Number(y) > 2000 ? Number(y) : new Date().getFullYear();
   await postRecurring().catch(() => {});
   const admin = createAdminClient();
@@ -51,7 +52,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   const receiptUrl = (p: string | null) => (p ? signed.find((s) => s.path === p)?.signedUrl ?? undefined : undefined);
   const shownExpenses = cat && CATEGORY[cat] ? expenses.filter((x) => x.category === cat) : expenses;
 
-  const tabs = [["summary", L("الملخص")], ["expenses", L("المصاريف")], ["recurring", L("المتكررة")], ["income", L("الإيرادات")]] as const;
+  const tabs = [["summary", L("الملخص")], ["expenses", L("المصاريف")], ["recurring", L("المتكررة")], ["income", L("الإيرادات")], ["periods", T("الدورات المحاسبية", "Accounting cycles")], ["partners", T("الشركاء والسحوبات", "Partners")], ["employees", T("الموظفين", "Employees")]] as const;
   const href = (t: string, extra = "") => `/admin/finance?tab=${t}&year=${year}${extra}`;
 
   return (
@@ -119,6 +120,10 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
           </form>
         </>
       )}
+
+      {tab === "periods" && <PeriodsTab pid={pid} from={pFrom} to={pTo} />}
+      {tab === "partners" && <PartnersTab />}
+      {tab === "employees" && <EmployeesTab />}
 
       {tab === "expenses" && (
         <>

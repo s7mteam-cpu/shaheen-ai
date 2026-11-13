@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { recordPriceChanges } from "@/lib/server/priceHistory";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/server/auth";
 import type { SectionKey } from "@/lib/admin/sections";
@@ -22,11 +23,12 @@ export async function saveContent(key: string, value: unknown) {
 }
 
 export async function saveTool(form: FormData) {
-  await guard("tools");
+  const me = await guard("tools");
   const id = String(form.get("id"));
   const provider = String(form.get("provider") || "");
   const allowed = toolProviders[id] ?? {};
-  await createAdminClient().from("tools").update({
+  const { data: before } = await createAdminClient().from("tools").select("name,credit_cost,edit_cost,cost_unit,is_enabled").eq("id", id).maybeSingle();
+  const patch = {
     provider: provider in allowed ? provider : Object.keys(allowed)[0] ?? null,
     name: String(form.get("name")),
     description: String(form.get("description")),
@@ -37,7 +39,9 @@ export async function saveTool(form: FormData) {
     icon: String(form.get("icon") || "sparkles"),
     sort_order: Number(form.get("sort_order")) || 0,
     is_enabled: form.get("is_enabled") === "on",
-  }).eq("id", id);
+  };
+  const { error } = await createAdminClient().from("tools").update(patch).eq("id", id);
+  if (!error) await recordPriceChanges("tool", id, patch.name, before, patch, me.email);
   await saveToolDemo(id, form);
   refresh();
 }
@@ -67,10 +71,11 @@ async function saveToolDemo(id: string, form: FormData) {
 }
 
 export async function savePlan(form: FormData) {
-  await guard("plans");
+  const me = await guard("plans");
   const id = String(form.get("id")).trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
   if (!id) return;
-  await createAdminClient().from("plans").upsert({
+  const { data: before } = await createAdminClient().from("plans").select("name,price_kwd,credits,bonus_credits,is_active").eq("id", id).maybeSingle();
+  const row = {
     id,
     name: String(form.get("name")),
     subtitle: String(form.get("subtitle") || ""),
@@ -82,7 +87,9 @@ export async function savePlan(form: FormData) {
     sort_order: Number(form.get("sort_order")) || 0,
     is_featured: form.get("is_featured") === "on",
     is_active: form.get("is_active") === "on",
-  });
+  };
+  const { error } = await createAdminClient().from("plans").upsert(row);
+  if (!error) await recordPriceChanges("plan", id, row.name, before, row, me.email);
   refresh();
 }
 
