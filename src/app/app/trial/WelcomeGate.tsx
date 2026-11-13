@@ -39,7 +39,7 @@ export function WelcomeGate({ offer, credits, hours, name }: { offer: boolean; c
     // skipping the offer gives up the free trial for good (the card on top disappears too)
     if (offer) {
       window.dispatchEvent(new Event("sh:trial-skipped"));   // the card on top disappears right away
-      void skipTrial().then(() => router.refresh());
+      void skipTrial(dev).then(() => router.refresh());
     }
   };
   if (!open) return null;

@@ -25,7 +25,7 @@ import { tr } from "@/lib/i18n";
 import { LangToggle } from "@/components/LangToggle";
 import { CurrencyToggle } from "@/components/CurrencyToggle";
 import { CountrySync } from "@/components/CountrySync";
-import { endExpiredTrials, trialStatus } from "@/lib/server/trial";
+import { DEVICE_COOKIE, endExpiredTrials, trialStatus } from "@/lib/server/trial";
 import { TrialBanner } from "./trial/TrialBanner";
 import { WelcomeGate } from "./trial/WelcomeGate";
 import { trialSettings } from "@/lib/server/trial";
@@ -56,7 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
   // «التجربة المجانية»: end it if its time is up, then offer it / show the countdown at the very top (above the menu on phones)
   if (profile.role === "user" && !imp) await endExpiredTrials(profile.id).catch(() => null);
-  const trial = profile.role === "user" && !imp && !profile.is_suspended ? await trialStatus(profile.id).catch(() => ({ state: "none" as const })) : { state: "none" as const };
+  const trial = profile.role === "user" && !imp && !profile.is_suspended ? await trialStatus(profile.id, [(await cookies()).get(DEVICE_COOKIE)?.value ?? ""]).catch(() => ({ state: "none" as const })) : { state: "none" as const };
   // the welcome screen: a customer with no plan (and no running trial), except on the pages where he pays
   const here = (await headers()).get("x-path") ?? "";
   const payPage = /^\/app\/(pay|subscribe|account)/.test(here);

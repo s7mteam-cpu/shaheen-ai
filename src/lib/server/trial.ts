@@ -56,7 +56,7 @@ export function canonicalEmail(email: string) {
 }
 
 /** What the dashboard shows: «جرّب مجاناً», the running trial, or nothing. */
-export async function trialStatus(userId: string): Promise<{ state: "offer" | "active" | "none"; credits?: number; hours?: number; expiresAt?: string }> {
+export async function trialStatus(userId: string, devices: string[] = []): Promise<{ state: "offer" | "active" | "none"; credits?: number; hours?: number; expiresAt?: string }> {
   const s = await trialSettings();
   const admin = createAdminClient();
   const { data: claim } = await admin.from("trial_claims").select("credits,expires_at,ended_at").eq("user_id", userId).maybeSingle();
@@ -65,7 +65,41 @@ export async function trialStatus(userId: string): Promise<{ state: "offer" | "a
   const { count } = await admin.from("subscriptions").select("id", { count: "exact", head: true }).eq("user_id", userId);
   if (count) return { state: "none" };   // trials are for new customers only
   if (await declined(userId)) return { state: "none" };   // skipped it on the welcome screen → gone for good
+  if (await usedBefore(userId, devices)) return { state: "none" };   // same e-mail / number / device had (or skipped) a trial on an old account
   return { state: "offer", credits: s.credits, hours: s.hours };
+}
+
+/** The person's canonical e-mail and WhatsApp number (the same keys the trial records use). */
+async function identity(userId: string) {
+  const { data: p } = await createAdminClient().from("profiles").select("email,phone,country").eq("id", userId).maybeSingle();
+  return { email: p?.email ? canonicalEmail(p.email) : "", phone: normalizePhone(p?.phone ?? "", p?.country ?? undefined) || "" };
+}
+
+/**
+ * Has this person already had a trial, or skipped one, under any account (deleted ones included)?
+ * Matched by e-mail, WhatsApp number and device. (Before the v85 SQL runs, skips on deleted accounts aren't known yet.)
+ */
+export async function usedBefore(userId: string, devices: string[] = []) {
+  const admin = createAdminClient();
+  const { email, phone } = await identity(userId);
+  const devs = devices.filter(Boolean).slice(0, 4);
+  const any = async (table: "trial_claims" | "trial_declines", withUser: boolean) => {
+    const q = (v: string) => `"${v.replace(/["\\]/g, "")}"`;   // quoted, so dots / + / commas in an e-mail can't break the filter
+    const ors = [email && `email.eq.${q(email)}`, phone && `phone.eq.${q(phone)}`, ...devs.map((d) => `device.eq.${q(d)}`), withUser && `user_id.eq.${userId}`].filter(Boolean) as string[];
+    if (!ors.length) return false;
+    const { data, error } = await admin.from(table).select("id").or(ors.join(",")).limit(1);
+    return !error && (data?.length ?? 0) > 0;
+  };
+  return (await any("trial_claims", false)) || (await any("trial_declines", true));
+}
+
+/** «تخطي التجربة المجانية»: remembered on the account and by e-mail / number / device, so it outlives a deleted account. */
+export async function declineTrial(userId: string, devices: string[] = []) {
+  const admin = createAdminClient();
+  await admin.from("profiles").update({ trial_declined_at: new Date().toISOString() }).eq("id", userId).is("trial_declined_at", null);
+  const { email, phone } = await identity(userId);
+  const { data: had } = await admin.from("trial_declines").select("id").eq("user_id", userId).limit(1);
+  if (!had?.length) await admin.from("trial_declines").insert({ user_id: userId, email: email || null, phone: phone || null, device: devices.find(Boolean) ?? null });
 }
 
 /** Did the customer press «تخطي التجربة المجانية»? (Before the v84 SQL runs the column is missing → no.) */
@@ -90,6 +124,7 @@ export async function claimTrial(userId: string, ip: string | null, devices: str
   ]);
   if (!profile || profile.role !== "user") return { error: "التجربة للعملاء بس." };
   if (await declined(userId)) return { error: "تخطّيت التجربة المجانية، فما عادت متاحة. تقدر تشترك وتكمّل بلا حدود." };
+  if (await usedBefore(userId, devices)) return { error: "هالإيميل أو رقم الواتساب أو الجهاز أخذ (أو تخطّى) التجربة المجانية من قبل. التجربة لمرة وحدة لكل شخص." };
   if (!auth?.user?.email_confirmed_at) return { error: "أكّد بريدك الإلكتروني أول (من الرسالة اللي وصلتك)، وبعدها جرّب." };
   const email = canonicalEmail(profile.email ?? auth.user.email ?? "");
   if (await isDisposable(email)) return { error: "التجربة المجانية ما تنعطى للإيميلات المؤقتة. سجّل بإيميلك الحقيقي." };

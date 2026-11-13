@@ -4,9 +4,8 @@ import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getSessionProfile } from "@/lib/data";
 import { isImpersonating } from "@/lib/server/impersonation";
-import { claimTrial, DEVICE_COOKIE, isHuman } from "@/lib/server/trial";
+import { claimTrial, declineTrial, DEVICE_COOKIE, isHuman } from "@/lib/server/trial";
 import { getL, serverT } from "@/lib/server/lang";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 type Res = { ok?: string; error?: string } | undefined;
 
@@ -30,10 +29,12 @@ export async function startTrial(_p: Res, form: FormData): Promise<Res> {
   return { ok: T(`🎉 بدأت تجربتك: ${r.ok.credits} ريشة لمدة ${r.ok.hours} ساعة. جرّب أي أداة الحين!`, `🎉 Your trial has started: ${r.ok.credits} credits for ${r.ok.hours} hours. Try any tool now!`) };
 }
 
-/** «تخطي التجربة المجانية واستكشف الأدوات بدون اشتراك»: the customer gives up the trial for good. */
-export async function skipTrial(): Promise<void> {
+/** «تخطي التجربة المجانية واستكشف الأدوات بدون اشتراك»: the customer gives up the trial for good (also after deleting the account). */
+export async function skipTrial(device = ""): Promise<void> {
   const profile = await getSessionProfile();
   if (!profile || profile.role !== "user" || (await isImpersonating())) return;
-  await createAdminClient().from("profiles").update({ trial_declined_at: new Date().toISOString() }).eq("id", profile.id).is("trial_declined_at", null);
+  const clean = (v: string | undefined | null) => (v ?? "").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 64);
+  const fromCookie = clean((await cookies()).get(DEVICE_COOKIE)?.value);
+  await declineTrial(profile.id, [...new Set([fromCookie, clean(device)].filter(Boolean))]);
   revalidatePath("/app", "layout");
 }
