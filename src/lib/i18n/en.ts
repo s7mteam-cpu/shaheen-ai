@@ -1671,4 +1671,11 @@ export const EN: Record<string, string> = {
   "تعذّر تحميل الصورة.": "Couldn't download the picture.",
   "الصورة كبيرة.": "The picture is too large.",
   "هذا الطلب مخالف لسياسة المحتوى في شاهين (محتوى غير أخلاقي أو غير لائق)، وما نقدر ننفذه. تكرار المحاولة ممكن يوقف الحساب. اطّلع على «سياسة المحتوى» بأسفل الموقع.": "This request breaks Shaheen's Content Policy (immoral or inappropriate content), so we can't run it. Repeated attempts may suspend the account. See the «Content Policy» at the bottom of the site.",
+  "وضع كلمة سر الإدارة": "Set the admin password",
+  "تغيير كلمة سر الإدارة": "Changed the admin password",
+  "تعديل الأقسام المقفولة": "Changed the locked sections",
+  "إزالة كلمة سر الإدارة": "Removed the admin password",
+  "كلمات السر": "Passwords",
+  "اقفل الصفحة الحين": "Lock now",
+  "تنزيل نسخة البيانات": "Downloaded the data backup",
 };

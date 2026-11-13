@@ -21,18 +21,21 @@ export async function adminAccess(): Promise<AdminAccess | null> {
   let data = res.data;
   if (res.error) data = (await admin.from("profiles").select("role").eq("id", user.id).single()).data as typeof data; // before the v27 SQL runs
   if (data?.role === "admin") return { user, full: true, perms: [] };
-  if (data?.role === "staff") return { user, full: false, perms: ((data.admin_perms as SectionKey[] | null) ?? []).filter((k) => k !== "team") };
+  if (data?.role === "staff") return { user, full: false, perms: ((data.admin_perms as SectionKey[] | null) ?? []).filter((k) => k !== "team" && k !== "passwords") };
   return null;
 }
 
-export const canOpen = (a: AdminAccess, section: SectionKey | null) => a.full || (!!section && section !== "team" && a.perms.includes(section));
+export const canOpen = (a: AdminAccess, section: SectionKey | null) => a.full || (!!section && section !== "team" && section !== "passwords" && a.perms.includes(section));
 
 /** Guard for admin pages and server actions: checks the section of the page the request came from. */
 export async function requireAdmin(section?: SectionKey) {
   const a = await adminAccess();
   if (!a) return null;
   const s = section ?? sectionOf((await headers()).get("x-path") ?? "") ?? "overview";
-  return canOpen(a, s) ? a.user : null;
+  if (!canOpen(a, s)) return null;
+  // «كلمات السر»: a locked section also needs the admin password (typed within the last 15 minutes)
+  const { needsUnlock } = await import("@/lib/server/adminLock");
+  return (await needsUnlock(a.user.id, s)) ? null : a.user;
 }
 
 /** Only full admins (owner level). */
@@ -47,7 +50,14 @@ export async function guardPage(section: SectionKey) {
   const { SECTIONS } = await import("@/lib/admin/sections");
   const a = await adminAccess();
   if (!a) return redirect("/app");
-  if (canOpen(a, section)) return;
+  if (canOpen(a, section)) {
+    const { needsUnlock } = await import("@/lib/server/adminLock");
+    if (await needsUnlock(a.user.id, section)) {
+      const here = (await headers()).get("x-path") ?? "/admin";
+      redirect(`/admin/unlock?next=${encodeURIComponent(here)}`);
+    }
+    return;
+  }
   const first = SECTIONS.find((x) => canOpen(a, x.key));
   redirect(first ? first.path : "/app");
 }

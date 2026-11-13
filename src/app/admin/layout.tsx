@@ -7,7 +7,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { adminAccess, canOpen } from "@/lib/server/auth";
-import { SECTIONS, TEAM, sectionOf } from "@/lib/admin/sections";
+import { SECTIONS, TEAM, PASSWORDS, sectionOf } from "@/lib/admin/sections";
 import { getL } from "@/lib/server/lang";
 
 
@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const chosen = await getChosenLang();
   const access = await adminAccess();
   if (!access) redirect("/app");
-  const nav = [...SECTIONS, ...(access.full ? [TEAM] : [])].filter((x) => canOpen(access, x.key)).map((x) => [x.path, L(x.label)] as const);
+  const nav = [...SECTIONS, ...(access.full ? [PASSWORDS, TEAM] : [])].filter((x) => canOpen(access, x.key)).map((x) => [x.path, L(x.label)] as const);
   if (!nav.length) redirect("/app");
   const here = sectionOf((await headers()).get("x-path") ?? "/admin");
   if (!canOpen(access, here)) redirect(nav[0][0]);

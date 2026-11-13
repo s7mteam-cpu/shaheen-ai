@@ -10,6 +10,7 @@ export async function audit(admin: { id: string; email?: string | null }, action
 }
 
 export const AUDIT_AR: Record<string, string> = {
+  admin_lock_set: "وضع كلمة سر الإدارة", admin_lock_changed: "تغيير كلمة سر الإدارة", admin_lock_sections: "تعديل الأقسام المقفولة", admin_lock_removed: "إزالة كلمة سر الإدارة", backup_download: "تنزيل نسخة البيانات", platform_reset: "تصفير المنصة",
   credits_add: "إضافة رصيد", credits_sub: "خصم رصيد", delete_account: "حذف الحساب", delete_work: "حذف أعماله",
   block: "حظر البريد", unblock: "إلغاء الحظر", impersonate: "الدخول على حسابه", access_request: "طلب صلاحية دخول", suspend: "إيقاف", unsuspend: "إلغاء الإيقاف",
   cancel_sub: "إلغاء الاشتراك", resume_sub: "إرجاع التجديد", make_admin: "جعله مديراً", team_perms: "تعديل صلاحيات الفريق", remove_admin: "إزالة المدير",

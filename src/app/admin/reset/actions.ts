@@ -7,6 +7,8 @@ import { COUNTERS, counterResets, type Counter } from "@/lib/server/overviewRese
 import { RESET_PHRASE, isResetPhrase } from "./phrase";
 import { CHANGELOG } from "@/lib/changelog";
 import { getL, serverT } from "@/lib/server/lang";
+import { isUnlocked } from "@/lib/server/adminLock";
+import { audit } from "@/lib/server/audit";
 
 type Res = { ok?: string; error?: string } | undefined;
 
@@ -16,6 +18,7 @@ export async function resetPlatform(_prev: Res, form: FormData): Promise<Res> {
   const L = await getL();
   const me = await requireAdmin("reset");
   if (!me) return { error: L("غير مصرّح") };
+  if (!(await isUnlocked(me.id))) return { error: T("انتهت مدة فتح الصفحة. حدّث الصفحة واكتب كلمة السر من جديد.", "The page lock timed out. Refresh and enter the password again.") };
   const on = (k: string) => form.get(k) === "on";
   const counters = (Object.keys(COUNTERS) as Counter[]).filter((k) => on(`c_${k}`));
   const want = { history: on("history"), balances: on("balances"), jobs: on("jobs"), customers: on("customers"), leads: on("leads"), notes: on("notes"), changelog: on("changelog") };
@@ -85,5 +88,6 @@ export async function resetPlatform(_prev: Res, form: FormData): Promise<Res> {
 
   revalidatePath("/", "layout");
   const msg = done.join(" · ") + ".";
+  await audit(me, "platform_reset", undefined, msg.slice(0, 300));
   return failed ? { error: T(`${msg} بس فشل حذف ${failed} حساب، اضغط مرة ثانية لإكمالهم.`, `${msg} but ${failed} accounts failed to delete — press again to finish them.`) } : { ok: T(`تمّ: ${msg}`, `Done: ${msg}`) };
 }

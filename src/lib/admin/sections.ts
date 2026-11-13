@@ -16,12 +16,16 @@ export const SECTIONS = [
   { key: "reset", path: "/admin/reset", label: "تصفير المنصة" },
 ] as const;
 export const TEAM = { key: "team", path: "/admin/team", label: "فريق الإدارة" } as const;
-export type SectionKey = (typeof SECTIONS)[number]["key"] | "team";
+/** «كلمات السر»: a second password on any admin section. Full admins only, like «فريق الإدارة». */
+export const PASSWORDS = { key: "passwords", path: "/admin/passwords", label: "كلمات السر" } as const;
+export type SectionKey = (typeof SECTIONS)[number]["key"] | "team" | "passwords";
+/** Sections that always need the admin password once it is set. */
+export const ALWAYS_LOCKED: SectionKey[] = ["reset", "passwords"];
 
 /** Which section a URL belongs to (longest matching path wins). */
 export function sectionOf(path: string): SectionKey | null {
   if (!path.startsWith("/admin")) return null;
-  const all = [...SECTIONS, TEAM].sort((a, b) => b.path.length - a.path.length);
+  const all = [...SECTIONS, TEAM, PASSWORDS].sort((a, b) => b.path.length - a.path.length);
   for (const s of all) if (s.path === "/admin" ? path === "/admin" || path === "/admin/" : path === s.path || path.startsWith(s.path + "/")) return s.key;
   return "overview";
 }
