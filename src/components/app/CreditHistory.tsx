@@ -10,8 +10,8 @@ export type Row = {
 };
 
 const REASONS: Record<Lang, Record<string, string>> = {
-  ar: { subscription: "تجديد الباقة", renewal_reset: "انتهاء ريش الشهر السابق", refund: "استرجاع — ما نجح العمل", admin: "ريش من فريق شاهين", referral: "مكافأة دعوة صديق" },
-  en: { subscription: "Plan renewal", renewal_reset: "Last month's credits expired", refund: "Refund — job didn't succeed", admin: "Credits from the Shaheen team", referral: "Referral reward" },
+  ar: { trial: "🎁 التجربة المجانية", trial_end: "انتهاء التجربة المجانية", subscription: "تجديد الباقة", renewal_reset: "انتهاء ريش الشهر السابق", refund: "استرجاع — ما نجح العمل", admin: "ريش من فريق شاهين", referral: "مكافأة دعوة صديق" },
+  en: { trial: "🎁 Free trial", trial_end: "Free trial ended", subscription: "Plan renewal", renewal_reset: "Last month's credits expired", refund: "Refund — job didn't succeed", admin: "Credits from the Shaheen team", referral: "Referral reward" },
 };
 
 /** "مصاريف الريش": where every ريشة went, newest first. */

@@ -9,7 +9,7 @@ import { countryOf } from "@/lib/countries";
 type Row = Record<string, unknown>;
 const GOLD_TAB = "FFC9A45C";
 const s = (v: unknown) => (v == null ? "" : String(v));
-const REASON: Record<string, string> = { subscription: "اشتراك", renewal_reset: "تصفير الرصيد عند التجديد", spend: "استخدام", refund: "استرجاع", admin: "تعديل إداري", referral: "دعوة" };
+const REASON: Record<string, string> = { trial: "التجربة المجانية", trial_end: "انتهاء التجربة المجانية", subscription: "اشتراك", renewal_reset: "تصفير الرصيد عند التجديد", spend: "استخدام", refund: "استرجاع", admin: "تعديل إداري", referral: "دعوة" };
 const STATUS: Record<string, string> = { done: "ناجح", failed: "فاشل", running: "قيد التنفيذ", queued: "بالانتظار" };
 const CLOSE: Record<string, string> = { self: "حذفه العميل بنفسه", admin: "حذفته الإدارة", banned: "محظور" };
 const LEAD: Record<string, string> = { new: "جديد", contacted: "تم التواصل", won: "تم الاتفاق", closed: "مغلق" };
@@ -159,6 +159,22 @@ export async function backupBook(t: Record<string, Row[]>) {
     r.getCell("st").font = { name: "Arial", size: 11, bold: true, color: { argb: color } };
   }
   tw.finish(trs.length ? { u: "المجموع المقبول", a: { formula: `SUMIFS(H${tw.FIRST}:H${tw.lastRow()},J${tw.FIRST}:J${tw.lastRow()},"✓ مقبول")` } } : undefined);
+
+  // 2b3) free trials (one per account, e-mail, number and device)
+  const tc = sortDesc(t.trial_claims ?? [], "created_at");
+  const subUsers = new Set((t.subscriptions ?? []).map((x) => s(x.user_id)));
+  const tt = styledSheet(wb, "التجارب المجانية", { title: "التجارب المجانية", tab: "FFB26A00", columns: [
+    { header: "تاريخ البدء", key: "d", width: 18, fmt: FMT.datetime }, { header: "العميل", key: "u", width: 24 }, { header: "الدولة", key: "ctry", width: 16 },
+    { header: "البريد", key: "e", width: 28 }, { header: "الهاتف", key: "p", width: 18 }, { header: "الريش", key: "c", width: 10, fmt: FMT.num },
+    { header: "تنتهي", key: "x", width: 18, fmt: FMT.datetime }, { header: "الحالة", key: "st", width: 14 }, { header: "اشترك بعدها؟", key: "paid", width: 14 },
+  ] });
+  for (const x of tc) {
+    const live = !x.ended_at && new Date(s(x.expires_at)).getTime() > Date.now();
+    tt.add({ d: kwDate(s(x.created_at)), u: x.user_id ? who(x.user_id) : "(حساب محذوف)", ctry: x.user_id ? ctryOf(x.user_id) : "—", e: s(x.email), p: s(x.phone),
+      c: Number(x.credits ?? 0), x: kwDate(s(x.expires_at)), st: live ? "شغّالة" : "انتهت", paid: x.user_id && subUsers.has(s(x.user_id)) ? "✓ نعم" : "لا" });
+  }
+  tt.finish(tc.length ? { u: "نسبة الاشتراك بعد التجربة", paid: { formula: `IFERROR(COUNTIF(I${tt.FIRST}:I${tt.lastRow()},"✓ نعم")/COUNTA(I${tt.FIRST}:I${tt.lastRow()}),0)` } } : undefined);
+  if (tc.length) tt.ws.getCell(`I${tt.lastRow() + 1}`).numFmt = "0%";
 
   // 2c) subscriptions
   const subs = sortDesc(t.subscriptions ?? [], "updated_at");

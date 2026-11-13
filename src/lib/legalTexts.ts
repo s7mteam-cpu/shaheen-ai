@@ -30,6 +30,8 @@ export const TERMS_AR = `باستخدامك منصة «شاهين» ({site}) ف�
 
 **الدفع بالتحويل:** في بعض الدول نتيح الدفع بالتحويل البنكي أو المحافظ الإلكترونية. ترسل صورة إيصال التحويل من المنصة، ويُفعَّل اشتراكك بعد التأكد من وصول المبلغ كاملاً، عادةً خلال يوم عمل. الاشتراك المدفوع بالتحويل لا يتجدد تلقائياً، ويمكن دفع أكثر من شهر مقدماً فتتجدد ريش الباقة كل شهر خلال المدة المدفوعة. رسوم التحويل وفروقات الصرف على المحوِّل، ونحتفظ بحق رفض أي إيصال لا يطابق المبلغ أو لم يصلنا مع إبلاغك بالسبب.
 
+**التجربة المجانية:** قد نتيح للعملاء الجدد تجربة مجانية برصيد ومدة محدّدين، مرة واحدة لكل شخص (لكل حساب وبريد إلكتروني ورقم واتساب وجهاز)، وتشترط تأكيد البريد الإلكتروني وإضافة رقم الواتساب. تنتهي أرصدة التجربة غير المستخدمة بانتهاء مدتها، ولا تُستبدل بمال. ويحق لنا إلغاء التجربة أو إيقاف الحساب عند محاولة الحصول على أكثر من تجربة بحسابات متعددة أو ببيانات غير صحيحة.
+
 ## 4. محتواك وحقوقك
 تبقى ملكية المحتوى الذي ترفعه لك، وتمنحنا إذناً محدوداً لمعالجته بالقدر اللازم لتقديم الخدمة. النتائج التي تنتجها لك المنصة يحق لك استخدامها تجارياً، مع مسؤوليتك عن مراجعتها.
 
@@ -59,6 +61,8 @@ Tools use “feather” credits according to your plan. Each tool shows its cost
 
 **Paying by transfer:** in some countries we offer payment by bank transfer or e-wallet. You upload the transfer receipt on the platform, and your plan is activated once we confirm the full amount has arrived, usually within one business day. Plans paid by transfer do not renew automatically; you may pay several months in advance, and your plan's credits then refill every month during the paid period. Transfer fees and exchange differences are borne by the sender, and we may reject any receipt that does not match the amount or was not received, telling you why.
 
+**Free trial:** we may offer new customers a free trial with set credits and duration, once per person (per account, email address, WhatsApp number and device); it requires a confirmed email and a WhatsApp number. Unused trial credits expire when the trial ends and cannot be exchanged for money. We may cancel the trial or suspend the account if someone tries to get more than one trial through multiple accounts or false details.
+
 ## 4. Your content
 You keep ownership of the content you upload and grant us a limited permission to process it only as needed to provide the service. You may use the results commercially and are responsible for reviewing them.
 
@@ -79,6 +83,7 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 - **محتواك:** الصور والفيديوهات والملفات الصوتية والنصوص التي ترفعها أو تكتبها لاستخدام الأدوات، والنتائج التي تنتجها المنصة لك.
 - **هويتك التجارية (اختياري):** اسم النشاط والشعار والألوان والخط والحساب ورابط الموقع وحساب إنستغرام وصور مرجعية للأسلوب.
 - **بيانات الاستخدام والاشتراك:** رصيد «الريش»، والعمليات المنفذة، والفواتير، ورمز الإحالة، وسجل محاولات الدفع الناجحة والفاشلة (المبلغ والنتيجة والوقت ورقم العملية، دون بيانات البطاقة).
+- **منع إساءة استخدام التجربة المجانية:** عند بدء التجربة نحفظ بريدك ورقمك وعنوان IP ومعرّفاً عشوائياً لجهازك (في ملف تعريف ارتباط وفي تخزين المتصفح)، فقط للتأكد أن التجربة تُمنح مرة واحدة لكل شخص. وتبقى هذه البيانات حتى بعد حذف الحساب للغرض نفسه.
 - **سجل الدخول والأمان:** أوقات تسجيل الدخول، ومحاولات الدخول الخاطئة، وتغيير كلمة المرور، وعنوان IP المرتبط بكل منها، لحماية حسابك ومنع الاحتيال.
 - **إيصالات التحويل:** إذا دفعت بالتحويل، نحفظ صورة الإيصال الذي ترفعه وما تكتبه معه، للتحقق من الدفع وللسجلات المحاسبية، ولا يطّلع عليها إلا فريق الإدارة.
 - **سجل الموافقات:** نسخة الشروط التي وافقت عليها ووقت الموافقة، وموافقتك على استخدام صور الأشخاص والأصوات في الأدوات، وموافقتك عند منح فريق الدعم صلاحية الدخول إلى حسابك، لتوثيق حقوق الطرفين.
@@ -136,6 +141,7 @@ export const PRIVACY_EN = `Shaheen ({site}) is a Kuwaiti AI content platform ser
 - **Your content:** images, videos, audio and text you upload or write to use our tools, and the results we generate for you.
 - **Brand kit (optional):** business name, logo, colours, font, handle, website, Instagram account and style reference images.
 - **Usage and billing:** credit balance, jobs you run, invoices, referral code, and a record of successful and failed payment attempts (amount, result, time and transaction number, never card details).
+- **Preventing free-trial abuse:** when you start a trial we keep your email, number, IP address and a random identifier for your device (in a cookie and in browser storage), only to make sure the trial is given once per person. This data is kept after an account is deleted, for the same purpose.
 - **Sign-in and security log:** sign-in times, wrong-password attempts, password changes and the IP address of each, to protect your account and prevent fraud.
 - **Transfer receipts:** if you pay by transfer, we keep the receipt image you upload and what you write with it, to verify the payment and for accounting records; only the admin team can see them.
 - **Consent record:** the version of the terms you accepted and when, your consent to using people's photos and voices in the tools, and your consent when you give the support team access to your account, to document both parties' rights.

@@ -1702,4 +1702,16 @@ export const EN: Record<string, string> = {
   "ربط Google Sheets": "Google Sheets link",
   // v80
   "الدفع بالتحويل": "Bank transfers",
+  // v81: free trial
+  "التجربة المجانية متوقفة حالياً.": "The free trial is currently off.",
+  "التجربة للعملاء بس.": "The trial is for customers only.",
+  "أكّد بريدك الإلكتروني أول (من الرسالة اللي وصلتك)، وبعدها جرّب.": "Confirm your email first (from the message we sent you), then try again.",
+  "التجربة المجانية ما تنعطى للإيميلات المؤقتة. سجّل بإيميلك الحقيقي.": "Free trials aren't given to temporary email addresses. Please sign up with your real email.",
+  "أضف رقم الواتساب بحسابك أول (من «حسابي» ← «بياناتي»)، وبعدها جرّب.": "Add your WhatsApp number first (My account → My details), then try again.",
+  "التجربة المجانية للعملاء الجدد بس.": "The free trial is for new customers only.",
+  "أخذت تجربتك المجانية من قبل.": "You've already had your free trial.",
+  "هالإيميل أو رقم الواتساب أو الجهاز أخذ تجربة مجانية من قبل. التجربة لمرة وحدة لكل شخص.": "This email, WhatsApp number or device has already had a free trial. It's once per person.",
+  "انعطت تجارب كثيرة من نفس الشبكة اليوم. جرّب بكرة أو اشترك مباشرة.": "Too many trials from the same network today. Try tomorrow or subscribe directly.",
+  "هالرقم أو الحساب أخذ تجربة من قبل.": "This number or account has already had a trial.",
+  "التجربة المجانية": "Free trial",
 };

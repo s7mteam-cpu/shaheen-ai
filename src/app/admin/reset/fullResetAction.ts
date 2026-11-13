@@ -54,7 +54,8 @@ export async function fullReset(_prev: Res, form: FormData): Promise<Res> {
 
   // 5) payments and activity
   await wipe("tap_charges");
-  await wipe("transfers");   // the receipts live in each customer's folder and go with it
+  await wipe("transfers");
+  await wipe("trial_claims");   // after the reset, everyone can have a trial again   // the receipts live in each customer's folder and go with it
   await wipe("subscriptions");
   await admin.from("credit_ledger").update({ job_id: null }).not("job_id", "is", null);
   await wipe("jobs");

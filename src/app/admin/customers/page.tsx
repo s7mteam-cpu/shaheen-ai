@@ -37,7 +37,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   const SUB_AR: Record<string, string> = { active: L("نشط"), trialing: L("تجريبي"), past_due: L("متأخر الدفع") };
   const accessAr: Record<string, string> = { pending: L("بانتظار موافقة العميل"), approved: L("وافق العميل"), denied: L("رفض العميل"), revoked: L("ملغية"), expired: L("انتهت المدة") };
   const log = auditRes && !auditRes.error ? auditRes.data ?? [] : [];
-  const reasonAr: Record<string, string> = { subscription: L("اشتراك"), renewal_reset: L("تصفير التجديد"), spend: L("استخدام"), refund: L("استرجاع"), admin: L("تعديل إداري"), referral: L("دعوة") };
+  const reasonAr: Record<string, string> = { trial: L("التجربة المجانية"), trial_end: L("انتهاء التجربة المجانية"), subscription: L("اشتراك"), renewal_reset: L("تصفير التجديد"), spend: L("استخدام"), refund: L("استرجاع"), admin: L("تعديل إداري"), referral: L("دعوة") };
 
   return (
     <div className="flex flex-col gap-5">

@@ -5,6 +5,9 @@ import { savePlan } from "../actions";
 import { getL } from "@/lib/server/lang";
 import { PriceHistory } from "@/components/admin/PriceHistory";
 import { L } from "@/lib/i18n/ui";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { trialSettings } from "@/lib/server/trial";
+import { TrialForm } from "./TrialForm";
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +38,37 @@ export default async function PlansAdmin() {
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-[26px] font-bold text-navy-900">{L("الباقات")}</h1>
+      <TrialCard />
       {plans.map((p) => <PlanForm key={p.id} p={p} />)}
       <h2 className="text-lg font-bold">{L("باقة جديدة")}</h2>
       <PlanForm />
       <PriceHistory kind="plan" />
     </div>
+  );
+}
+
+/** «التجربة المجانية»: settings + how it's going (last 30 days). */
+async function TrialCard() {
+  const s = await trialSettings();
+  const admin = createAdminClient();
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const { data: claims, error } = await admin.from("trial_claims").select("user_id").gte("created_at", since);
+  if (error) return <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">التجربة المجانية: شغّل ملف SQL الخاص بالتحديث v81 (v81-trial.sql) بـ Supabase أول.</p>;
+  const ids = [...new Set((claims ?? []).map((c) => c.user_id).filter(Boolean))] as string[];
+  const { data: paid } = ids.length ? await admin.from("subscriptions").select("user_id").in("user_id", ids) : { data: [] };
+  const converted = new Set((paid ?? []).map((p) => p.user_id)).size;
+  const rate = ids.length ? Math.round((converted / ids.length) * 100) : 0;
+  return (
+    <section className="card flex flex-col gap-4 border-2 border-gold-500/50 p-5">
+      <div>
+        <h2 className="text-lg font-bold text-navy-900">🎁 التجربة المجانية</h2>
+        <p className="mt-1 text-[13px] leading-6 text-subtle">العميل الجديد يشوف بالرئيسية «جرّب مجاناً». تجربة وحدة لكل حساب وإيميل ورقم واتساب وجهاز، حتى لو حذف حسابه وسجّل من جديد. لازم يكون مأكد إيميله وحاط رقمه، والإيميلات المؤقتة ممنوعة. ولما يخلص الوقت، ريش التجربة الباقية تنشال لحالها (إلا إذا اشترك).</p>
+      </div>
+      <div className="flex flex-wrap gap-6 text-sm">
+        <span>آخر 30 يوم: <b className="text-navy-900">{claims?.length ?? 0}</b> تجربة</span>
+        <span>اشتركوا بعدها: <b className="text-navy-900">{converted}</b> ({rate}%)</span>
+      </div>
+      <TrialForm s={s} />
+    </section>
   );
 }

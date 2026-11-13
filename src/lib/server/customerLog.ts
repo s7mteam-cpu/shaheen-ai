@@ -33,7 +33,7 @@ export async function customerLog(userId: string, T: T, L: (s: string) => string
   ]);
   const toolName = (id: string) => L(tools.data?.find((t) => t.id === id)?.name ?? id);
   const REASON: Record<string, [string, string]> = {
-    subscription: ["اشتراك", "Subscription"], renewal_reset: ["تصفير التجديد", "Renewal reset"], spend: ["استخدام", "Usage"],
+    trial: ["التجربة المجانية", "Free trial"], trial_end: ["انتهاء التجربة المجانية", "Free trial ended"], subscription: ["اشتراك", "Subscription"], renewal_reset: ["تصفير التجديد", "Renewal reset"], spend: ["استخدام", "Usage"],
     refund: ["استرجاع", "Refund"], admin: ["تعديل إداري", "Admin adjustment"], referral: ["دعوة", "Referral"],
   };
   const STATUS: Record<string, [string, string]> = { done: ["✓ ناجح", "✓ Done"], failed: ["✗ فاشل", "✗ Failed"], running: ["قيد التنفيذ", "Running"], queued: ["بالانتظار", "Queued"] };

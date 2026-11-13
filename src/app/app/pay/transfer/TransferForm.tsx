@@ -60,7 +60,7 @@ export function TransferForm({ kind, plan, title, methods, prices }: { kind: str
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {prices.map((p) => (
               <button type="button" key={p.months} onClick={() => setMonths(p.months)} aria-pressed={months === p.months}
-                className={`rounded-xl border-2 px-3 py-2.5 text-sm font-bold ${months === p.months ? "border-gold bg-gold/10 text-navy-900" : "border-line text-muted"}`}>
+                className={`rounded-xl border-2 px-3 py-2.5 text-sm font-bold ${months === p.months ? "border-gold-500 bg-gold-100 text-navy-900" : "border-line text-muted"}`}>
                 {p.months === 1 ? T("شهر", "1 month") : T(`${p.months} أشهر`, `${p.months} months`)}
               </button>
             ))}
@@ -72,7 +72,7 @@ export function TransferForm({ kind, plan, title, methods, prices }: { kind: str
       <fieldset className="flex flex-col gap-2">
         <legend className="label mb-1">{T("1. حوّل على وحدة من هذي", "1. Transfer to one of these")}</legend>
         {methods.map((m) => (
-          <label key={m.id} className={`flex cursor-pointer flex-col gap-2 rounded-xl border-2 p-3 ${method === m.id ? "border-gold bg-gold/5" : "border-line"}`}>
+          <label key={m.id} className={`flex cursor-pointer flex-col gap-2 rounded-xl border-2 p-3 ${method === m.id ? "border-gold-500 bg-gold-100/60" : "border-line"}`}>
             <span className="flex items-center gap-2 font-bold text-navy-900"><input type="radio" name="method" value={m.id} checked={method === m.id} onChange={() => setMethod(m.id)} className="h-4 w-4" />{m.name}</span>
             {method === m.id && (
               <div className="flex flex-col gap-2 rounded-lg bg-tint p-3">
