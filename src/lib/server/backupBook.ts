@@ -14,7 +14,7 @@ const STATUS: Record<string, string> = { done: "ناجح", failed: "فاشل", r
 const CLOSE: Record<string, string> = { self: "حذفه العميل بنفسه", admin: "حذفته الإدارة", banned: "محظور" };
 const LEAD: Record<string, string> = { new: "جديد", contacted: "تم التواصل", won: "تم الاتفاق", closed: "مغلق" };
 const CHARGE_KIND: Record<string, string> = { subscribe: "اشتراك جديد", renew: "تجديد", managed: "خدمة الإدارة الكاملة" };
-const SUB: Record<string, string> = { active: "نشط", canceled: "ملغي", past_due: "متأخر الدفع", trialing: "تجربة", incomplete: "غير مكتمل", paused: "موقوف مؤقتاً" };
+const SUB: Record<string, string> = { active: "نشط", canceled: "ملغي", past_due: "متأخر الدفع", expired: "منتهي", trialing: "تجربة", incomplete: "غير مكتمل", paused: "موقوف مؤقتاً" };
 const EVENT: Record<string, string> = { login: "تسجيل دخول", login_failed: "محاولة دخول بكلمة مرور خاطئة", password: "تغيير كلمة المرور", violation: "محتوى مخالف مُنع", brand_reset: "إعادة ضبط الهوية" };
 /** Tap statuses → Arabic + colour. */
 export function chargeState(st: unknown): [string, string] {
@@ -141,6 +141,25 @@ export async function backupBook(t: Record<string, Row[]>) {
   }
   pa.finish();
 
+  // 2b2) «الدفع بالتحويل»: every transfer sent by a customer (pending, approved, rejected)
+  const TR_KIND: Record<string, string> = { subscribe: "اشتراك جديد", renew: "تجديد", managed: "باقة الإدارة الكاملة" };
+  const TR_ST: Record<string, [string, string]> = { pending: ["قيد المراجعة", "FFB26A00"], approved: ["✓ مقبول", "FF2E7D32"], rejected: ["✗ مرفوض", "FFC62828"] };
+  const trs = sortDesc(t.transfers ?? [], "created_at");
+  const tw = styledSheet(wb, "التحويلات", { title: "المدفوعات بالتحويل (بنكي، محافظ إلكترونية)", tab: "FF2E7D32", columns: [
+    { header: "تاريخ الإرسال", key: "d", width: 18, fmt: FMT.datetime }, { header: "العميل", key: "u", width: 24 }, { header: "الدولة", key: "ctry", width: 16 },
+    { header: "الطريقة", key: "m", width: 22 }, { header: "النوع", key: "k", width: 16 }, { header: "الباقة", key: "plan", width: 14 },
+    { header: "عدد الأشهر", key: "mo", width: 11, fmt: FMT.num }, { header: "المبلغ", key: "a", width: 14, fmt: FMT.kd }, { header: "المبلغ المحوَّل (حسب العميل)", key: "paid", width: 24 },
+    { header: "الحالة", key: "st", width: 15 }, { header: "تاريخ المراجعة", key: "rd", width: 18, fmt: FMT.datetime }, { header: "بواسطة", key: "by", width: 24 },
+    { header: "سبب الرفض", key: "why", width: 30 }, { header: "ملاحظة العميل", key: "note", width: 30 },
+  ] });
+  for (const x of trs) {
+    const [label, color] = TR_ST[s(x.status)] ?? [s(x.status), "FF1F2937"];
+    const r = tw.add({ d: kwDate(s(x.created_at)), u: who(x.user_id), ctry: ctryOf(x.user_id), m: s(x.method_name), k: TR_KIND[s(x.kind)] ?? s(x.kind), plan: x.plan_id ? plan(x.plan_id) : "—",
+      mo: Number(x.months ?? 1), a: Number(x.amount ?? 0), paid: s(x.paid_text) || "—", st: label, rd: x.reviewed_at ? kwDate(s(x.reviewed_at)) : null, by: s(x.reviewed_by) || "—", why: s(x.reject_reason) || "—", note: s(x.note) || "—" });
+    r.getCell("st").font = { name: "Arial", size: 11, bold: true, color: { argb: color } };
+  }
+  tw.finish(trs.length ? { u: "المجموع المقبول", a: { formula: `SUMIFS(H${tw.FIRST}:H${tw.lastRow()},J${tw.FIRST}:J${tw.lastRow()},"✓ مقبول")` } } : undefined);
+
   // 2c) subscriptions
   const subs = sortDesc(t.subscriptions ?? [], "updated_at");
   const sb = styledSheet(wb, "الاشتراكات", { title: "الاشتراكات", columns: [
@@ -148,7 +167,7 @@ export async function backupBook(t: Record<string, Row[]>) {
     { header: "طريقة الدفع", key: "pm", width: 14, align: "center" }, { header: "البطاقة", key: "card", width: 20, align: "center" },
     { header: "يتجدد / ينتهي في", key: "end", width: 18, fmt: FMT.date }, { header: "تُلغى بنهاية المدة؟", key: "c", width: 16, align: "center" }, { header: "آخر تحديث", key: "up", width: 18, fmt: FMT.datetime }, { header: "الدولة", key: "ctry", width: 16, align: "center" },
   ] });
-  for (const x of subs) sb.add({ ctry: ctryOf(x.user_id), u: who(x.user_id), plan: plan(x.plan_id), st: SUB[s(x.status)] ?? s(x.status), pm: x.pay_method === "card" ? "بطاقة (تجديد تلقائي)" : x.pay_method === "knet" ? "كي نت (رابط شهري)" : s(x.pay_method) || "—",
+  for (const x of subs) sb.add({ ctry: ctryOf(x.user_id), u: who(x.user_id), plan: plan(x.plan_id), st: SUB[s(x.status)] ?? s(x.status), pm: x.pay_method === "manual" ? `تحويل: ${s(x.card_label)}${x.prepaid_until ? ` (مدفوع لين ${new Date(s(x.prepaid_until)).toLocaleDateString("en-GB")})` : ""}` : x.pay_method === "card" ? "بطاقة (تجديد تلقائي)" : x.pay_method === "knet" ? "كي نت (رابط شهري)" : s(x.pay_method) || "—",
     card: s(x.card_label) || "—", end: kwDate(s(x.current_period_end)), c: x.cancel_at_period_end ? "نعم" : "لا", up: kwDate(s(x.updated_at)) });
   sb.finish();
 

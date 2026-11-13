@@ -2,6 +2,7 @@
 export const SECTIONS = [
   { key: "overview", path: "/admin", label: "نظرة عامة" },
   { key: "finance", path: "/admin/finance", label: "المالية" },
+  { key: "transfers", path: "/admin/transfers", label: "الدفع بالتحويل" },
   { key: "content", path: "/admin/content", label: "نصوص وصور الموقع" },
   { key: "tools", path: "/admin/tools", label: "الأدوات والأسعار" },
   { key: "ai", path: "/admin/ai", label: "الذكاء الاصطناعي" },

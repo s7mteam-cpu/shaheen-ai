@@ -14,8 +14,8 @@ type Res = { ok?: string; error?: string; url?: string | null } | undefined;
 
 /**
  * «تصفير كامل» (owner only): the platform as on launch day. A full backup is saved first; if it fails nothing is deleted.
- * Kept: plans, tools, prices, site texts and pictures, settings, legal texts, admin accounts, passwords, the Google Sheets link.
- * Wiped: customers, works, credits, payments and payment attempts, subscriptions, all finance (cycles, income, expenses,
+ * Kept: plans, tools, prices, transfer methods, site texts and pictures, settings, legal texts, admin accounts, passwords, the Google Sheets link.
+ * Wiped: customers, works, credits, payments, payment attempts and transfers, subscriptions, all finance (cycles, income, expenses,
  * partners, employees), leads, notifications, sign-in log, archive, ban list, price history and the admin log
  * (which then starts again with one line: this reset and its backup's name).
  */
@@ -54,6 +54,7 @@ export async function fullReset(_prev: Res, form: FormData): Promise<Res> {
 
   // 5) payments and activity
   await wipe("tap_charges");
+  await wipe("transfers");   // the receipts live in each customer's folder and go with it
   await wipe("subscriptions");
   await admin.from("credit_ledger").update({ job_id: null }).not("job_id", "is", null);
   await wipe("jobs");

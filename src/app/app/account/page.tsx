@@ -15,6 +15,8 @@ import { RenewConsent } from "@/components/app/RenewConsent";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { methodsFor } from "@/lib/server/transfers";
 
 export async function generateMetadata() { return { title: (await getLang()) === "en" ? "Account & plan" : "الحساب والاشتراك" }; }
 const TABS = { ar: [["sub", "الاشتراك"], ["inv", "الفواتير"], ["me", "بياناتي"]], en: [["sub", "Plan"], ["inv", "Invoices"], ["me", "My details"]] } as const;
@@ -37,6 +39,12 @@ export default async function Account({ searchParams }: { searchParams: Promise<
   const supabase = await createClient();
   const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", profile!.id).order("updated_at", { ascending: false }).limit(1).maybeSingle();
   const plan = plans.find((p) => p.id === profile?.plan_id);
+  // «الدفع بالتحويل»: a transfer waiting for review, and whether this customer's country has transfer methods
+  const admin = createAdminClient();
+  const { data: pendingTransfer } = await admin.from("transfers").select("method_name,amount").eq("user_id", profile!.id).eq("status", "pending").maybeSingle();
+  const { data: lastRejected } = await admin.from("transfers").select("method_name,reject_reason,reviewed_at").eq("user_id", profile!.id).eq("status", "rejected").order("reviewed_at", { ascending: false }).limit(1).maybeSingle();
+  const canTransfer = (await methodsFor(profile?.country)).length > 0;
+  const manual = sub?.provider === "manual";
 
   let invoices: { id: string; date: number; amount: string; status: string; pdf?: string | null }[] = [];
   if (tab === "inv") {
@@ -82,19 +90,25 @@ export default async function Account({ searchParams }: { searchParams: Promise<
             </section>
             <section className="card flex min-w-0 flex-[1_1_260px] flex-col gap-3 p-7">
               <h2 className="text-lg font-bold">{T("طريقة الدفع والفواتير", "Payment & billing")}</h2>
-              {sub?.provider === "tap" && ["active", "past_due"].includes(sub.status) ? (
+              {pendingTransfer && <p className="rounded-xl bg-amber-50 px-3 py-2 text-[13px] font-semibold text-amber-900">⏳ {T(`تحويلك (${pendingTransfer.method_name} — ${Number(pendingTransfer.amount)} د.ك) ينتظر المراجعة. بيوصلك إشعار أول ما يتفعّل.`, `Your transfer (${pendingTransfer.method_name} — ${Number(pendingTransfer.amount)} KWD) is waiting for review.`)}</p>}
+              {!pendingTransfer && lastRejected && lastRejected.reviewed_at && Date.now() - new Date(lastRejected.reviewed_at).getTime() < 7 * 86_400_000 && <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-800">{T(`ما قدرنا نأكد تحويلك الأخير (${lastRejected.method_name}): ${lastRejected.reject_reason ?? ""}`, `We couldn't confirm your last transfer (${lastRejected.method_name}): ${lastRejected.reject_reason ?? ""}`)}</p>}
+              {(sub?.provider === "tap" || manual) && sub && ["active", "past_due"].includes(sub.status) ? (
                 <>
-                  {sub.pay_method === "card"
+                  {manual
+                    ? <p className="text-sm leading-7 text-muted">🏦 <b className="text-navy-900">{sub.card_label ?? T("الدفع بالتحويل", "Bank transfer")}</b><br />{sub.prepaid_until ? T(`مدفوع لين ${new Date(sub.prepaid_until).toLocaleDateString(dateFmt)}. `, `Paid until ${new Date(sub.prepaid_until).toLocaleDateString(dateFmt)}. `) : ""}{T("الدفع بالتحويل ما يتجدد تلقائياً، ونذكّرك قبل نهاية المدة بـ3 أيام.", "Transfers don't renew automatically; we remind you 3 days before the period ends.")}</p>
+                    : sub.pay_method === "card"
                     ? <p className="text-sm leading-7 text-muted">💳 <b className="text-navy-900" dir="ltr">{sub.card_label ?? T("بطاقة محفوظة", "Saved card")}</b><br />{sub.cancel_at_period_end ? T("التجديد موقوف.", "Renewal is off.") : T("يتجدد اشتراكك تلقائياً كل شهر من هذه البطاقة.", "Your plan renews automatically every month from this card.")}</p>
                     : <p className="text-sm leading-7 text-muted">🏦 <b className="text-navy-900">{sub.pay_method === "knet" ? T("كي نت", "KNET") : T("رابط دفع شهري", "Monthly payment link")}</b><br />{sub.cancel_at_period_end ? T("التجديد موقوف.", "Renewal is off.") : T("كي نت ما ينخصم تلقائياً، فيوصلك إشعار فيه رابط الدفع قبل نهاية الشهر بـ3 أيام.", "KNET can't be charged automatically, so you'll get a payment link 3 days before the month ends.")}</p>}
                   {sub.next_plan_id && sub.next_plan_id !== sub.plan_id && <p className="rounded-xl bg-tint px-3 py-2 text-[13px] text-navy-900">{T("من التجديد الجاي: باقة ", "From the next renewal: ")}{plans.find((p) => p.id === sub.next_plan_id)?.name ?? sub.next_plan_id}</p>}
                   {sub.status === "past_due" && <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-800">{T("ما وصلنا دفع هذا الشهر. ادفع خلال 3 أيام من انتهاء الشهر عشان ما يتوقف اشتراكك.", "We haven't received this month's payment. Pay within 3 days of the month ending to keep your plan active.")}</p>}
                   <div className="mt-auto flex flex-col gap-2">
-                    {!sub.cancel_at_period_end && (sub.status === "past_due" || sub.pay_method !== "card") && <Link href="/app/pay?kind=renew" className="btn btn-gold w-full py-3">{T("ادفع الشهر الجاي الحين", "Pay next month now")}</Link>}
+                    {manual && !pendingTransfer && <Link href="/app/pay/transfer?kind=renew" className="btn btn-gold w-full py-3">🏦 {T("جدد بالتحويل", "Renew by transfer")}</Link>}
+                    {!manual && !sub.cancel_at_period_end && (sub.status === "past_due" || sub.pay_method !== "card") && <Link href="/app/pay?kind=renew" className="btn btn-gold w-full py-3">{T("ادفع الشهر الجاي الحين", "Pay next month now")}</Link>}
+                    {!manual && canTransfer && !pendingTransfer && !sub.cancel_at_period_end && sub.pay_method !== "card" && <Link href="/app/pay/transfer?kind=renew" className="btn btn-outline w-full py-3">🏦 {T("أو جدد بالتحويل", "Or renew by transfer")}</Link>}
                     {sub.pay_method !== "card" && !sub.cancel_at_period_end && <Link href="/app/pay?kind=renew" className="text-center text-[12.5px] text-subtle">{T("تبي تجديد تلقائي؟ ادفع مرة بالبطاقة وتنحفظ عند بوابة الدفع.", "Want automatic renewal? Pay once by card and it's saved securely by the payment provider.")}</Link>}
-                    <form action={setRenewal.bind(null, Boolean(sub.cancel_at_period_end))}>
+                    {!manual && <form action={setRenewal.bind(null, Boolean(sub.cancel_at_period_end))}>
                       <button className="btn btn-outline w-full py-3">{sub.cancel_at_period_end ? T("رجّع التجديد الشهري", "Turn renewal back on") : T("أوقف التجديد", "Stop renewal")}</button>
-                    </form>
+                    </form>}
                   </div>
                 </>
               ) : (

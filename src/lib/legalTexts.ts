@@ -28,6 +28,8 @@ export const TERMS_AR = `باستخدامك منصة «شاهين» ({site}) ف�
 
 **الدول والعملات:** الخدمة متاحة في جميع الدول العربية، ويمكن استخدامها من دول أخرى. الأسعار محددة بالدينار الكويتي وتُحصَّل بالدينار الكويتي. الأسعار المعروضة بعملات أخرى تقريبية للتوضيح فقط وتُحسب بسعر صرف تقريبي يُحدَّث يومياً، وقد يختلف المبلغ الذي يظهر في كشف حسابك حسب سعر الصرف لدى بنكك وأي رسوم يفرضها على المعاملات بالعملة الأجنبية، ولا نتحمل هذه الفروقات أو الرسوم. وتتحمل أي ضرائب أو رسوم تفرضها قوانين بلدك على الخدمات الرقمية، ما لم تظهر محصّلة منا صراحة في الفاتورة.
 
+**الدفع بالتحويل:** في بعض الدول نتيح الدفع بالتحويل البنكي أو المحافظ الإلكترونية. ترسل صورة إيصال التحويل من المنصة، ويُفعَّل اشتراكك بعد التأكد من وصول المبلغ كاملاً، عادةً خلال يوم عمل. الاشتراك المدفوع بالتحويل لا يتجدد تلقائياً، ويمكن دفع أكثر من شهر مقدماً فتتجدد ريش الباقة كل شهر خلال المدة المدفوعة. رسوم التحويل وفروقات الصرف على المحوِّل، ونحتفظ بحق رفض أي إيصال لا يطابق المبلغ أو لم يصلنا مع إبلاغك بالسبب.
+
 ## 4. محتواك وحقوقك
 تبقى ملكية المحتوى الذي ترفعه لك، وتمنحنا إذناً محدوداً لمعالجته بالقدر اللازم لتقديم الخدمة. النتائج التي تنتجها لك المنصة يحق لك استخدامها تجارياً، مع مسؤوليتك عن مراجعتها.
 
@@ -55,6 +57,8 @@ Tools use “feather” credits according to your plan. Each tool shows its cost
 
 **Countries and currencies:** the service is available in all Arab countries and can be used from other countries. Prices are set and charged in Kuwaiti dinars. Prices shown in other currencies are approximate guides calculated at an approximate exchange rate updated daily; the amount on your statement may differ because of your bank's exchange rate and any foreign-transaction fees, which we are not responsible for. You are responsible for any taxes or fees your country's laws apply to digital services, unless we clearly collect them on the invoice.
 
+**Paying by transfer:** in some countries we offer payment by bank transfer or e-wallet. You upload the transfer receipt on the platform, and your plan is activated once we confirm the full amount has arrived, usually within one business day. Plans paid by transfer do not renew automatically; you may pay several months in advance, and your plan's credits then refill every month during the paid period. Transfer fees and exchange differences are borne by the sender, and we may reject any receipt that does not match the amount or was not received, telling you why.
+
 ## 4. Your content
 You keep ownership of the content you upload and grant us a limited permission to process it only as needed to provide the service. You may use the results commercially and are responsible for reviewing them.
 
@@ -76,6 +80,7 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 - **هويتك التجارية (اختياري):** اسم النشاط والشعار والألوان والخط والحساب ورابط الموقع وحساب إنستغرام وصور مرجعية للأسلوب.
 - **بيانات الاستخدام والاشتراك:** رصيد «الريش»، والعمليات المنفذة، والفواتير، ورمز الإحالة، وسجل محاولات الدفع الناجحة والفاشلة (المبلغ والنتيجة والوقت ورقم العملية، دون بيانات البطاقة).
 - **سجل الدخول والأمان:** أوقات تسجيل الدخول، ومحاولات الدخول الخاطئة، وتغيير كلمة المرور، وعنوان IP المرتبط بكل منها، لحماية حسابك ومنع الاحتيال.
+- **إيصالات التحويل:** إذا دفعت بالتحويل، نحفظ صورة الإيصال الذي ترفعه وما تكتبه معه، للتحقق من الدفع وللسجلات المحاسبية، ولا يطّلع عليها إلا فريق الإدارة.
 - **سجل الموافقات:** نسخة الشروط التي وافقت عليها ووقت الموافقة، وموافقتك على استخدام صور الأشخاص والأصوات في الأدوات، وموافقتك عند منح فريق الدعم صلاحية الدخول إلى حسابك، لتوثيق حقوق الطرفين.
 - **الدولة والعملة:** نحفظ الدولة التي تختارها عند التسجيل أو في إعدادات حسابك، لنقترح عليك لهجة بلدك ونتواصل معك على رقمك الصحيح، وتقدر تغيّرها بأي وقت. والعملة التي تختارها لعرض الأسعار تُحفظ في متصفحك فقط. ولا نستخدم موقعك الجغرافي.
 - **بيانات تقنية:** ملفات تعريف الارتباط الضرورية لتسجيل الدخول وتذكّر اللغة والعملة، وسجلات تقنية لحماية الخدمة وإصلاح الأخطاء.
@@ -132,6 +137,7 @@ export const PRIVACY_EN = `Shaheen ({site}) is a Kuwaiti AI content platform ser
 - **Brand kit (optional):** business name, logo, colours, font, handle, website, Instagram account and style reference images.
 - **Usage and billing:** credit balance, jobs you run, invoices, referral code, and a record of successful and failed payment attempts (amount, result, time and transaction number, never card details).
 - **Sign-in and security log:** sign-in times, wrong-password attempts, password changes and the IP address of each, to protect your account and prevent fraud.
+- **Transfer receipts:** if you pay by transfer, we keep the receipt image you upload and what you write with it, to verify the payment and for accounting records; only the admin team can see them.
 - **Consent record:** the version of the terms you accepted and when, your consent to using people's photos and voices in the tools, and your consent when you give the support team access to your account, to document both parties' rights.
 - **Country and currency:** we keep the country you choose at sign-up or in your account settings, to suggest your dialect and contact you on the right number. You can change it at any time. The currency you choose for displaying prices is stored only in your browser. We do not use your geographic location.
 - **Technical data:** essential cookies for sign-in and for remembering your language and currency, and technical logs used to secure the service and fix errors.
@@ -216,7 +222,7 @@ export const REFUND_AR = `> **باختصار**
 هذه الخدمة يقدّمها فريق بشري. يحق لك استرداد كامل قبل بدء العمل على حسابك. بعد بدء العمل يُلغى التجديد القادم عند طلبك، ولا يُسترد مبلغ الشهر الجاري.
 
 ## 10. طريقة طلب الاسترداد
-راسلنا على {email} أو واتساب {whatsapp}، أو عبر «التواصل مع الدعم» داخل المنصة، واذكر البريد المسجّل في حسابك وتاريخ الدفع. نرد خلال يومي عمل، وبعد الموافقة يُعاد المبلغ بالدينار الكويتي بنفس طريقة الدفع خلال 7 أيام عمل، وقد يختلف المبلغ بعملة بطاقتك بسبب سعر الصرف أو رسوم البنك، ولا نتحمل هذه الفروقات. قد يختلف وقت ظهور المبلغ في حسابك حسب البنك.
+راسلنا على {email} أو واتساب {whatsapp}، أو عبر «التواصل مع الدعم» داخل المنصة، واذكر البريد المسجّل في حسابك وتاريخ الدفع. نرد خلال يومي عمل، وبعد الموافقة يُعاد المبلغ بالدينار الكويتي بنفس طريقة الدفع خلال 7 أيام عمل، وقد يختلف المبلغ بعملة بطاقتك بسبب سعر الصرف أو رسوم البنك، ولا نتحمل هذه الفروقات. وإذا كان الدفع بالتحويل، يُعاد المبلغ بالتحويل إلى الحساب أو المحفظة التي حوّلت منها، وتُخصم منه رسوم التحويل إن وُجدت. قد يختلف وقت ظهور المبلغ في حسابك حسب البنك.
 
 ## 11. القانون المطبّق
 تخضع هذه السياسة لقوانين دولة الكويت، ولا تنتقص من أي حق إلزامي يمنحه لك قانون بلدك كمستهلك. راجع أيضاً [شروط الاستخدام](/terms) و[سياسة الخصوصية](/privacy).`;
@@ -259,7 +265,7 @@ Account deletion is permanent and removes your credits, all your work and saved 
 This service is delivered by our team. You are entitled to a full refund before work on your account starts. After work starts, we cancel the next renewal on request, but the current month is not refunded.
 
 ## 10. How to request a refund
-Email {email}, WhatsApp {whatsapp}, or use “Contact support” in the app, with your account email and payment date. We reply within 2 business days; approved refunds are returned in Kuwaiti dinars to the original payment method within 7 business days; the amount in your card's currency may differ because of exchange rates or bank fees, which we are not responsible for. Your bank may take longer to show it.
+Email {email}, WhatsApp {whatsapp}, or use “Contact support” in the app, with your account email and payment date. We reply within 2 business days; approved refunds are returned in Kuwaiti dinars to the original payment method within 7 business days; the amount in your card's currency may differ because of exchange rates or bank fees, which we are not responsible for. If you paid by transfer, the refund is sent by transfer to the account or wallet you paid from, less any transfer fees. Your bank may take longer to show it.
 
 ## 11. Governing law
 This policy is governed by the laws of the State of Kuwait and does not limit any mandatory consumer rights your country's law gives you. See also our [Terms of Service](/terms) and [Privacy Policy](/privacy).`;

@@ -6,6 +6,7 @@ export const TABLES = [
   "profiles", "subscriptions", "credit_ledger", "jobs", "income", "expenses", "recurring_expenses", "tap_charges",
   "plans", "tools", "site_content", "gallery_items", "brand_kits", "leads", "admin_audit", "blocked_emails",
   "closed_accounts", "user_events", "support_access", "price_history", "partners", "partner_moves", "employees", "finance_periods",
+  "transfers", "transfer_methods",
 ];
 export type Row = Record<string, unknown>;
 

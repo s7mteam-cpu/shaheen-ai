@@ -6,6 +6,9 @@ import { RenewConsent } from "@/components/app/RenewConsent";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
+import Link from "next/link";
+import { getSessionProfile } from "@/lib/data";
+import { methodsFor } from "@/lib/server/transfers";
 
 /** Coming from the pricing section: confirm the plan and the monthly charge, then go to the secure payment page. */
 export default async function Subscribe({ searchParams }: { searchParams: Promise<{ plan?: string; error?: string }> }) {
@@ -16,6 +19,7 @@ export default async function Subscribe({ searchParams }: { searchParams: Promis
   const plan = await localize(plan0, lang);
   const T = (ar: string, en: string) => tr(lang, ar, en);
   const { money } = await getMoney();
+  const transfer = await methodsFor((await getSessionProfile())?.country);
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 py-8">
       <h1 className="text-[26px] font-bold text-navy-900">{T("تأكيد الاشتراك", "Confirm your plan")}</h1>
@@ -25,6 +29,7 @@ export default async function Subscribe({ searchParams }: { searchParams: Promis
         {error === "renew" && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">{T("علّم على المربع عشان تكمل للدفع.", "Tick the box to continue to payment.")}</p>}
         <RenewConsent price={Number(plan.price_kwd)} />
         <button className="btn btn-gold py-3">{T("كمّل للدفع الآمن", "Continue to secure payment")}</button>
+        {transfer.length > 0 && <Link href={`/app/pay/transfer?kind=subscribe&plan=${plan.id}`} className="btn btn-outline py-3">🏦 {T("أو ادفع بالتحويل", "Or pay by transfer")} <span className="text-[12.5px] font-normal opacity-80">({transfer.map((m) => m.name.replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, "")).join("، ")})</span></Link>}
       </form>
     </div>
   );

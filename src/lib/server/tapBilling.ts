@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { recordPayment } from "@/lib/server/payments";
 import { createCharge, getCharge, methodOf, tapPhone, tapTestMode, tokenFromSavedCard, type TapCharge } from "@/lib/tap";
 import { getContent } from "@/lib/data";
+import { rollPrepaidMonth } from "@/lib/server/transfers";
 
 /**
  * Shaheen billing on Tap:
@@ -161,23 +162,26 @@ async function stopPlan(sub: { id: string; user_id: string; current_period_end: 
     "/app/account");
 }
 
-/** Runs once a day (Vercel cron): charges saved cards, reminds KNET customers, and stops unpaid plans. */
+/** Runs once a day (Vercel cron): charges saved cards, reminds KNET / transfer customers, rolls prepaid months, and stops unpaid plans. */
 export async function runRenewals() {
   const admin = createAdminClient();
   const now = Date.now();
-  const { data: subs } = await admin.from("subscriptions").select("*").eq("provider", "tap").in("status", ["active", "past_due"]);
+  const { data: subs } = await admin.from("subscriptions").select("*").in("provider", ["tap", "manual"]).in("status", ["active", "past_due"]);
   const log: string[] = [];
   for (const sub of subs ?? []) {
     if (!sub.current_period_end) continue;
     const end = new Date(sub.current_period_end).getTime();
+    const manual = sub.provider === "manual";
     try {
+      // paid by transfer for several months: the next month starts and the credits refill by themselves
+      if (manual && !sub.cancel_at_period_end && (await rollPrepaidMonth(sub))) { log.push(`${sub.id}: prepaid month`); continue; }
       if (sub.cancel_at_period_end) {
         if (end <= now) { await stopPlan(sub, "canceled"); log.push(`${sub.id}: canceled`); }
         continue;
       }
       if (end + GRACE_DAYS * DAY <= now) { await stopPlan(sub, "expired"); log.push(`${sub.id}: expired`); continue; }
 
-      const auto = sub.pay_method === "card" && sub.tap_card_id && sub.tap_customer_id && sub.tap_agreement_id && sub.failed_attempts < MAX_CARD_TRIES;
+      const auto = !manual && sub.pay_method === "card" && sub.tap_card_id && sub.tap_customer_id && sub.tap_agreement_id && sub.failed_attempts < MAX_CARD_TRIES;
       if (auto && end <= now) {
         const planId = sub.next_plan_id || sub.plan_id;
         const { data: plan } = await admin.from("plans").select("name,price_kwd").eq("id", planId).single();
@@ -199,7 +203,8 @@ export async function runRenewals() {
       // KNET (or a card we can't charge): payment link a few days before the end, once per month.
       if (end - REMIND_DAYS * DAY <= now && sub.reminded_for !== sub.current_period_end) {
         const date = new Date(end).toLocaleDateString("ar-KW");
-        await notify(sub.user_id, "جدد اشتراكك بشاهين", `اشتراكك ينتهي بتاريخ ${date}. ادفع من الرابط بكي نت أو بالبطاقة عشان ما توقف أدواتك.`, "/app/pay?kind=renew");
+        if (manual) await notify(sub.user_id, "جدد اشتراكك بشاهين", `اشتراكك ينتهي بتاريخ ${date}. حوّل قيمة الشهر الجاي (أو أكثر) وارفع الإيصال عشان ما توقف أدواتك.`, "/app/pay/transfer?kind=renew");
+        else await notify(sub.user_id, "جدد اشتراكك بشاهين", `اشتراكك ينتهي بتاريخ ${date}. ادفع من الرابط بكي نت أو بالبطاقة عشان ما توقف أدواتك.`, "/app/pay?kind=renew");
         await admin.from("subscriptions").update({ reminded_for: sub.current_period_end }).eq("id", sub.id);
         log.push(`${sub.id}: reminded`);
       }

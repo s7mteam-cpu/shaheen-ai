@@ -1700,4 +1700,6 @@ export const EN: Record<string, string> = {
   "مغاربية": "Maghrebi",
   // v76
   "ربط Google Sheets": "Google Sheets link",
+  // v80
+  "الدفع بالتحويل": "Bank transfers",
 };

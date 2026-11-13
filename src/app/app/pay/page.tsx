@@ -8,6 +8,7 @@ import { tapOpenFor, tapTestMode } from "@/lib/tap";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
+import { methodsFor } from "@/lib/server/transfers";
 
 /** The link in the monthly reminder (KNET) and in «باقة الإدارة الكاملة»: shows what will be paid, then goes to Tap. */
 export default async function Pay({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
@@ -18,6 +19,7 @@ export default async function Pay({ searchParams }: { searchParams: Promise<{ ki
   if (!profile) redirect("/login");
   if (!tapOpenFor(profile.role)) redirect("/app/account");
   const admin = createAdminClient();
+  const transfer = await methodsFor(profile.country);
 
   let title: string, amount: number, note: string;
   if (kind === "managed") {
@@ -47,6 +49,7 @@ export default async function Pay({ searchParams }: { searchParams: Promise<{ ki
         <p className="rounded-xl bg-tint p-3 text-[13px] leading-6 text-navy-900">{lang === "en" ? <>You can pay with <b>KNET</b>, <b>Visa / Mastercard</b> or <b>Apple Pay</b> on the secure payment page. Your card details stay with the payment provider and are never stored by us.</> : <>تقدر تدفع بـ<b>كي نت</b> أو <b>فيزا / ماستر كارد</b> أو <b>Apple Pay</b> من صفحة الدفع الآمنة. بيانات بطاقتك عند بوابة الدفع، وما تنحفظ عندنا.</>}</p>
         {tapTestMode() && <p className="rounded-xl bg-amber-50 p-3 text-[13px] font-semibold text-amber-900">{T("🧪 وضع التجربة: الدفع هنا تجريبي ببطاقات Tap التجريبية، وما ينخصم أي مبلغ حقيقي.", "🧪 Test mode: payments here use Tap test cards — no real money is charged.")}</p>}
         <button className="btn btn-gold py-3">{T("كمّل للدفع الآمن", "Continue to secure payment")}</button>
+        {transfer.length > 0 && <Link href={`/app/pay/transfer?kind=${kind === "managed" ? "managed" : "renew"}`} className="btn btn-outline py-3">🏦 {T("أو ادفع بالتحويل", "Or pay by transfer")}</Link>}
         <Link href="/app/account" className="text-center text-sm text-subtle">{T("رجوع", "Back")}</Link>
       </form>
     </div>

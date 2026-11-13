@@ -31,13 +31,13 @@ export function FullReset({ phrase }: { phrase: string }) {
         <div className="rounded-xl bg-red-50 p-3 leading-7 text-red-900">
           <b>{T("ينمسح نهائياً:", "Deleted for good:")}</b>
           <ul className="list-disc ps-5">
-            {[T("كل العملاء وحساباتهم وملفاتهم وأعمالهم", "All customers, accounts, files and works"), T("الريش وحركاتها", "Credits and their history"), T("المدفوعات ومحاولات الدفع والاشتراكات", "Payments, payment attempts, subscriptions"), T("كل المالية: الدورات، الإيرادات، المصروفات، الشركاء، الموظفين", "All finance: cycles, income, expenses, partners, employees"), T("طلبات التواصل، الإشعارات، سجل الدخول، الأرشيف، قائمة الحظر، سجل تغيير الأسعار", "Leads, notifications, sign-in log, archive, ban list, price history"), T("سجل الإدارة (يبدأ من جديد بسطر التصفير)", "The admin log (restarts with this reset)")].map((x) => <li key={x}>{x}</li>)}
+            {[T("كل العملاء وحساباتهم وملفاتهم وأعمالهم", "All customers, accounts, files and works"), T("الريش وحركاتها", "Credits and their history"), T("المدفوعات ومحاولات الدفع والتحويلات والاشتراكات", "Payments, payment attempts, transfers, subscriptions"), T("كل المالية: الدورات، الإيرادات، المصروفات، الشركاء، الموظفين", "All finance: cycles, income, expenses, partners, employees"), T("طلبات التواصل، الإشعارات، سجل الدخول، الأرشيف، قائمة الحظر، سجل تغيير الأسعار", "Leads, notifications, sign-in log, archive, ban list, price history"), T("سجل الإدارة (يبدأ من جديد بسطر التصفير)", "The admin log (restarts with this reset)")].map((x) => <li key={x}>{x}</li>)}
           </ul>
         </div>
         <div className="rounded-xl bg-green-50 p-3 leading-7 text-green-900">
           <b>{T("يظل مثل ما هو:", "Kept as is:")}</b>
           <ul className="list-disc ps-5">
-            {[T("الباقات والأدوات والأسعار", "Plans, tools and prices"), T("نصوص الموقع وصوره والسياسات", "Site texts, pictures and policies"), T("الإعدادات وسعر الدولار", "Settings and the dollar rate"), T("حسابات الإدارة وكلمات السر", "Admin accounts and passwords"), T("ربط Google Sheets (والملف يتصفّر معها)", "The Google Sheets link (the file empties too)")].map((x) => <li key={x}>{x}</li>)}
+            {[T("الباقات والأدوات والأسعار وطرق التحويل", "Plans, tools, prices and transfer methods"), T("نصوص الموقع وصوره والسياسات", "Site texts, pictures and policies"), T("الإعدادات وسعر الدولار", "Settings and the dollar rate"), T("حسابات الإدارة وكلمات السر", "Admin accounts and passwords"), T("ربط Google Sheets (والملف يتصفّر معها)", "The Google Sheets link (the file empties too)")].map((x) => <li key={x}>{x}</li>)}
           </ul>
         </div>
       </div>
