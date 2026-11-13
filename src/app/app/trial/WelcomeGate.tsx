@@ -20,7 +20,7 @@ function TrialButton({ label }: { label: string }) {
 
 /**
  * The welcome screen for a customer with no plan: «ابدأ التجربة المجانية» / «اشترك وكمّل بلا حدود» / «تخطي».
- * Shown once per visit (skipping hides it until the site is opened again). Never on the payment pages.
+ * With a trial on offer it shows until the customer decides; otherwise once per visit. Never on the payment pages.
  */
 export function WelcomeGate({ offer, credits, hours, name }: { offer: boolean; credits: number; hours: number; name?: string }) {
   const T = useT();
@@ -28,7 +28,9 @@ export function WelcomeGate({ offer, credits, hours, name }: { offer: boolean; c
   const [open, setOpen] = useState(false);
   const [dev, setDev] = useState("");
   const [r, act] = useActionState(startTrial, undefined);
-  useEffect(() => { setDev(deviceId()); try { setOpen(sessionStorage.getItem(SKIP) !== "1"); } catch { setOpen(true); } }, []);
+  // With a trial on offer the screen shows every time until the customer decides (trial, or skip = gone for good).
+  // Without one (subscribe only), skipping hides it for the rest of the visit.
+  useEffect(() => { setDev(deviceId()); try { setOpen(offer || sessionStorage.getItem(SKIP) !== "1"); } catch { setOpen(true); } }, [offer]);
   useEffect(() => { if (r?.ok) { const t = setTimeout(() => { setOpen(false); router.refresh(); }, 1600); return () => clearTimeout(t); } }, [r?.ok, router]);
   useEffect(() => { if (!open) return; const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = o; }; }, [open]);
   const skip = () => {
