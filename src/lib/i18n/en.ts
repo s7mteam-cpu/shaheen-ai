@@ -1698,4 +1698,6 @@ export const EN: Record<string, string> = {
   "يمنية": "Yemeni",
   "ليبية": "Libyan",
   "مغاربية": "Maghrebi",
+  // v76
+  "ربط Google Sheets": "Google Sheets link",
 };

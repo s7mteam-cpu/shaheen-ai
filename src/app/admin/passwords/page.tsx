@@ -13,7 +13,7 @@ export default async function Passwords() {
   const L = await getL();
   const { lock, missing } = await readLock();
   const locked = lockedSections(lock);
-  const sections = [...SECTIONS, { key: "passwords", label: "كلمات السر" }].map((s) => ({
+  const sections = [...SECTIONS, { key: "sheets", label: "ربط Google Sheets" }, { key: "passwords", label: "كلمات السر" }].map((s) => ({
     key: s.key, label: L(s.label), always: ALWAYS_LOCKED.includes(s.key as never), on: locked.includes(s.key as never),
   }));
   return (

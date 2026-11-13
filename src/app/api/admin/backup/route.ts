@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { audit } from "@/lib/server/audit";
 import { backupWorkbook } from "@/lib/server/backupBook";
+import { loadAll } from "@/lib/server/allData";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -14,24 +15,7 @@ export const maxDuration = 300;
  * 10-minute download link (a direct response would hit Vercel's 4.5 MB limit). Only the 3 newest are kept.
  * If the owner locked «تصفير المنصة» in «كلمات السر», the admin password is needed too.
  */
-const TABLES = [
-  "profiles", "subscriptions", "credit_ledger", "jobs", "income", "expenses", "recurring_expenses", "tap_charges",
-  "plans", "tools", "site_content", "gallery_items", "brand_kits", "leads", "admin_audit", "blocked_emails",
-  "closed_accounts", "user_events", "support_access", "price_history", "partners", "partner_moves", "employees", "finance_periods",
-];
 const FOLDER = "_admin_backups";
-
-async function allRows(table: string) {
-  const admin = createAdminClient();
-  const rows: unknown[] = [];
-  for (let from = 0; from < 200_000; from += 1000) {
-    const { data, error } = await admin.from(table).select("*").range(from, from + 999);
-    if (error) return { rows, error: error.message };
-    rows.push(...(data ?? []));
-    if (!data || data.length < 1000) break;
-  }
-  return { rows };
-}
 
 async function listAll(bucket: string, prefix = ""): Promise<string[]> {
   const { data } = await createAdminClient().storage.from(bucket).list(prefix, { limit: 1000 });
@@ -52,28 +36,8 @@ export async function POST() {
   const stamp = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Kuwait" }).replace(/[: ]/g, "-").slice(0, 16);
   const summary: string[] = [];
 
-  const all: Record<string, Record<string, unknown>[]> = {};
-  for (const t of TABLES) {
-    const { rows, error } = await allRows(t);
-    all[t] = rows as Record<string, unknown>[];
-    zip.file(`restore-data/${t}.json`, JSON.stringify(rows, null, 1));
-    summary.push(`${t}: ${rows.length}${error ? ` (تنبيه: ${error})` : ""}`);
-  }
-  // sign-in accounts: method, confirmations and the terms each customer accepted (no passwords, ever)
-  const authUsers: Record<string, unknown>[] = [];
-  for (let page = 1; page <= 50; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error || !data?.users?.length) break;
-    for (const u of data.users) authUsers.push({
-      id: u.id, email: u.email, provider: u.app_metadata?.provider ?? null, providers: u.app_metadata?.providers ?? null,
-      created_at: u.created_at, email_confirmed_at: u.email_confirmed_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null,
-      terms_accepted: u.user_metadata?.terms_accepted ?? null, terms_accepted_at: u.user_metadata?.terms_accepted_at ?? null,
-    });
-    if (data.users.length < 1000) break;
-  }
-  all.auth_users = authUsers;
-  zip.file("restore-data/auth_users.json", JSON.stringify(authUsers, null, 1));
-  summary.push(`auth_users: ${authUsers.length}`);
+  const all = await loadAll((t, n, error) => summary.push(`${t}: ${n}${error ? ` (تنبيه: ${error})` : ""}`));
+  for (const [t, rows] of Object.entries(all)) zip.file(`restore-data/${t}.json`, JSON.stringify(rows, null, 1));
   zip.file("بيانات-شاهين.xlsx", await backupWorkbook(all));
 
   let files = 0, bytes = 0;

@@ -24,7 +24,13 @@ export function chargeState(st: unknown): [string, string] {
   return [`✗ فاشلة (${v || "؟"})`, "FFC62828"];
 }
 
+/** The data workbook as a file (for «تنزيل البيانات»). */
 export async function backupWorkbook(t: Record<string, Row[]>) {
+  return Buffer.from(await (await backupBook(t)).xlsx.writeBuffer());
+}
+
+/** The data workbook itself (also mirrored to Google Sheets). */
+export async function backupBook(t: Record<string, Row[]>) {
   const wb = newBook();
   const people = new Map((t.profiles ?? []).map((p) => [s(p.id), p]));
   const who = (id: unknown) => { const p = people.get(s(id)); return p ? s(p.full_name) || s(p.email) : "—"; };
@@ -351,5 +357,5 @@ export async function backupWorkbook(t: Record<string, Row[]>) {
   for (const x of au) a.add({ d: kwDate(s(x.created_at)), by: s(x.admin_email), act: AUDIT_AR[s(x.action)] ?? s(x.action), t: s(x.target_email) || "—", note: s(x.note) });
   a.finish();
 
-  return Buffer.from(await wb.xlsx.writeBuffer());
+  return wb;
 }

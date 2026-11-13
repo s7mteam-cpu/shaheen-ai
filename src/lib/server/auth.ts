@@ -21,11 +21,11 @@ export async function adminAccess(): Promise<AdminAccess | null> {
   let data = res.data;
   if (res.error) data = (await admin.from("profiles").select("role").eq("id", user.id).single()).data as typeof data; // before the v27 SQL runs
   if (data?.role === "admin") return { user, full: true, perms: [] };
-  if (data?.role === "staff") return { user, full: false, perms: ((data.admin_perms as SectionKey[] | null) ?? []).filter((k) => k !== "team" && k !== "passwords") };
+  if (data?.role === "staff") return { user, full: false, perms: ((data.admin_perms as SectionKey[] | null) ?? []).filter((k) => k !== "team" && k !== "passwords" && k !== "sheets") };
   return null;
 }
 
-export const canOpen = (a: AdminAccess, section: SectionKey | null) => a.full || (!!section && section !== "team" && section !== "passwords" && a.perms.includes(section));
+export const canOpen = (a: AdminAccess, section: SectionKey | null) => a.full || (!!section && section !== "team" && section !== "passwords" && section !== "sheets" && a.perms.includes(section));
 
 /** Guard for admin pages and server actions: checks the section of the page the request came from. */
 export async function requireAdmin(section?: SectionKey) {

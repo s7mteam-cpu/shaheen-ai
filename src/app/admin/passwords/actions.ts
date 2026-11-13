@@ -8,7 +8,7 @@ import { audit } from "@/lib/server/audit";
 import { serverT } from "@/lib/server/lang";
 
 type Res = { ok?: string; error?: string } | undefined;
-const pickSections = (form: FormData) => SECTIONS.map((s) => s.key as SectionKey).filter((k) => form.get(`s_${k}`) === "on" && !ALWAYS_LOCKED.includes(k));
+const pickSections = (form: FormData) => [...SECTIONS.map((s) => s.key as SectionKey), "sheets" as SectionKey].filter((k) => form.get(`s_${k}`) === "on" && !ALWAYS_LOCKED.includes(k));
 
 async function msgs() {
   const T = await serverT();

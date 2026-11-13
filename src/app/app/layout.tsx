@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { sheetsTick } from "@/lib/server/sheetsSync";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -26,6 +28,7 @@ import { CountrySync } from "@/components/CountrySync";
 import { getMoney } from "@/lib/server/money";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  after(() => sheetsTick().catch(() => null)); // Google Sheets: catch up in the background, the visitor never waits
   const [profile, lang, chosen, { cur }] = await Promise.all([getSessionProfile(), getLang(), getChosenLang(), getMoney()]);
   const T = (ar: string, en: string) => tr(lang, ar, en);
   const impRaw = (await cookies()).get("shaheen_imp")?.value;

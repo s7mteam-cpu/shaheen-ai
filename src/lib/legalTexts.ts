@@ -95,6 +95,7 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 - الاستضافة وقاعدة البيانات وتخزين الملفات: Vercel و Supabase و Railway.
 - الذكاء الاصطناعي لمعالجة طلباتك: Anthropic (Claude) لكتابة النصوص والتصاميم، و Google (Gemini) للصور والفيديو، و ElevenLabs للأصوات.
 - مزوّد الدفع لمعالجة المدفوعات.
+- Google (Google Sheets): لحفظ نسخة إدارية ومحاسبية خاصة من بيانات الحسابات والمعاملات، في حساب المنصة فقط، ولا يطّلع عليها إلا فريق الإدارة.
 
 يُرسل لهؤلاء المزوّدين فقط ما يلزم لتنفيذ طلبك (مثل النص أو الصورة التي ترفعها). وقد تُعالج بياناتك وتُخزَّن على خوادم خارج بلدك لدى هؤلاء المزوّدين، مع التزامهم بمعايير حماية مناسبة.
 
@@ -147,6 +148,7 @@ When you sign in with Google we receive only your name, email address and profil
 - Hosting, database and file storage: Vercel, Supabase and Railway.
 - AI processing of your requests: Anthropic (Claude) for text and design, Google (Gemini) for images and video, ElevenLabs for voice.
 - A payment provider for processing payments.
+- Google (Google Sheets): to keep a private administrative and accounting copy of account and transaction data, in the platform's own account only, accessible to the admin team only.
 
 These providers only receive what is needed to fulfil your request (for example the text or image you upload) and process it on our behalf under their own terms. Your data may be processed and stored on servers outside your country by these providers, who apply appropriate safeguards.
 

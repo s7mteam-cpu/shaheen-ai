@@ -18,14 +18,16 @@ export const SECTIONS = [
 export const TEAM = { key: "team", path: "/admin/team", label: "فريق الإدارة" } as const;
 /** «كلمات السر»: a second password on any admin section. Full admins only, like «فريق الإدارة». */
 export const PASSWORDS = { key: "passwords", path: "/admin/passwords", label: "كلمات السر" } as const;
-export type SectionKey = (typeof SECTIONS)[number]["key"] | "team" | "passwords";
+/** «ربط Google Sheets»: sends all the data to the owner's Google file, so full admins only. */
+export const SHEETS = { key: "sheets", path: "/admin/sheets", label: "ربط Google Sheets" } as const;
+export type SectionKey = (typeof SECTIONS)[number]["key"] | "team" | "passwords" | "sheets";
 /** Once an admin password exists, «كلمات السر» itself always needs it (everything else is the owner's choice). */
 export const ALWAYS_LOCKED: SectionKey[] = ["passwords"];
 
 /** Which section a URL belongs to (longest matching path wins). */
 export function sectionOf(path: string): SectionKey | null {
   if (!path.startsWith("/admin")) return null;
-  const all = [...SECTIONS, TEAM, PASSWORDS].sort((a, b) => b.path.length - a.path.length);
+  const all = [...SECTIONS, TEAM, PASSWORDS, SHEETS].sort((a, b) => b.path.length - a.path.length);
   for (const s of all) if (s.path === "/admin" ? path === "/admin" || path === "/admin/" : path === s.path || path.startsWith(s.path + "/")) return s.key;
   return "overview";
 }

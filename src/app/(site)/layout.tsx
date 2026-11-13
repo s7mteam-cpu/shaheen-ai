@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { sheetsTick } from "@/lib/server/sheetsSync";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { ShaheenChat } from "@/components/ShaheenChat";
@@ -7,6 +9,7 @@ import { localize } from "@/lib/server/translate";
 import { getMoney } from "@/lib/server/money";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
+  after(() => sheetsTick().catch(() => null)); // Google Sheets: catch up in the background, the visitor never waits
   const [content, profile, lang, chosen, { cur }] = await Promise.all([getContent(), getSessionProfile(), getLang(), getChosenLang(), getMoney()]);
   const footer = await localize(content.footer, lang);
   return (
