@@ -66,7 +66,19 @@ export async function trialStatus(userId: string, devices: string[] = []): Promi
   if (count) return { state: "none" };   // trials are for new customers only
   if (await declined(userId)) return { state: "none" };   // skipped it on the welcome screen → gone for good
   if (await usedBefore(userId, devices)) return { state: "none" };   // same e-mail / number / device had (or skipped) a trial on an old account
+  if ((await claimsToday()) >= s.max_per_day) return { state: "none" };   // today's gifts are given out → the card hides until midnight
   return { state: "offer", credits: s.credits, hours: s.hours };
+}
+
+/** Midnight in Kuwait (UTC+3), today. «باليوم» for the trial means this calendar day. */
+export function kuwaitDayStart(now = Date.now()) {
+  const k = new Date(now + 3 * 3_600_000);
+  return new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()) - 3 * 3_600_000);
+}
+/** How many free trials were given today (Kuwait time). */
+export async function claimsToday() {
+  const { count } = await createAdminClient().from("trial_claims").select("id", { count: "exact", head: true }).gte("created_at", kuwaitDayStart().toISOString());
+  return count ?? 0;
 }
 
 /** The person's canonical e-mail and WhatsApp number (the same keys the trial records use). */
@@ -115,9 +127,8 @@ export async function claimTrial(userId: string, ip: string | null, devices: str
   if (!human) return { error: "ما قدرنا نتأكد إنك إنسان. حدّث الصفحة وجرّب مرة ثانية." };
   const admin = createAdminClient();
   // the safety net against bots: never more than the owner's daily maximum, whatever happens
-  const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
-  const { count: today } = await admin.from("trial_claims").select("id", { count: "exact", head: true }).gte("created_at", dayAgo);
-  if ((today ?? 0) >= s.max_per_day) { await alertCapReached(s.max_per_day); return { error: "التجارب المجانية لليوم خلصت. جرّب بكرة، أو اشترك وابدأ الحين." }; }
+  const today = await claimsToday();
+  if (today >= s.max_per_day) return { error: "التجارب المجانية لليوم خلصت. جرّب بكرة، أو اشترك وابدأ الحين." };
   const [{ data: profile }, { data: auth }] = await Promise.all([
     admin.from("profiles").select("id,email,phone,country,role").eq("id", userId).single(),
     admin.auth.admin.getUserById(userId),
@@ -151,6 +162,7 @@ export async function claimTrial(userId: string, ip: string | null, devices: str
     .insert({ user_id: userId, email, phone, device: devices[0] ?? null, ip, credits: s.credits, expires_at: expires }).select("id").single();
   if (error || !claim) return { error: "هالرقم أو الحساب أخذ تجربة من قبل." };   // the unique indexes catch two tabs at once
   await admin.rpc("grant_credits", { p_user: userId, p_amount: s.credits, p_reason: "trial", p_ref: `trial:${claim.id}` });
+  if (today + 1 >= s.max_per_day) await alertCapReached(s.max_per_day);   // that was the last gift of the day → the card hides till midnight
   return { ok: { credits: s.credits, hours: s.hours } };
 }
 
@@ -162,14 +174,14 @@ export async function endExpiredTrials(userId?: string) {
   for (const u of new Set((data ?? []).map((c) => c.user_id as string))) await admin.rpc("end_expired_trial", { p_user: u });
 }
 
-/** Tells the admins (once a day) that the daily trial maximum was reached — a sign of a bot attack or of a busy day. */
+/** Tells the admins (once a day) that today's gifts are all given — a busy day, or a sign of a bot attack. */
 async function alertCapReached(max: number) {
   const admin = createAdminClient();
-  const key = `trial-cap:${new Date().toISOString().slice(0, 10)}`;
+  const key = `trial-cap:${new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10)}`;   // once per Kuwait day
   const { data: seen } = await admin.from("notifications").select("id").eq("link", "/admin/plans").eq("body", key).limit(1);
   if (seen?.length) return;
   const { data: admins } = await admin.from("profiles").select("id").eq("role", "admin");
-  if (admins?.length) await admin.from("notifications").insert(admins.map((a) => ({ user_id: a.id, kind: "payment", title: `🛑 وصلت التجارب المجانية للحد اليومي (${max})`, body: key, link: "/admin/plans" }))).then(() => null, () => null);
+  if (admins?.length) await admin.from("notifications").insert(admins.map((a) => ({ user_id: a.id, kind: "payment", title: `🎁 انعطت كل هدايا اليوم (${max}). البطاقة اختفت لحالها وترجع الساعة 12 بالليل (بتوقيت الكويت)`, body: key, link: "/admin/plans" }))).then(() => null, () => null);
 }
 
 /** Cloudflare Turnstile («هل أنت إنسان؟»). Off until the owner adds the two keys in Vercel. */
