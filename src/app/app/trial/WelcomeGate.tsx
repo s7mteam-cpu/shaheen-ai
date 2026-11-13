@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useT } from "@/components/LangProvider";
-import { startTrial } from "./actions";
+import { skipTrial, startTrial } from "./actions";
 import { Turnstile } from "@/components/Turnstile";
 
 const SKIP = "sh_gate_skip";
@@ -31,7 +31,12 @@ export function WelcomeGate({ offer, credits, hours, name }: { offer: boolean; c
   useEffect(() => { setDev(deviceId()); try { setOpen(sessionStorage.getItem(SKIP) !== "1"); } catch { setOpen(true); } }, []);
   useEffect(() => { if (r?.ok) { const t = setTimeout(() => { setOpen(false); router.refresh(); }, 1600); return () => clearTimeout(t); } }, [r?.ok, router]);
   useEffect(() => { if (!open) return; const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = o; }; }, [open]);
-  const skip = () => { try { sessionStorage.setItem(SKIP, "1"); } catch {} setOpen(false); };
+  const skip = () => {
+    try { sessionStorage.setItem(SKIP, "1"); } catch {}
+    setOpen(false);
+    // skipping the offer gives up the free trial for good (the card on top disappears too)
+    if (offer) void skipTrial().then(() => router.refresh());
+  };
   if (!open) return null;
 
   return (
@@ -55,7 +60,7 @@ export function WelcomeGate({ offer, credits, hours, name }: { offer: boolean; c
             )}
             <Link href="/?home=1#pricing" className="btn btn-primary w-full py-3.5 text-base font-bold">{T("اشترك وكمّل بلا حدود", "Subscribe and keep going")}</Link>
             {r?.error && <p role="alert" className="w-full rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">{r.error}</p>}
-            <button type="button" onClick={skip} className="mt-1 text-sm text-subtle underline-offset-4 hover:underline">{T("تخطي واستكشف الأدوات بدون اشتراك", "Skip and explore the tools without a plan")}</button>
+            <button type="button" onClick={skip} className="mt-1 text-sm text-subtle underline-offset-4 hover:underline">{offer ? T("تخطي التجربة المجانية واستكشف الأدوات بدون اشتراك", "Skip the free trial and explore the tools without a plan") : T("تخطي واستكشف الأدوات بدون اشتراك", "Skip and explore the tools without a plan")}</button>
           </>
         )}
       </div>

@@ -46,7 +46,14 @@ export async function trialStatus(userId: string): Promise<{ state: "offer" | "a
   if (!s.enabled) return { state: "none" };
   const { count } = await admin.from("subscriptions").select("id", { count: "exact", head: true }).eq("user_id", userId);
   if (count) return { state: "none" };   // trials are for new customers only
+  if (await declined(userId)) return { state: "none" };   // skipped it on the welcome screen → gone for good
   return { state: "offer", credits: s.credits, hours: s.hours };
+}
+
+/** Did the customer press «تخطي التجربة المجانية»? (Before the v84 SQL runs the column is missing → no.) */
+export async function declined(userId: string) {
+  const { data, error } = await createAdminClient().from("profiles").select("trial_declined_at").eq("id", userId).maybeSingle();
+  return !error && !!data?.trial_declined_at;
 }
 
 /** Gives the trial after every check. Returns an Arabic reason when it can't. */
@@ -64,6 +71,7 @@ export async function claimTrial(userId: string, ip: string | null, devices: str
     admin.auth.admin.getUserById(userId),
   ]);
   if (!profile || profile.role !== "user") return { error: "التجربة للعملاء بس." };
+  if (await declined(userId)) return { error: "تخطّيت التجربة المجانية، فما عادت متاحة. تقدر تشترك وتكمّل بلا حدود." };
   if (!auth?.user?.email_confirmed_at) return { error: "أكّد بريدك الإلكتروني أول (من الرسالة اللي وصلتك)، وبعدها جرّب." };
   const email = canonicalEmail(profile.email ?? auth.user.email ?? "");
   if (DISPOSABLE.has(email.split("@")[1] ?? "")) return { error: "التجربة المجانية ما تنعطى للإيميلات المؤقتة. سجّل بإيميلك الحقيقي." };

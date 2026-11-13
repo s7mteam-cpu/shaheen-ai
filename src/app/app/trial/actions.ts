@@ -6,6 +6,7 @@ import { getSessionProfile } from "@/lib/data";
 import { isImpersonating } from "@/lib/server/impersonation";
 import { claimTrial, DEVICE_COOKIE, isHuman } from "@/lib/server/trial";
 import { getL, serverT } from "@/lib/server/lang";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type Res = { ok?: string; error?: string } | undefined;
 
@@ -27,4 +28,12 @@ export async function startTrial(_p: Res, form: FormData): Promise<Res> {
   if (r.error || !r.ok) return { error: (await getL())(r.error ?? "?") };
   revalidatePath("/app", "layout");
   return { ok: T(`🎉 بدأت تجربتك: ${r.ok.credits} ريشة لمدة ${r.ok.hours} ساعة. جرّب أي أداة الحين!`, `🎉 Your trial has started: ${r.ok.credits} credits for ${r.ok.hours} hours. Try any tool now!`) };
+}
+
+/** «تخطي التجربة المجانية واستكشف الأدوات بدون اشتراك»: the customer gives up the trial for good. */
+export async function skipTrial(): Promise<void> {
+  const profile = await getSessionProfile();
+  if (!profile || profile.role !== "user" || (await isImpersonating())) return;
+  await createAdminClient().from("profiles").update({ trial_declined_at: new Date().toISOString() }).eq("id", profile.id).is("trial_declined_at", null);
+  revalidatePath("/app", "layout");
 }

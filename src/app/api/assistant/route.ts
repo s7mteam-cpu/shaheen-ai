@@ -40,7 +40,7 @@ export async function POST(req: Request) {
         `الباقة: ${plans.find((x) => x.id === p?.plan_id)?.name ?? "بدون باقة"}${sub ? ` (حالة الاشتراك: ${sub.status}${sub.current_period_end ? `، التجديد/الانتهاء ${new Date(sub.current_period_end).toLocaleDateString("ar-KW")}` : ""}${sub.cancel_at_period_end ? "، ملغي في نهاية الفترة" : ""})` : ""}`,
         `الرصيد: ${p?.credits ?? 0} ريشة${p?.is_suspended ? " — الحساب موقوف" : ""}`,
         "آخر الطلبات:",
-        `التجربة المجانية: ${await trialStatus(user.id).then((t) => t.state === "active" ? `شغّالة الحين (${t.credits} ريشة، تنتهي ${t.expiresAt ? new Date(t.expiresAt).toLocaleString("ar-KW") : ""})` : t.state === "offer" ? "متاحة له وما أخذها بعد (زر «ابدأ التجربة المجانية» فوق لوحة التحكم)" : "مو متاحة له (أخذها قبل أو عنده اشتراك)").catch(() => "غير معروف")}`,
+        `التجربة المجانية: ${await trialStatus(user.id).then((t) => t.state === "active" ? `شغّالة الحين (${t.credits} ريشة، تنتهي ${t.expiresAt ? new Date(t.expiresAt).toLocaleString("ar-KW") : ""})` : t.state === "offer" ? "متاحة له وما أخذها بعد (زر «ابدأ التجربة المجانية» فوق لوحة التحكم)" : "مو متاحة له (أخذها قبل، أو تخطّاها من شاشة الترحيب، أو عنده اشتراك)").catch(() => "غير معروف")}`,
         ...(jobs ?? []).map((j) => `- ${j.created_at.slice(0, 10)} | ${tools.find((t) => t.id === j.tool_id)?.name ?? j.tool_id} | ${j.status}${j.refunded ? " (رجعت الريش)" : ""} | ${j.credits_charged} ريشة${j.error ? ` | سبب الفشل التقني: ${j.error.slice(0, 120)}` : ""}`),
       ].join("\n");
     }
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 - الباقات الشهرية: ${plans.map((p) => `${p.name}: ${Number(p.price_kwd)} د.ك، ${p.credits} ريشة${(p.bonus_credits ?? 0) > 0 ? ` + ${p.bonus_credits} ريشة هدية كل شهر` : ""}`).join("؛ ")}. ريش الباقة تتجدد شهرياً ولا تنتقل للشهر التالي.
 - باقة إدارة السوشال ميديا (يديرها فريق بشري): ${content.managed_service.price_kwd} د.ك ${content.managed_service.period}.
 - الصفحات: لوحة التحكم /app، الأدوات /app/tools، أعمالي /app/works، الهوية التجارية /app/brand، «أعمال صُنعت بشاهين» /app/showcase (نماذج من شغل شاهين: بوستات وكاروسيل وريلز وفيديو)، الحساب والاشتراك والفواتير /app/account، الدفع بالتحويل /app/pay/transfer.
-- التجربة المجانية: ${trial?.enabled ? `مرة وحدة لكل شخص: ${trial.credits} ريشة لمدة ${trial.hours} ساعة، يحتاج بريد مؤكد ورقم جوال. بعدها يشترك ويكمّل بلا حدود.` : "متوقفة حالياً."}
+- التجربة المجانية: ${trial?.enabled ? `مرة وحدة لكل شخص: ${trial.credits} ريشة لمدة ${trial.hours} ساعة، يحتاج بريد مؤكد ورقم جوال. إذا ضغط «تخطي التجربة المجانية» بشاشة الترحيب، تروح عليه نهائياً. بعدها يشترك ويكمّل بلا حدود.` : "متوقفة حالياً."}
 - الدفع: بالبطاقة (فيزا/ماستركارد وطرق الدفع المحلية) بالدينار الكويتي، وبعض الدول تقدر تدفع بالتحويل من صفحة /app/pay/transfer وفريقنا يراجع الإيصال ويفعّل الاشتراك. الأسعار بالعملات الثانية تقريبية بسعر صرف اليوم.
 - أسئلة شائعة: ${content.faq.items.map((f) => `${f.q} ${f.a}`).join(" | ")}
 
