@@ -25,9 +25,12 @@ export async function geminiText(model: string, system: string, contents: Conten
   const r = await post<GenResp>(`models/${model}:generateContent`, {
     systemInstruction: { parts: [{ text: system }] },
     contents,
-    generationConfig: { maxOutputTokens: maxTokens },
+    // Flash models "think" by default and that eats the reply's token budget → no thinking for short chat/copy answers
+    generationConfig: { maxOutputTokens: maxTokens, ...(/flash/i.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
   });
-  return (r.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
+  const text = (r.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
+  if (!text) throw new Error(`google: empty reply (${model})`);
+  return text;
 }
 
 /** Nano Banana image generation / editing. Returns image bytes. */

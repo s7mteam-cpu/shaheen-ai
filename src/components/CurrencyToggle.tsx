@@ -29,8 +29,8 @@ export function CurrencyToggle({ cur, lang, light = false, full = false }: { cur
     <div ref={box} className="relative">
       <button type="button" onClick={() => setOpen(!open)} disabled={pending} aria-haspopup="listbox" aria-expanded={open}
         aria-label={lang === "en" ? `Currency: ${CURRENCIES[cur].nameEn}` : `العملة: ${CURRENCIES[cur].name}`}
-        className={`inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[13px] font-bold sm:h-10 sm:px-3 sm:text-[14px] transition disabled:opacity-50 ${base}`}>
-        <span aria-hidden>{flagOf(cur)}</span><span className="max-[399px]:hidden">{sym(cur)}</span><span aria-hidden className="text-[10px] opacity-70 max-[419px]:hidden">▾</span>
+        className={`inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 max-[339px]:px-1 text-[13px] font-bold sm:h-10 sm:px-3 sm:text-[14px] transition disabled:opacity-50 ${base}`}>
+        <span aria-hidden>{flagOf(cur)}</span><span>{sym(cur)}</span><span aria-hidden className="text-[10px] opacity-70 max-[419px]:hidden">▾</span>
       </button>
       {open && (
         <ul role="listbox" aria-label={lang === "en" ? "Choose currency" : "اختر العملة"}

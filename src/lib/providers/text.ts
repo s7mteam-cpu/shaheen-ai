@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { defaultContent } from "@/lib/defaults";
 import { geminiText } from "@/lib/providers/google";
+import { textProviders } from "@/lib/providers/registry";
 
 export type ChatMsg = { role: "user" | "assistant"; content: string };
 type Purpose = "copy" | "chat";
@@ -21,7 +22,10 @@ export const cachedSystem = (system: string) =>
 
 /** One entry point for all text AI. The admin chooses Claude or Gemini (and the model) in /admin/content → ai. */
 export async function aiChat(purpose: Purpose | { provider: string; model: string }, system: string, messages: ChatMsg[], maxTokens = 1200) {
-  const { provider, model } = typeof purpose === "string" ? await choice(purpose) : purpose;
+  const picked = typeof purpose === "string" ? await choice(purpose) : purpose;
+  const provider = picked.provider;
+  // A model name left over from the other provider (e.g. «claude-haiku-5-5» after switching to Gemini) → that provider's default
+  const model = picked.model && picked.model.trim().toLowerCase().startsWith(provider === "gemini" ? "gemini" : "claude") ? picked.model.trim() : (textProviders[provider as "claude"] ?? "");
   if (provider === "gemini") {
     return geminiText(model || "gemini-2.5-flash", system, messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })), maxTokens);
   }

@@ -146,9 +146,12 @@ export async function setLeadStatus(form: FormData) {
 export async function saveAi(form: FormData) {
   await guard("ai");
   const ok = (p: string) => (p in textProviders ? p : "claude");
+  // The model must belong to the chosen provider (switching Claude → Gemini used to keep «claude-…» and break replies)
+  const fit = (p: string, m: string) => (m.trim().toLowerCase().startsWith(p === "gemini" ? "gemini" : "claude") ? m.trim() : textProviders[p as "claude"] ?? "");
+  const cp = ok(String(form.get("copy_provider"))), hp = ok(String(form.get("chat_provider")));
   const value = {
-    copy_provider: ok(String(form.get("copy_provider"))), copy_model: String(form.get("copy_model") || ""),
-    chat_provider: ok(String(form.get("chat_provider"))), chat_model: String(form.get("chat_model") || ""),
+    copy_provider: cp, copy_model: fit(cp, String(form.get("copy_model") || "")),
+    chat_provider: hp, chat_model: fit(hp, String(form.get("chat_model") || "")),
   };
   await createAdminClient().from("site_content").upsert({ key: "ai", value, updated_at: new Date().toISOString() });
   refresh();

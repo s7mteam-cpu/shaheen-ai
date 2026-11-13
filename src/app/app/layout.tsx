@@ -83,7 +83,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="flex min-w-0 items-center gap-1 max-[339px]:gap-0.5 sm:gap-2">
             <Link href="/app/account" aria-label={T(`رصيدك ${profile.credits} ريشة`, `Your balance: ${profile.credits} credits`)}
               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-gold-500/45 bg-gold-500/15 px-2.5 py-1.5 max-[379px]:px-2 text-[13px] font-bold text-gold-500 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm">
-              <Icon name="feather" size={16} className="max-[359px]:hidden" />{profile.credits.toLocaleString("en")}<span className="hidden sm:inline">{T("ريشة", "credits")}</span>
+              <Icon name="feather" size={16} className="max-[399px]:hidden" />{profile.credits.toLocaleString("en")}<span className="hidden sm:inline">{T("ريشة", "credits")}</span>
             </Link>
             <span className="flex items-center rounded-full bg-white/[0.06] sm:bg-transparent"><LangToggle lang={chosen} /><CurrencyToggle cur={cur} lang={lang} /><ThemeToggle /></span>
             <NotificationBell notes={notes} />

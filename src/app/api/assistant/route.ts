@@ -69,7 +69,8 @@ ${userBlock}
   try {
     const reply = await aiChat("chat", system, messages, 700);
     return NextResponse.json({ reply });
-  } catch {
+  } catch (e) {
+    console.error("assistant:", e instanceof Error ? e.message : e);   // shows in Vercel → Logs
     return NextResponse.json({ reply: `ما قدرت أرد الحين. تقدر تتواصل مع فريقنا على واتساب ${wa}` });
   }
 }
