@@ -4,7 +4,8 @@ import { Icon } from "@/components/Icon";
 import type { SiteContent } from "@/lib/defaults";
 import { tr, type Lang } from "@/lib/i18n";
 
-export function ManagedService({ s, lang = "ar" }: { s: SiteContent["managed_service"]; lang?: Lang }) {
+export type ShownPrice = { approx: boolean; number: string; symbol: string; kwd: string };
+export function ManagedService({ s, lang = "ar", price }: { s: SiteContent["managed_service"]; lang?: Lang; price?: ShownPrice }) {
   const T = (ar: string, en: string) => tr(lang, ar, en);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"pick" | "form" | "done">("pick");
@@ -28,7 +29,10 @@ export function ManagedService({ s, lang = "ar" }: { s: SiteContent["managed_ser
         <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
           <span className="self-start rounded-full bg-gold-500/15 px-3 py-1 text-[13px] font-bold text-gold-500">{T("خدمة يديرها فريقنا", "Managed by our team")}</span>
           <h3 className="text-2xl font-bold text-gold-500 md:text-3xl">{s.title}</h3>
-          <div className="flex items-baseline gap-2"><span className="font-latin text-5xl font-bold">{s.price_kwd}</span><span className="text-lg font-semibold">{T("د.ك", "KWD")}</span><span className="text-white/70">/ {s.period}</span></div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-baseline gap-2">{price?.approx && <span className="text-2xl text-white/70">≈</span>}<span className="font-latin text-5xl font-bold">{price?.number ?? s.price_kwd}</span><span className="text-lg font-semibold">{price?.symbol ?? T("د.ك", "KWD")}</span><span className="text-white/70">/ {s.period}</span></div>
+            {price?.approx && <span className="text-[12px] text-white/65">{T(`الدفع بالدينار الكويتي: ${price.kwd}`, `Charged in Kuwaiti dinars: ${price.kwd}`)}</span>}
+          </div>
         </div>
         <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-5">
           <ul className="flex flex-col gap-3 text-[15px]">

@@ -1,4 +1,5 @@
 "use client";
+import { GULF_DIALECTS, myDialect } from "@/lib/countries";
 import { L } from "@/lib/i18n/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,7 +9,7 @@ import { ILLUS_STYLES } from "@/remotion/styles";
 
 const lengths = [[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"]] as const;
 const aspects = [["9:16", "ريلز / تيك توك 9:16"], ["1:1", "مربع 1:1"], ["16:9", "يوتيوب عريض 16:9"]] as const;
-const dialects = [["kuwaiti", "كويتية"], ["gulf", "خليجية"], ["msa", "فصحى"]] as const;
+const dialects = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const)];
 
 /** Step 1 of the motion studio: the idea. */
 export function MotionStart({ costPer15, balance, brand, voices = [], industry: savedIndustry }: { costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string }[]; industry?: string }) {
@@ -17,7 +18,8 @@ export function MotionStart({ costPer15, balance, brand, voices = [], industry: 
   const [name, setName] = useState(brand ?? "");
   const [seconds, setSeconds] = useState(30);
   const [aspect, setAspect] = useState("9:16");
-  const [dialect, setDialect] = useState("kuwaiti");
+  const [dialect, setDialect] = useState<string>("kuwaiti");
+  useEffect(() => { setDialect(myDialect()); }, []);
   const [industry, setIndustry] = useState(savedIndustry ?? "");
   const [voiceover, setVoiceover] = useState(false);
   const [voice, setVoice] = useState(voices[0]?.id ?? "");

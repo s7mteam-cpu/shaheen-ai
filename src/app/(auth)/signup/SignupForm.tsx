@@ -8,8 +8,10 @@ import { Alert, arabicAuthError } from "@/components/auth/Alert";
 import { normalizePhone } from "@/lib/phone";
 import { useLang } from "@/components/LangProvider";
 import { tr } from "@/lib/i18n";
+import { countryOf } from "@/lib/countries";
+import { CountryOptions } from "@/components/CountryOptions";
 
-const TERMS_VERSION = "2026-11-11";
+const TERMS_VERSION = "2026-11-13";
 
 function readRef() {
   const m = document.cookie.match(/(?:^|; )shaheen_ref=([^;]+)/);
@@ -28,21 +30,25 @@ export function SignupForm() {
   const [loading, setLoading] = useState(false);
   const [agree, setAgree] = useState(false);
   const [nudge, setNudge] = useState(false);
+  const [country, setCountry] = useState("KW");
+  const c = countryOf(country);
   const accept = () => { document.cookie = `shaheen_terms=${TERMS_VERSION}; Path=/; Max-Age=3600; SameSite=Lax`; };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!agree) return setNudge(true);
     const f = new FormData(e.currentTarget);
-    const phone = normalizePhone(String(f.get("phone") || ""));
-    if (!phone) return setError(T("اكتب رقم واتساب صحيح، مثل 50000000 أو ‎+96550000000.", "Enter a valid WhatsApp number, e.g. 50000000 or +96550000000."));
+    const phone = normalizePhone(String(f.get("phone") || ""), country === "XX" ? null : country);
+    if (!phone) return setError(country === "XX"
+      ? T("اكتب رقم الواتساب كامل مع مفتاح الدولة، مثل ‎+44 7400000000.", "Enter the full WhatsApp number with the country code, e.g. +44 7400000000.")
+      : T(`اكتب رقم واتساب صحيح، مثل ${c.sample} أو ‎${c.dial}${c.sample}.`, `Enter a valid WhatsApp number, e.g. ${c.sample} or ${c.dial}${c.sample}.`));
     accept();
     setLoading(true); setError("");
     const { data, error } = await createClient().auth.signUp({
       email: String(f.get("email")),
       password: String(f.get("password")),
       options: {
-        data: { full_name: String(f.get("name")), phone, ref: readRef(), terms_accepted: TERMS_VERSION, terms_accepted_at: new Date().toISOString() },
+        data: { full_name: String(f.get("name")), phone, country, ref: readRef(), terms_accepted: TERMS_VERSION, terms_accepted_at: new Date().toISOString() },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
@@ -66,7 +72,14 @@ export function SignupForm() {
       {error && <Alert>{error}</Alert>}
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2"><label htmlFor="name" className="label">{T("الاسم", "Name")}</label><input id="name" name="name" required autoComplete="name" className="field" /></div>
-        <div className="flex flex-col gap-2"><label htmlFor="phone" className="label">{T("رقم الواتساب", "WhatsApp number")}</label><input id="phone" name="phone" type="tel" required inputMode="tel" autoComplete="tel" dir="ltr" placeholder="+965 5000 0000" className={`field ${fieldAlign}`} /><span className="text-[12px] text-subtle">{T("للتواصل معك بخصوص حسابك فقط.", "Only used to contact you about your account.")}</span></div>
+        <div className="flex flex-col gap-2"><label htmlFor="country" className="label">{T("الدولة", "Country")}</label>
+          <select id="country" name="country" value={country} onChange={(e) => setCountry(e.target.value)} className="field">
+            <CountryOptions lang={lang} />
+          </select></div>
+        <div className="flex flex-col gap-2"><label htmlFor="phone" className="label">{T("رقم الواتساب", "WhatsApp number")}</label>
+          <div dir="ltr" className="flex items-stretch gap-2">{c.dial && <span className="flex items-center rounded-xl border border-line bg-tint px-3 font-latin text-[15px] font-semibold text-navy-800">{c.flag} {c.dial}</span>}
+            <input id="phone" name="phone" type="tel" required inputMode="tel" autoComplete="tel" dir="ltr" placeholder={c.dial ? c.sample : "+44 7400000000"} className="field flex-1 text-left" /></div>
+          <span className="text-[12px] text-subtle">{T("للتواصل معك بخصوص حسابك فقط.", "Only used to contact you about your account.")}</span></div>
         <div className="flex flex-col gap-2"><label htmlFor="email" className="label">{T("البريد الإلكتروني", "Email")}</label><input id="email" name="email" type="email" required dir="ltr" autoComplete="email" className={`field ${fieldAlign}`} /></div>
         <div className="flex flex-col gap-2"><label htmlFor="password" className="label">{T("كلمة المرور (8 أحرف أو أكثر)", "Password (8+ characters)")}</label><input id="password" name="password" type="password" minLength={8} required autoComplete="new-password" className="field" /></div>
         <button disabled={loading} className="btn btn-primary py-3.5 text-[17px]">{loading ? T("جارٍ الإنشاء…", "Creating…") : T("إنشاء الحساب", "Create account")}</button>

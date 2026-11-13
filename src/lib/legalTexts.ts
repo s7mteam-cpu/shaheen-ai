@@ -26,6 +26,8 @@ export const TERMS_AR = `باستخدامك منصة «شاهين» ({site}) ف�
 
 تستخدم الأدوات رصيد «الريش» حسب الباقة. تُوضَّح تكلفة كل أداة قبل التنفيذ، وإذا فشل الطلب يُعاد الرصيد تلقائياً. تخضع المبالغ المدفوعة لـ[سياسة الاسترجاع](/refund).
 
+**الدول والعملات:** الخدمة متاحة في جميع الدول العربية، ويمكن استخدامها من دول أخرى. الأسعار محددة بالدينار الكويتي وتُحصَّل بالدينار الكويتي. الأسعار المعروضة بعملات أخرى تقريبية للتوضيح فقط وتُحسب بسعر صرف تقريبي يُحدَّث يومياً، وقد يختلف المبلغ الذي يظهر في كشف حسابك حسب سعر الصرف لدى بنكك وأي رسوم يفرضها على المعاملات بالعملة الأجنبية، ولا نتحمل هذه الفروقات أو الرسوم. وتتحمل أي ضرائب أو رسوم تفرضها قوانين بلدك على الخدمات الرقمية، ما لم تظهر محصّلة منا صراحة في الفاتورة.
+
 ## 4. محتواك وحقوقك
 تبقى ملكية المحتوى الذي ترفعه لك، وتمنحنا إذناً محدوداً لمعالجته بالقدر اللازم لتقديم الخدمة. النتائج التي تنتجها لك المنصة يحق لك استخدامها تجارياً، مع مسؤوليتك عن مراجعتها.
 
@@ -36,7 +38,7 @@ export const TERMS_AR = `باستخدامك منصة «شاهين» ({site}) ف�
 تُقدَّم الخدمة «كما هي». لا نضمن خلوّ النتائج من الأخطاء، ولا نتحمل مسؤولية الأضرار غير المباشرة الناتجة عن استخدامها، في حدود ما يسمح به القانون.
 
 ## 7. التعديلات والقانون
-قد نعدّل هذه الشروط وننشر النسخة الجديدة هنا. تخضع هذه الشروط لقوانين دولة الكويت. للتواصل: {email}`;
+قد نعدّل هذه الشروط وننشر النسخة الجديدة هنا. تخضع هذه الشروط لقوانين دولة الكويت. وإذا كنت تستخدم المنصة من خارج الكويت، فأنت مسؤول أيضاً عن التزام استخدامك ومحتواك بقوانين بلدك، ولا تنتقص هذه الشروط من حقوق المستهلك الإلزامية التي يمنحها لك قانون بلدك. للتواصل: {email}`;
 
 export const TERMS_EN = `By using Shaheen ({site}) you agree to these terms.
 
@@ -51,6 +53,8 @@ Plans are monthly, and you agree to how renewal works with a checkbox before pay
 
 Tools use “feather” credits according to your plan. Each tool shows its cost before running, and credits are refunded automatically if a job fails. Payments are subject to our [refund policy](/refund).
 
+**Countries and currencies:** the service is available in all Arab countries and can be used from other countries. Prices are set and charged in Kuwaiti dinars. Prices shown in other currencies are approximate guides calculated at an approximate exchange rate updated daily; the amount on your statement may differ because of your bank's exchange rate and any foreign-transaction fees, which we are not responsible for. You are responsible for any taxes or fees your country's laws apply to digital services, unless we clearly collect them on the invoice.
+
 ## 4. Your content
 You keep ownership of the content you upload and grant us a limited permission to process it only as needed to provide the service. You may use the results commercially and are responsible for reviewing them.
 
@@ -61,9 +65,9 @@ Do not use Shaheen for unlawful content, infringing intellectual property or oth
 The service is provided “as is”. We do not guarantee error-free results and are not liable for indirect damages arising from their use, to the extent permitted by law.
 
 ## 7. Changes and law
-We may update these terms and will post the new version here. These terms are governed by the laws of the State of Kuwait. Contact: {email}`;
+We may update these terms and will post the new version here. These terms are governed by the laws of the State of Kuwait. If you use the platform from outside Kuwait, you are also responsible for making sure your use and content comply with your country's laws, and these terms do not limit any mandatory consumer rights your country's law gives you. Contact: {email}`;
 
-export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتية لإنشاء المحتوى بالذكاء الاصطناعي: تصاميم ومنشورات، فيديوهات، مونتاج، وأصوات. تشرح هذه السياسة البيانات التي نجمعها، وكيف نستخدمها ونحميها، وحقوقك فيها.
+export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتية تخدم الدول العربية لإنشاء المحتوى بالذكاء الاصطناعي: تصاميم ومنشورات، فيديوهات، مونتاج، وأصوات. تشرح هذه السياسة البيانات التي نجمعها، وكيف نستخدمها ونحميها، وحقوقك فيها.
 
 ## 1. البيانات التي نجمعها
 - **بيانات الحساب:** الاسم والبريد الإلكتروني وكلمة المرور (مشفّرة)، أو عند الدخول بحساب Google: اسمك وبريدك الإلكتروني وصورة ملفك الشخصي فقط.
@@ -71,7 +75,8 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 - **محتواك:** الصور والفيديوهات والملفات الصوتية والنصوص التي ترفعها أو تكتبها لاستخدام الأدوات، والنتائج التي تنتجها المنصة لك.
 - **هويتك التجارية (اختياري):** اسم النشاط والشعار والألوان والخط والحساب ورابط الموقع وحساب إنستغرام وصور مرجعية للأسلوب.
 - **بيانات الاستخدام والاشتراك:** رصيد «الريش»، والعمليات المنفذة، والفواتير، ورمز الإحالة.
-- **بيانات تقنية:** ملفات تعريف الارتباط الضرورية لتسجيل الدخول، وسجلات تقنية لحماية الخدمة وإصلاح الأخطاء.
+- **الدولة والعملة:** نحفظ الدولة التي تختارها عند التسجيل أو في إعدادات حسابك، لنقترح عليك لهجة بلدك ونتواصل معك على رقمك الصحيح، وتقدر تغيّرها بأي وقت. والعملة التي تختارها لعرض الأسعار تُحفظ في متصفحك فقط. ولا نستخدم موقعك الجغرافي.
+- **بيانات تقنية:** ملفات تعريف الارتباط الضرورية لتسجيل الدخول وتذكّر اللغة والعملة، وسجلات تقنية لحماية الخدمة وإصلاح الأخطاء.
 - **الدفع:** تتم المدفوعات عبر مزوّد دفع مرخّص، ولا نخزّن بيانات بطاقتك على خوادمنا.
 
 ## 2. كيف نستخدم البيانات
@@ -91,7 +96,7 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 - الذكاء الاصطناعي لمعالجة طلباتك: Anthropic (Claude) لكتابة النصوص والتصاميم، و Google (Gemini) للصور والفيديو، و ElevenLabs للأصوات.
 - مزوّد الدفع لمعالجة المدفوعات.
 
-يُرسل لهؤلاء المزوّدين فقط ما يلزم لتنفيذ طلبك (مثل النص أو الصورة التي ترفعها).
+يُرسل لهؤلاء المزوّدين فقط ما يلزم لتنفيذ طلبك (مثل النص أو الصورة التي ترفعها). وقد تُعالج بياناتك وتُخزَّن على خوادم خارج بلدك لدى هؤلاء المزوّدين، مع التزامهم بمعايير حماية مناسبة.
 
 ## 5. مدة الاحتفاظ والحذف
 نحتفظ ببياناتك وأعمالك طالما حسابك فعّال لتتمكن من الرجوع إليها. يمكنك حذف أي عمل من «أعمالي» في أي وقت، ويمكنك حذف حسابك وكل بياناتك بنفسك من «الحساب والاشتراك» ← «بياناتي» ← «حذف الحساب»، أو بمراسلتنا على {email} وننفّذ الطلب خلال 30 يوماً.
@@ -115,7 +120,7 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 ## 10. التواصل
 لأي سؤال عن الخصوصية: {email} · واتساب {whatsapp} · {site}`;
 
-export const PRIVACY_EN = `Shaheen ({site}) is a Kuwaiti AI content platform for designs, posts, videos, video editing and voice. This policy explains what data we collect, how we use and protect it, and your rights.
+export const PRIVACY_EN = `Shaheen ({site}) is a Kuwaiti AI content platform serving the Arab world, for designs, posts, videos, video editing and voice. This policy explains what data we collect, how we use and protect it, and your rights.
 
 ## 1. Data we collect
 - **Account data:** name, email and password (hashed), or, when you sign in with Google, only your name, email address and profile picture.
@@ -123,7 +128,8 @@ export const PRIVACY_EN = `Shaheen ({site}) is a Kuwaiti AI content platform for
 - **Your content:** images, videos, audio and text you upload or write to use our tools, and the results we generate for you.
 - **Brand kit (optional):** business name, logo, colours, font, handle, website, Instagram account and style reference images.
 - **Usage and billing:** credit balance, jobs you run, invoices and referral code.
-- **Technical data:** essential sign-in cookies and technical logs used to secure the service and fix errors.
+- **Country and currency:** we keep the country you choose at sign-up or in your account settings, to suggest your dialect and contact you on the right number. You can change it at any time. The currency you choose for displaying prices is stored only in your browser. We do not use your geographic location.
+- **Technical data:** essential cookies for sign-in and for remembering your language and currency, and technical logs used to secure the service and fix errors.
 - **Payments:** processed by a licensed payment provider; we do not store your card details.
 
 ## 2. How we use data
@@ -142,7 +148,7 @@ When you sign in with Google we receive only your name, email address and profil
 - AI processing of your requests: Anthropic (Claude) for text and design, Google (Gemini) for images and video, ElevenLabs for voice.
 - A payment provider for processing payments.
 
-These providers only receive what is needed to fulfil your request (for example the text or image you upload) and process it on our behalf under their own terms.
+These providers only receive what is needed to fulfil your request (for example the text or image you upload) and process it on our behalf under their own terms. Your data may be processed and stored on servers outside your country by these providers, who apply appropriate safeguards.
 
 ## 5. Retention and deletion
 We keep your data and work while your account is active. You can delete any item from “My works” at any time, and you can delete your account and all your data yourself from Account → My details → Delete account, or by emailing {email}; we complete it within 30 days.
@@ -204,10 +210,10 @@ export const REFUND_AR = `> **باختصار**
 هذه الخدمة يقدّمها فريق بشري. يحق لك استرداد كامل قبل بدء العمل على حسابك. بعد بدء العمل يُلغى التجديد القادم عند طلبك، ولا يُسترد مبلغ الشهر الجاري.
 
 ## 10. طريقة طلب الاسترداد
-راسلنا على {email} أو واتساب {whatsapp}، أو عبر «التواصل مع الدعم» داخل المنصة، واذكر البريد المسجّل في حسابك وتاريخ الدفع. نرد خلال يومي عمل، وبعد الموافقة يُعاد المبلغ بنفس طريقة الدفع خلال 7 أيام عمل. قد يختلف وقت ظهور المبلغ في حسابك حسب البنك.
+راسلنا على {email} أو واتساب {whatsapp}، أو عبر «التواصل مع الدعم» داخل المنصة، واذكر البريد المسجّل في حسابك وتاريخ الدفع. نرد خلال يومي عمل، وبعد الموافقة يُعاد المبلغ بالدينار الكويتي بنفس طريقة الدفع خلال 7 أيام عمل، وقد يختلف المبلغ بعملة بطاقتك بسبب سعر الصرف أو رسوم البنك، ولا نتحمل هذه الفروقات. قد يختلف وقت ظهور المبلغ في حسابك حسب البنك.
 
 ## 11. القانون المطبّق
-تخضع هذه السياسة لقوانين دولة الكويت، ولا تنتقص من أي حق يمنحه لك القانون كمستهلك. راجع أيضاً [شروط الاستخدام](/terms) و[سياسة الخصوصية](/privacy).`;
+تخضع هذه السياسة لقوانين دولة الكويت، ولا تنتقص من أي حق إلزامي يمنحه لك قانون بلدك كمستهلك. راجع أيضاً [شروط الاستخدام](/terms) و[سياسة الخصوصية](/privacy).`;
 
 export const REFUND_EN = `> **In short**
 > - Cancel anytime; your plan stays active until the end of the paid month.
@@ -247,10 +253,10 @@ Account deletion is permanent and removes your credits, all your work and saved 
 This service is delivered by our team. You are entitled to a full refund before work on your account starts. After work starts, we cancel the next renewal on request, but the current month is not refunded.
 
 ## 10. How to request a refund
-Email {email}, WhatsApp {whatsapp}, or use “Contact support” in the app, with your account email and payment date. We reply within 2 business days; approved refunds are returned to the original payment method within 7 business days. Your bank may take longer to show it.
+Email {email}, WhatsApp {whatsapp}, or use “Contact support” in the app, with your account email and payment date. We reply within 2 business days; approved refunds are returned in Kuwaiti dinars to the original payment method within 7 business days; the amount in your card's currency may differ because of exchange rates or bank fees, which we are not responsible for. Your bank may take longer to show it.
 
 ## 11. Governing law
-This policy is governed by the laws of the State of Kuwait and does not limit any rights you have as a consumer under the law. See also our [Terms of Service](/terms) and [Privacy Policy](/privacy).`;
+This policy is governed by the laws of the State of Kuwait and does not limit any mandatory consumer rights your country's law gives you. See also our [Terms of Service](/terms) and [Privacy Policy](/privacy).`;
 
 export const CONTENT_AR = `منصة «شاهين» ({site}) منصة كويتية محترمة لصناعة محتوى الأعمال بالذكاء الاصطناعي، وتلتزم بقوانين دولة الكويت وبالآداب العامة والقيم الإسلامية. هذه السياسة جزء لا يتجزأ من [شروط الاستخدام](/terms)، وتنطبق على كل ما تكتبه أو ترفعه أو تطلب إنشاءه أو تنشره من نتائج المنصة. استخدامك لأي أداة يعني موافقتك عليها.
 
@@ -309,6 +315,8 @@ export const CONTENT_AR = `منصة «شاهين» ({site}) منصة كويتي�
 
 ## 7. القوانين المرجعية
 تخضع هذه السياسة لقوانين دولة الكويت، ومنها: قانون مكافحة جرائم تقنية المعلومات رقم 63 لسنة 2015، وقانون الجزاء، وقانون حقوق المؤلف والحقوق المجاورة، وتنظيمات حماية البيانات الشخصية الصادرة عن هيئة الاتصالات وتقنية المعلومات، وقانون المطبوعات والنشر، وأي قانون آخر نافذ.
+
+وإذا كنت تستخدم المنصة من خارج الكويت، فيجب أن يلتزم محتواك أيضاً بقوانين بلدك.
 
 ## 8. التعديلات
 قد نحدّث هذه السياسة، وننشر النسخة الجديدة هنا مع تاريخ آخر تحديث. استمرارك باستخدام المنصة بعد التحديث يعني موافقتك عليه.`;
@@ -370,6 +378,8 @@ If you see violating content made with the platform, or your image, voice or wor
 
 ## 7. Governing laws
 This policy is governed by the laws of the State of Kuwait, including the Law on Combating Information Technology Crimes No. 63 of 2015, the Penal Code, the Copyright and Related Rights Law, the personal data protection regulations issued by the Communication and Information Technology Regulatory Authority, the Press and Publications Law, and any other law in force.
+
+If you use the platform from outside Kuwait, your content must also comply with your country's laws.
 
 ## 8. Changes
 We may update this policy and will publish the new version here with the date of the last update. Continuing to use the platform after an update means you accept it.`;

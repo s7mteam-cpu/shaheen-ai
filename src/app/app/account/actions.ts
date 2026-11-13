@@ -92,7 +92,8 @@ export async function saveProfile(form: FormData) {
   const supabase = await createClient();
   await supabase.from("profiles").update({
     full_name: String(form.get("full_name") ?? "").slice(0, 80),
-    phone: normalizePhone(String(form.get("phone") ?? "")) ?? profile.phone,
+    phone: normalizePhone(String(form.get("phone") ?? ""), /^[A-Z]{2}$/.test(String(form.get("country"))) && form.get("country") !== "XX" ? String(form.get("country")) : null) ?? profile.phone,
+    ...(/^[A-Z]{2}$/.test(String(form.get("country"))) ? { country: String(form.get("country")) } : {}),
     instagram: String(form.get("instagram") ?? "").slice(0, 60),
   }).eq("id", profile.id);
   revalidatePath("/app", "layout");

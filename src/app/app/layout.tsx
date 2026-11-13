@@ -21,9 +21,12 @@ import { getChosenLang, getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
 import { LangToggle } from "@/components/LangToggle";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
+import { CountrySync } from "@/components/CountrySync";
+import { getMoney } from "@/lib/server/money";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const [profile, lang, chosen] = await Promise.all([getSessionProfile(), getLang(), getChosenLang()]);
+  const [profile, lang, chosen, { cur }] = await Promise.all([getSessionProfile(), getLang(), getChosenLang(), getMoney()]);
   const T = (ar: string, en: string) => tr(lang, ar, en);
   const impRaw = (await cookies()).get("shaheen_imp")?.value;
   const imp = impRaw ? decodeURIComponent(impRaw) : null;
@@ -31,9 +34,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const access = imp ? null : await latestAccess(profile.id);
   // WhatsApp number: copy it from sign-up, or ask once.
   let needContact = false;
+  // Country (dialect, contact): from sign-up, else Kuwait — set once.
+  if (profile.role === "user" && profile.country === null && !imp) {
+    const { data: { user } } = await (await createClient()).auth.getUser();
+    const meta = String(user?.user_metadata?.country ?? "");
+    profile.country = /^[A-Z]{2}$/.test(meta) ? meta : "KW";
+    await createAdminClient().from("profiles").update({ country: profile.country }).eq("id", profile.id).then(() => null, () => null);
+  }
   if (!profile.phone && !imp) {
     const { data: { user } } = await (await createClient()).auth.getUser();
-    const fromSignup = normalizePhone(String(user?.user_metadata?.phone ?? ""));
+    const fromSignup = normalizePhone(String(user?.user_metadata?.phone ?? ""), String(user?.user_metadata?.country ?? "") || null);
     if (fromSignup) await createAdminClient().from("profiles").update({ phone: fromSignup }).eq("id", profile.id);
     else needContact = true;
   }
@@ -45,6 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-canvas">
+      {!imp && <CountrySync code={profile.country ?? "KW"} />}
       {imp && profile.role === "user" && (
         <form action={stopImpersonating} className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-3 bg-red-700 px-4 py-2.5 text-center text-sm font-semibold text-white">
           <span>{T("أنت داخل على حساب العميل ", "You are inside the customer account ")}<span dir="ltr" className="font-latin">{profile.email}</span>{T(` كمدير (${imp}). كل شي تسويه ينحسب عليه.`, ` as an admin (${imp}). Everything you do counts on this account.`)}</span>
@@ -59,7 +70,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-gold-500/45 bg-gold-500/15 px-2.5 py-1.5 text-[13px] font-bold text-gold-500 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm">
               <Icon name="feather" size={16} />{profile.credits.toLocaleString("en")}<span className="hidden sm:inline">{T("ريشة", "credits")}</span>
             </Link>
-            <span className="flex items-center rounded-full bg-white/[0.06] sm:bg-transparent"><LangToggle lang={chosen} /><ThemeToggle /></span>
+            <span className="flex items-center rounded-full bg-white/[0.06] sm:bg-transparent"><LangToggle lang={chosen} /><CurrencyToggle cur={cur} lang={lang} /><ThemeToggle /></span>
             <NotificationBell notes={notes} />
             <UserMenu name={profile.full_name || profile.email || ""} />
           </div>

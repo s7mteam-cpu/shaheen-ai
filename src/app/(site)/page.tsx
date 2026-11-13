@@ -1,3 +1,4 @@
+import { getMoney } from "@/lib/server/money";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { Circuit } from "@/components/Circuit";
@@ -22,6 +23,7 @@ export default async function Home() {
   const [c, tools, plans, gallery] = await localize(
     [{ hero, steps, tools_section, gallery: galleryText, pricing, faq, final_cta, managed_service }, tools0, plans0, gallery0] as const, lang);
   const T = (ar: string, en: string) => tr(lang, ar, en);
+  const { money } = await getMoney();
 
   return (
     <main>
@@ -152,7 +154,10 @@ export default async function Home() {
                 : "card flex flex-col gap-5 rounded-3xl p-8"}>
                 {p.is_featured && <span className="absolute -top-3.5 end-8 rounded-full bg-gold-500 px-3 py-1 text-[13px] font-bold text-navy-900">{T("الأكثر اختياراً", "Most popular")}</span>}
                 <div><div className={`text-lg font-bold ${p.is_featured ? "text-gold-500" : ""}`}>{p.name}</div><div className={`mt-1 text-sm ${p.is_featured ? "text-white/75" : "text-subtle"}`}>{p.subtitle}</div></div>
-                <div className="flex items-baseline gap-2"><span className="font-latin text-5xl font-bold">{Number(p.price_kwd)}</span><span className="font-semibold">{T("د.ك", "KWD")}</span><span className={p.is_featured ? "text-white/75" : "text-subtle"}>{T("/ شهرياً", "/ month")}</span></div>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-baseline gap-2">{money(p.price_kwd).approx && <span className={`text-2xl ${p.is_featured ? "text-white/70" : "text-subtle"}`}>≈</span>}<span className="font-latin text-5xl font-bold">{money(p.price_kwd).number}</span><span className="font-semibold">{money(p.price_kwd).symbol}</span><span className={p.is_featured ? "text-white/75" : "text-subtle"}>{T("/ شهرياً", "/ month")}</span></div>
+                  {money(p.price_kwd).approx && <span className={`text-[12px] ${p.is_featured ? "text-white/65" : "text-subtle"}`}>{T(`الدفع بالدينار الكويتي: ${money(p.price_kwd).kwd}`, `Charged in Kuwaiti dinars: ${money(p.price_kwd).kwd}`)}</span>}
+                </div>
                 <ul className="flex flex-col gap-2.5 text-[15px]">
                   <li className="flex items-center gap-2"><Icon name="feather" size={16} className="text-gold-500" />{p.credits.toLocaleString("en")} {T("ريشة كل شهر", "credits every month")}</li>
                   {(p.bonus_credits ?? 0) > 0 && <li className={`flex items-center gap-2 font-bold ${p.is_featured ? "text-gold-500" : "text-[#9A7A35]"}`}><span aria-hidden="true" className="w-4 text-center text-[15px]">🎁</span>+ {p.bonus_credits!.toLocaleString("en")} {T("ريشة هدية كل شهر", "bonus credits every month")}</li>}
@@ -162,7 +167,7 @@ export default async function Home() {
               </div>
             ))}
           </div>
-          <ManagedService s={c.managed_service} lang={lang} />
+          <ManagedService s={c.managed_service} lang={lang} price={money(Number(c.managed_service?.price_kwd || 0))} />
         </div>
       </section>
 

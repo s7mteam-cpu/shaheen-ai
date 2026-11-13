@@ -13,10 +13,11 @@ export async function saveContactInfo(_prev: Res, form: FormData): Promise<Res> 
   const { data: { user } } = await (await createClient()).auth.getUser();
   if (!user) return { error: T("سجّل دخولك.", "Please sign in.") };
   const name = String(form.get("full_name") || "").trim().slice(0, 80);
-  const phone = normalizePhone(String(form.get("phone") || ""));
+  const country = /^[A-Z]{2}$/.test(String(form.get("country"))) ? String(form.get("country")) : "KW";
+  const phone = normalizePhone(String(form.get("phone") || ""), country === "XX" ? null : country);
   if (name.length < 2) return { error: T("اكتب اسمك.", "Please enter your name.") };
-  if (!phone) return { error: T("اكتب رقم واتساب صحيح، مثل 50000000 أو ‎+96550000000.", "Enter a valid WhatsApp number, e.g. 50000000 or +96550000000.") };
-  await createAdminClient().from("profiles").update({ full_name: name, phone }).eq("id", user.id);
+  if (!phone) return { error: T("اكتب رقم واتساب صحيح مع مفتاح الدولة، مثل ‎+96550000000.", "Enter a valid WhatsApp number with the country code, e.g. +96550000000.") };
+  await createAdminClient().from("profiles").update({ full_name: name, phone, country }).eq("id", user.id);
   revalidatePath("/app", "layout");
   return { ok: true };
 }

@@ -42,7 +42,8 @@ const dialects: Option[] = [
   { value: "kuwaiti", label: "كويتي" }, { value: "saudi", label: "سعودي" }, { value: "emirati", label: "إماراتي" },
   { value: "qatari", label: "قطري" }, { value: "bahraini", label: "بحريني" }, { value: "omani", label: "عماني" },
   { value: "egyptian", label: "مصري" }, { value: "levantine", label: "شامي" }, { value: "iraqi", label: "عراقي" },
-  { value: "maghrebi", label: "مغربي" }, { value: "msa", label: "فصحى" },
+  { value: "sudanese", label: "سوداني" }, { value: "yemeni", label: "يمني" }, { value: "libyan", label: "ليبي" },
+  { value: "maghrebi", label: "مغاربي" }, { value: "msa", label: "فصحى" },
 ];
 const n = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : Number(v) || d);
 

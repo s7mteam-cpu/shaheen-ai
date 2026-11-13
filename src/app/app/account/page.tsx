@@ -1,3 +1,4 @@
+import { getMoney } from "@/lib/server/money";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getPlans, getSessionProfile } from "@/lib/data";
@@ -9,6 +10,7 @@ import { SupportAccess } from "@/components/app/SupportAccess";
 import { ACCESS_HOURS, latestAccess } from "@/lib/server/supportAccess";
 import { isImpersonating } from "@/lib/server/impersonation";
 import { openPortal, saveProfile, setRenewal, startCheckout } from "./actions";
+import { CountryOptions } from "@/components/CountryOptions";
 import { RenewConsent } from "@/components/app/RenewConsent";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
@@ -27,6 +29,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
   const [profile, plans0, lang] = await Promise.all([getSessionProfile(), getPlans(), getLang()]);
   const plans = await localize(plans0, lang);
   const T = (ar: string, en: string) => tr(lang, ar, en);
+  const { money } = await getMoney();
   const tabs = TABS[lang];
   const statusAr = STATUS[lang];
   const dateFmt = lang === "en" ? "en-GB" : "ar-KW";
@@ -71,7 +74,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
                 {sub && <span className="rounded-full bg-white/10 px-3 py-1 text-[13px] font-bold">{statusAr[sub.status] ?? sub.status}</span>}
               </div>
               <div className="flex flex-wrap gap-7 text-sm text-white/80">
-                {plan && <span>{T("السعر: ", "Price: ")}<strong className="text-white">{Number(plan.price_kwd)} {T("د.ك / شهرياً", "KWD / month")}</strong></span>}
+                {plan && <span>{T("السعر: ", "Price: ")}<strong className="text-white">{Number(plan.price_kwd)} {T("د.ك / شهرياً", "KWD / month")}</strong> {money(Number(plan.price_kwd)).approx ? <span className="opacity-75">(≈ {money(Number(plan.price_kwd)).number} {money(Number(plan.price_kwd)).symbol})</span> : null}</span>}
                 <span>{T("الرصيد الحالي: ", "Current balance: ")}<strong className="text-white">{profile?.credits} {T("ريشة", "credits")}</strong></span>
                 {sub?.current_period_end && <span>{sub.cancel_at_period_end ? T("ينتهي في", "Ends on") : T("التجديد القادم", "Next renewal")}: <strong className="text-white">{new Date(sub.current_period_end).toLocaleDateString(dateFmt)}</strong></span>}
               </div>
@@ -109,7 +112,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
               {plans.map((p) => (
                 <form key={p.id} action={startCheckout.bind(null, p.id)} className={`card flex flex-col gap-2.5 p-5 ${p.id === plan?.id ? "border-2 border-navy-800" : ""}`}>
                   <span className="font-bold">{p.name}</span>
-                  <span className="text-sm text-muted">{Number(p.price_kwd)} {T("د.ك", "KWD")} · {p.credits.toLocaleString("en")} {T("ريشة", "credits")}{(p.bonus_credits ?? 0) > 0 ? ` + ${p.bonus_credits!.toLocaleString("en")} ${T("هدية", "bonus")}` : ""}</span>
+                  <span className="text-sm text-muted">{Number(p.price_kwd)} {T("د.ك", "KWD")} {money(Number(p.price_kwd)).approx ? <span className="opacity-75">(≈ {money(Number(p.price_kwd)).number} {money(Number(p.price_kwd)).symbol})</span> : null} · {p.credits.toLocaleString("en")} {T("ريشة", "credits")}{(p.bonus_credits ?? 0) > 0 ? ` + ${p.bonus_credits!.toLocaleString("en")} ${T("هدية", "bonus")}` : ""}</span>
                   {p.id === plan?.id
                     ? <span className="mt-auto rounded-xl bg-tint py-2.5 text-center text-sm font-bold text-navy-700">{T("باقتك الحالية", "Current plan")}</span>
                     : <div className="mt-auto flex flex-col gap-2.5"><RenewConsent price={Number(p.price_kwd)} /><button className="btn btn-gold py-2.5 text-sm">{plan ? T("التبديل لهذه الباقة", "Switch to this plan") : T("اشترك", "Subscribe")}</button></div>}
@@ -160,6 +163,8 @@ export default async function Account({ searchParams }: { searchParams: Promise<
             <label htmlFor="full_name" className="label">{T("الاسم", "Name")}</label><input id="full_name" name="full_name" defaultValue={profile?.full_name ?? ""} className="field" />
             <label htmlFor="email" className="label">{T("البريد الإلكتروني", "Email")}</label><input id="email" value={profile?.email ?? ""} readOnly dir="ltr" className={`field ${align} opacity-70`} />
             <label htmlFor="phone" className="label">{T("رقم الواتساب", "WhatsApp number")}</label><input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ""} dir="ltr" placeholder="+965 5000 0000" className={`field ${align}`} />
+            <label htmlFor="country" className="label">{T("الدولة", "Country")}</label>
+            <select id="country" name="country" defaultValue={profile?.country ?? "KW"} className="field"><CountryOptions lang={lang} /></select>
             <label htmlFor="instagram" className="label">{T("حساب إنستغرام (لاقتراح أفكار تناسبك)", "Instagram account (for tailored ideas)")}</label><input id="instagram" name="instagram" defaultValue={profile?.instagram ?? ""} dir="ltr" placeholder="@account" className={`field ${align}`} />
             <button className="btn btn-primary self-start px-6 py-2.5">{T("حفظ التغييرات", "Save changes")}</button>
           </form>

@@ -43,6 +43,7 @@ export type Profile = {
   full_name: string | null;
   email: string | null;
   phone: string | null;
+  country?: string | null;
   instagram: string | null;
   role: "user" | "admin" | "staff";
   credits: number;

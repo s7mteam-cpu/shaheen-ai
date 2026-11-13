@@ -1,4 +1,5 @@
 "use client";
+import { GULF_DIALECTS, myDialect } from "@/lib/countries";
 import { L, LT } from "@/lib/i18n/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,7 +9,7 @@ import { DIcon } from "@/design/icons";
 import { INDUSTRIES, industryById } from "@/design/industries";
 
 const aspects = [["4:5", "بوست طولي 4:5"], ["1:1", "مربع 1:1"], ["9:16", "ستوري 9:16"]] as const;
-const dialects = [["gulf", "خليجي أبيض"], ["kuwaiti", "كويتي"], ["msa", "فصحى"], ["same", "مثل ما كتبت"]] as const;
+const dialects: (readonly [string, string])[] = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const), ["same", "مثل ما كتبت"]];
 const COPY: Record<string, { label: string; ph: string; btn: string; wait: string }> = {
   post: { label: "اكتب كل معلومات البوست", btn: "صمّم البوست", wait: "شاهين يصمّم البوست…", ph: "مثال: ورشة تصوير منتجات بالجوال، الخميس 20 نوفمبر من 6 إلى 9 مساءً في الشويخ، المدربة سارة العلي، السعر 25 د.ك بدل 40، 12 مقعد فقط، تشمل شهادة. الحجز واتساب 9999 9999" },
   carousel: { label: "موضوع الكاروسيل ومعلوماته", btn: "صمّم الكاروسيل", wait: "شاهين يصمّم الشرائح…", ph: "مثال: 5 نصائح للعناية بالبشرة في الصيف من عيادتنا، ونختم بدعوة لحجز استشارة" },
@@ -37,7 +38,8 @@ export function DesignStart({ toolId, cost, balance, industry: savedIndustry }: 
   const ind = industryById(industry);
   const [count, setCount] = useState(toolId === "carousel" ? 5 : 2);
   const [aspect, setAspect] = useState("4:5");
-  const [dialect, setDialect] = useState("gulf");
+  const [dialect, setDialect] = useState<string>("kuwaiti");
+  useEffect(() => { setDialect(myDialect()); }, []);
   const [photos, setPhotos] = useState<Up[]>([]);
   const [person, setPerson] = useState<Up | null>(null);
   const [useBrand, setUseBrand] = useState(true);

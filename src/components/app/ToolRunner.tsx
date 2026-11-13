@@ -1,4 +1,5 @@
 "use client";
+import { myDialect } from "@/lib/countries";
 import { IndustryPicker } from "@/components/app/IndustryPicker";
 import { L, LT } from "@/lib/i18n/ui";
 import { Progress } from "@/components/app/Progress";
@@ -34,6 +35,12 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
     if ("vo_voice" in v && voices[0]) v.vo_voice = voices[0].id;
     return v;
   });
+  // the dialect of the customer's country first (they can still pick another)
+  useEffect(() => {
+    const f = spec.fields.find((x) => x.name === "dialect" && x.type === "choice") as { options?: { value: string }[] } | undefined;
+    const d = myDialect();
+    if (f?.options?.some((o) => o.value === d)) setValues((v) => (v.dialect === "kuwaiti" ? { ...v, dialect: d } : v));
+  }, [spec]);
   const [uploads, setUploads] = useState<Record<string, Upload[]>>({});
   const [busyUpload, setBusyUpload] = useState(false);
   const [squeeze, setSqueeze] = useState<number | null>(null);

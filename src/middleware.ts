@@ -11,6 +11,7 @@ export async function middleware(request: NextRequest) {
   const ref = request.nextUrl.searchParams.get("ref");
   if (ref) response.cookies.set("shaheen_ref", ref, { maxAge: 60 * 60 * 24 * 30, path: "/" });
 
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return response;
   const remember = wantsRemember(request.cookies.get(REMEMBER_COOKIE)?.value);
 

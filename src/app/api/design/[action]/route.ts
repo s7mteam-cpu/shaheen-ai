@@ -19,7 +19,7 @@ import { usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, DECO_IDS, FRAME_IDS, STICKER_
 export const maxDuration = 300;
 
 const ASPECTS: DAspect[] = ["4:5", "1:1", "9:16"];
-const DIALECT: Record<string, string> = { kuwaiti: "كويتية بإملاء واضح", gulf: "خليجية بيضاء", msa: "عربية فصحى سهلة", same: "نفس لهجة العميل" };
+const DIALECT: Record<string, string> = { kuwaiti: "كويتية بإملاء واضح", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة",  gulf: "خليجية بيضاء", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة قريبة من الفصحى)", msa: "عربية فصحى سهلة", same: "نفس لهجة العميل" };
 
 const SYSTEM = `أنت مدير فني ومصمم سوشال ميديا خليجي خبير بأحدث أساليب التصميم 2026 (Editorial، Swiss typography، Bento grids، Bold minimal). تحوّل معلومات العميل إلى تصميم احترافي جاهز للنشر، مو تصميم عام ومكرر.
 

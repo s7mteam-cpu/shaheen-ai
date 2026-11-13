@@ -2,9 +2,11 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { ThemeSwitch } from "@/components/ThemeToggle";
 import { LangToggle } from "@/components/LangToggle";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
+import type { CurrencyCode } from "@/lib/countries";
 import { tr, type Lang } from "@/lib/i18n";
 
-export function SiteHeader({ signedIn, lang = "ar", chosen = lang }: { signedIn: boolean; lang?: Lang; chosen?: Lang }) {
+export function SiteHeader({ signedIn, lang = "ar", chosen = lang, cur = "KWD" }: { signedIn: boolean; lang?: Lang; chosen?: Lang; cur?: CurrencyCode }) {
   const T = (ar: string, en: string) => tr(lang, ar, en);
   return (
     <header className="sticky top-0 z-30 bg-navy-800 shadow-[0_1px_0_rgba(201,164,92,0.35)]">
@@ -17,7 +19,7 @@ export function SiteHeader({ signedIn, lang = "ar", chosen = lang }: { signedIn:
         </nav>
         <div className="flex min-w-0 items-center gap-1 sm:gap-2">
           {/* Clear labels on every size: «English/عربي» and both ☀️ 🌙 visible. */}
-          <span className="flex items-center gap-1.5 sm:gap-2"><LangToggle lang={chosen} full /><ThemeSwitch /></span>
+          <span className="flex items-center gap-1.5 sm:gap-2"><LangToggle lang={chosen} full /><CurrencyToggle cur={cur} lang={lang} full /><ThemeSwitch /></span>
           {/* On phones & iPads these two live in the page itself (above «اشترك الآن»), so the bar stays light. */}
           <span className="hidden items-center gap-2 lg:flex">
             {signedIn ? (

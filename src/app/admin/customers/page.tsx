@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { setUserFlags, deleteCustomerWork, blockCustomer, unblockEmail, impersonate, requestAccess, cancelCustomerSub, resumeCustomerSub } from "./actions";
 import { latestAccess } from "@/lib/server/supportAccess";
 import { previousClosed, REASON_AR } from "@/lib/server/archive";
+import { countryOf } from "@/lib/countries";
 import { AUDIT_AR } from "@/lib/server/audit";
 import { CreditsForm, DeleteCustomer, DeleteWork, BlockEmail, Impersonate, RequestAccess, CancelSub } from "@/components/admin/CustomerTools";
 import { getL, serverT } from "@/lib/server/lang";
@@ -19,7 +20,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   const full = !!(await adminAccess())?.full;
   const { q = "", id, deleted } = await searchParams;
   const admin = createAdminClient();
-  let query = admin.from("profiles").select("id,full_name,email,phone,credits,plan_id,role,is_suspended,created_at").order("created_at", { ascending: false }).limit(50);
+  let query = admin.from("profiles").select("*").order("created_at", { ascending: false }).limit(50);
   if (q) { const k = q.replace(/[%,()]/g, ""); query = query.or(`email.ilike.%${k}%,full_name.ilike.%${k}%,phone.ilike.%${k.replace(/\D/g, "") || k}%`); }
   const { data: users } = await query;
   const selected = id ? users?.find((u) => u.id === id) ?? (await admin.from("profiles").select("*").eq("id", id).single()).data : null;
@@ -82,7 +83,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
         </section>
         {selected && (
           <aside id="manage" className="card flex scroll-mt-24 flex-col gap-4 p-5 xl:w-[380px]">
-            <h2 className="text-lg font-bold">{selected.full_name || selected.email}</h2>
+            <h2 className="text-lg font-bold">{selected.full_name || selected.email} {selected.country && <span title={countryOf(selected.country).ar} className="text-base">{countryOf(selected.country).flag}</span>}</h2>
             {previous.length > 0 && (
               <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-[13px] leading-6 text-amber-900">
                 <p className="font-bold">⚠️ {T("عنده حساب سابق مغلق بنفس البريد أو الرقم", "Had a closed account with the same email or phone")}</p>

@@ -1,3 +1,4 @@
+import { getMoney } from "@/lib/server/money";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { payNow } from "@/app/app/account/actions";
@@ -13,6 +14,7 @@ export default async function Pay({ searchParams }: { searchParams: Promise<{ ki
   const { kind = "renew" } = await searchParams;
   const [profile, lang] = await Promise.all([getSessionProfile(), getLang()]);
   const T = (ar: string, en: string) => tr(lang, ar, en);
+  const { money } = await getMoney();
   if (!profile) redirect("/login");
   if (!tapOpenFor(profile.role)) redirect("/app/account");
   const admin = createAdminClient();
@@ -40,6 +42,7 @@ export default async function Pay({ searchParams }: { searchParams: Promise<{ ki
       <form action={payNow.bind(null, kind === "managed" ? "managed" : "renew")} className="card flex flex-col gap-3 p-6">
         <span className="text-lg font-bold">{title}</span>
         <span className="text-2xl font-bold text-navy-900">{amount} {T("د.ك", "KWD")}</span>
+        {money(amount).approx && <span className="text-sm text-subtle">{T(`≈ ${money(amount).number} ${money(amount).symbol} (المبلغ يندفع بالدينار الكويتي، وبنكك يحوّله)`, `≈ ${money(amount).number} ${money(amount).symbol} (charged in Kuwaiti dinars; your bank converts it)`)}</span>}
         <p className="text-sm leading-7 text-muted">{note}</p>
         <p className="rounded-xl bg-tint p-3 text-[13px] leading-6 text-navy-900">{lang === "en" ? <>You can pay with <b>KNET</b>, <b>Visa / Mastercard</b> or <b>Apple Pay</b> on the secure payment page. Your card details stay with the payment provider and are never stored by us.</> : <>تقدر تدفع بـ<b>كي نت</b> أو <b>فيزا / ماستر كارد</b> أو <b>Apple Pay</b> من صفحة الدفع الآمنة. بيانات بطاقتك عند بوابة الدفع، وما تنحفظ عندنا.</>}</p>
         {tapTestMode() && <p className="rounded-xl bg-amber-50 p-3 text-[13px] font-semibold text-amber-900">{T("🧪 وضع التجربة: الدفع هنا تجريبي ببطاقات Tap التجريبية، وما ينخصم أي مبلغ حقيقي.", "🧪 Test mode: payments here use Tap test cards — no real money is charged.")}</p>}

@@ -1,4 +1,5 @@
 "use client";
+import { GULF_DIALECTS, myDialect } from "@/lib/countries";
 import { L } from "@/lib/i18n/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,7 +9,7 @@ import { ILLUS_STYLES } from "@/remotion/styles";
 const lengths = [[30, "30 ثانية"], [60, "دقيقة"], [90, "دقيقة ونص"], [120, "دقيقتين"]] as const;
 const aspects = [["9:16", "ريلز / تيك توك 9:16"], ["1:1", "مربع 1:1"], ["16:9", "يوتيوب عريض 16:9"]] as const;
 const audiences = [["kids", "أطفال"], ["students", "طلاب"], ["adults", "عامة الناس"], ["pros", "متخصصين"]] as const;
-const dialects = [["kuwaiti", "كويتية"], ["gulf", "خليجية"], ["msa", "فصحى"], ["en", "English"]] as const;
+const dialects: (readonly [string, string])[] = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const), ["en", "English"]];
 const panels = [["light", "خلفية فاتحة"], ["dark", "خلفية داكنة"]] as const;
 const boards = [["auto", "تلقائي (مختلف كل مرة)"], ["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"]] as const;
 
@@ -21,6 +22,7 @@ export function LessonStart({ costPer30, balance, voices }: { costPer30: number;
   const [aspect, setAspect] = useState<string>("9:16");
   const [audience, setAudience] = useState<string>("students");
   const [dialect, setDialect] = useState<string>("kuwaiti");
+  useEffect(() => { setDialect(myDialect()); }, []);
   const [panel, setPanel] = useState<string>("light");
   const [board, setBoard] = useState<string>("auto");
   const [voice, setVoice] = useState(voices[0]?.id ?? "");

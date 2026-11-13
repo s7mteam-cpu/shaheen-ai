@@ -3,6 +3,7 @@ import { newBook, styledSheet, kwDate, dayDate, FMT } from "@/lib/server/xlsx";
 import { AUDIT_AR } from "@/lib/server/audit";
 import { CATEGORY, PAY_KIND } from "@/lib/server/finance";
 import { PRICE_FIELDS } from "@/lib/server/priceHistory";
+import { countryOf } from "@/lib/countries";
 
 /** The readable Excel inside «تنزيل البيانات» (the JSON files next to it are for restoring). */
 type Row = Record<string, unknown>;
@@ -73,12 +74,14 @@ export async function backupWorkbook(t: Record<string, Row[]>) {
     { header: "طريقة التسجيل", key: "m", width: 15, align: "center" }, { header: "البريد مؤكَّد؟", key: "conf", width: 13, align: "center" },
     { header: "النشاط التجاري", key: "biz", width: 22 }, { header: "إنستغرام", key: "ig", width: 20, align: "left" }, { header: "الموقع", key: "web", width: 24, align: "left" },
     { header: "الداعي", key: "ref", width: 20 }, { header: "إجمالي المدفوع", key: "paid", width: 16, fmt: FMT.kd },
+    { header: "الدولة", key: "ctry", width: 14, align: "center" },
   ] });
   for (const p of sortDesc(users, "created_at")) c.add({
     ll: kwDate(s(auth.get(s(p.id))?.last_sign_in_at) || lastLogin.get(s(p.id))),
     m: METHOD[s(auth.get(s(p.id))?.provider)] ?? (s(auth.get(s(p.id))?.provider) || "—"), conf: auth.get(s(p.id))?.email_confirmed_at ? "نعم" : "لا",
     biz: s(brand.get(s(p.id))?.business_name) || "—", ig: s(brand.get(s(p.id))?.instagram || p.instagram) || "—", web: s(brand.get(s(p.id))?.website) || "—",
-    ref: p.referred_by ? who(p.referred_by) : "—", paid: paidKwd.get(s(p.id)) ?? 0, n: s(p.full_name) || "—", e: s(p.email), p: s(p.phone), plan: plan(p.plan_id), cr: Number(p.credits ?? 0),
+    ref: p.referred_by ? who(p.referred_by) : "—", paid: paidKwd.get(s(p.id)) ?? 0,
+    ctry: p.country ? `${countryOf(s(p.country)).flag} ${countryOf(s(p.country)).ar}` : "—", n: s(p.full_name) || "—", e: s(p.email), p: s(p.phone), plan: plan(p.plan_id), cr: Number(p.credits ?? 0),
     st: blocked.has(s(p.email).toLowerCase()) ? "محظور" : p.is_suspended ? "موقوف" : "نشط", d: kwDate(s(p.created_at)) });
   c.finish(c.count() ? { n: "المجموع", cr: { formula: `SUM(E${c.FIRST}:E${c.lastRow()})` }, paid: { formula: `SUM(P${c.FIRST}:P${c.lastRow()})` } } : undefined);
 

@@ -5,9 +5,11 @@ import { getChosenLang, getLang } from "@/lib/server/lang";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { tr } from "@/lib/i18n";
 import { LangToggle } from "@/components/LangToggle";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
+import { getMoney } from "@/lib/server/money";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  const [lang, chosen] = await Promise.all([getLang(), getChosenLang()]);
+  const [lang, chosen, { cur }] = await Promise.all([getLang(), getChosenLang(), getMoney()]);
   const T = (ar: string, en: string) => tr(lang, ar, en);
   return (
     <div className="flex min-h-screen flex-wrap">
@@ -18,7 +20,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy-800"><Image src="/brand/eagle.png" alt="" width={32} height={32} /></span>
             <span className="text-[22px] font-bold text-navy-900">{T("شاهين", "Shaheen")}</span>
           </Link>
-          <span className="flex items-center gap-2"><LangToggle lang={chosen} light /><ThemeToggle light /></span>
+          <span className="flex items-center gap-2"><LangToggle lang={chosen} light /><CurrencyToggle cur={cur} lang={lang} light /><ThemeToggle light /></span>
           </div>
           {children}
         </div>
