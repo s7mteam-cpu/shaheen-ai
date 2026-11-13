@@ -32,7 +32,7 @@ export function SideNav({ isAdmin, support }: { isAdmin: boolean; support?: stri
       <Link href="/app/tools#tools-top" aria-current={onTools ? "page" : undefined} className={item(onTools)}><Icon name="grid" size={18} className={ic(onTools)} />{T("الأدوات", "Tools")}</Link>
 
       <Link href="/app/works" aria-current={works ? "page" : undefined} className={item(works)}><Icon name="folder" size={18} className={ic(works)} />{T("أعمالي", "My works")}</Link>
-      <Link href="/app/showcase" aria-current={show ? "page" : undefined} className={item(show)}><Icon name="sparkles" size={18} className={ic(show)} />{T("معرض شاهين", "Shaheen showcase")}</Link>
+      <Link href="/app/showcase" aria-current={show ? "page" : undefined} className={item(show)}><Icon name="sparkles" size={18} className={ic(show)} />{T("أعمال صنعت بشاهين", "Made with Shaheen")}</Link>
       <Link href="/app/brand" aria-current={brand ? "page" : undefined} className={item(brand)}><Icon name="palette" size={18} className={ic(brand)} />{T("هويتي التجارية", "Brand kit")}</Link>
       <Link href="/app/account" aria-current={account ? "page" : undefined} className={item(account)}><Icon name="card" size={18} className={ic(account)} />{T("الحساب والاشتراك", "Account & plan")}</Link>
       <Link href="/app/account?tab=spend" aria-current={spend ? "page" : undefined} className={item(spend)}><Icon name="feather" size={18} className={ic(spend)} />{T("مصاريف الريش", "Credit usage")}</Link>
