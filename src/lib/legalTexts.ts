@@ -80,7 +80,7 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 - إدارة الرصيد والاشتراك والفواتير، والتواصل معك بخصوص حسابك والدعم.
 - حماية المنصة ومنع إساءة الاستخدام وتحسين جودة الخدمة.
 
-لا نبيع بياناتك، ولا نستخدمها للإعلانات، ولا نشاركها إلا بالقدر اللازم لتقديم الخدمة كما هو موضح أدناه.
+لا نبيع بياناتك، ولا نستخدمها للإعلانات، ولا نشاركها إلا بالقدر اللازم لتقديم الخدمة كما هو موضح أدناه. ونفصح عن البيانات فقط إذا طلبتها جهة رسمية مختصة في دولة الكويت بطلب رسمي وفق القانون (مثل أمر من النيابة العامة أو المحكمة)، وبالقدر المطلوب فقط.
 
 ## 3. بيانات حساب Google
 عند الدخول بحساب Google نستلم فقط اسمك وبريدك الإلكتروني وصورة ملفك الشخصي، ونستخدمها حصراً لإنشاء حسابك وتسجيل دخولك وعرض اسمك داخل المنصة. لا نصل إلى بريدك أو ملفاتك أو أي بيانات أخرى في حسابك، ولا ننقل بيانات Google لأي طرف ثالث لأغراض إعلانية. يلتزم استخدامنا للمعلومات المستلمة من واجهات Google بـ[سياسة بيانات مستخدمي خدمات Google API](https://developers.google.com/terms/api-services-user-data-policy)، بما في ذلك متطلبات الاستخدام المحدود (Limited Use).
@@ -132,7 +132,7 @@ export const PRIVACY_EN = `Shaheen ({site}) is a Kuwaiti AI content platform for
 - To manage credits, subscriptions and invoices, and to contact you about your account and support.
 - To protect the platform, prevent abuse and improve service quality.
 
-We do not sell your data, do not use it for advertising, and only share it as needed to provide the service, as described below.
+We do not sell your data, do not use it for advertising, and only share it as needed to provide the service, as described below. We disclose data only when a competent official authority in the State of Kuwait requests it through an official legal request (such as an order from the Public Prosecution or a court), and only to the extent requested.
 
 ## 3. Google user data
 When you sign in with Google we receive only your name, email address and profile picture, and we use them solely to create your account, sign you in and show your name inside the platform. We do not access your Gmail, Drive or any other Google data, and we do not transfer Google user data to third parties for advertising. Shaheen's use and transfer of information received from Google APIs adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements.
