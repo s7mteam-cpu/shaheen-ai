@@ -43,7 +43,7 @@ export function NotificationBell({ notes }: { notes: Note[] }) {
   return (
     <div ref={box} className="relative">
       <button type="button" onClick={toggle} aria-expanded={open} aria-label={unread ? T(`الإشعارات، ${unread} جديدة`, `Notifications, ${unread} new`) : T("الإشعارات", "Notifications")}
-        className="relative flex h-9 w-9 shrink-0 items-center sm:h-10 sm:w-10 justify-center rounded-full border border-white/20 bg-navy-700 text-white hover:bg-navy-600">
+        className="relative flex h-9 w-9 shrink-0 items-center max-[379px]:h-8 max-[379px]:w-8 sm:h-10 sm:w-10 justify-center rounded-full border border-white/20 bg-navy-700 text-white hover:bg-navy-600">
         <Icon name="bell" size={19} />
         {unread > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 font-latin text-[11px] font-bold text-white">{unread > 9 ? "9+" : unread}</span>}
       </button>

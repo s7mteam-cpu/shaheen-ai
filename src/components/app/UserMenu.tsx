@@ -17,7 +17,7 @@ export function UserMenu({ name }: { name: string }) {
   return (
     <div className="relative">
       <button type="button" aria-label={T("قائمة الحساب", "Account menu")} aria-expanded={open} onClick={() => setOpen(!open)}
-        className="flex h-9 w-9 shrink-0 items-center sm:h-10 sm:w-10 justify-center rounded-full border-2 border-gold-500 bg-navy-700 text-[15px] font-bold text-white">
+        className="flex h-9 w-9 shrink-0 items-center max-[379px]:h-8 max-[379px]:w-8 sm:h-10 sm:w-10 justify-center rounded-full border-2 border-gold-500 bg-navy-700 text-[15px] font-bold text-white">
         {name.trim().charAt(0) || "؟"}
       </button>
       {open && (

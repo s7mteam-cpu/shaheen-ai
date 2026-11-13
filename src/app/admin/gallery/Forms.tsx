@@ -69,7 +69,7 @@ export function AddShowcase() {
         {err && <span role="alert" className="text-sm font-semibold text-red-700">{err}</span>}
       </div>
       <div className="flex flex-wrap gap-5 text-sm font-semibold">
-        <label className="flex items-center gap-2"><input type="checkbox" name="in_app" defaultChecked className="h-4 w-4" />يطلع بـ «أعمال صنعت بشاهين» داخل المنصة</label>
+        <label className="flex items-center gap-2"><input type="checkbox" name="in_app" defaultChecked className="h-4 w-4" />يطلع بـ «أعمال صُنعت بشاهين» داخل المنصة</label>
         <label className="flex items-center gap-2"><input type="checkbox" name="on_home" className="h-4 w-4" />يطلع بصفحة الموقع الرئيسية</label>
         <label className="flex items-center gap-2">الترتيب <input name="sort_order" type="number" defaultValue={0} className="field w-20 py-1.5" /></label>
       </div>

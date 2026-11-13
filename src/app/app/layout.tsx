@@ -1,9 +1,9 @@
 import { after } from "next/server";
 import { sheetsTick } from "@/lib/server/sheetsSync";
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Icon } from "@/components/Icon";
+import { Logo } from "@/components/Logo";
 import { SideNav } from "@/components/app/SideNav";
 import { HomeGreeting } from "@/components/app/HomeGreeting";
 import { UserMenu } from "@/components/app/UserMenu";
@@ -78,12 +78,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </form>
       )}
       <header className="sticky top-0 z-30 bg-navy-800 shadow-[0_1px_0_rgba(201,164,92,0.35)]">
-        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
-          <Link href="/app" className="flex shrink-0 items-center gap-1.5 sm:gap-2.5"><Image src="/brand/eagle.png" alt="" width={36} height={36} className="h-8 w-8 sm:h-9 sm:w-9" /><span className="text-[18px] font-bold text-gold-500 max-[379px]:hidden sm:text-xl">{T("شاهين", "Shaheen")}</span></Link>
-          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-2 px-2.5 py-2.5 max-[339px]:px-2 sm:gap-4 sm:px-6 sm:py-3">
+          <Logo href="/app" size={36} />
+          <div className="flex min-w-0 items-center gap-1 max-[339px]:gap-0.5 sm:gap-2">
             <Link href="/app/account" aria-label={T(`رصيدك ${profile.credits} ريشة`, `Your balance: ${profile.credits} credits`)}
-              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-gold-500/45 bg-gold-500/15 px-2.5 py-1.5 text-[13px] font-bold text-gold-500 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm">
-              <Icon name="feather" size={16} />{profile.credits.toLocaleString("en")}<span className="hidden sm:inline">{T("ريشة", "credits")}</span>
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-gold-500/45 bg-gold-500/15 px-2.5 py-1.5 max-[379px]:px-2 text-[13px] font-bold text-gold-500 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm">
+              <Icon name="feather" size={16} className="max-[359px]:hidden" />{profile.credits.toLocaleString("en")}<span className="hidden sm:inline">{T("ريشة", "credits")}</span>
             </Link>
             <span className="flex items-center rounded-full bg-white/[0.06] sm:bg-transparent"><LangToggle lang={chosen} /><CurrencyToggle cur={cur} lang={lang} /><ThemeToggle /></span>
             <NotificationBell notes={notes} />

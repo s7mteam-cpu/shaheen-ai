@@ -5,7 +5,7 @@ import { getL } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { getLang } from "@/lib/server/lang";
 
-export async function generateMetadata() { return { title: (await getL())("أعمال صنعت بشاهين") }; }
+export async function generateMetadata() { return { title: (await getL())("أعمال صُنعت بشاهين") }; }
 
 /** «معرض شاهين / صُنع بأيادي شاهين»: what the platform can make, uploaded by the admin. */
 export default async function Showcase() {
@@ -14,7 +14,7 @@ export default async function Showcase() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-[28px] font-bold text-navy-900">{L("أعمال صنعت بشاهين")}</h1>
+        <h1 className="text-[28px] font-bold text-navy-900">{L("أعمال صُنعت بشاهين")}</h1>
         <p className="text-[15px] leading-7 text-muted">{L("بوستات، كاروسيل، ريلز وفيديوهات سوّيناها بأدوات المنصة. اضغط على أي عمل عشان تشوفه كامل.")}</p>
       </div>
       {items.length > 0

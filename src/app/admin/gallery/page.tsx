@@ -13,8 +13,8 @@ export default async function GalleryAdmin() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-[26px] font-bold text-navy-900">أعمال صنعت بشاهين</h1>
-        <p className="mt-1 text-sm leading-7 text-subtle">نماذج من شغل شاهين (بوستات، كاروسيل، ريلز، فيديو، بطاقات، CV…). تطلع للعملاء داخل المنصة بـ «أعمال صنعت بشاهين»، وتقدر تختار بعضها يطلع بصفحة الموقع الرئيسية بعد. استخدم أعمالاً حقيقية وبموافقة أصحابها.</p>
+        <h1 className="text-[26px] font-bold text-navy-900">أعمال صُنعت بشاهين</h1>
+        <p className="mt-1 text-sm leading-7 text-subtle">نماذج من شغل شاهين (بوستات، كاروسيل، ريلز، فيديو، بطاقات، CV…). تطلع للعملاء داخل المنصة بـ «أعمال صُنعت بشاهين»، وتقدر تختار بعضها يطلع بصفحة الموقع الرئيسية بعد. استخدم أعمالاً حقيقية وبموافقة أصحابها.</p>
       </div>
       <AddShowcase />
       <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-4">
