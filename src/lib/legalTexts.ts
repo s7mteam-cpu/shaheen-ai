@@ -74,7 +74,9 @@ export const PRIVACY_AR = `منصة «شاهين» ({site}) منصة كويتي�
 - **رقم الواتساب:** نطلبه عند التسجيل لنتواصل معك بخصوص حسابك وأعمالك والدعم فقط، ولا نشاركه مع أحد ولا نرسل عليه إعلانات مزعجة.
 - **محتواك:** الصور والفيديوهات والملفات الصوتية والنصوص التي ترفعها أو تكتبها لاستخدام الأدوات، والنتائج التي تنتجها المنصة لك.
 - **هويتك التجارية (اختياري):** اسم النشاط والشعار والألوان والخط والحساب ورابط الموقع وحساب إنستغرام وصور مرجعية للأسلوب.
-- **بيانات الاستخدام والاشتراك:** رصيد «الريش»، والعمليات المنفذة، والفواتير، ورمز الإحالة.
+- **بيانات الاستخدام والاشتراك:** رصيد «الريش»، والعمليات المنفذة، والفواتير، ورمز الإحالة، وسجل محاولات الدفع الناجحة والفاشلة (المبلغ والنتيجة والوقت ورقم العملية، دون بيانات البطاقة).
+- **سجل الدخول والأمان:** أوقات تسجيل الدخول، ومحاولات الدخول الخاطئة، وتغيير كلمة المرور، وعنوان IP المرتبط بكل منها، لحماية حسابك ومنع الاحتيال.
+- **سجل الموافقات:** نسخة الشروط التي وافقت عليها ووقت الموافقة، وموافقتك على استخدام صور الأشخاص والأصوات في الأدوات، وموافقتك عند منح فريق الدعم صلاحية الدخول إلى حسابك، لتوثيق حقوق الطرفين.
 - **الدولة والعملة:** نحفظ الدولة التي تختارها عند التسجيل أو في إعدادات حسابك، لنقترح عليك لهجة بلدك ونتواصل معك على رقمك الصحيح، وتقدر تغيّرها بأي وقت. والعملة التي تختارها لعرض الأسعار تُحفظ في متصفحك فقط. ولا نستخدم موقعك الجغرافي.
 - **بيانات تقنية:** ملفات تعريف الارتباط الضرورية لتسجيل الدخول وتذكّر اللغة والعملة، وسجلات تقنية لحماية الخدمة وإصلاح الأخطاء.
 - **الدفع:** تتم المدفوعات عبر مزوّد دفع مرخّص، ولا نخزّن بيانات بطاقتك على خوادمنا.
@@ -128,7 +130,9 @@ export const PRIVACY_EN = `Shaheen ({site}) is a Kuwaiti AI content platform ser
 - **WhatsApp number:** requested at sign-up so we can contact you about your account, your work and support only. We never share it or send spam to it.
 - **Your content:** images, videos, audio and text you upload or write to use our tools, and the results we generate for you.
 - **Brand kit (optional):** business name, logo, colours, font, handle, website, Instagram account and style reference images.
-- **Usage and billing:** credit balance, jobs you run, invoices and referral code.
+- **Usage and billing:** credit balance, jobs you run, invoices, referral code, and a record of successful and failed payment attempts (amount, result, time and transaction number, never card details).
+- **Sign-in and security log:** sign-in times, wrong-password attempts, password changes and the IP address of each, to protect your account and prevent fraud.
+- **Consent record:** the version of the terms you accepted and when, your consent to using people's photos and voices in the tools, and your consent when you give the support team access to your account, to document both parties' rights.
 - **Country and currency:** we keep the country you choose at sign-up or in your account settings, to suggest your dialect and contact you on the right number. You can change it at any time. The currency you choose for displaying prices is stored only in your browser. We do not use your geographic location.
 - **Technical data:** essential cookies for sign-in and for remembering your language and currency, and technical logs used to secure the service and fix errors.
 - **Payments:** processed by a licensed payment provider; we do not store your card details.

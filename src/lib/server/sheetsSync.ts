@@ -11,7 +11,8 @@ import { ZEBRA } from "@/lib/server/xlsx";
  * colours and right-to-left layout as the Excel download).
  * - Any change in the database marks the file «needs update» (a database trigger, migration 0034).
  * - The next page view anywhere on the site (at most every 2 minutes), the daily cron, or «مزامنة الآن» rewrites it.
- * - Only Shaheen's own tabs are touched. Tabs the owner adds himself are never changed or deleted.
+ * - Only Shaheen's own tabs are touched. Tabs the owner adds himself are never changed, moved or deleted.
+ *   New Shaheen tabs are added at the end, so the owner's own tabs (e.g. «لوحة التحكم») stay first.
  */
 const KEY = "sheets";
 export type SheetsConfig = {
@@ -92,18 +93,20 @@ const a1 = (ref: string) => {
 
 const PROTECT = "شاهين: هذه الورقة تتحدّث تلقائياً من المنصة";
 
-type Meta = { properties: { sheetId: number; title: string }; bandedRanges?: { bandedRangeId: number }[]; protectedRanges?: { description?: string }[] };
+type Meta = { properties: { sheetId: number; title: string; gridProperties?: { rowCount?: number; columnCount?: number } }; bandedRanges?: { bandedRangeId: number }[]; protectedRanges?: { description?: string }[] };
 
-export function sheetRequests(ws: ExcelJS.Worksheet, sheetId: number, index: number, meta: Meta | undefined) {
+export function sheetRequests(ws: ExcelJS.Worksheet, sheetId: number, meta: Meta | undefined) {
   const R = Math.max(ws.rowCount, 4), C = Math.max(ws.columnCount, 1), FIRST = 4;
   const whole = { sheetId };
   const req: Record<string, unknown>[] = [];
   for (const b of meta?.bandedRanges ?? []) req.push({ deleteBanding: { bandedRangeId: b.bandedRangeId } });
   req.push({ unmergeCells: { range: whole } }, { clearBasicFilter: { sheetId } }, { updateCells: { range: whole, fields: "userEnteredValue,userEnteredFormat" } });
   req.push({ updateSheetProperties: {
-    properties: { sheetId, index, rightToLeft: true, tabColorStyle: { rgbColor: rgb((ws.properties.tabColor as { argb?: string } | undefined)?.argb) ?? rgb("FF0B2A4A") },
-      gridProperties: { rowCount: R + 1, columnCount: C, frozenRowCount: 3, hideGridlines: true } },
-    fields: "index,rightToLeft,tabColorStyle,gridProperties.rowCount,gridProperties.columnCount,gridProperties.frozenRowCount,gridProperties.hideGridlines",
+    // the grid only grows (never shrinks), so formulas in the owner's own sheets that point here never break;
+    // the tab order is never changed, so the owner's dashboard stays where he put it
+    properties: { sheetId, rightToLeft: true, tabColorStyle: { rgbColor: rgb((ws.properties.tabColor as { argb?: string } | undefined)?.argb) ?? rgb("FF0B2A4A") },
+      gridProperties: { rowCount: Math.max(R + 1, meta?.properties.gridProperties?.rowCount ?? 0), columnCount: Math.max(C, meta?.properties.gridProperties?.columnCount ?? 0), frozenRowCount: 3, hideGridlines: true } },
+    fields: "rightToLeft,tabColorStyle,gridProperties.rowCount,gridProperties.columnCount,gridProperties.frozenRowCount,gridProperties.hideGridlines",
   } });
 
   // values (typed, so phone numbers like +965… stay text and formulas stay formulas)
@@ -160,7 +163,7 @@ export function sheetRequests(ws: ExcelJS.Worksheet, sheetId: number, index: num
 
 /** Rewrites Shaheen's tabs in the file. Throws SheetsError with a clear Arabic message. */
 async function pushBook(id: string, wb: ExcelJS.Workbook) {
-  const fields = "sheets(properties(sheetId,title),bandedRanges(bandedRangeId),protectedRanges(description))";
+  const fields = "sheets(properties(sheetId,title,gridProperties(rowCount,columnCount)),bandedRanges(bandedRangeId),protectedRanges(description))";
   let meta = (await sheetsApi<{ sheets: Meta[] }>(`${id}?fields=${encodeURIComponent(fields)}`)).sheets ?? [];
   const missing = wb.worksheets.filter((ws) => !meta.some((m) => m.properties.title === ws.name));
   if (missing.length) {
@@ -168,10 +171,10 @@ async function pushBook(id: string, wb: ExcelJS.Workbook) {
     meta = (await sheetsApi<{ sheets: Meta[] }>(`${id}?fields=${encodeURIComponent(fields)}`)).sheets ?? [];
   }
   let rows = 0;
-  for (const [i, ws] of wb.worksheets.entries()) {
+  for (const ws of wb.worksheets) {
     const m = meta.find((x) => x.properties.title === ws.name);
     if (!m) throw new SheetsError(`ما قدرنا نسوي ورقة «${ws.name}».`);
-    await sheetsApi(`${id}:batchUpdate`, { method: "POST", body: { requests: sheetRequests(ws, m.properties.sheetId, i, m) } });
+    await sheetsApi(`${id}:batchUpdate`, { method: "POST", body: { requests: sheetRequests(ws, m.properties.sheetId, m) } });
     rows += Math.max(ws.rowCount - 3, 0);
   }
   return { tabs: wb.worksheets.length, rows };

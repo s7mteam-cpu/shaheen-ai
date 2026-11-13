@@ -43,6 +43,10 @@ export async function backupBook(t: Record<string, Row[]>) {
   const paidKwd = new Map<string, number>();
   for (const c of t.tap_charges ?? []) if (s(c.status).toUpperCase() === "CAPTURED" && c.currency === "KWD") paidKwd.set(s(c.user_id), (paidKwd.get(s(c.user_id)) ?? 0) + Number(c.amount ?? 0));
   const METHOD: Record<string, string> = { email: "بريد وكلمة مرور", google: "Google" };
+  const rate = Number(((t.site_content ?? []).find((c) => c.key === "finance")?.value as { usd_kwd?: number } | undefined)?.usd_kwd ?? 0.307);
+  const kwdOf = (a: unknown, c: unknown) => (c === "KWD" ? Number(a ?? 0) : Number(a ?? 0) * rate);
+  /** «🇰🇼 الكويت»: the customer's country (the same label in every sheet, so the dashboard can group by it). */
+  const ctryOf = (id: unknown) => { const p = people.get(s(id)); return p?.country ? `${countryOf(s(p.country)).flag} ${countryOf(s(p.country)).ar}` : "—"; };
 
   // 0) overview: live formulas over the other sheets
   const ov = styledSheet(wb, "نظرة عامة", { title: "شاهين: نظرة عامة على البيانات", columns: [
@@ -57,12 +61,12 @@ export async function backupBook(t: Record<string, Row[]>) {
     ["دفعات ناجحة", "=COUNTIF('محاولات الدفع'!H4:H100000,\"✓ ناجحة\")", "ورقة محاولات الدفع", FMT.num],
     ["دفعات فاشلة", "=COUNTIF('محاولات الدفع'!H4:H100000,\"✗*\")", "ورقة محاولات الدفع", FMT.num],
     ["دفعات لم يُكملها العميل", "=COUNTIF('محاولات الدفع'!H4:H100000,\"لم تكتمل\")", "ورقة محاولات الدفع", FMT.num],
-    ["عدد الأعمال (الطلبات)", "=COUNTA('الطلبات'!A4:A100000)", "ورقة الطلبات", FMT.num],
+    ["عدد الأعمال (الطلبات)", "=COUNT('الطلبات'!A4:A100000)", "ورقة الطلبات", FMT.num],
     ["أعمال فاشلة", "=COUNTIF('الطلبات'!E4:E100000,\"فاشل\")", "ورقة الطلبات", FMT.num],
     ["الريش المصروفة", "=SUM('الطلبات'!F4:F100000)", "ورقة الطلبات", FMT.num],
     ["تكلفة مزوّدي الذكاء الاصطناعي ($)", "=SUM('الطلبات'!J4:J100000)", "ورقة الطلبات", FMT.usd],
     ["طلبات تواصل جديدة", "=COUNTIF('طلبات التواصل'!E4:E100000,\"جديد\")", "ورقة طلبات التواصل", FMT.num],
-    ["حسابات مغلقة", "=COUNTA('الحسابات المغلقة'!A4:A100000)", "ورقة الحسابات المغلقة", FMT.num],
+    ["حسابات مغلقة", "=COUNT('الحسابات المغلقة'!A4:A100000)", "ورقة الحسابات المغلقة", FMT.num],
     ["محاولات دخول فاشلة", "=COUNTIF('الدخول والأمان'!C4:C100000,\"محاولة دخول بكلمة مرور خاطئة\")", "ورقة الدخول والأمان", FMT.num],
     ["محتوى مخالف مُنع", "=COUNTIF('الدخول والأمان'!C4:C100000,\"محتوى مخالف مُنع\")", "ورقة الدخول والأمان", FMT.num],
   ];
@@ -89,7 +93,8 @@ export async function backupBook(t: Record<string, Row[]>) {
     ref: p.referred_by ? who(p.referred_by) : "—", paid: paidKwd.get(s(p.id)) ?? 0,
     ctry: p.country ? `${countryOf(s(p.country)).flag} ${countryOf(s(p.country)).ar}` : "—", n: s(p.full_name) || "—", e: s(p.email), p: s(p.phone), plan: plan(p.plan_id), cr: Number(p.credits ?? 0),
     st: blocked.has(s(p.email).toLowerCase()) ? "محظور" : p.is_suspended ? "موقوف" : "نشط", d: kwDate(s(p.created_at)) });
-  c.finish(c.count() ? { n: "المجموع", cr: { formula: `SUM(E${c.FIRST}:E${c.lastRow()})` }, paid: { formula: `SUM(P${c.FIRST}:P${c.lastRow()})` } } : undefined);
+  const colOf = (key: string) => c.ws.getColumn(key).letter; // never hard-code a letter: columns get added over time
+  c.finish(c.count() ? { n: "المجموع", cr: { formula: `SUM(${colOf("cr")}${c.FIRST}:${colOf("cr")}${c.lastRow()})` }, paid: { formula: `SUM(${colOf("paid")}${c.FIRST}:${colOf("paid")}${c.lastRow()})` } } : undefined);
 
   // 1b) legal consents: terms accepted at sign-up, and the image/voice permission ticked on avatar & voice-clone jobs
   const cs = styledSheet(wb, "الموافقات", { title: "الموافقات القانونية (للتوثيق عند أي نزاع)", tab: "FF6D4C41", columns: [
@@ -113,9 +118,9 @@ export async function backupBook(t: Record<string, Row[]>) {
   const m = styledSheet(wb, "المدفوعات", { title: "المدفوعات الواردة", tab: "FF2E7D32", columns: [
     { header: "التاريخ", key: "d", width: 14, fmt: FMT.date }, { header: "الوصف", key: "desc", width: 30 }, { header: "العميل", key: "cust", width: 24 },
     { header: "الطريقة", key: "m", width: 12, align: "center" }, { header: "المبلغ", key: "a", width: 14, fmt: FMT.dec }, { header: "العملة", key: "cur", width: 9, align: "center" },
-    { header: "وقت التسجيل", key: "rt", width: 18, fmt: FMT.datetime },
+    { header: "وقت التسجيل", key: "rt", width: 18, fmt: FMT.datetime }, { header: "بالدينار", key: "kwd", width: 14, fmt: FMT.kd }, { header: "الدولة", key: "ctry", width: 16, align: "center" },
   ] });
-  for (const x of inc) m.add({ rt: kwDate(s(x.created_at)), d: dayDate(s(x.received_on)), desc: s(x.description), cust: s(x.customer_name) || "—", m: s(x.method) || "—", a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency) });
+  for (const x of inc) m.add({ kwd: kwdOf(x.amount, x.currency), ctry: ctryOf(x.customer_id), rt: kwDate(s(x.created_at)), d: dayDate(s(x.received_on)), desc: s(x.description), cust: s(x.customer_name) || "—", m: s(x.method) || "—", a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency) });
   m.finish();
 
   // 2b) every payment attempt (successful, failed, abandoned)
@@ -124,11 +129,11 @@ export async function backupBook(t: Record<string, Row[]>) {
     { header: "الوقت", key: "d", width: 18, fmt: FMT.datetime }, { header: "العميل", key: "u", width: 24 }, { header: "النوع", key: "k", width: 14, align: "center" },
     { header: "الباقة", key: "plan", width: 14, align: "center" }, { header: "المبلغ", key: "a", width: 13, fmt: FMT.dec }, { header: "العملة", key: "cur", width: 9, align: "center" },
     { header: "الطريقة", key: "m", width: 13, align: "center" }, { header: "النتيجة", key: "st", width: 22, align: "center" }, { header: "آخر تحديث", key: "up", width: 18, fmt: FMT.datetime },
-    { header: "رقم العملية", key: "id", width: 26, align: "left" },
+    { header: "رقم العملية", key: "id", width: 26, align: "left" }, { header: "الدولة", key: "ctry", width: 16, align: "center" },
   ] });
   for (const x of ch) {
     const [label, color] = chargeState(x.status);
-    const r = pa.add({ d: kwDate(s(x.created_at)), u: who(x.user_id), k: CHARGE_KIND[s(x.kind)] ?? s(x.kind), plan: x.plan_id ? plan(x.plan_id) : "—", a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency), m: s(x.method) || "—", st: label, up: kwDate(s(x.updated_at)), id: s(x.id) });
+    const r = pa.add({ ctry: ctryOf(x.user_id), d: kwDate(s(x.created_at)), u: who(x.user_id), k: CHARGE_KIND[s(x.kind)] ?? s(x.kind), plan: x.plan_id ? plan(x.plan_id) : "—", a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency), m: s(x.method) || "—", st: label, up: kwDate(s(x.updated_at)), id: s(x.id) });
     r.getCell("st").font = { name: "Arial", size: 11, bold: true, color: { argb: color } };
   }
   pa.finish();
@@ -138,9 +143,9 @@ export async function backupBook(t: Record<string, Row[]>) {
   const sb = styledSheet(wb, "الاشتراكات", { title: "الاشتراكات", columns: [
     { header: "العميل", key: "u", width: 24 }, { header: "الباقة", key: "plan", width: 14, align: "center" }, { header: "الحالة", key: "st", width: 14, align: "center" },
     { header: "طريقة الدفع", key: "pm", width: 14, align: "center" }, { header: "البطاقة", key: "card", width: 20, align: "center" },
-    { header: "يتجدد / ينتهي في", key: "end", width: 18, fmt: FMT.date }, { header: "تُلغى بنهاية المدة؟", key: "c", width: 16, align: "center" }, { header: "آخر تحديث", key: "up", width: 18, fmt: FMT.datetime },
+    { header: "يتجدد / ينتهي في", key: "end", width: 18, fmt: FMT.date }, { header: "تُلغى بنهاية المدة؟", key: "c", width: 16, align: "center" }, { header: "آخر تحديث", key: "up", width: 18, fmt: FMT.datetime }, { header: "الدولة", key: "ctry", width: 16, align: "center" },
   ] });
-  for (const x of subs) sb.add({ u: who(x.user_id), plan: plan(x.plan_id), st: SUB[s(x.status)] ?? s(x.status), pm: x.pay_method === "card" ? "بطاقة (تجديد تلقائي)" : x.pay_method === "knet" ? "كي نت (رابط شهري)" : s(x.pay_method) || "—",
+  for (const x of subs) sb.add({ ctry: ctryOf(x.user_id), u: who(x.user_id), plan: plan(x.plan_id), st: SUB[s(x.status)] ?? s(x.status), pm: x.pay_method === "card" ? "بطاقة (تجديد تلقائي)" : x.pay_method === "knet" ? "كي نت (رابط شهري)" : s(x.pay_method) || "—",
     card: s(x.card_label) || "—", end: kwDate(s(x.current_period_end)), c: x.cancel_at_period_end ? "نعم" : "لا", up: kwDate(s(x.updated_at)) });
   sb.finish();
 
@@ -148,9 +153,9 @@ export async function backupBook(t: Record<string, Row[]>) {
   const ex = sortDesc(t.expenses ?? [], "spent_on");
   const e = styledSheet(wb, "المصروفات", { title: "المصروفات", tab: "FFC62828", columns: [
     { header: "التاريخ", key: "d", width: 14, fmt: FMT.date }, { header: "الجهة", key: "v", width: 24 }, { header: "النوع", key: "c", width: 16, align: "center" },
-    { header: "المبلغ", key: "a", width: 14, fmt: FMT.dec }, { header: "العملة", key: "cur", width: 9, align: "center" }, { header: "ملاحظة", key: "note", width: 34 },
+    { header: "المبلغ", key: "a", width: 14, fmt: FMT.dec }, { header: "العملة", key: "cur", width: 9, align: "center" }, { header: "ملاحظة", key: "note", width: 34 }, { header: "بالدينار", key: "kwd", width: 14, fmt: FMT.kd },
   ] });
-  for (const x of ex) e.add({ d: dayDate(s(x.spent_on)), v: s(x.vendor), c: CATEGORY[s(x.category)] ?? s(x.category), a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency), note: s(x.note) });
+  for (const x of ex) e.add({ kwd: kwdOf(x.amount, x.currency), d: dayDate(s(x.spent_on)), v: s(x.vendor), c: CATEGORY[s(x.category)] ?? s(x.category), a: Number(x.amount ?? 0), cur: x.currency === "KWD" ? "د.ك" : s(x.currency), note: s(x.note) });
   e.finish();
 
   // 4) credits
@@ -283,8 +288,6 @@ export async function backupBook(t: Record<string, Row[]>) {
   hs.finish();
 
   // 10) company: partners, withdrawals/deposits, employees (full details), operating cycles
-  const rate = Number(((t.site_content ?? []).find((c) => c.key === "finance")?.value as { usd_kwd?: number } | undefined)?.usd_kwd ?? 0.307);
-  const kwdOf = (a: unknown, c: unknown) => (c === "KWD" ? Number(a ?? 0) : Number(a ?? 0) * rate);
   const partnersAll = t.partners ?? [], movesAll = t.partner_moves ?? [];
   const pName = (id: unknown) => s(partnersAll.find((p) => p.id === id)?.name) || "—";
   const pr = styledSheet(wb, "الشركاء", { title: "الشركاء", tab: "FF0B2A4A", columns: [
