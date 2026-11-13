@@ -1678,4 +1678,6 @@ export const EN: Record<string, string> = {
   "كلمات السر": "Passwords",
   "اقفل الصفحة الحين": "Lock now",
   "تنزيل نسخة البيانات": "Downloaded the data backup",
+  "العودة للمنصة": "Back to the platform",
+  "القائمة": "Menu",
 };

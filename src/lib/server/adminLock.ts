@@ -7,7 +7,7 @@ import { ALWAYS_LOCKED, type SectionKey } from "@/lib/admin/sections";
 
 /**
  * «كلمات السر»: one admin password (separate from the account password) that the owner puts on any admin
- * sections. «تصفير المنصة» and «كلمات السر» are always locked once it exists. Typing it opens all locked
+ * sections (his choice). «كلمات السر» itself is always locked once it exists. Typing it opens all locked
  * sections for 15 minutes (a signed httpOnly cookie tied to that admin). 5 wrong tries → blocked 15 minutes.
  * Stored as a salted scrypt hash in a server-only table.
  */
@@ -39,7 +39,7 @@ export const lockedSections = (lock: Lock | null): SectionKey[] => (lock ? [...n
 export async function needsUnlock(userId: string, section: SectionKey) {
   const { lock, missing } = await readLock();
   if (missing) return false;
-  if (!lock) return section === "reset"; // the reset page (wipe + customer data download) needs a password first
+  if (!lock) return false; // no admin password set: nothing is locked
   if (!lockedSections(lock).includes(section)) return false;
   return !(await isUnlocked(userId));
 }

@@ -11,7 +11,7 @@ export const maxDuration = 300;
  * «تنزيل البيانات»: one zip with every table that matters (customers, credits, finance, texts, settings…)
  * plus the site's own pictures. Built on the server, saved privately in Storage, then handed back as a
  * 10-minute download link (a direct response would hit Vercel's 4.5 MB limit). Only the 3 newest are kept.
- * Needs the admin password (the reset section is always locked).
+ * If the owner locked «تصفير المنصة» in «كلمات السر», the admin password is needed too.
  */
 const TABLES = [
   "profiles", "subscriptions", "credit_ledger", "jobs", "income", "expenses", "recurring_expenses", "tap_charges",
@@ -46,7 +46,7 @@ async function listAll(bucket: string, prefix = ""): Promise<string[]> {
 const csvCell = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 
 export async function POST() {
-  const me = await requireAdmin("reset"); // includes the «كلمات السر» lock (reset is always locked)
+  const me = await requireAdmin("reset"); // includes the «كلمات السر» lock when the owner locked this section
   if (!me) return NextResponse.json({ error: "locked" }, { status: 403 });
   const admin = createAdminClient();
   const zip = new JSZip();

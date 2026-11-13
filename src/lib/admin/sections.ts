@@ -19,8 +19,8 @@ export const TEAM = { key: "team", path: "/admin/team", label: "فريق الإ�
 /** «كلمات السر»: a second password on any admin section. Full admins only, like «فريق الإدارة». */
 export const PASSWORDS = { key: "passwords", path: "/admin/passwords", label: "كلمات السر" } as const;
 export type SectionKey = (typeof SECTIONS)[number]["key"] | "team" | "passwords";
-/** Sections that always need the admin password once it is set. */
-export const ALWAYS_LOCKED: SectionKey[] = ["reset", "passwords"];
+/** Once an admin password exists, «كلمات السر» itself always needs it (everything else is the owner's choice). */
+export const ALWAYS_LOCKED: SectionKey[] = ["passwords"];
 
 /** Which section a URL belongs to (longest matching path wins). */
 export function sectionOf(path: string): SectionKey | null {
