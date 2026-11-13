@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhone } from "@/lib/phone";
+import { DISPOSABLE_LIST } from "@/lib/server/disposableList";
 
 /**
  * «التجربة المجانية»: free credits once per person, for a limited time (set by the owner in «الباقات»).
@@ -19,14 +20,31 @@ export async function trialSettings(): Promise<TrialSettings> {
   return { enabled: !!v.enabled, credits: Math.max(1, Math.min(1000, Math.round(+v.credits || 30))), hours: Math.max(1, Math.min(720, Math.round(+v.hours || 24))), per_ip_day: Math.max(1, Math.min(50, Math.round(+v.per_ip_day || 2))), max_per_day: Math.max(1, Math.min(10000, Math.round(+v.max_per_day || 30))) };
 }
 
-/** Temporary-inbox services (people use them to make many accounts). */
-const DISPOSABLE = new Set([
-  "mailinator.com", "guerrillamail.com", "guerrillamail.net", "sharklasers.com", "grr.la", "10minutemail.com", "10minutemail.net", "temp-mail.org",
-  "tempmail.com", "tempmail.net", "temp-mail.io", "tempail.com", "yopmail.com", "yopmail.net", "trashmail.com", "getnada.com", "nada.email",
-  "dispostable.com", "maildrop.cc", "fakeinbox.com", "moakt.com", "moakt.cc", "emailondeck.com", "throwawaymail.com", "mohmal.com", "mohmal.in",
-  "minuteinbox.com", "mail.tm", "inboxkitten.com", "tempinbox.com", "mintemail.com", "spamgourmet.com", "mytemp.email", "tmpmail.org",
-  "tmail.ws", "byom.de", "discard.email", "mailnesia.com", "burnermail.io", "33mail.com", "emailfake.com", "generator.email", "1secmail.com",
-]);
+/** Temporary-inbox services (people use them to make many accounts): 61k+ known domains, plus their mail servers. */
+let disposableSet: Set<string> | null = null;
+function disposableDomains() {
+  if (!disposableSet) disposableSet = new Set(DISPOSABLE_LIST.split("\n"));
+  return disposableSet;
+}
+/** «a.b.example.com» → is example.com / b.example.com / a.b.example.com on the list? */
+function listed(host: string) {
+  const parts = host.toLowerCase().replace(/\.$/, "").split(".");
+  for (let i = 0; i < parts.length - 1; i++) if (disposableDomains().has(parts.slice(i).join("."))) return true;
+  return false;
+}
+/** Mail hosts used by temp-inbox services under many rotating domain names. */
+const TEMP_MX = /(^|\.)(mail\.tm|mail\.gw|1secmail|guerrillamail|mailinator|yopmail|temp-mail|tempmail|10minutemail|dropmail|emailfake|generator\.email|moakt|maildrop|mohmal|tmail|getnada|inboxkitten|mailnesia|trashmail|dispostable|spamgourmet|harakirimail|burnermail|tempm|emailnax|mailcatch|minuteinbox|throwawaymail|fakeinbox|tempr\.email|discard\.email)/i;
+
+export async function isDisposable(email: string) {
+  const domain = (email.split("@")[1] ?? "").toLowerCase().trim();
+  if (!domain) return true;
+  if (listed(domain)) return true;
+  try {
+    const { resolveMx } = await import("node:dns/promises");
+    const mx = await Promise.race([resolveMx(domain), new Promise<never>((_, no) => setTimeout(() => no(new Error("timeout")), 3000))]);
+    return mx.some((m) => listed(m.exchange) || TEMP_MX.test(m.exchange));
+  } catch { return false; }   // DNS trouble never blocks a real customer
+}
 /** The same inbox written differently (Gmail ignores dots and anything after +). */
 export function canonicalEmail(email: string) {
   const [user0, domain0] = email.trim().toLowerCase().split("@");
@@ -74,7 +92,7 @@ export async function claimTrial(userId: string, ip: string | null, devices: str
   if (await declined(userId)) return { error: "تخطّيت التجربة المجانية، فما عادت متاحة. تقدر تشترك وتكمّل بلا حدود." };
   if (!auth?.user?.email_confirmed_at) return { error: "أكّد بريدك الإلكتروني أول (من الرسالة اللي وصلتك)، وبعدها جرّب." };
   const email = canonicalEmail(profile.email ?? auth.user.email ?? "");
-  if (DISPOSABLE.has(email.split("@")[1] ?? "")) return { error: "التجربة المجانية ما تنعطى للإيميلات المؤقتة. سجّل بإيميلك الحقيقي." };
+  if (await isDisposable(email)) return { error: "التجربة المجانية ما تنعطى للإيميلات المؤقتة. سجّل بإيميلك الحقيقي." };
   const phone = normalizePhone(profile.phone ?? "", profile.country ?? undefined);
   if (!phone) return { error: "أضف رقم الواتساب بحسابك أول (من «حسابي» ← «بياناتي»)، وبعدها جرّب." };
   const { count: subs } = await admin.from("subscriptions").select("id", { count: "exact", head: true }).eq("user_id", userId);

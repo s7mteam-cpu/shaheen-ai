@@ -27,7 +27,9 @@ export function TrialBanner({ state, credits, hours, expiresAt }: { state: "offe
   const [r, act] = useActionState(startTrial, undefined);
   const [dev, setDev] = useState("");
   const [left, setLeft] = useState("");
+  const [gone, setGone] = useState(false);
   useEffect(() => { setDev(deviceId()); }, []);
+  useEffect(() => { const h = () => setGone(true); window.addEventListener("sh:trial-skipped", h); return () => window.removeEventListener("sh:trial-skipped", h); }, []);
   useEffect(() => {
     if (state !== "active" || !expiresAt) return;
     const tick = () => {
@@ -49,6 +51,7 @@ export function TrialBanner({ state, credits, hours, expiresAt }: { state: "offe
     </section>
   );
 
+  if (gone) return null;   // skipped on the welcome screen
   return (
     <section className="flex flex-col gap-3 rounded-2xl border-2 border-gold-500/60 bg-gold-100 p-5">
       <form action={act} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
