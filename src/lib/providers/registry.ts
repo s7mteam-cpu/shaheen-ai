@@ -19,10 +19,10 @@ export const toolProviders: Record<string, Partial<Record<ProviderId, string>>> 
   "ad-design": { fal: "fal-ai/nano-banana-pro", google: "gemini-3-pro-image-preview" },
   "avatar-video": { fal: "fal-ai/kling-video/ai-avatar/v2/standard" },
   "product-video": { google: "gemini-omni-1.2-flash" },
-  "video-editing": { elevenlabs: "scribe_v1", google: "gemini-2.5-flash" },
+  "video-editing": { elevenlabs: "scribe_v1", google: "gemini-3.8-flash" },
   voice: { elevenlabs: "eleven_v4", google: "gemini-2.5-flash-preview-tts" },
   nasheed: { elevenlabs: "music" },
 };
 
 /** Text brains (ad copy, "ألهمني", "كلّم شاهين"). */
-export const textProviders: Partial<Record<ProviderId, string>> = { claude: "claude-haiku-5-5", gemini: "gemini-2.5-flash" };
+export const textProviders: Partial<Record<ProviderId, string>> = { claude: "claude-haiku-5-5", gemini: "gemini-3.8-flash" };

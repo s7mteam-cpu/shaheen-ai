@@ -27,7 +27,15 @@ export async function aiChat(purpose: Purpose | { provider: string; model: strin
   // A model name left over from the other provider (e.g. «claude-haiku-5-5» after switching to Gemini) → that provider's default
   const model = picked.model && picked.model.trim().toLowerCase().startsWith(provider === "gemini" ? "gemini" : "claude") ? picked.model.trim() : (textProviders[provider as "claude"] ?? "");
   if (provider === "gemini") {
-    return geminiText(model || "gemini-2.5-flash", system, messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })), maxTokens);
+    const contents = messages.map((m) => ({ role: m.role === "assistant" ? ("model" as const) : ("user" as const), parts: [{ text: m.content }] }));
+    const def = textProviders.gemini ?? "gemini-3.8-flash";
+    try {
+      return await geminiText(model || def, system, contents, maxTokens);
+    } catch (e) {
+      // Google retires model names (e.g. 2.5 Flash for new accounts) → fall back to the current default instead of failing
+      if (model && model !== def && /google 40[04]/.test(String(e))) return geminiText(def, system, contents, maxTokens);
+      throw e;
+    }
   }
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",

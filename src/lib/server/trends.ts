@@ -66,7 +66,7 @@ async function viaClaude(system: string, ask: string) {
 
 async function viaGemini(system: string, ask: string) {
   if (!process.env.GEMINI_API_KEY) throw new Error("no AI key for trends (ANTHROPIC_API_KEY or GEMINI_API_KEY)");
-  const model = process.env.TRENDS_GEMINI_MODEL || "gemini-2.5-flash";
+  const model = process.env.TRENDS_GEMINI_MODEL || "gemini-3.8-flash";
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
     body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: ask }] }], tools: [{ google_search: {} }] }),
