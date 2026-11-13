@@ -5,6 +5,7 @@ import { Circuit } from "@/components/Circuit";
 import { ManagedService } from "@/components/site/ManagedService";
 import { DemoVideo } from "@/components/DemoVideo";
 import { toolCover } from "@/lib/video";
+import { ShowcaseGrid } from "@/components/Showcase";
 import { getContent, getGallery, getPlans, getSessionProfile, getTools } from "@/lib/data";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
@@ -128,16 +129,10 @@ export default async function Home() {
         <section className="border-y border-[#E6EBF2] bg-canvas">
           <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-20">
             <div className="text-center"><h2 className="text-3xl font-bold text-navy-900 md:text-4xl">{c.gallery.title}</h2><p className="mt-2.5 text-[17px] text-muted">{c.gallery.subtitle}</p></div>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {gallery.map((g) => (
-                <figure key={g.id} className="overflow-hidden rounded-2xl border border-line bg-white">
-                  {g.media_type === "video"
-                    ? <video src={g.media_url} className="aspect-[4/5] w-full object-cover" muted loop playsInline autoPlay />
-                    // eslint-disable-next-line @next/next/no-img-element
-                    : <img src={g.media_url} alt={g.title} className="aspect-[4/5] w-full object-cover" />}
-                  <figcaption className="p-3 text-sm font-semibold">{g.title}</figcaption>
-                </figure>
-              ))}
+            <ShowcaseGrid items={gallery} />
+            <div className="flex flex-col items-center gap-2 text-center">
+              <Link href={signedIn ? "/app/showcase" : "/signup"} className="btn btn-primary px-8 py-3.5 text-base font-bold">{T("شوف كل أعمال شاهين ←", "See all of Shaheen's work →")}</Link>
+              {!signedIn && <span className="text-sm text-muted">{T("سجّل مجاناً وشوف المعرض كامل: بوستات، كاروسيل، ريلز وفيديوهات.", "Sign up free to see the full gallery: posts, carousels, reels and videos.")}</span>}
             </div>
           </div>
         </section>

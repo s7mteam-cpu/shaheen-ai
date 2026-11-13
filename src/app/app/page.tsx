@@ -4,22 +4,17 @@ import { WorkCard } from "@/components/app/WorkCard";
 import { getToolsL } from "@/lib/data";
 import { listWorks } from "@/lib/works";
 import { getL } from "@/lib/server/lang";
-import { getSessionProfile } from "@/lib/data";
-import { endExpiredTrials, trialStatus } from "@/lib/server/trial";
-import { TrialBanner } from "./trial/TrialBanner";
+
 
 export async function generateMetadata() { return { title: (await getL())("الرئيسية") }; }
 
 export default async function Dashboard() {
   const L = await getL();
-  const [tools, works, profile] = await Promise.all([getToolsL(), listWorks({ limit: 4 }), getSessionProfile()]);
-  if (profile) await endExpiredTrials(profile.id).catch(() => 0);   // a trial whose time is up ends right away
-  const trial = profile && profile.role === "user" ? await trialStatus(profile.id).catch(() => ({ state: "none" as const })) : { state: "none" as const };
+  const [tools, works] = await Promise.all([getToolsL(), listWorks({ limit: 4 })]);
 
   return (
     <div className="flex flex-col gap-8">
       <h2 className="sr-only">{L("الرئيسية")}</h2>
-      {trial.state !== "none" && <TrialBanner state={trial.state} credits={trial.credits ?? 0} hours={trial.hours} expiresAt={trial.expiresAt} />}
       <section aria-label={L("الأدوات")}>
         <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
           {tools.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} /></li>)}

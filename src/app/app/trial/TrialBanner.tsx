@@ -58,7 +58,10 @@ export function TrialBanner({ state, credits, hours, expiresAt }: { state: "offe
           <b className="text-lg text-navy-900">{T(`🎁 جرّب شاهين مجاناً: ${credits} ريشة لمدة ${hours} ساعة`, `🎁 Try Shaheen free: ${credits} credits for ${hours} hours`)}</b>
           <span className="text-sm text-muted">{T("جرّب أي أداة بدون دفع. التجربة لمرة وحدة لكل شخص.", "Try any tool without paying. One trial per person.")}</span>
         </div>
-        <Go label={T("ابدأ التجربة المجانية", "Start the free trial")} />
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <Go label={T("🎁 ابدأ التجربة المجانية", "🎁 Start the free trial")} />
+          <Link href="/?home=1#pricing" className="btn btn-primary px-6 py-3 text-center font-bold">{T("اشترك وكمّل بلا حدود", "Subscribe, no limits")}</Link>
+        </div>
       </form>
       {r?.error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">{r.error}</p>}
     </section>

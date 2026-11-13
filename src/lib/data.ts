@@ -1,4 +1,5 @@
 import "server-only";
+import { toItem, type ShowcaseItem } from "@/lib/showcase";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { defaultContent, defaultPlans, defaultTools, type Plan, type SiteContent, type Tool } from "@/lib/defaults";
@@ -62,11 +63,24 @@ export const getSessionProfile = cache(async (): Promise<Profile | null> => {
   return (data as Profile) ?? null;
 });
 
-export const getGallery = cache(async () => {
-  if (!dbReady()) return [] as { id: string; title: string; media_url: string; media_type: string }[];
+export const getGallery = cache(async (): Promise<ShowcaseItem[]> => {
+  if (!dbReady()) return [];
   const supabase = await createClient();
-  const { data } = await supabase.from("gallery_items").select("id,title,media_url,media_type").eq("is_published", true).order("sort_order");
-  return data ?? [];
+  // «on_home» comes with v83; until its SQL runs, every published item shows (as before)
+  const q = await supabase.from("gallery_items").select("*").eq("is_published", true).eq("on_home", true).order("sort_order").order("created_at", { ascending: false }).limit(8);
+  if (!q.error) return (q.data ?? []).map(toItem);
+  const { data } = await supabase.from("gallery_items").select("*").eq("is_published", true).order("sort_order").limit(8);
+  return (data ?? []).map(toItem);
+});
+
+/** Everything for «معرض شاهين» inside the platform. */
+export const getShowcase = cache(async (): Promise<ShowcaseItem[]> => {
+  if (!dbReady()) return [];
+  const supabase = await createClient();
+  const q = await supabase.from("gallery_items").select("*").eq("is_published", true).eq("in_app", true).order("sort_order").order("created_at", { ascending: false }).limit(500);
+  if (!q.error) return (q.data ?? []).map(toItem);
+  const { data } = await supabase.from("gallery_items").select("*").eq("is_published", true).order("sort_order").limit(500);
+  return (data ?? []).map(toItem);
 });
 
 /** Tools with names/descriptions in the page language (English is translated once and cached). */
