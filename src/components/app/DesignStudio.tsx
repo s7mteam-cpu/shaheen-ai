@@ -206,13 +206,13 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
           {spec.slides.length > 1 && <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{cur + 1} / {spec.slides.length}</span>}
         </div>
-        <div className="relative mx-auto w-full overflow-hidden rounded-2xl shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 13rem) * 0.5625))" : 460 }}>
+        <div className="relative mx-auto w-full shrink-0 overflow-hidden rounded-2xl shadow-lg" style={{ maxWidth: `min(100%, 460px, calc((100vh - 15rem) * ${spec.aspect === "9:16" ? 0.5625 : spec.aspect === "1:1" ? 1 : 0.8}))` }}>
           <DesignView spec={spec} index={cur} />
           {spec.brand.box && spec.brand.showLogo && spec.brand.logo && <LogoDrag box={spec.brand.box} onChange={(box) => setSpec((p) => ({ ...p, brand: { ...p.brand, box } }))} />}
         </div>
         {spec.slides.length > 1 || max > 1 ? (
           <>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex shrink-0 gap-2 overflow-x-auto pb-1">
               {spec.slides.map((_, i) => (
                 <button key={i} type="button" onClick={() => { setCur(i); setImgPrompt(spec.slides[i].imagePrompt ?? ""); }} aria-label={LT(`الشريحة ${i + 1}`, `Slide ${i + 1}`)}
                   className={`w-[72px] flex-none overflow-hidden rounded-lg border-2 ${i === cur ? "border-gold-500" : "border-transparent opacity-70"}`}>

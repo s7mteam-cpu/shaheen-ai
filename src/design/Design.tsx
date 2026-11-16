@@ -143,6 +143,20 @@ function Dots({ c, color }: { c: Ctx; color?: string }) {
   );
 }
 
+/** Carousel continuity: one wavy ribbon that runs across the bottom of ALL slides (its wave lines up where one slide ends and the next begins), so the slides read as one piece. */
+function Ribbon({ c }: { c: Ctx }) {
+  if (c.spec.kind !== "carousel" || c.total < 2) return null;
+  const period = c.W * 1.5, amp = 9, base = c.H - 22;
+  const pts: string[] = [];
+  for (let x = 0; x <= c.W; x += 20) pts.push(`${x},${(base + amp * Math.sin((2 * Math.PI * (x + c.index * c.W)) / period)).toFixed(1)}`);
+  return (
+    <svg width={c.W} height={c.H} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <polyline points={`${pts.join(" ")} ${c.W},${c.H} 0,${c.H}`} fill={c.accent} opacity={0.92} />
+      <polyline points={pts.join(" ")} fill="none" stroke={mix(c.accent, c.bg, 0.5)} strokeWidth={3} transform="translate(0,-14)" opacity={0.7} />
+    </svg>
+  );
+}
+
 function Handle({ c, color }: { c: Ctx; color?: string }) {
   const h = c.spec.brand.handle;
   if (!h) return null;
@@ -563,11 +577,14 @@ export function DesignSlide({ spec, index }: DesignProps) {
     bg, ink, accent, soft, muted: mix(ink, bg, 0.38), line: mix(ink, bg, 0.84), onAccent: onColor(accent), font: spec.font,
   };
   const L = RENDER[s.layout] ?? Classic;
+  // a carousel closes in the same colours as the other slides (the dark inverted closing slide made the set look like 3 different designs)
+  const cc: Ctx = spec.kind === "carousel" && s.layout === "cta" ? { ...c, bg: c.ink, ink: c.bg, muted: mix(c.bg, c.ink, 0.38), line: mix(c.bg, c.ink, 0.84) } : c;
   return (
     <IconStyleContext.Provider value={{ style: spec.icons ?? "line", images: Object.fromEntries(Object.entries(spec.icon3d ?? {}).filter(([, v]) => v?.url).map(([k, v]) => [k, v.url])) }}>
     <div dir="rtl" lang="ar" style={{ position: "relative", width: W, height: H, overflow: "hidden", fontFamily: `"${spec.font}", "Cairo", sans-serif`, background: bg }}>
       {!["cta", "photo", "split", "bento"].includes(s.layout) && <Deco c={c} />}
-      <div style={{ position: "absolute", inset: 0 }}>{L(c)}</div>
+      <div style={{ position: "absolute", inset: 0 }}>{L(cc)}</div>
+      <Ribbon c={c} />
       <FrameLayer c={c} />
       <StickerLayer c={c} />
       {spec.brand.box && spec.brand.showLogo && spec.brand.logo?.url && (
