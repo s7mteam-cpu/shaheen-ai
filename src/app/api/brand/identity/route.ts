@@ -15,9 +15,9 @@ const SYSTEM = `أنت فريق خبراء في شخص واحد: استراتي�
 
 مبادئك الاحترافية:
 - التناسق أهم من الزخرفة: كل شي (الألوان، الخطوط، شكل البوستات، ريلز، الكابشن، البايو) يحكي نفس الشخصية وبنفس الصوت.
-- أعطِ 4 اتجاهات مختلفة فعلاً وليست نسخ من بعض (مثلاً: فخم هادئ، جريء وحيوي، دافئ وقريب من الناس، عصري مينيمال). لا تكرر نفس لوحة الألوان ولا نفس الخطوط بين الاتجاهات.
 - لكل اتجاه لوحة 5 ألوان بأدوار محددة بالترتيب: primary، secondary، accent، light (خلفية فاتحة)، dark (نص وخلفية داكنة). تباين النص على الخلفيات لازم يكون واضح، وتجنب الألوان المبهرجة والتدرجات الرخيصة.
 - الخطوط من هذي القائمة فقط: ${ID_FONTS.join("، ")} (Amiri للفخامة والتراث فقط): head للعناوين و body للنصوص.
+- ستكتب اتجاهاً واحداً فقط في كل طلب (الاتجاه المحدد لك)، وهناك 3 زملاء يكتبون الاتجاهات الأخرى بالتوازي، فلا تتشابه معهم: لوحتك وخطوطك وشخصيتك خاصة بالاتجاه المطلوب.
 - فكّر بنشاط العميل وجمهوره ومنافسيه ومكانته. لا تعطي اتجاهات عامة تصلح لأي أحد.
 - لا تخترع حقائق عن العميل: لا أسعار ولا أرقام ولا شهادات ولا إنجازات ولا أسماء ما ذكرها. إذا ما فيه معلومة اكتب نص عام سليم أو اتركه.
 - إذا فيه سيرة ذاتية: استخرج منها الخبرة والتخصص والإنجازات الحقيقية والنبرة الشخصية، وابنِ عليها البايو والكابشنات والأعمدة. استخدم المذكور فيها فقط.
@@ -27,7 +27,9 @@ const SYSTEM = `أنت فريق خبراء في شخص واحد: استراتي�
 - ريلز: غلاف، حركة، ستايل ترجمة، مدة مناسبة، و3 جمل افتتاح (hooks) قوية.
 
 أجب بهذا الشكل بالضبط:
-{"concepts":[{"name":"اسم الاتجاه (2-3 كلمات)","idea":"فكرة الهوية بجملتين","why":"ليش تناسب نشاط العميل وجمهوره","personality":["3-4 صفات"],"palette":[{"role":"primary","name":"اسم اللون","hex":"#RRGGBB"},{"role":"secondary",...},{"role":"accent",...},{"role":"light",...},{"role":"dark",...}],"fonts":{"head":"","body":""},"logo":{"direction":"وصف رمز الشعار","prompt":"English prompt: symbol only, no text"},"feed":{"approach":"طريقة ترتيب الفيد وإيقاعه","rules":["4 قواعد ثابتة لتصميم كل بوست"],"tiles":[{"kind":"quote|offer|tip|product|testimonial|brand","text":"","bg":0}]},"reels":{"cover":"","motion":"","captionStyle":"","length":"","hooks":["","",""]},"content":{"pillars":[{"name":"","share":"30%","ideas":["",""]}],"cadence":"عدد ووقت النشر المقترح"},"bio":"","highlights":["4-5 أسماء قصيرة للهايلايت"],"captions":[{"type":"تعريفي|ترويجي|قيمة","text":""}],"hashtags":["8 هاشتاقات"]}]}`;
+{"concept":{"name":"اسم الاتجاه (2-3 كلمات)","idea":"فكرة الهوية بجملتين","why":"ليش تناسب نشاط العميل وجمهوره","personality":["3-4 صفات"],"palette":[{"role":"primary","name":"اسم اللون","hex":"#RRGGBB"},{"role":"secondary",...},{"role":"accent",...},{"role":"light",...},{"role":"dark",...}],"fonts":{"head":"","body":""},"logo":{"direction":"وصف رمز الشعار","prompt":"English prompt: symbol only, no text"},"feed":{"approach":"طريقة ترتيب الفيد وإيقاعه","rules":["4 قواعد ثابتة لتصميم كل بوست"],"tiles":[{"kind":"quote|offer|tip|product|testimonial|brand","text":"","bg":0}]},"reels":{"cover":"","motion":"","captionStyle":"","length":"","hooks":["","",""]},"content":{"pillars":[{"name":"","share":"30%","ideas":["",""]}],"cadence":"عدد ووقت النشر المقترح"},"bio":"","highlights":["4-5 أسماء قصيرة للهايلايت"],"captions":[{"type":"تعريفي|ترويجي|قيمة","text":""}],"hashtags":["8 هاشتاقات"]}}`;
+
+const DIRECTIONS = ["فخم وهادئ وراقي", "جريء وحيوي وملفت", "دافئ وقريب من الناس وودود", "عصري ومينيمال ونظيف"];
 
 const LOGO_TOOL = "brand-identity";
 
@@ -75,9 +77,12 @@ export async function POST(req: Request) {
       cv && `السيرة الذاتية (نص):\n${cv}`,
     ].filter(Boolean).join("\n\n");
 
-    const out = await claudeVisionJson<{ concepts?: unknown[] }>(SYSTEM, info, images, 9000);
-    const concepts = (out.concepts ?? []).map((c, i) => normaliseConcept(c, i)).filter((c): c is Concept => !!c).slice(0, 4);
-    if (concepts.length < 2) throw new Error("no concepts");
+    // one concept per request, in parallel: faster, and a long Arabic answer never gets cut off half way
+    const settled = await Promise.allSettled(DIRECTIONS.map((d) => claudeVisionJson<{ concept?: unknown }>(SYSTEM, `${info}\n\nالاتجاه المطلوب منك فقط: ${d}`, images, 6000)));
+    const errs: string[] = [];
+    const concepts = settled.map((r, i) => { if (r.status === "fulfilled") return normaliseConcept(r.value.concept, i); errs.push(String(r.reason).slice(0, 200)); return null; }).filter((c): c is Concept => !!c);
+    concepts.forEach((c, i) => { c.id = `c${i + 1}`; });
+    if (concepts.length < 2) throw new Error(`concepts ${concepts.length}/4 ${errs[0] ?? "bad json"}`);
 
     if (drawMarks) {
       const { provider, model } = await config("image");
@@ -102,6 +107,6 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("identity", e);
     await admin.rpc("refund_job", { p_job: job.id }).then(() => null, () => null);
-    return NextResponse.json({ error: "تعذّر إنشاء الهوية الحين، وما انخصم منك شي. جرّب مرة ثانية." }, { status: 500 });
+    return NextResponse.json({ error: "تعذّر إنشاء الهوية الحين، وما انخصم منك شي. جرّب مرة ثانية.", detail: String(e instanceof Error ? e.message : e).slice(0, 240) }, { status: 500 });
   }
 }

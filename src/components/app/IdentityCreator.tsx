@@ -43,7 +43,7 @@ export function IdentityCreator({ initial, cost }: { initial: Initial; cost: { b
     try {
       const r = await fetch("/api/brand/identity", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ about, audience, tone: tones.join("، "), cv, cvImages: cvImgs.map((x) => x.path), logo: useLogo ? logo.path : null, drawMarks: !useLogo && draw }) });
       const d = await r.json();
-      if (!r.ok) { setMsg(d.error ?? "تعذّر إنشاء الهوية."); return; }
+      if (!r.ok) { setMsg((d.error ?? "تعذّر إنشاء الهوية.") + (d.detail ? ` [${d.detail}]` : "")); return; }
       setConcepts(d.concepts); setSel(0); setChosen(null); setShowForm(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch { setMsg("تعذّر الاتصال. جرّب مرة ثانية."); } finally { setBusy(false); }
