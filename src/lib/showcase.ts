@@ -23,3 +23,29 @@ export function toItem(r: Record<string, unknown>): ShowcaseItem {
   };
 }
 export const isVideo = (u: string) => /\.(mp4|webm|mov)(\?|$)/i.test(u);
+
+/** Section texts (what the admin can override from «ترتيب الأقسام وشرحها»). */
+export type SectionInfo = { cat: string; hidden: boolean; sort_order: number; intro: string; steps: string[]; features: string[] };
+
+export const DEFAULT_INTRO: Record<string, string> = {
+  post: "بوستات جاهزة لحسابك: صورة وكلام وهاشتاقات، بهويتك وألوانك.",
+  carousel: "سلايدات تتقلب بين الصور، تشرح فيها فكرتك أو منتجك خطوة خطوة.",
+  ad: "تصاميم إعلانات تجذب العين وتناسب كل منصة ومقاسها.",
+  image: "صور من فكرتك مباشرة، بأي أسلوب تبيه.",
+  "product-photo": "صور منتجك بخلفيات وإضاءة احترافية بدون استوديو.",
+  reel: "ريلز عمودي بإيقاع سريع، جاهز للنشر.",
+  motion: "موشن جرافيك: عناوين وأرقام وشعارات تتحرك بشكل أنيق.",
+  video: "مونتاج فيديو من لقطاتك: قص وترجمة وموسيقى.",
+  "product-video": "فيديو يعرض منتجك من كل زاوية ويحفّز على الشراء.",
+  avatar: "شخصية واقعية تتكلم عن مشروعك بصوتها وحركتها.",
+  lesson: "فيديوهات تعليمية مرتبة وواضحة.",
+  quran: "فيديوهات قرآنية بخط وصوت وخلفيات هادئة.",
+  voice: "أصوات طبيعية للتعليق والإعلانات.",
+  nasheed: "همهمات وأناشيد بدون آلات موسيقية.",
+  design: "تصاميم متنوعة بهويتك.",
+  card: "بطاقات ودعوات جاهزة للمناسبات.",
+  cv: "سيرة ذاتية مرتبة بتصميم احترافي.",
+  slides: "عروض تقديمية كاملة من فكرتك.",
+  other: "أعمال أخرى من شاهين.",
+};
+export const DEFAULT_STEPS = ["اختر الأداة من حسابك", "اكتب فكرتك أو ارفع صورتك", "استلم النتيجة وحمّلها أو انشرها"];

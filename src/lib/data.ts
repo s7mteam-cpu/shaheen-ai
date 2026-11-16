@@ -1,5 +1,5 @@
 import "server-only";
-import { toItem, type ShowcaseItem } from "@/lib/showcase";
+import { toItem, SHOWCASE_CATS, DEFAULT_INTRO, DEFAULT_STEPS, type ShowcaseItem, type SectionInfo } from "@/lib/showcase";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { defaultContent, defaultPlans, defaultTools, type Plan, type SiteContent, type Tool } from "@/lib/defaults";
@@ -71,6 +71,33 @@ export const getGallery = cache(async (): Promise<ShowcaseItem[]> => {
   if (!q.error) return (q.data ?? []).map(toItem);
   const { data } = await supabase.from("gallery_items").select("*").eq("is_published", true).order("sort_order").limit(8);
   return (data ?? []).map(toItem);
+});
+
+/** Every published work, for the public «أعمال صُنعت بشاهين» pages. */
+export const getAllWorks = cache(async (): Promise<ShowcaseItem[]> => {
+  if (!dbReady()) return [];
+  const supabase = await createClient();
+  const { data } = await supabase.from("gallery_items").select("*").eq("is_published", true).order("sort_order").order("created_at", { ascending: false }).limit(500);
+  return (data ?? []).map(toItem);
+});
+
+/** The 19 sections in the admin's order (before v88's SQL: the default order), with their texts. */
+export const getSections = cache(async (): Promise<SectionInfo[]> => {
+  let rows: Record<string, unknown>[] = [];
+  if (dbReady()) {
+    const supabase = await createClient();
+    const { data } = await supabase.from("showcase_sections").select("*");
+    rows = (data ?? []) as Record<string, unknown>[];
+  }
+  const lines = (v: unknown) => String(v ?? "").split("\n").map((x) => x.trim()).filter(Boolean);
+  return SHOWCASE_CATS.map(([cat], i) => {
+    const r = rows.find((x) => x.cat === cat);
+    const steps = lines(r?.steps);
+    return {
+      cat, hidden: Boolean(r?.hidden), sort_order: r ? Number(r.sort_order) : (i + 1) * 10,
+      intro: String(r?.intro ?? "").trim() || DEFAULT_INTRO[cat] || "", steps: steps.length ? steps : DEFAULT_STEPS, features: lines(r?.features),
+    };
+  }).sort((a, b) => a.sort_order - b.sort_order);
 });
 
 /** Everything for «معرض شاهين» inside the platform. */
