@@ -11,7 +11,11 @@ import { logEvent } from "@/lib/server/events";
  * If the AI check itself fails (network), the request goes on — the providers' filters still apply.
  */
 const KEYS = ["prompt", "instruction", "text", "topic", "brief", "idea", "q", "title", "description", "sub", "name"];
-const WORDS = /(\bnude|\bnudity|\bnaked|\bporn|\bxxx\b|\bnsfw\b|\bsexy\b|\bsexual|\berotic|\blingerie|\bbikini|\bstrip(?:per|tease)|\bhentai|\bonlyfans|\bboobs?\b|\bnipple|\btopless|عاري|عارية|عراة|إباحي|اباحي|جنسي|جنسية|سكس|مثير[ةه]? جنسي|ملابس داخلية|لانجري|بكيني|تعري|عري\b|شبه عاري|إغراء|اغراء)/i;
+const EN = /(\bnude|\bnudity|\bnaked|\bporn|\bxxx\b|\bnsfw\b|\bsexy\b|\bsexual|\berotic|\blingerie|\bbikini|\bstrip(?:per|tease)|\bhentai|\bonlyfans|\bboobs?\b|\bnipple|\btopless)/i;
+// Arabic words only count as WHOLE words (a few attached particles allowed): «للتعريف» (introduction) must not hit «تعري», and «الجنسية الكويتية» (nationality) is not a sexual word
+const AR_TERMS = "عاري|عارية|عراة|إباحي|اباحي|جنسي|سكس|مثير[ةه]? جنسي|ملابس داخلية|لانجري|بكيني|تعري|شبه عاري|إغراء|اغراء";
+const AR = new RegExp(`(?<![\\u0600-\\u06FF])(?:وال|بال|لل|ال|و|ب|ل|ف|ك)?(?:${AR_TERMS})(?![\\u0600-\\u06FF])`);
+const WORDS = { test: (t: string) => EN.test(t) || AR.test(t) };
 
 function collect(v: unknown, out: string[], depth = 0) {
   if (depth > 3 || out.join(" ").length > 4000) return;
