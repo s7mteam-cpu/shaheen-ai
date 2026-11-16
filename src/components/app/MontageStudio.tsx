@@ -437,8 +437,8 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
 
           <Sub>{L("ستايل النصوص على الفيديو")}</Sub>
           <div className="flex flex-wrap gap-2">{TITLE_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={spec.titles.length > 0 && spec.titles.every((t) => (t.style ?? "pill") === v)} onClick={() => setSpec({ ...spec, titles: spec.titles.map((t) => ({ ...t, style: v })) })} className="chip">{L(l)}</button>)}</div>
-          <label className="flex items-center gap-3 text-[14px]"><span className="shrink-0 font-semibold">{L("مكان العناوين")}</span>
-            <input type="range" min={5} max={95} value={Math.round((spec.titleY ?? 0.2) * 100)} onChange={(e) => setSpec({ ...spec, titleY: Number(e.target.value) / 100 })} className="w-full" />
+          <label className="flex items-center gap-3 text-[14px]"><span className="shrink-0 font-semibold">{L("مكان كل النصوص")}</span>
+            <input type="range" min={5} max={95} value={Math.round((spec.titleY ?? 0.2) * 100)} onChange={(e) => setSpec({ ...spec, titleY: Number(e.target.value) / 100, graphics: (spec.graphics ?? []).map((g) => (g.ty == null ? g : { ...g, ty: undefined })) })} className="w-full" />
             {spec.titleY != null && <button type="button" onClick={() => setSpec({ ...spec, titleY: undefined })} className="shrink-0 text-[13px] text-navy-700 underline">{L("رجّع")}</button>}</label>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3"><span className="font-semibold">{L("حركة سينمائية بطيئة")}</span>
