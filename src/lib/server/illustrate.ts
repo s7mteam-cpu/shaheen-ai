@@ -31,13 +31,35 @@ async function fitToAspect(bytes: ArrayBuffer | Buffer | Uint8Array | Blob, ar: 
     const sharp = (await import("sharp")).default;
     const src = bytes instanceof Blob ? Buffer.from(await bytes.arrayBuffer()) : Buffer.from(bytes as ArrayBuffer);
     const [w, h] = SIZE[ar] ?? SIZE["9:16"];
-    // a model sometimes draws a square picture inside a tall canvas with plain bars above and below: cut the bars off first
+    // a model sometimes draws a square picture inside a tall canvas with flat (even gradient) bars above/below and a hard edge: cut them off first
     let img = sharp(src).rotate();
-    const meta = await img.metadata();
     try {
-      const t = await sharp(src).rotate().trim({ threshold: 22 }).toBuffer({ resolveWithObject: true });
-      const keep = (t.info.width * t.info.height) / ((meta.width ?? 1) * (meta.height ?? 1));
-      if (keep < 0.93 && keep > 0.35) img = sharp(t.data);
+      const base = await sharp(src).rotate().toBuffer();
+      const bm = await sharp(base).metadata();
+      const W = 96, H = Math.max(40, Math.round((W * (bm.height ?? 1)) / (bm.width ?? 1)));
+      const raw = await sharp(base).resize(W, H, { fit: "fill" }).greyscale().raw().toBuffer();
+      const mean: number[] = [], sd: number[] = [];
+      for (let y = 0; y < H; y++) {
+        let sum = 0, sq = 0;
+        for (let x = 0; x < W; x++) { const v = raw[y * W + x]; sum += v; sq += v * v; }
+        const m = sum / W; mean.push(m); sd.push(Math.sqrt(Math.max(0, sq / W - m * m)));
+      }
+      const flat = (y: number) => sd[y] < 9;
+      let top = 0; while (top < H * 0.45 && flat(top)) top++;
+      let bot = H; while (bot > H * 0.55 && flat(bot - 1)) bot--;
+      // only trust a bar that ends in a hard edge (a real jump in brightness), not a plain sky
+      const edgeTop = top > 2 && top < H && Math.abs(mean[Math.min(H - 1, top + 1)] - mean[top - 1]) > 14 ? top : 0;
+      const edgeBot = bot < H - 2 && bot > 0 && Math.abs(mean[bot] - mean[Math.max(0, bot - 2)]) > 14 ? bot : H;
+      if (edgeTop > 0 || edgeBot < H) {
+        const k = (bm.height ?? H) / H;
+        const y0 = Math.round(edgeTop * k), y1 = Math.round(edgeBot * k);
+        if (y1 - y0 > (bm.height ?? 1) * 0.4) img = sharp(base).extract({ left: 0, top: y0, width: bm.width ?? 1, height: y1 - y0 });
+      }
+      if (edgeTop === 0 && edgeBot === H) {
+        const t = await sharp(base).trim({ threshold: 22 }).toBuffer({ resolveWithObject: true });
+        const keep = (t.info.width * t.info.height) / ((bm.width ?? 1) * (bm.height ?? 1));
+        if (keep < 0.93 && keep > 0.35) img = sharp(t.data);
+      }
     } catch { /* nothing to trim */ }
     return await img.resize({ width: w, height: h, fit: "cover", position: "attention", withoutEnlargement: false }).jpeg({ quality: 90 }).toBuffer();
   } catch (e) { console.error("fitToAspect", e); return null; }

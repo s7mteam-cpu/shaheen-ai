@@ -1,7 +1,21 @@
 /** Animated explainer scenes (timer, counter, steps, compare…) drawn inside a box: the split panel, or a card over the footage. */
 import React from "react";
-import { Easing, Img, interpolate, random, spring } from "remotion";
+import { Easing, getRemotionEnvironment, Img, interpolate, random, spring } from "remotion";
 import { MIcon } from "./icons";
+
+// the preview player doesn't wait for pictures: keep a drawn scene (and its text) hidden until its picture has loaded, so the words never appear alone first
+const LOADED = new Set<string>();
+const sceneReady = (u: string) => getRemotionEnvironment().isRendering || LOADED.has(u); // the final render already waits for every picture
+function SceneImg({ src, style }: { src: string; style: React.CSSProperties; ready?: boolean }) {
+  const [, force] = React.useState(0);
+  React.useEffect(() => {
+    if (LOADED.has(src)) return;
+    const im = new window.Image();
+    const done = () => { LOADED.add(src); force((n) => n + 1); };
+    im.onload = done; im.onerror = done; im.src = src;
+  }, [src]);
+  return <Img src={src} style={style} />;
+}
 import { DARK_BOARDS, MFPS, type Graphic, type MontageSpec } from "./montage";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
@@ -546,12 +560,13 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
     case "scene": {
       // AI-drawn picture: slow push-in, a light sweep, our Arabic text on top
       const zoom = interpolate(f, [0, len], [1.04, 1.16]);
+      const ready = !g.url || sceneReady(g.url);
       const pan = interpolate(f, [0, len], [-1.5, 1.5]);
       const sweep = interpolate(f, [6, 30], [-60, 160], cl);
       const q = Math.min(1, pop(f, 4, 14));
       return (
-        <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: out, borderRadius: 0 }}>
-          {g.url ? <Img src={g.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom}) translateX(${pan}%)` }} />
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: ready ? out : 0, borderRadius: 0 }}>
+          {g.url ? <SceneImg src={g.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom}) translateX(${pan}%)` }} ready={ready} />
             : <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${th.accent}55, ${m.colors.bg})` }} />}
           <div style={{ position: "absolute", inset: 0, background: `linear-gradient(105deg, transparent ${sweep - 20}%, rgba(255,255,255,.28) ${sweep}%, transparent ${sweep + 20}%)` }} />
           {(g.text || g.sub) && (
