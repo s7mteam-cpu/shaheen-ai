@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { L, LT } from "@/lib/i18n/ui";
 import { createClient } from "@/lib/supabase/client";
@@ -14,6 +15,8 @@ export function IdentityCreator({ initial, cost }: { initial: Initial; cost: { b
   const [audience, setAudience] = useState("");
   const [tones, setTones] = useState<string[]>([]);
   const [cv, setCv] = useState(initial.cv);
+  const [website, setWebsite] = useState("");
+  const [igImgs, setIgImgs] = useState<{ path: string; name: string }[]>([]);
   const [cvImgs, setCvImgs] = useState<{ path: string; name: string }[]>([]);
   const [useLogo, setUseLogo] = useState(!!initial.logo_url);
   const [logo, setLogo] = useState<{ path: string | null; url: string | null }>({ path: initial.logo_url, url: initial.logo_preview });
@@ -36,12 +39,15 @@ export function IdentityCreator({ initial, cost }: { initial: Initial; cost: { b
   async function pickCv(files: FileList | null) {
     for (const f of Array.from(files ?? []).slice(0, 4 - cvImgs.length)) { const p = await up(f); if (p) setCvImgs((x) => [...x, { path: p, name: f.name }]); }
   }
+  async function pickIg(files: FileList | null) {
+    for (const f of Array.from(files ?? []).slice(0, 6 - igImgs.length)) { const p = await up(f); if (p) setIgImgs((x) => [...x, { path: p, name: f.name }]); }
+  }
   const total = cost.base + (!useLogo && draw ? cost.marks : 0);
 
   async function generate() {
     setMsg(""); setBusy(true);
     try {
-      const r = await fetch("/api/brand/identity", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ about, audience, tone: tones.join("، "), cv, cvImages: cvImgs.map((x) => x.path), logo: useLogo ? logo.path : null, drawMarks: !useLogo && draw }) });
+      const r = await fetch("/api/brand/identity", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ about, audience, tone: tones.join("، "), cv, cvImages: cvImgs.map((x) => x.path), igImages: igImgs.map((x) => x.path), website, logo: useLogo ? logo.path : null, drawMarks: !useLogo && draw }) });
       const d = await r.json();
       if (!r.ok) { setMsg((d.error ?? "تعذّر إنشاء الهوية.") + (d.detail ? ` [${d.detail}]` : "")); return; }
       setConcepts(d.concepts); setSel(0); setChosen(null); setShowForm(false);
@@ -65,6 +71,16 @@ export function IdentityCreator({ initial, cost }: { initial: Initial; cost: { b
             <input value={audience} onChange={(e) => setAudience(e.target.value)} maxLength={400} className="field" placeholder={L("مثال: سيدات 25-45 بالكويت")} /></label>
           <div className="flex flex-col gap-2"><span className="label">{L("الإحساس اللي تبيه")} <span className="font-normal text-subtle">{L("(اختر واحد أو أكثر، أو اتركها لشاهين)")}</span></span>
             <div className="flex flex-wrap gap-2">{TONES.map((t) => <button key={t} type="button" aria-pressed={tones.includes(t)} onClick={() => setTones((x) => x.includes(t) ? x.filter((y) => y !== t) : [...x, t])} className={chip(tones.includes(t))}>{L(t)}</button>)}</div></div>
+
+          <div className="flex flex-col gap-3 rounded-2xl bg-tint p-4">
+            <div><span className="label">{L("موقعك وحسابك الحالي")} <span className="font-normal text-subtle">{L("(اختياري)")}</span></span>
+              <p className="text-[13px] text-subtle">{L("شاهين يقرا موقعك عشان يفهم وش تبيع فعلاً. إنستغرام ما نقدر ندخله لأنه يحتاج تسجيل دخول، فارفع لقطات شاشة من حسابك الحالي (صفحتك وكم بوست) ويحلل أسلوبك ويطوّره.")}</p></div>
+            <input dir="ltr" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={200} className="field" placeholder="www.example.com" />
+            <div className="flex flex-wrap items-center gap-2.5">
+              {igImgs.map((x, i) => <span key={x.path} className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[13px]">{x.name.slice(0, 18)}<button type="button" aria-label={L("حذف")} onClick={() => setIgImgs(igImgs.filter((_, j) => j !== i))} className="text-red-700">×</button></span>)}
+              {igImgs.length < 6 && <label className="btn btn-outline cursor-pointer px-4 py-2 text-sm">{L("رفع لقطات من حسابي (حتى 6)")}<input type="file" multiple accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => pickIg(e.target.files)} /></label>}
+            </div>
+          </div>
 
           <div className="flex flex-col gap-3 rounded-2xl bg-tint p-4">
             <span className="label">{L("الشعار")}</span>
@@ -125,31 +141,35 @@ function Board({ c, chosen, onChoose, logoPreview }: { c: Concept; chosen: boole
   const P = c.palette;
   const mark = c.logo.url ?? logoPreview;
   const avatarBg = P[0].hex;
+  const handle = "@" + (c.name.replace(/\s+/g, "_").replace(/[^\w\u0600-\u06FF_]/g, "").slice(0, 18) || "brand");
   const sec = "card flex flex-col gap-3 p-5";
   return (
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
       {/* Instagram page preview */}
       <div className="flex flex-col gap-3">
-        <div className="overflow-hidden rounded-3xl border border-field bg-white shadow-sm" style={{ fontFamily: body }}>
-          <div className="flex items-center gap-4 p-4" dir="rtl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full ring-2 ring-offset-2" style={{ background: avatarBg, ["--tw-ring-color" as string]: P[2].hex }}>{mark ? <img src={mark} alt="" className="h-full w-full object-contain bg-white p-1.5" /> : <span className="text-2xl font-bold" style={{ color: P[3].hex, fontFamily: head }}>{c.name.slice(0, 1)}</span>}</div>
-            <div className="flex min-w-0 flex-col gap-1"><b className="text-[17px]" style={{ fontFamily: head }}>{c.name}</b><span className="whitespace-pre-line text-[12.5px] leading-5 text-neutral-600">{c.bio}</span></div>
-          </div>
-          <div className="flex gap-3 overflow-x-auto px-4 pb-3" dir="rtl">
-            {c.highlights.map((h, i) => <div key={h} className="flex w-14 shrink-0 flex-col items-center gap-1"><span className="grid h-12 w-12 place-items-center rounded-full border-2 text-lg" style={{ borderColor: P[i % P.length].hex, background: P[(i + 3) % P.length].hex, color: P[i % P.length].hex, fontFamily: head }}>{h.slice(0, 1)}</span><span className="w-full truncate text-center text-[10px]">{h}</span></div>)}
-          </div>
-          <div className="grid grid-cols-3 gap-px bg-neutral-200" dir="rtl">
-            {c.feed.tiles.map((t, i) => (
-              <div key={i} className="relative flex aspect-[4/5] flex-col justify-between p-2" style={{ background: P[t.bg].hex, color: t.fg }}>
-                <span className="text-[8.5px] font-bold opacity-70" style={{ fontFamily: body }}>{TILE_LABEL[t.kind] ?? ""}</span>
-                <span className="text-[13px] font-bold leading-[1.35]" style={{ fontFamily: head }}>{t.text}</span>
-                <span className="h-1 w-6 rounded-full" style={{ background: t.bg === 2 ? t.fg : P[2].hex }} />
-              </div>
-            ))}
+        <div className="mx-auto w-full max-w-[340px] rounded-[2.6rem] bg-neutral-900 p-2.5 shadow-xl">
+          <div className="overflow-hidden rounded-[2.1rem] bg-white" style={{ fontFamily: body }}>
+            <div className="flex items-center justify-between px-4 pb-1 pt-3 text-[11px] font-bold text-neutral-800" dir="ltr"><span>9:41</span><span className="h-4 w-16 rounded-full bg-neutral-900" /><span>●●●</span></div>
+            <div className="flex items-center justify-between px-4 py-1.5" dir="rtl"><b className="text-[15px]" style={{ fontFamily: head }}>{handle}</b><span className="text-lg">☰</span></div>
+            <div className="flex items-center gap-4 px-4 pb-2" dir="rtl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <div className="grid h-[76px] w-[76px] shrink-0 place-items-center overflow-hidden rounded-full p-[3px]" style={{ background: `linear-gradient(135deg, ${P[2].hex}, ${P[0].hex})` }}><div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-white">{mark ? <img src={mark} alt="" className="h-full w-full object-contain p-1" /> : <span className="grid h-full w-full place-items-center text-2xl font-bold" style={{ background: avatarBg, color: P[3].hex, fontFamily: head }}>{c.name.slice(0, 1)}</span>}</div></div>
+              <div className="grid flex-1 grid-cols-3 text-center"><div><b className="block text-[15px]">12</b><span className="text-[11px] text-neutral-600">{L("منشور")}</span></div><div><b className="block text-[15px]">—</b><span className="text-[11px] text-neutral-600">{L("متابع")}</span></div><div><b className="block text-[15px]">—</b><span className="text-[11px] text-neutral-600">{L("يتابع")}</span></div></div>
+            </div>
+            <div className="px-4 pb-2.5" dir="rtl"><b className="block text-[13px]" style={{ fontFamily: head }}>{c.name}</b><span className="whitespace-pre-line text-[12px] leading-[1.55] text-neutral-700">{c.bio}</span>
+              <div className="mt-2 flex gap-1.5"><span className="flex-1 rounded-lg py-1.5 text-center text-[12px] font-bold" style={{ background: P[0].hex, color: readableOn(P[0].hex) }}>{L("متابعة")}</span><span className="flex-1 rounded-lg bg-neutral-100 py-1.5 text-center text-[12px] font-bold">{L("مراسلة")}</span></div></div>
+            <div className="flex gap-3 overflow-x-auto px-4 pb-2.5" dir="rtl">
+              {c.highlights.map((h, i) => <div key={h} className="flex w-14 shrink-0 flex-col items-center gap-1"><span className="grid h-[52px] w-[52px] place-items-center rounded-full border-2 p-[3px]" style={{ borderColor: P[(i + 1) % P.length].hex }}><span className="grid h-full w-full place-items-center rounded-full text-base font-bold" style={{ background: P[i % 2 ? 0 : 3].hex, color: readableOn(P[i % 2 ? 0 : 3].hex), fontFamily: head }}>{h.slice(0, 1)}</span></span><span className="w-full truncate text-center text-[10px]">{h}</span></div>)}
+            </div>
+            <div className="grid grid-cols-3 border-t border-neutral-200 text-center text-base text-neutral-400"><span className="border-b-2 border-neutral-900 py-1.5 text-neutral-900">▦</span><span className="py-1.5">🎬</span><span className="py-1.5">☺</span></div>
+            <div className="grid grid-cols-3 gap-[2px] bg-white" dir="rtl">
+              {c.feed.tiles.map((t, i) => <Tile key={i} t={t} P={P} head={head} body={body} />)}
+            </div>
           </div>
         </div>
         <button type="button" onClick={onChoose} disabled={chosen} className="btn btn-gold py-3.5 text-[16px] font-bold disabled:opacity-60">{chosen ? `✓ ${L("هذي هويتك المعتمدة")}` : `✨ ${L("اعتمد هذي الهوية")}`}</button>
+        {chosen && <Link href="/app/brand/plan" className="btn btn-primary py-3.5 text-center text-[16px] font-bold">📅 {L("اكتب لي خطة المحتوى الشهرية")}</Link>}
+        
         <p className="text-[12px] text-subtle">{L("بعد الاعتماد تنحفظ الألوان والخط (والشعار إذا رسمناه) بـ«هويتي التجارية» وتنطبق على التصاميم والفيديوهات الجديدة.")}</p>
       </div>
 
@@ -211,3 +231,15 @@ function Board({ c, chosen, onChoose, logoPreview }: { c: Concept; chosen: boole
 }
 
 function readableOn(hex: string) { const n = parseInt(hex.slice(1), 16); const l = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; return l > 0.6 ? "#111" : "#fff"; }
+
+/** One feed tile, drawn like a real branded post: the layout depends on the kind (quote, offer, tip, product, testimonial, brand). */
+function Tile({ t, P, head, body }: { t: Concept["feed"]["tiles"][number]; P: Concept["palette"]; head: string; body: string }) {
+  const bg = P[t.bg].hex, fg = t.fg, ac = P[2].hex === bg ? P[0].hex : P[2].hex;
+  const base = "relative flex aspect-[4/5] flex-col overflow-hidden p-2";
+  if (t.kind === "offer") return <div className={`${base} items-center justify-center text-center`} style={{ background: bg, color: fg }}><span className="absolute -right-5 -top-5 h-16 w-16 rounded-full opacity-90" style={{ background: ac }} /><span className="relative text-[13px] font-extrabold leading-[1.3]" style={{ fontFamily: head }}>{t.text}</span><span className="relative mt-1.5 rounded-full px-2 py-0.5 text-[8px] font-bold" style={{ background: ac, color: readableOn(ac), fontFamily: body }}>{TILE_LABEL.offer}</span></div>;
+  if (t.kind === "tip") return <div className={`${base} justify-between`} style={{ background: bg, color: fg }}><span className="text-[22px] font-black leading-none opacity-30" style={{ fontFamily: head }}>01</span><span className="text-[12px] font-bold leading-[1.4]" style={{ fontFamily: head }}>{t.text}</span><span className="h-0.5 w-8" style={{ background: ac }} /></div>;
+  if (t.kind === "product") return <div className={`${base} items-center justify-between`} style={{ background: bg, color: fg }}><span className="mt-1 h-12 w-12 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, ${ac}, ${P[0].hex === bg ? P[1].hex : P[0].hex})` }} /><span className="text-center text-[11px] font-bold leading-[1.35]" style={{ fontFamily: head }}>{t.text}</span></div>;
+  if (t.kind === "testimonial") return <div className={`${base} justify-center`} style={{ background: bg, color: fg }}><span className="text-[9px]" style={{ color: ac }}>★★★★★</span><span className="mt-1 text-[11px] font-semibold leading-[1.45]" style={{ fontFamily: body }}>“{t.text}”</span></div>;
+  if (t.kind === "quote") return <div className={`${base} justify-center`} style={{ background: bg, color: fg }}><span className="text-3xl font-black leading-none" style={{ color: ac, fontFamily: head }}>”</span><span className="text-[12.5px] font-bold leading-[1.4]" style={{ fontFamily: head }}>{t.text}</span></div>;
+  return <div className={`${base} items-center justify-center text-center`} style={{ background: bg, color: fg }}><span className="absolute inset-2 rounded-lg border opacity-40" style={{ borderColor: fg }} /><span className="relative text-[13px] font-extrabold leading-[1.35]" style={{ fontFamily: head }}>{t.text}</span></div>;
+}

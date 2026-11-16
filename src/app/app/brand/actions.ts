@@ -54,3 +54,14 @@ export async function chooseIdentity(conceptId: string) {
   revalidatePath("/app/brand");
   return { ok: !error };
 }
+
+/** The customer edits the prompts/captions of the plan: saved as typed (trimmed, limited). */
+export async function savePlan(items: { week: number; day: string; date: string; format: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string }[], month: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  const clean = items.slice(0, 12).map((x) => ({ week: Number(x.week) || 1, day: String(x.day).slice(0, 12), date: String(x.date).slice(0, 8), format: ["post", "reel", "carousel"].includes(x.format) ? x.format : "post", pillar: String(x.pillar).slice(0, 40), topic: String(x.topic).slice(0, 160), hook: String(x.hook).slice(0, 200), goal: String(x.goal).slice(0, 120), prompt: String(x.prompt).slice(0, 1100), caption: String(x.caption).slice(0, 900) }));
+  const { error } = await supabase.from("brand_kits").update({ content_plan: { month: String(month).slice(0, 30), items: clean } }).eq("user_id", user.id);
+  revalidatePath("/app/brand/plan");
+  return { ok: !error };
+}

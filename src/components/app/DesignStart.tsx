@@ -30,10 +30,10 @@ async function uploadImage(file: File): Promise<Up> {
 export { uploadImage };
 
 /** Step 1 of the design studio: the customer's information. */
-export function DesignStart({ toolId, cost, balance, industry: savedIndustry, like }: { like?: { id: string; title: string; thumb: string | null; idea: string }; toolId: string; cost: number; balance: number; industry?: string | null }) {
+export function DesignStart({ idea, toolId, cost, balance, industry: savedIndustry, like }: { idea?: string; like?: { id: string; title: string; thumb: string | null; idea: string }; toolId: string; cost: number; balance: number; industry?: string | null }) {
   const router = useRouter();
   const copy = COPY[toolId] ?? COPY.post;
-  const [info, setInfo] = useState(like?.idea ?? "");
+  const [info, setInfo] = useState(like?.idea ?? idea ?? "");
   const [industry, setIndustry] = useState(savedIndustry ?? "");
   const [pickOpen, setPickOpen] = useState(!savedIndustry);
   const ind = industryById(industry);

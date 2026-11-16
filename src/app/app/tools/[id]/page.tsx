@@ -63,7 +63,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart likeId={likeWork?.id} idea={idea} costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart likeId={likeWork?.id} idea={idea} costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -132,7 +132,7 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
 }
 
 /** Posts, carousels and ads: the info form, or the live design studio for one of the user's designs. */
-async function design(jobId: string | undefined, tool: ToolRow, balance: number, like?: { id: string; title: string; thumb: string | null; idea: string }) {
+async function design(jobId: string | undefined, tool: ToolRow, balance: number, like?: { id: string; title: string; thumb: string | null; idea: string }, idea = "") {
   const L = await getL();
   const supabase = await createClient();
   if (jobId) {
@@ -160,7 +160,7 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number,
     }
   }
   const { data: kitInd } = await supabase.from("brand_kits").select("industry").maybeSingle();
-  return <DesignStart like={like} toolId={tool.id} cost={tool.credit_cost} balance={balance} industry={(kitInd?.industry as string | null) ?? null} />;
+  return <DesignStart idea={idea} like={like} toolId={tool.id} cost={tool.credit_cost} balance={balance} industry={(kitInd?.industry as string | null) ?? null} />;
 }
 
 /** A finished studio video: watch / download, or reopen it for more edits (costs one edit). */

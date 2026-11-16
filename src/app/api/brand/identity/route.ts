@@ -7,6 +7,7 @@ import { geminiImage } from "@/lib/providers/google";
 import { falImages, falRun } from "@/lib/providers/fal";
 import { saveResult } from "@/lib/providers/storage";
 import { config } from "@/lib/tools/run";
+import { safeFetch } from "@/lib/server/safeFetch";
 import { ID_FONTS, normaliseConcept, type Concept } from "@/lib/identity";
 
 export const maxDuration = 300;
@@ -33,10 +34,26 @@ const DIRECTIONS = ["فخم وهادئ وراقي", "جريء وحيوي ومل�
 
 const LOGO_TOOL = "brand-identity";
 
+/** The customer's own website, read as plain text so the identity fits what he really sells (Instagram itself can't be read: it needs a login, so he uploads screenshots instead). */
+async function siteText(url?: string | null) {
+  const u = (url ?? "").trim();
+  if (!u) return "";
+  const full = /^https?:\/\//.test(u) ? u : `https://${u}`;
+  try {
+    const r = await safeFetch(full, { headers: { "user-agent": "Mozilla/5.0 ShaheenBot" } });
+    if (!r?.ok || !(r.headers.get("content-type") ?? "").includes("text/html")) return "";
+    const html = (await r.text()).slice(0, 300_000);
+    const title = html.match(/<title[^>]*>([^<]*)/i)?.[1] ?? "";
+    const desc = html.match(/name=["']description["'][^>]*content=["']([^"']*)/i)?.[1] ?? "";
+    const body = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 3000);
+    return `${title}\n${desc}\n${body}`.trim();
+  } catch { return ""; }
+}
+
 export async function POST(req: Request) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
-  const body = (await req.json().catch(() => ({}))) as { about?: string; audience?: string; tone?: string; cv?: string; cvImages?: string[]; logo?: string | null; drawMarks?: boolean; regenerate?: boolean };
+  const body = (await req.json().catch(() => ({}))) as { about?: string; audience?: string; tone?: string; cv?: string; cvImages?: string[]; igImages?: string[]; website?: string; logo?: string | null; drawMarks?: boolean; regenerate?: boolean };
   const about = String(body.about ?? "").trim().slice(0, 2500);
   if (about.length < 15) return NextResponse.json({ error: "اكتب وصف نشاطك (سطرين على الأقل) عشان نبني لك هوية تناسبك." }, { status: 400 });
   const audience = String(body.audience ?? "").trim().slice(0, 400);
@@ -44,6 +61,7 @@ export async function POST(req: Request) {
   const cv = String(body.cv ?? "").trim().slice(0, 9000);
   const mine = (p: unknown): p is string => typeof p === "string" && p.startsWith(`${user.id}/`) && !p.includes("..");
   const cvImages = (body.cvImages ?? []).filter(mine).slice(0, 4);
+  const igImages = (body.igImages ?? []).filter(mine).slice(0, 6);
 
   const bad = await guardContent(user.id, { about, audience, tone, cv }, "brand/identity");
   if (bad) return bad;
@@ -62,9 +80,11 @@ export async function POST(req: Request) {
   if (ce) { await admin.from("jobs").delete().eq("id", job.id); return NextResponse.json({ error: ce.message.includes("INSUFFICIENT") ? "رصيدك من الريش ما يكفي." : "تعذّر خصم الرصيد." }, { status: 402 }); }
 
   try {
+    const site = await siteText(body.website || kit?.website);
     const sign = async (bucket: string, path: string) => (await admin.storage.from(bucket).createSignedUrl(path, 60 * 60 * 6)).data?.signedUrl ?? "";
     const images: { url: string; label: string }[] = [];
     if (logoPath) images.push({ url: await sign("uploads", logoPath), label: "شعار العميل الحالي: ابنِ الألوان والخطوط بتناغم معه." });
+    for (const [i, p] of igImages.entries()) images.push({ url: await sign("uploads", p), label: `لقطة ${i + 1} من حساب العميل الحالي على إنستغرام: حلّل أسلوبه وما ينقصه وابنِ الهوية الجديدة كتطوير احترافي له.` });
     for (const [i, p] of cvImages.entries()) images.push({ url: await sign("uploads", p), label: `صفحة ${i + 1} من السيرة الذاتية للعميل (اقرأها واستخرج منها الحقائق الحقيقية فقط).` });
     const info = [
       `اسم النشاط أو الشخص: ${kit?.business_name || "غير محدد"}`,
@@ -73,6 +93,7 @@ export async function POST(req: Request) {
       tone && `الأسلوب المطلوب: ${tone}`,
       kit?.instagram && `حساب إنستغرام: ${kit.instagram}`,
       kit?.website && `الموقع: ${kit.website}`,
+      site && `محتوى موقع العميل:\n${site}`,
       logoPath ? "للعميل شعار مرفق (انظر الصورة). لا تقترح شعاراً جديداً: اجعل logo.direction وصفاً قصيراً لكيف يتناغم الشعار الحالي مع الهوية." : "العميل ما عنده شعار: اقترح رمزاً مناسباً لكل اتجاه.",
       cv && `السيرة الذاتية (نص):\n${cv}`,
     ].filter(Boolean).join("\n\n");
