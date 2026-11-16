@@ -6,15 +6,12 @@ import { SHOWCASE_CATS, isVideo, type ShowcaseItem } from "@/lib/showcase";
 const media = (g: ShowcaseItem) => [g.media_url, ...g.extra_media];
 
 /** «معرض شاهين»: cards + a full-screen viewer (carousels swipe, reels play with sound). */
-export function ShowcaseGrid({ items: raw, filter = false, order }: { items: ShowcaseItem[]; filter?: boolean; order?: string[] }) {
+export function ShowcaseGrid({ items, filter = false }: { items: ShowcaseItem[]; filter?: boolean }) {
   const T = useT();
   const [cat, setCat] = useState("all");
   const [open, setOpen] = useState<ShowcaseItem | null>(null);
   const label = (k: string) => { const c = SHOWCASE_CATS.find((x) => x[0] === k); return c ? T(c[1], c[2]) : k; };
-  // sections follow the admin's order («ترتيب الأقسام»), the same as the home page; works keep their own order inside a section
-  const rank = (k: string) => { const i = order?.indexOf(k) ?? -1; return i < 0 ? 999 : i; };
-  const items = order ? [...raw].sort((a, b) => rank(a.category) - rank(b.category)) : raw;
-  const cats = order ? [...SHOWCASE_CATS].sort((a, b) => rank(a[0]) - rank(b[0])).filter(([k]) => items.some((g) => g.category === k)) : SHOWCASE_CATS.filter(([k]) => items.some((g) => g.category === k));
+  const cats = SHOWCASE_CATS.filter(([k]) => items.some((g) => g.category === k));
   const shown = cat === "all" ? items : items.filter((g) => g.category === cat);
   const chip = (on: boolean) => `shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition ${on ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink hover:border-navy-700"}`;
 

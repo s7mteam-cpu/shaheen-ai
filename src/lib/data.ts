@@ -78,7 +78,9 @@ export const getAllWorks = cache(async (): Promise<ShowcaseItem[]> => {
   if (!dbReady()) return [];
   const supabase = await createClient();
   const { data } = await supabase.from("gallery_items").select("*").eq("is_published", true).order("sort_order").order("created_at", { ascending: false }).limit(500);
-  return (data ?? []).map(toItem);
+  // the home page has its own order («الترتيب بالصفحة الرئيسية»); until it is set, a work keeps its normal order
+  const key = (g: ShowcaseItem) => g.home_order ?? g.sort_order;
+  return (data ?? []).map(toItem).sort((a, b) => key(a) - key(b));
 });
 
 /** The 19 sections in the admin's order (before v88's SQL: the default order), with their texts. */

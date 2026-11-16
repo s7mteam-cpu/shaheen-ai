@@ -72,13 +72,14 @@ export function AddShowcase() {
         <label className="flex items-center gap-2"><input type="checkbox" name="in_app" defaultChecked className="h-4 w-4" />يطلع بـ «أعمال صُنعت بشاهين» داخل المنصة</label>
         <label className="flex items-center gap-2"><input type="checkbox" name="on_home" className="h-4 w-4" />يطلع بصفحة الموقع الرئيسية</label>
         <label className="flex items-center gap-2">الترتيب <input name="sort_order" type="number" defaultValue={0} className="field w-20 py-1.5" /></label>
+        <label className="flex items-center gap-2">الترتيب بالصفحة الرئيسية <input name="home_order" type="number" placeholder="نفسه" className="field w-24 py-1.5" /></label>
       </div>
       <div className="flex flex-wrap items-center gap-3"><Save label="إضافة" disabled={!files.length || !!busy} /><Msg r={r} /></div>
     </form>
   );
 }
 
-export function EditShowcase({ g }: { g: { id: string; title: string; description: string; category: string; sort_order: number; is_published: boolean; in_app: boolean; on_home: boolean; extra: number } }) {
+export function EditShowcase({ g }: { g: { id: string; title: string; description: string; category: string; sort_order: number; is_published: boolean; in_app: boolean; on_home: boolean; home_order: number | null; extra: number } }) {
   const [r, act] = useActionState(updateShowcase, undefined);
   return (
     <form action={act} className="flex flex-col gap-2 p-3">
@@ -91,7 +92,8 @@ export function EditShowcase({ g }: { g: { id: string; title: string; descriptio
         <label className="flex items-center gap-2"><input type="checkbox" name="is_published" defaultChecked={g.is_published} />منشور</label>
         <label className="flex items-center gap-2"><input type="checkbox" name="in_app" defaultChecked={g.in_app} />داخل المنصة</label>
         <label className="flex items-center gap-2"><input type="checkbox" name="on_home" defaultChecked={g.on_home} />الصفحة الرئيسية</label>
-        <label className="flex items-center gap-2">الترتيب <input name="sort_order" type="number" defaultValue={g.sort_order} className="field w-20 py-1" /></label>
+        <label className="flex items-center gap-2">الترتيب (داخل المنصة) <input name="sort_order" type="number" defaultValue={g.sort_order} className="field w-20 py-1" /></label>
+        <label className="flex items-center gap-2">الترتيب بالصفحة الرئيسية <input name="home_order" type="number" defaultValue={g.home_order ?? ""} placeholder="نفسه" className="field w-20 py-1" /></label>
       </div>
       <div className="flex gap-2"><Save label="حفظ" /><button name="delete" value="1" onClick={(e) => { if (!confirm("تحذف هالعمل وملفاته؟")) e.preventDefault(); }} className="btn btn-outline flex-1 py-2 text-sm text-red-700">حذف</button></div>
       <Msg r={r} />

@@ -30,7 +30,7 @@ export default async function GalleryAdmin({ searchParams }: { searchParams: Pro
           <Link href="/admin/gallery" className={chip(pick === "all")}>الكل <span className="opacity-60">{(all ?? []).length}</span></Link>
           {SHOWCASE_CATS.map(([k, ar]) => <Link key={k} href={`/admin/gallery?cat=${k}`} className={chip(pick === k)}>{ar} <span className="opacity-60">{count(k)}</span></Link>)}
         </div>
-        <p className="text-[13px] text-subtle">تغيّر قسم أي عمل من القائمة اللي تحته وتضغط «حفظ». و«الترتيب»: الرقم الأصغر يطلع أول (داخل قسمه وبـ «الكل»). القسم الفاضي ما يطلع للعميل.</p>
+        <p className="text-[13px] text-subtle">تغيّر قسم أي عمل من القائمة اللي تحته وتضغط «حفظ». و«الترتيب» يرتّب الأعمال داخل المنصة، و«الترتيب بالصفحة الرئيسية» يرتّبها برا (إذا تركته فاضي يمشي على الأول). الرقم الأصغر يطلع أول. القسم الفاضي ما يطلع للعميل.</p>
       </div>
       {(data ?? []).length === 0 && <p className="card p-6 text-center text-muted">ما في أعمال بهالقسم بعد. أضف عمل من فوق واختر هالقسم من «القسم (الأداة)».</p>}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-4">
@@ -41,7 +41,7 @@ export default async function GalleryAdmin({ searchParams }: { searchParams: Pro
               {g.media_type === "video" ? <video src={g.media_url} muted className="aspect-[4/5] w-full object-cover" /> : <img src={g.media_url} alt="" className="aspect-[4/5] w-full object-cover" />}
               <span className="absolute start-2 top-2 rounded-full bg-navy-900/80 px-2.5 py-1 text-[12px] font-bold text-white">{cat(g.category ?? "design")}</span>
             </div>
-            <EditShowcase g={{ id: g.id, title: g.title, description: g.description ?? "", category: g.category ?? "design", sort_order: g.sort_order, is_published: g.is_published, in_app: g.in_app ?? true, on_home: g.on_home ?? true, extra: (g.extra_media ?? []).length }} />
+            <EditShowcase g={{ id: g.id, title: g.title, description: g.description ?? "", category: g.category ?? "design", sort_order: g.sort_order, is_published: g.is_published, in_app: g.in_app ?? true, on_home: g.on_home ?? true, home_order: g.home_order ?? null, extra: (g.extra_media ?? []).length }} />
           </div>
         ))}
       </div>

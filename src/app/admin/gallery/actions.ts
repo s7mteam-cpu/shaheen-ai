@@ -7,6 +7,8 @@ import { SHOWCASE_CATS } from "@/lib/showcase";
 type Res = { ok?: string; error?: string } | undefined;
 const CATS = new Set(SHOWCASE_CATS.map((c) => c[0]));
 const site = (u: unknown) => typeof u === "string" && /^https:\/\/[^/]+\/storage\/v1\/object\/public\/site\/gallery\//.test(u);
+/** Empty = follow the normal order. */
+const homeOrder = (f: FormData) => { const v = String(f.get("home_order") ?? "").trim(); return v === "" || Number.isNaN(Number(v)) ? null : Number(v); };
 const done = () => { revalidatePath("/admin/gallery"); revalidatePath("/app/showcase"); revalidatePath("/", "layout"); };
 
 /** A new work in «معرض شاهين»: files were uploaded straight to storage; this saves the item (first file = cover). */
@@ -23,7 +25,7 @@ export async function addShowcase(_p: Res, form: FormData): Promise<Res> {
     media_url: urls[0], media_type: kinds[0] === "video" ? "video" : "image",
     extra_media: urls.slice(1, 20),
     in_app: form.get("in_app") === "on", on_home: form.get("on_home") === "on",
-    sort_order: Number(form.get("sort_order")) || 0, is_published: true,
+    sort_order: Number(form.get("sort_order")) || 0, home_order: homeOrder(form), is_published: true,
   };
   const { error } = await createAdminClient().from("gallery_items").insert(row);
   if (error) return { error: "ما انحفظ. تأكد إنك شغّلت ملف SQL الخاص بالتحديث v83." };
@@ -46,7 +48,7 @@ export async function updateShowcase(_p: Res, form: FormData): Promise<Res> {
   const category = String(form.get("category") ?? "design");
   const { error } = await admin.from("gallery_items").update({
     title: String(form.get("title") ?? "").trim().slice(0, 120), description: String(form.get("description") ?? "").trim().slice(0, 600),
-    category: CATS.has(category) ? category : "other", sort_order: Number(form.get("sort_order")) || 0,
+    category: CATS.has(category) ? category : "other", sort_order: Number(form.get("sort_order")) || 0, home_order: homeOrder(form),
     is_published: form.get("is_published") === "on", in_app: form.get("in_app") === "on", on_home: form.get("on_home") === "on",
   }).eq("id", id);
   if (error) return { error: "ما انحفظ. تأكد إنك شغّلت ملف SQL الخاص بالتحديث v83." };
