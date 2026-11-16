@@ -52,6 +52,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     captions: {
       on: s.captions?.on ?? base.captions.on,
       style: ok(CAPTION_STYLES, s.captions?.style) ?? base.captions.style,
+      ...((s.captions?.shadow ?? base.captions.shadow) === false ? { shadow: false } : {}),
       pos: ["bottom", "lower", "middle", "top"].includes(String(s.captions?.pos)) ? s.captions!.pos : base.captions.pos ?? "bottom",
       // free placement from the studio (null = back to the preset position)
       ...(() => { const c = s.captions ?? base.captions; const ok = (v: unknown) => typeof v === "number" && Number.isFinite(v); return ok(c.x) && ok(c.y) ? { x: clamp(Number(c.x), 0.1, 0.9), y: clamp(Number(c.y), 0.06, 0.94) } : { x: null, y: null }; })(),
@@ -102,6 +103,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
         path: b.path, url: "", at: clamp(Number(b.at) || 0, 0, Math.max(0, len - 1)), dur: clamp(Number(b.dur) || 2.5, 1, 6),
         ...(b.bucket === "results" ? { bucket: "results" as const } : {}), ...(b.cut ? { cut: true } : {}), ...(b.credit ? { credit: String(b.credit).slice(0, 60) } : {}),
       })),
+    titleY: typeof s.titleY === "number" && Number.isFinite(s.titleY) ? clamp(s.titleY, 0.05, 0.95) : undefined,
     grain: [0, 0.5, 1].includes(Number(s.grain)) ? Number(s.grain) : base.grain ?? 0,
     stickers: cleanStickers(Array.isArray(s.stickers) ? s.stickers : base.stickers ?? [], len),
     beats: Array.isArray(s.beats) ? cleanBeats(s.beats) : base.beats ?? [],

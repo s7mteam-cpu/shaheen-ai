@@ -555,8 +555,8 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
             : <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${th.accent}55, ${m.colors.bg})` }} />}
           <div style={{ position: "absolute", inset: 0, background: `linear-gradient(105deg, transparent ${sweep - 20}%, rgba(255,255,255,.28) ${sweep}%, transparent ${sweep + 20}%)` }} />
           {(g.text || g.sub) && (
-            <div style={{ position: "absolute", left: 0, right: 0, top: 0, padding: `${50 * s}px ${50 * s}px ${90 * s}px`, background: "linear-gradient(180deg, rgba(0,0,0,.62), transparent)", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 * s }}>
-              {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.82} th={{ ...th, text: "#fff" }} fx={g.fx} delay={6} />}
+            <div style={{ position: "absolute", left: 0, right: 0, top: g.ty == null ? 0 : `${g.ty * 100}%`, transform: g.ty == null ? undefined : "translateY(-50%)", padding: `${50 * s}px ${50 * s}px ${g.ty == null ? 90 * s : 50 * s}px`, background: g.shade === false ? "none" : "linear-gradient(180deg, rgba(0,0,0,.62), transparent)", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 * s }}>
+              {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.82 * (g.ts ?? 1)} th={{ ...th, text: "#fff" }} fx={g.fx} delay={6} />}
               {g.sub && <div style={{ padding: `${8 * s}px ${24 * s}px`, borderRadius: 999, background: th.accent, color: "#0E1B2C", fontSize: 36 * s, fontWeight: 800, transform: `scale(${q})` }}>{g.sub}</div>}
             </div>
           )}

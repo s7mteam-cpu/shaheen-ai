@@ -57,8 +57,9 @@ export default async function Home() {
                 <a href="#pricing" className="btn btn-primary px-7 py-4 text-[17px]">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
               </div>
               {/* one button: scrolls to «أعمال صُنعت بشاهين» (a card per tool) */}
-              <div className="flex">
+              <div className="flex flex-col gap-3">
                 <Link href={(gallery.length > 0 || templates.length > 0) ? "#showcase" : signedIn ? "/app/showcase" : "/signup"} className="btn btn-outline w-full justify-center px-6 py-3.5 text-center text-[16px] font-semibold leading-6 lg:w-auto lg:py-4 lg:text-[17px]">{c.gallery.button || T("أعمال صُنعت بشاهين", "Made with Shaheen")} ✨</Link>
+                {templates.length > 0 && <Link href="/showcase/motion#templates" className="btn btn-outline w-full justify-center px-6 py-3.5 text-center text-[16px] font-semibold leading-6 lg:w-auto lg:py-4 lg:text-[17px]">🎬 {c.gallery.templates_button || T("القوالب", "Templates")}</Link>}
               </div>
             </div>
             <ul className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted md:mt-0 md:justify-start md:pb-0">

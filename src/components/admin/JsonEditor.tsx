@@ -7,7 +7,7 @@ type J = string | number | boolean | null | J[] | { [k: string]: J };
 
 const labels: Record<string, string> = {
   badge: "الشارة الصغيرة", title: "العنوان", highlight: "الكلمة المميزة", subtitle: "الوصف", cta_primary: "نص الزر الرئيسي",
-  cta_secondary: "نص الزر الثانوي", like_enabled: "تفعيل زر «سوّ مثله» تحت الأعمال (شيل العلامة لإخفائه عن الكل)", button: "نص الزر بالأعلى (تحت تسجيل الدخول، وتطلع ✨ بعده)", points: "النقاط", image: "صورة (اختياري)", items: "العناصر", body: "النص", q: "السؤال", a: "الجواب",
+  cta_secondary: "نص الزر الثانوي", templates_button: "نص زر القوالب تحت زر الأعمال (يطلع بس إذا فيه قوالب)", like_enabled: "تفعيل زر «سوّ مثله» تحت الأعمال (شيل العلامة لإخفائه عن الكل)", button: "نص الزر بالأعلى (تحت تسجيل الدخول، وتطلع ✨ بعده)", points: "النقاط", image: "صورة (اختياري)", items: "العناصر", body: "النص", q: "السؤال", a: "الجواب",
   eyebrow: "عنوان صغير", cta: "نص الزر", tagline: "الوصف", company: "اسم الشركة والسجل", whatsapp: "رقم واتساب", email: "البريد",
   instagram: "إنستغرام", folder: "مجلد التلاوة في everyayah.com", terms: "شروط الاستخدام (عربي)", privacy: "سياسة الخصوصية (عربي)", refund: "سياسة الاسترجاع (عربي)", content: "سياسة المحتوى الممنوع (عربي)", content_en: "سياسة المحتوى الممنوع (English)", terms_en: "شروط الاستخدام (English)", privacy_en: "سياسة الخصوصية (English)", refund_en: "سياسة الاسترجاع (English)", updated: "تاريخ آخر تحديث (عربي)", updated_en: "تاريخ آخر تحديث (English)", refund_days: "مدة الاسترداد بالأيام (تتغيّر بكل الصفحات)", id: "المعرّف (ID)", name: "الاسم", note: "ملاحظة",
   enabled: "ظاهرة في الموقع", price_kwd: "السعر (د.ك)", period: "المدة", features: "المميزات", whatsapp_message: "رسالة الواتساب الجاهزة", thanks: "رسالة الشكر بعد الإرسال",

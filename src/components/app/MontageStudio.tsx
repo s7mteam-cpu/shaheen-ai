@@ -314,6 +314,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             {typeof spec.captions.y === "number" && <p className="text-[13px] text-subtle">{L("اسحب المستطيل الذهبي على الفيديو لأي مكان تبيه.")}</p>}
             <Sub>{L("شكل الترجمة")}</Sub>
           </>}
+          {spec.captions.on && <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={spec.captions.shadow !== false} onChange={(e) => setSpec({ ...spec, captions: { ...spec.captions, shadow: e.target.checked } })} className="h-4 w-4" />{L("ظل وحدود غامقة خلف الترجمة")}</label>}
           {spec.captions.on && <div className="flex flex-wrap gap-2">{styles.map(([s, l]) => <button key={s} type="button" aria-pressed={spec.captions.style === s} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, style: s } })} className="chip">{L(l)}</button>)}</div>}
         </Card>
 
@@ -379,7 +380,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           <div className="flex flex-col gap-2">
             {(spec.graphics ?? []).length === 0 && <p className="text-[13px] text-subtle">{L("ما فيه مشاهد للحين.")}</p>}
             {(spec.graphics ?? []).map((g, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[14px]">
+              <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[14px]">
                 <button type="button" onClick={() => player.current?.seekTo(introFrames(spec) + Math.round(g.at * MFPS))} className="shrink-0 rounded-lg bg-tint px-2 py-1 font-mono text-[12px]" dir="ltr">{g.at.toFixed(1)}s</button>
                 <span className="shrink-0 font-semibold">{L(GRAPHIC_KINDS.find((k) => k[0] === g.kind)?.[1] ?? "")}</span>
                 <span className="min-w-0 flex-1 truncate text-subtle">{g.text ?? g.items?.map((x) => x.label).join(" · ") ?? g.good ?? ""}</span>
@@ -389,6 +390,13 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                   </select>
                 )}
                 <button type="button" onClick={() => setSpec({ ...spec, graphics: (spec.graphics ?? []).filter((_, j) => j !== i) })} className="shrink-0 rounded-lg px-2 py-1 text-red-700 hover:bg-red-50">{L("حذف")}</button>
+                {g.kind === "scene" && (g.text || g.sub) && (
+                  <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-2 text-[12px]">
+                    <label className="flex items-center gap-2">{L("مكان النص")}<input type="range" min={5} max={95} value={Math.round((g.ty ?? 0.12) * 100)} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, ty: Number(e.target.value) / 100 } : x)) })} className="w-28" /></label>
+                    <label className="flex items-center gap-2">{L("الحجم")}<input type="range" min={50} max={160} value={Math.round((g.ts ?? 1) * 100)} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, ts: Number(e.target.value) / 100 } : x)) })} className="w-24" /></label>
+                    <label className="flex items-center gap-1.5"><input type="checkbox" checked={g.shade !== false} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, shade: e.target.checked } : x)) })} />{L("ظل غامق خلف النص")}</label>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -429,6 +437,9 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
 
           <Sub>{L("ستايل النصوص على الفيديو")}</Sub>
           <div className="flex flex-wrap gap-2">{TITLE_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={spec.titles.length > 0 && spec.titles.every((t) => (t.style ?? "pill") === v)} onClick={() => setSpec({ ...spec, titles: spec.titles.map((t) => ({ ...t, style: v })) })} className="chip">{L(l)}</button>)}</div>
+          <label className="flex items-center gap-3 text-[14px]"><span className="shrink-0 font-semibold">{L("مكان العناوين")}</span>
+            <input type="range" min={5} max={95} value={Math.round((spec.titleY ?? 0.2) * 100)} onChange={(e) => setSpec({ ...spec, titleY: Number(e.target.value) / 100 })} className="w-full" />
+            {spec.titleY != null && <button type="button" onClick={() => setSpec({ ...spec, titleY: undefined })} className="shrink-0 text-[13px] text-navy-700 underline">{L("رجّع")}</button>}</label>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3"><span className="font-semibold">{L("حركة سينمائية بطيئة")}</span>
               <input type="checkbox" checked={!!spec.drift} onChange={(e) => setSpec({ ...spec, drift: e.target.checked })} className="h-5 w-5" /></label>

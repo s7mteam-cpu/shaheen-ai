@@ -142,8 +142,8 @@ function Captions({ m, u }: { m: MontageSpec; u: number }) {
             <span key={i} style={{
               color, display: "inline-block",
               transform: active && st === "karaoke" ? "scale(1.12)" : "none",
-              textShadow: st === "box" ? "none" : `0 ${4 * u}px ${18 * u}px rgba(0,0,0,.85), 0 0 ${3 * u}px rgba(0,0,0,.9)`,
-              WebkitTextStroke: st === "karaoke" ? `${2 * u}px rgba(0,0,0,.55)` : undefined,
+              textShadow: st === "box" || m.captions.shadow === false ? "none" : `0 ${4 * u}px ${18 * u}px rgba(0,0,0,.85), 0 0 ${3 * u}px rgba(0,0,0,.9)`,
+              WebkitTextStroke: st === "karaoke" && m.captions.shadow !== false ? `${2 * u}px rgba(0,0,0,.55)` : undefined,
               paintOrder: "stroke fill",
             }}>{w.t}</span>
           );
@@ -203,6 +203,16 @@ function Titles({ m, u }: { m: MontageSpec; u: number }) {
   return (
     <>
       {m.titles.map((ti, i) => {
+        const el = renderTitle(ti, i);
+        if (!el) return null;
+        // one place for all titles: shifts the layer from the style's own default to the chosen height
+        const base = ti.pos === "center" ? 0.5 : 0.2;
+        return <div key={i} style={{ position: "absolute", inset: 0, transform: m.titleY == null ? undefined : `translateY(${(m.titleY - base) * 100}%)` }}>{el}</div>;
+      })}
+    </>
+  );
+  function renderTitle(ti: MontageSpec["titles"][number], i: number): React.ReactElement | null {
+    {
         if (t < ti.at - 0.1 || t > ti.at + ti.dur + 0.4) return null;
         if ((m.graphics ?? []).some((g) => t >= g.at && t < g.at + g.dur)) return null; // a graphic card owns the screen now
         const f0 = Math.round(ti.at * MFPS);
@@ -269,9 +279,8 @@ function Titles({ m, u }: { m: MontageSpec; u: number }) {
             }}>{ti.text}</div>
           </AbsoluteFill>
         );
-      })}
-    </>
-  );
+    }
+  }
 }
 
 /** One kept piece of footage; the crop follows the speaker's face when tracking is on. */

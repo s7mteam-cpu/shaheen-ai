@@ -25,7 +25,7 @@ export type MontageSpec = {
   aspect: Aspect;
   font: string;
   colors: { text: string; accent: string; bg: string };
-  captions: { on: boolean; style: CaptionStyle; pos?: CaptionPos; x?: number | null; y?: number | null }; // x/y: free placement (centre, 0..1) dragged in the studio
+  captions: { on: boolean; style: CaptionStyle; shadow?: boolean; pos?: CaptionPos; x?: number | null; y?: number | null }; // x/y: free placement (centre, 0..1) dragged in the studio
   segments: Seg[];
   words: Word[];
   titles: Title[];
@@ -47,6 +47,7 @@ export type MontageSpec = {
   subs2?: { lang: string; on: boolean; lines: { s: number; e: number; t: string }[] } | null; // second-language subtitles
   face?: { t: number; x: number; y: number }[];                  // face track (source seconds, 0..1) for auto-reframe
   track?: boolean;                                                // follow the face when cropping
+  titleY?: number;                                                // all titles: vertical place 0..1 (default: each style's own)
   grade?: Grade;                                                  // colour look
   autoBright?: number;                                            // brightness fix measured on the footage (1 = none)
   videoVolume?: number;                                           // original sound level 0..1
@@ -84,6 +85,9 @@ export type Graphic = {
   items?: { label: string; icon?: IconName; value?: number }[]; // steps, flow, checklist, bars
   values?: number[];                       // line chart
   fx?: "marker" | "circle" | "underline" | "typewriter"; // headline effect on the hl word
+  ty?: number;                             // scene text: vertical place 0..1 (default: top)
+  shade?: boolean;                         // scene text: dark shade behind it (default on)
+  ts?: number;                             // scene text: size multiplier
   prompt?: string;                         // scene: what to draw (English)
   img?: string;                            // scene: storage path in "results"
   url?: string;                            // scene: signed URL (filled on load / render)
@@ -132,6 +136,9 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       prompt: str(x?.prompt, 400), img: typeof x?.img === "string" && /^[\w-]+\/[\w./-]+$/.test(x.img as string) ? (x.img as string) : undefined,
       url: typeof x?.url === "string" ? (x.url as string) : undefined, style: str(x?.style, 20),
       shape: (["triangle", "square", "circle", "hexagon"] as const).find((v) => v === x?.shape),
+      ty: x?.ty === undefined || x?.ty === null ? undefined : +c(Number(x.ty) || 0, 0, 1).toFixed(3),
+      ts: x?.ts === undefined || x?.ts === null ? undefined : +c(Number(x.ts) || 1, 0.4, 2).toFixed(2),
+      shade: x?.shade === false ? false : undefined,
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;

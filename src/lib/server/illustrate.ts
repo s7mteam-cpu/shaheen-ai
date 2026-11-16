@@ -31,7 +31,15 @@ async function fitToAspect(bytes: ArrayBuffer | Buffer | Uint8Array | Blob, ar: 
     const sharp = (await import("sharp")).default;
     const src = bytes instanceof Blob ? Buffer.from(await bytes.arrayBuffer()) : Buffer.from(bytes as ArrayBuffer);
     const [w, h] = SIZE[ar] ?? SIZE["9:16"];
-    return await sharp(src).rotate().resize({ width: w, height: h, fit: "cover", position: "attention", withoutEnlargement: false }).jpeg({ quality: 90 }).toBuffer();
+    // a model sometimes draws a square picture inside a tall canvas with plain bars above and below: cut the bars off first
+    let img = sharp(src).rotate();
+    const meta = await img.metadata();
+    try {
+      const t = await sharp(src).rotate().trim({ threshold: 22 }).toBuffer({ resolveWithObject: true });
+      const keep = (t.info.width * t.info.height) / ((meta.width ?? 1) * (meta.height ?? 1));
+      if (keep < 0.93 && keep > 0.35) img = sharp(t.data);
+    } catch { /* nothing to trim */ }
+    return await img.resize({ width: w, height: h, fit: "cover", position: "attention", withoutEnlargement: false }).jpeg({ quality: 90 }).toBuffer();
   } catch (e) { console.error("fitToAspect", e); return null; }
 }
 
