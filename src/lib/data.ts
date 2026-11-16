@@ -1,4 +1,5 @@
 import "server-only";
+import type { TemplateRow } from "@/lib/templates";
 import { toItem, SHOWCASE_CATS, DEFAULT_INTRO, DEFAULT_STEPS, type ShowcaseItem, type SectionInfo } from "@/lib/showcase";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
@@ -118,6 +119,14 @@ export const getShowcase = cache(async (): Promise<ShowcaseItem[]> => {
   if (!q.error) return (q.data ?? []).map(toItem);
   const { data } = await supabase.from("gallery_items").select("*").eq("is_published", true).order("sort_order").limit(500);
   return (data ?? []).map(toItem);
+});
+
+/** The motion template library (published only), shown on the public pages and inside the app. */
+export const getTemplates = cache(async (): Promise<TemplateRow[]> => {
+  if (!dbReady()) return [];
+  const supabase = await createClient();
+  const { data } = await supabase.from("video_templates").select("id,style,title,seconds,aspect,thumb_url,sort_order,is_published,source").eq("is_published", true).order("sort_order").order("created_at", { ascending: false }).limit(2000);
+  return (data ?? []) as TemplateRow[];
 });
 
 /** Tools with names/descriptions in the page language (English is translated once and cached). */

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ShowcaseGrid } from "@/components/Showcase";
-import { getAllWorks, getContent, getSections, getSessionProfile } from "@/lib/data";
+import { TemplateLibrary } from "@/components/TemplateLibrary";
+import { getAllWorks, getContent, getTemplates, getSections, getSessionProfile } from "@/lib/data";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
@@ -23,7 +24,7 @@ export default async function ToolShowcase({ params }: { params: Promise<{ cat: 
   if (!name) notFound();
   const lang = await getLang();
   const T = (ar: string, en: string) => tr(lang, ar, en);
-  const [all, sections, profile, content] = await Promise.all([getAllWorks(), getSections(), getSessionProfile(), getContent()]);
+  const [all, sections, profile, content, templates] = await Promise.all([getAllWorks(), getSections(), getSessionProfile(), getContent(), cat === "motion" ? getTemplates() : Promise.resolve([])]);
   const sec = sections.find((x) => x.cat === cat);
   if (!sec || sec.hidden) notFound();
   const works = all.filter((g) => g.category === cat);
@@ -61,6 +62,8 @@ export default async function ToolShowcase({ params }: { params: Promise<{ cat: 
             </div>
           )}
         </section>
+
+        {cat === "motion" && <TemplateLibrary templates={templates} signedIn={Boolean(profile)} />}
 
         <section className="flex flex-col gap-5">
           <h2 className="text-2xl font-bold text-navy-900">{T("مكتبة الأعمال", "Works library")} <span className="text-base font-semibold text-muted">({works.length})</span></h2>

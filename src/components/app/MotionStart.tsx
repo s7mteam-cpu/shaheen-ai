@@ -3,6 +3,7 @@ import { GULF_DIALECTS, myDialect } from "@/lib/countries";
 import { L } from "@/lib/i18n/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LikeNote } from "@/components/app/LikeNote";
 import { Progress } from "@/components/app/Progress";
 import { IndustryPicker } from "@/components/app/IndustryPicker";
 import { ILLUS_STYLES } from "@/remotion/styles";
@@ -12,11 +13,11 @@ const aspects = [["9:16", "ريلز / تيك توك 9:16"], ["1:1", "مربع 1:
 const dialects = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const)];
 
 /** Step 1 of the motion studio: the idea. */
-export function MotionStart({ likeId, idea: ideaIn = "", costPer15, balance, brand, voices = [], industry: savedIndustry }: { likeId?: string; idea?: string; costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string }[]; industry?: string }) {
+export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, balance, brand, voices = [], industry: savedIndustry }: { template?: { id: string; title: string; thumb: string | null; style: string; seconds: number }; likeId?: string; idea?: string; costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string }[]; industry?: string }) {
   const router = useRouter();
   const [idea, setIdea] = useState(ideaIn);
   const [name, setName] = useState(brand ?? "");
-  const [seconds, setSeconds] = useState(30);
+  const [seconds, setSeconds] = useState(template ? ([15, 30, 60].reduce((a, b) => (Math.abs(b - template.seconds) < Math.abs(a - template.seconds) ? b : a))) : 30);
   const [aspect, setAspect] = useState("9:16");
   const [dialect, setDialect] = useState<string>("kuwaiti");
   useEffect(() => { setDialect(myDialect()); }, []);
@@ -24,7 +25,7 @@ export function MotionStart({ likeId, idea: ideaIn = "", costPer15, balance, bra
   const [voiceover, setVoiceover] = useState(false);
   const [voice, setVoice] = useState(voices[0]?.id ?? "");
   const [drawings, setDrawings] = useState(true);
-  const [illus, setIllus] = useState("auto");
+  const [illus, setIllus] = useState(template?.style ?? "auto");
   const [panel, setPanel] = useState("auto");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export function MotionStart({ likeId, idea: ideaIn = "", costPer15, balance, bra
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ likeWork: likeId, mode: "motion", topic: idea, brand: name, industry, seconds, aspect, dialect, voiceover, voice, drawings, illus: illus === "auto" ? undefined : illus, panel }) });
+      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ templateId: template?.id, likeWork: likeId, mode: "motion", topic: idea, brand: name, industry, seconds, aspect, dialect, voiceover, voice, drawings, illus: illus === "auto" ? undefined : illus, panel }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -56,6 +57,7 @@ export function MotionStart({ likeId, idea: ideaIn = "", costPer15, balance, bra
 
   return (
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
+      {template && <LikeNote like={{ title: `قالب «${template.title}»`, thumb: template.thumb }} />}
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("فكرة الفيديو")}</span>
         <textarea required minLength={5} maxLength={1200} rows={4} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
           placeholder={L("مثال: فيديو توعوي عن خرافات الكربوهيدرات لعيادة تغذية، ينتهي بدعوة لحجز استشارة")} /></label>

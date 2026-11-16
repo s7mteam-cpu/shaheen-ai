@@ -72,3 +72,22 @@ export async function saveSection(_p: Res, form: FormData): Promise<Res> {
   revalidatePath("/showcase/[cat]", "page");
   return { ok: "انحفظ ✓" };
 }
+
+/** Template library: show/hide, rename, delete. */
+export async function updateTemplate(_p: Res, form: FormData): Promise<Res> {
+  if (!(await requireAdmin("gallery"))) return { error: "غير مصرّح" };
+  const id = String(form.get("id") ?? "");
+  const admin = createAdminClient();
+  if (form.get("delete") === "1") {
+    const { data } = await admin.from("video_templates").select("thumb_url").eq("id", id).maybeSingle();
+    await admin.from("video_templates").delete().eq("id", id);
+    const f = String(data?.thumb_url ?? "").split("/site/")[1];
+    if (f) await admin.storage.from("site").remove([f]);
+    revalidatePath("/admin/gallery/templates"); revalidatePath("/", "layout");
+    return { ok: "انحذف." };
+  }
+  const { error } = await admin.from("video_templates").update({ title: String(form.get("title") ?? "").trim().slice(0, 80) || "قالب", is_published: form.get("is_published") === "on", sort_order: Number(form.get("sort_order")) || 0 }).eq("id", id);
+  if (error) return { error: "ما انحفظ." };
+  revalidatePath("/admin/gallery/templates"); revalidatePath("/", "layout");
+  return { ok: "انحفظ ✓" };
+}

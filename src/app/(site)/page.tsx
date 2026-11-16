@@ -5,7 +5,7 @@ import { Circuit } from "@/components/Circuit";
 import { ManagedService } from "@/components/site/ManagedService";
 import { DemoVideo } from "@/components/DemoVideo";
 import { toolCover } from "@/lib/video";
-import { getAllWorks, getContent, getPlans, getSections, getSessionProfile, getTools } from "@/lib/data";
+import { getAllWorks, getContent, getPlans, getSections, getSessionProfile, getTemplates, getTools } from "@/lib/data";
 import { SHOWCASE_CATS } from "@/lib/showcase";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
@@ -17,7 +17,7 @@ const catLabel = { ar: { image: "صور", video: "فيديو", audio: "صوت" }
 
 export default async function Home() {
   const lang = await getLang();
-  const [content, tools0, plans0, gallery0, profile, sections] = await Promise.all([getContent(), getTools(), getPlans(), getAllWorks(), getSessionProfile(), getSections()]);
+  const [content, tools0, plans0, gallery0, profile, sections, templates] = await Promise.all([getContent(), getTools(), getPlans(), getAllWorks(), getSessionProfile(), getSections(), getTemplates()]);
   const signedIn = Boolean(profile);
   // Everything the admin writes in Arabic is shown translated when the visitor picks English.
   const { hero, steps, tools_section, gallery: galleryText, pricing, faq, final_cta, managed_service } = content;
@@ -58,7 +58,7 @@ export default async function Home() {
               </div>
               {/* one button: scrolls to «أعمال صُنعت بشاهين» (a card per tool) */}
               <div className="flex">
-                <Link href={gallery.length > 0 ? "#showcase" : signedIn ? "/app/showcase" : "/signup"} className="btn btn-outline w-full justify-center px-6 py-3.5 text-center text-[16px] font-semibold leading-6 lg:w-auto lg:py-4 lg:text-[17px]">{c.gallery.button || T("أعمال صُنعت بشاهين", "Made with Shaheen")} ✨</Link>
+                <Link href={(gallery.length > 0 || templates.length > 0) ? "#showcase" : signedIn ? "/app/showcase" : "/signup"} className="btn btn-outline w-full justify-center px-6 py-3.5 text-center text-[16px] font-semibold leading-6 lg:w-auto lg:py-4 lg:text-[17px]">{c.gallery.button || T("أعمال صُنعت بشاهين", "Made with Shaheen")} ✨</Link>
               </div>
             </div>
             <ul className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted md:mt-0 md:justify-start md:pb-0">
@@ -128,14 +128,14 @@ export default async function Home() {
       </section>
 
       {/* Gallery (shown only when the admin adds items) */}
-      {gallery.length > 0 && (
+      {(gallery.length > 0 || templates.length > 0) && (
         <section id="showcase" className="scroll-mt-20 border-y border-[#E6EBF2] bg-canvas">
           <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-20">
             <div className="text-center"><h2 className="text-3xl font-bold text-navy-900 md:text-4xl">{c.gallery.title}</h2><p className="mt-2.5 text-[17px] text-muted">{c.gallery.subtitle}</p></div>
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {sections.filter((x) => !x.hidden && gallery.some((g) => g.category === x.cat)).map((x) => {
+              {sections.filter((x) => !x.hidden && (gallery.some((g) => g.category === x.cat) || (x.cat === "motion" && templates.length > 0))).map((x) => {
                 const works = gallery.filter((g) => g.category === x.cat);
-                const cover = works.find((g) => g.id === x.cover_id) ?? works[0];
+                const cover = works.find((g) => g.id === x.cover_id) ?? works[0] ?? { media_type: "image", media_url: templates.find((t) => t.thumb_url)?.thumb_url ?? "" };
                 const name = SHOWCASE_CATS.find((k) => k[0] === x.cat)!;
                 return (
                   <Link key={x.cat} href={`/showcase/${x.cat}`} className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
@@ -144,7 +144,7 @@ export default async function Home() {
                         ? <video src={cover.media_url} className="h-full w-full object-cover" muted loop playsInline autoPlay preload="metadata" />
                         // eslint-disable-next-line @next/next/no-img-element
                         : <img src={cover.media_url} alt={name[1]} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />}
-                      <span className="absolute end-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-navy-900">{works.length}</span>
+                      <span className="absolute end-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-navy-900">{works.length + (x.cat === "motion" ? templates.length : 0)}</span>
                     </div>
                     <div className="flex flex-col gap-1 p-3.5">
                       <b className="text-[15px] text-navy-900">{T(name[1], name[2])}</b>

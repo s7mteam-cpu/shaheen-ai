@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ShowcaseGrid } from "@/components/Showcase";
-import { getContent, getShowcase } from "@/lib/data";
+import { TemplateLibrary } from "@/components/TemplateLibrary";
+import { getContent, getShowcase, getTemplates } from "@/lib/data";
 import { getL } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { getLang } from "@/lib/server/lang";
@@ -11,6 +12,7 @@ export async function generateMetadata() { return { title: (await getL())("أع�
 export default async function Showcase() {
   const L = await getL();
   const items = await localize(await getShowcase(), await getLang());
+  const templates = await getTemplates();
   const likeOn = (await getContent()).gallery.like_enabled !== false;
   return (
     <div className="flex flex-col gap-5">
@@ -21,6 +23,7 @@ export default async function Showcase() {
       {items.length > 0
         ? <ShowcaseGrid items={items} filter signedIn like={likeOn} />
         : <p className="card p-10 text-center text-muted">{L("قريباً نضيف هنا نماذج من شغل شاهين.")}</p>}
+      <TemplateLibrary templates={templates} signedIn />
       <div className="card flex flex-col items-center gap-3 p-6 text-center sm:flex-row sm:justify-between sm:text-start">
         <b className="text-navy-900">{L("عجبك؟ سوّ مثله الحين بأدوات شاهين.")}</b>
         <Link href="/app/tools" className="btn btn-gold px-6 py-3 font-bold">{L("ابدأ من الأدوات")}</Link>

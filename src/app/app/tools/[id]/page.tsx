@@ -21,10 +21,11 @@ import { toolSpecs } from "@/lib/tools/specs";
 import { listWorks } from "@/lib/works";
 import { getL } from "@/lib/server/lang";
 import { LikeNote } from "@/components/app/LikeNote";
+import { loadTemplate } from "@/lib/server/templates";
 import { loadLike } from "@/lib/server/like";
 import { DemoVideo } from "@/components/DemoVideo";
 
-type P = { params: Promise<{ id: string }>; searchParams: Promise<{ job?: string; like?: string; idea?: string }> };
+type P = { params: Promise<{ id: string }>; searchParams: Promise<{ job?: string; like?: string; idea?: string; tpl?: string }> };
 
 export async function generateMetadata({ params }: P) {
   const L = await getL();
@@ -36,9 +37,11 @@ export async function generateMetadata({ params }: P) {
 export default async function ToolPage({ params, searchParams }: P) {
   const L = await getL();
   const { id } = await params;
-  const { job, like: likeId, idea: ideaRaw } = await searchParams;
+  const { job, like: likeId, idea: ideaRaw, tpl: tplId } = await searchParams;
   const idea = String(ideaRaw ?? "").slice(0, 1200);
   const likeWork = await loadLike(likeId);
+  const tplFull = await loadTemplate(tplId);
+  const template = tplFull ? { id: tplFull.id, title: tplFull.title, thumb: tplFull.thumb_url, style: tplFull.style, seconds: tplFull.seconds } : undefined;
   const like = likeWork ? { id: likeWork.id, title: likeWork.title, thumb: likeWork.image, idea } : undefined;
   const [tools, profile, content, recent] = await Promise.all([getToolsL(), getSessionProfile(), getContent(), listWorks({ tool: id, limit: 8 })]);
   const tool = tools.find((t) => t.id === id);
@@ -60,7 +63,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart likeId={likeWork?.id} idea={idea} costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart likeId={likeWork?.id} idea={idea} costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -71,7 +74,7 @@ type ToolRow = Awaited<ReturnType<typeof getTools>>[number];
 type Content = Awaited<ReturnType<typeof getContent>>;
 
 /** Motion graphics: idea form, or the live studio for one of the user's drafts. */
-async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content, idea = "", likeId?: string) {
+async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content, idea = "", likeId?: string, template?: { id: string; title: string; thumb: string | null; style: string; seconds: number }) {
   const L = await getL();
   const supabase = await createClient();
   if (jobId) {
@@ -93,7 +96,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
     }
   }
   const { data: kit } = await supabase.from("brand_kits").select("business_name").maybeSingle();
-  return <MotionStart likeId={likeId} idea={idea} costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
+  return <MotionStart template={template} likeId={likeId} idea={idea} costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
 }
 
 /** Smart montage: once the worker planned the edit, the customer edits it live here. */

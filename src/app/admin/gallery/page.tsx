@@ -22,6 +22,7 @@ export default async function GalleryAdmin({ searchParams }: { searchParams: Pro
         <p className="mt-1 text-sm leading-7 text-subtle">نماذج من شغل شاهين (بوستات، كاروسيل، ريلز، فيديو، بطاقات، CV…). تطلع للعملاء داخل المنصة بـ «أعمال صُنعت بشاهين»، وتقدر تختار بعضها يطلع بصفحة الموقع الرئيسية بعد. استخدم أعمالاً حقيقية وبموافقة أصحابها.</p>
       </div>
       <Link href="/admin/gallery/sections" className="card flex items-center justify-between p-4 font-bold text-navy-900">🧭 ترتيب الأقسام وشرحها (وش يشوف الزائر بالصفحة الرئيسية) <span>←</span></Link>
+      <Link href="/admin/gallery/templates" className="card flex items-center justify-between p-4 font-bold text-navy-900">🎬 مكتبة قوالب الموشن جرافيك <span>←</span></Link>
       <AddShowcase />
       {/* every section (one per tool); the customer sees only the sections that have works */}
       <div className="flex flex-col gap-2">

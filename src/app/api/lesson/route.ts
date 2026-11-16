@@ -1,4 +1,5 @@
 import { loadLike, likeText } from "@/lib/server/like";
+import { loadTemplate, templateText } from "@/lib/server/templates";
 import { NextResponse } from "next/server";
 import { guardContent } from "@/lib/server/moderation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,8 +10,9 @@ import { saveResult } from "@/lib/providers/storage";
 import { brandHint } from "@/lib/tools/run";
 import { illustrateScenes } from "@/lib/server/illustrate";
 import { ILLUS_STYLES } from "@/remotion/styles";
-import { BOARD_STYLES, CAPTION_STYLES, DARK_BOARDS, ICONS, cleanGraphics, type BoardStyle, type MontageSpec } from "@/remotion/montage";
-import { PLAYBOOK, playbookText } from "@/remotion/playbook";
+import { BOARD_STYLES, CAPTION_STYLES, DARK_BOARDS, cleanGraphics, type BoardStyle, type MontageSpec } from "@/remotion/montage";
+import { SYSTEM, type Plan } from "@/lib/server/motionPlan";
+import { PLAYBOOK } from "@/remotion/playbook";
 import { enforcePack, packBrief, packById } from "@/remotion/packs";
 import { industryById } from "@/design/industries";
 import { guessIndustry } from "@/lib/server/guessIndustry";
@@ -25,35 +27,6 @@ const AUDIENCE: Record<string, string> = { kids: "أطفال (٥-١٠ سنوات
 const DIALECT: Record<string, string> = { kuwaiti: "لهجة كويتية بيضاء واضحة", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة",  gulf: "لهجة خليجية بيضاء", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة قريبة من الفصحى)", msa: "عربية فصحى مبسطة", en: "English (simple, clear)" };
 const hex = (v: unknown, d: string) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
 
-const SYSTEM = (drawHint: string, motion = false, guide = "", voice = true) => `${motion ? `أنت مخرج موشن جرافيك خليجي محترف للإعلانات والسوشال ميديا. تحوّل فكرة العميل إلى فيديو قصير مقسّم لمشاهد متحركة، كل مشهد له نص قصير على الشاشة${voice ? " وجملة تنقال بالصوت" : ""}.` : "أنت معلّم ومخرج فيديوهات تعليمية متحركة محترف (مثل أفضل قنوات الشرح بالرسوم المتحركة). تحوّل الدرس أو الفكرة إلى سكربت قصير مقسّم لجمل، ولكل جملة مشهد متحرك يشرحها."}
-أعد JSON فقط بالشكل:
-{
- "title": "عنوان الدرس (3-6 كلمات)",
- "domain": "id المجال من الدليل",
- "colors": {"accent": "#hex", "bg": "#hex غامق للوحة الداكنة"},
- "font": "Cairo|Tajawal|Almarai|Changa",
- "illus": "ستايل الرسومات إذا فيه مشاهد scene",
- "board": "soft|paper|grid|dots|notebook|chalk|blueprint|night|pastel|sunrise (خلفية اللوحة المناسبة للموضوع: chalk للمدرسة، blueprint للهندسة والعلوم، notebook للدروس، pastel للأطفال، grid للرياضيات، night للتقنية)",
- "music_prompt": "وصف إنجليزي قصير لموسيقى خلفية هادئة مناسبة، أو \\"\\" للمحتوى الديني",
- "lines": [ { "say": "جملة تنقال بالصوت (6-16 كلمة)${motion && !voice ? " — أو اتركها فاضية إذا ما فيه صوت" : ""}", "dur": ثواني المشهد (2-5)${motion && !voice ? " مهم" : ""}, "scene": { "kind": "...", ...حقول المشهد } } ]
-}
-أنواع المشاهد (scene.kind) وحقولها: headline{text,hl,sub,fx} | timer{text,hl,sub} | counter{value,suffix,text} | steps{text,items[{label,icon}] 2-4} | checklist{text,items[{label}] 2-4} | compare{text,bad,good} | icon{icon,text,sub} | flow{items[{icon,label}] 2-3,text} | bars{text,suffix,items[{label,value}] 2-5} | donut{value 0-100,text} | line{text,values[]} | quote{text,sub} | arrow{text} | scene{prompt وصف إنجليزي للرسمة,text,hl,sub} مشهد مرسوم بالذكاء الاصطناعي (للقصص والأمثلة والأماكن والشخصيات) | cube{text,items[{label,icon}] 2-4 وجوه} مكعب 3D يدور | globe{text} كرة أرضية تدور | text3d{text 1-3 كلمات,sub} نص ثلاثي الأبعاد | plot{text مثل "y = sin(x)",hl sin|cos|x2|x3|linear|exp|abs|sqrt,sub} رسم دالة | geometry{shape triangle|square|circle|hexagon,text,items[{label}] أطوال الأضلاع,sub القانون} | burst{text,icon أو emoji} ختم «تم» مع انفجار | confetti{text} احتفال | dotgrid{text,value} شبكة نقاط تتموّج | sketchbars{text,items[{label,value}]} رسم بياني مرسوم باليد | definition{text المصطلح,sub المعنى,hl كلمة صغيرة فوق مثل "تعريف"} | quiz{text السؤال,items[{label}] 2-4 اختيارات,value رقم الجواب الصح من 1} | truefalse{text العبارة,value 1 صح أو 0 خطأ,sub التوضيح} | timeline{text,items[{label,icon}] 3-5 بالترتيب} | cycle{text,items[{label,icon}] 3-5 مراحل تتكرر} | mindmap{text الفكرة الرئيسية,items[{label,icon}] 3-6 فروع} | proscons{text,items[{label,value 1 ميزة أو 0 عيب}]} | equation{text معادلة بمسافات بين الرموز مثل "2 + 3 = 5",sub} | fraction{values[البسط,المقام],text} | vocab{text الكلمة,hl النطق,sub المعنى,good جملة مثال} | pyramid{text,items[{label}] من القاعدة للقمة 3-5} | table{text العنوان,items[{label: "البند: القيمة"}] 2-6} | fillblank{text جملة فيها ___ مكان الفراغ,good الجواب,sub} | scene{prompt وصف إنجليزي للرسمة,text,hl,sub} مشهد مرسوم بالذكاء الاصطناعي (للقصص والأمثلة والأماكن والشخصيات) | cube{text,items[{label,icon}] 2-4 وجوه} مكعب 3D يدور | globe{text} كرة أرضية تدور | text3d{text 1-3 كلمات,sub} نص ثلاثي الأبعاد | plot{text مثل "y = sin(x)",hl sin|cos|x2|x3|linear|exp|abs|sqrt,sub} رسم دالة | geometry{shape triangle|square|circle|hexagon,text,items[{label}] أطوال الأضلاع,sub القانون} | burst{text,icon أو emoji} ختم «تم» مع انفجار | confetti{text} احتفال | dotgrid{text,value} شبكة نقاط تتموّج | sketchbars{text,items[{label,value}]} رسم بياني مرسوم باليد.
-مشاهد تجارية وخاصة بالمجالات: price{text,values[القديم,الجديد],suffix العملة,sub} | offer{value نسبة,hl,text,sub} | menu{text,items[{label,value السعر}],suffix} | rating{value 1-5,suffix,text} | testimonial{text,sub الاسم,value} | contact{text,items[{label: "واتساب: …",icon phone|pin|chat}]} | hours{text,items[{label}]} | specs{text,items[{label,value,icon}]} | appointment{text,value 0-4,sub} | beforeafter{text,bad,good} | countdown{text,value ثواني,sub} | delivery{text,sub} | dish{emoji,text,sub} طبق بالبخار | shine{emoji,text,sub} لمعة على منتج | mist{text,sub} عطر ورذاذ | ecg{value,suffix,text} نبض | flight{items[{label من},{label إلى}],text} | scales{items[{label},{label}],text,value} | shutter{text} | giftbox{text,sub} | house{text,sub} | ring{value,text,icon} | map{text اسم المحل أو المنطقة,sub العنوان أو "حياكم"} خريطة ودبوس الموقع | route{items[{label من},{label إلى}],text,sub المدة مثل "15 دقيقة"} طريق يمشي على الخريطة.
-fx (تأثير على كلمة hl): marker | circle | underline | typewriter.
-الأيقونات المتاحة فقط: ${ICONS.join(", ")}.
-قواعد الشرح:
-- أول جملة خطّاف يشد (سؤال أو معلومة مفاجئة) مع مشهد headline أو icon.
-- كل فكرة بجملة، والمشهد يوضّحها بصرياً: المصطلح definition أو vocab، الخطوات steps، الأخطاء compare أو truefalse، الأرقام counter أو bars أو table، النسب donut أو fraction، الحساب equation، التاريخ timeline، العمليات المتكررة cycle، تفرّع الموضوع mindmap، الترتيب حسب الأهمية pyramid، المزايا والعيوب proscons، الأمثلة icon، والتأكد من الفهم quiz أو fillblank.
-- ${drawHint}
-- كن مبدع وخلّ كل فيديو مختلف: نوّع بين أكثر من 6 أنواع مشاهد بالفيديو الواحد، ولا تمشي على نفس الترتيب كل مرة.
-- نوّع المشاهد ولا تكرر نفس النوع مرتين ورا بعض. نصوص المشاهد قصيرة جداً (كلمة إلى 5 كلمات) لأن الصوت يشرح.
-- آخر جملة خلاصة أو سؤال للمشاهد أو دعوة (arrow أو checklist للخلاصة).
-- معلومات صحيحة ودقيقة فقط، وإذا ما تعرف رقم دقيق لا تخترعه.
-- الجمل "say" مكتوبة جاهزة للنطق باللهجة المطلوبة: بدون رموز أو أقواس أو إيموجي، والأرقام تنكتب كلمات إذا صعبة.
-${guide ? `حزمة المجال (التزم فيها):\n${guide}` : `دليل المجالات (اختر الأقرب لنبرة وألوان الدرس):\n${playbookText(PLAYBOOK.filter((d) => ["education", "kids", "coach", "tech", "finance", "clinic", "nutrition", "religion", "cooking", "news", "law", "story"].includes(d.id)))}`}${motion ? `\nللإعلانات: ابدأ بخطّاف قوي، واستخدم المشاهد التجارية (price, offer, menu, rating, testimonial, contact, specs, appointment, beforeafter, countdown, delivery, hours) حسب الحزمة، واختم بدعوة واضحة (contact أو arrow). لا تخترع أرقام تواصل أو أسعار ما ذكرها العميل — إذا ما ذكرها لا تستخدم price أو contact بأرقام.` : ""}`;
-
-type Line = { say?: string; dur?: number; scene?: Record<string, unknown> };
-type Plan = { illus?: string; board?: string; title?: string; domain?: string; colors?: { accent?: string; bg?: string }; font?: string; music_prompt?: string; lines?: Line[] };
 
 export async function POST(req: Request) {
   const user = await requireUser();
@@ -78,7 +51,8 @@ export async function POST(req: Request) {
   const panel = b.panel === "dark" ? "dark" : "light";
   const withMusic = b.music !== false;
   const drawings = b.drawings !== false;
-  const illus = ILLUS_STYLES.some((x) => x[0] === b.illus) ? String(b.illus) : undefined;
+  const tpl = motion ? await loadTemplate(b.templateId) : null; // a library template: its style, structure and look
+  const illus = tpl ? tpl.style : ILLUS_STYLES.some((x) => x[0] === b.illus) ? String(b.illus) : undefined;
   const drawHint = drawings
     ? `استخدم مشهد scene (رسمة بالذكاء الاصطناعي) من 2 إلى 5 مرات بالفيديو للقصص والأمثلة والأماكن والشخصيات، و prompt يكون وصف إنجليزي واضح للرسمة بدون أي كتابة داخلها.${illus ? "" : " واختر \"illus\" ستايل الرسومات المناسب من: " + ILLUS_STYLES.map((x) => x[0]).join(", ") + "."}`
     : "لا تستخدم مشهد scene.";
@@ -102,13 +76,19 @@ export async function POST(req: Request) {
     // 1) script + scenes
     const words = Math.round(seconds * 2.2);
     const like = await loadLike(b.likeWork);
-    const ask = (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, motion ? "motion" : "lesson")}`;
+    const ask = (tpl ? `${templateText(tpl)}\n\n` : "") + (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, motion ? "motion" : "lesson")}`;
     let plan: Plan;
     try { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask, 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
     catch { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask + "\nمهم: أعد JSON صالح ومكتمل فقط.", 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
     const lines = (plan.lines ?? []).map((l) => ({ say: String(l.say ?? "").replace(/\s+/g, " ").trim(), dur: Number(l.dur) || 0, scene: l.scene }))
       .filter((l) => (voiceOn ? l.say : l.scene)).slice(0, 40);
     if (!lines.length) throw new Error("empty script");
+    if (tpl) { // the template's look (colors, font, board) is kept; the brand kit still wins below
+      const k = tpl.skeleton;
+      plan.colors = { accent: k.colors?.accent ?? plan.colors?.accent, bg: k.colors?.bg ?? plan.colors?.bg };
+      if (k.font) plan.font = k.font;
+      if (k.board) plan.board = k.board;
+    }
     await admin.from("jobs").update({ progress: 35 }).eq("id", job.id);
 
     let timed: (typeof lines[number] & { s: number; e: number })[];
