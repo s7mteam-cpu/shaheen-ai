@@ -45,7 +45,7 @@ export function AddShowcase() {
       {files.map((f) => <span key={f.url}><input type="hidden" name="url" value={f.url} /><input type="hidden" name="kind" value={f.kind} /></span>)}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5"><span className="label">العنوان</span><input name="title" required maxLength={120} placeholder="مثلاً: ريلز افتتاح مقهى" className="field" /></label>
-        <label className="flex flex-col gap-1.5"><span className="label">النوع</span><Cats /></label>
+        <label className="flex flex-col gap-1.5"><span className="label">القسم (الأداة)</span><Cats /></label>
       </div>
       <label className="flex flex-col gap-1.5"><span className="label">وصف قصير (اختياري)</span><textarea name="description" rows={2} maxLength={600} placeholder="شنو سوّينا وبأي أداة" className="field" /></label>
       <div className="flex flex-col gap-2">

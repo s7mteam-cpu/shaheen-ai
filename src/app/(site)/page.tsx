@@ -56,7 +56,11 @@ export default async function Home() {
               <div className="hidden lg:flex">
                 <a href="#pricing" className="btn btn-primary px-7 py-4 text-[17px]">{c.hero.cta_primary}<Icon name="arrow" size={18} /></a>
               </div>
-              <a href="#tools" className="btn btn-outline px-4 py-4 text-[16px] font-semibold sm:px-6 sm:text-[17px]">{c.hero.cta_secondary}</a>
+              {/* explore the tools · see what Shaheen made: side by side (also on phones) */}
+              <div className="grid grid-cols-2 gap-3 lg:flex">
+                <a href="#tools" className="btn btn-outline px-3 py-3.5 text-center text-[14px] font-semibold leading-6 sm:text-[16px] lg:px-6 lg:py-4 lg:text-[17px]">{c.hero.cta_secondary}</a>
+                <Link href={gallery.length > 0 ? "#showcase" : signedIn ? "/app/showcase" : "/signup"} className="btn btn-outline px-3 py-3.5 text-center text-[14px] font-semibold leading-6 sm:text-[16px] lg:px-6 lg:py-4 lg:text-[17px]">✨ {T("أعمال صُنعت بشاهين", "Made with Shaheen")}</Link>
+              </div>
             </div>
             <ul className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted md:mt-0 md:justify-start md:pb-0">
               {c.hero.points.map((p) => (
@@ -126,7 +130,7 @@ export default async function Home() {
 
       {/* Gallery (shown only when the admin adds items) */}
       {gallery.length > 0 && (
-        <section className="border-y border-[#E6EBF2] bg-canvas">
+        <section id="showcase" className="scroll-mt-20 border-y border-[#E6EBF2] bg-canvas">
           <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-20">
             <div className="text-center"><h2 className="text-3xl font-bold text-navy-900 md:text-4xl">{c.gallery.title}</h2><p className="mt-2.5 text-[17px] text-muted">{c.gallery.subtitle}</p></div>
             <ShowcaseGrid items={gallery} />
