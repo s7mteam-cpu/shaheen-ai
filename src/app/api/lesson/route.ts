@@ -53,8 +53,13 @@ export async function POST(req: Request) {
   const drawings = b.drawings !== false;
   const tpl = motion ? await loadTemplate(b.templateId) : null; // a library template: its style, structure and look
   const illus = tpl ? tpl.style : ILLUS_STYLES.some((x) => x[0] === b.illus) ? String(b.illus) : undefined;
+  // how many AI drawings: few (2-5 scenes), half of the scenes, or every scene
+  const level = b.drawLevel === "all" ? "all" : b.drawLevel === "half" ? "half" : "few";
+  const howMany = level === "all" ? "كل مشهد بالفيديو لازم يكون من نوع scene (رسمة بالذكاء الاصطناعي) بدون استثناء، والنص القصير يطلع فوق الرسمة (text وhl وsub)"
+    : level === "half" ? "اجعل حوالي نصف مشاهد الفيديو من نوع scene (رسمة بالذكاء الاصطناعي) موزعة بالتساوي، والباقي مشاهد عادية (عناوين، خطوات، أرقام…)"
+    : "استخدم مشهد scene (رسمة بالذكاء الاصطناعي) من 2 إلى 5 مرات بالفيديو للقصص والأمثلة والأماكن والشخصيات";
   const drawHint = drawings
-    ? `استخدم مشهد scene (رسمة بالذكاء الاصطناعي) من 2 إلى 5 مرات بالفيديو للقصص والأمثلة والأماكن والشخصيات، و prompt يكون وصف إنجليزي واضح للرسمة بدون أي كتابة داخلها.${illus ? "" : " واختر \"illus\" ستايل الرسومات المناسب من: " + ILLUS_STYLES.map((x) => x[0]).join(", ") + "."}`
+    ? `${howMany}، و prompt يكون وصف إنجليزي واضح للرسمة بدون أي كتابة داخلها.${illus ? "" : " واختر \"illus\" ستايل الرسومات المناسب من: " + ILLUS_STYLES.map((x) => x[0]).join(", ") + "."}`
     : "لا تستخدم مشهد scene.";
   const admin = createAdminClient();
 
@@ -76,7 +81,7 @@ export async function POST(req: Request) {
     // 1) script + scenes
     const words = Math.round(seconds * 2.2);
     const like = await loadLike(b.likeWork);
-    const ask = (tpl ? `${templateText(tpl)}\n\n` : "") + (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, motion ? "motion" : "lesson")}`;
+    const ask = (tpl ? `${templateText(tpl, drawings ? level : "none")}\n\n` : "") + (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, motion ? "motion" : "lesson")}`;
     let plan: Plan;
     try { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask, 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
     catch { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask + "\nمهم: أعد JSON صالح ومكتمل فقط.", 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
@@ -130,7 +135,7 @@ export async function POST(req: Request) {
     let graphics = kept.graphics;
 
     // 3b) AI-drawn scenes, all at once
-    if (drawings) graphics = await illustrateScenes(user.id, job.id, graphics, style, aspect, 6);
+    if (drawings) graphics = await illustrateScenes(user.id, job.id, graphics, style, aspect, level === "all" ? 10 : level === "half" ? 8 : 6);
     else graphics = graphics.filter((g) => g.kind !== "scene");
     await admin.from("jobs").update({ progress: 80 }).eq("id", job.id);
 
