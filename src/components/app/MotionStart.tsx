@@ -12,9 +12,9 @@ const aspects = [["9:16", "ريلز / تيك توك 9:16"], ["1:1", "مربع 1:
 const dialects = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const)];
 
 /** Step 1 of the motion studio: the idea. */
-export function MotionStart({ costPer15, balance, brand, voices = [], industry: savedIndustry }: { costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string }[]; industry?: string }) {
+export function MotionStart({ idea: ideaIn = "", costPer15, balance, brand, voices = [], industry: savedIndustry }: { idea?: string; costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string }[]; industry?: string }) {
   const router = useRouter();
-  const [idea, setIdea] = useState("");
+  const [idea, setIdea] = useState(ideaIn);
   const [name, setName] = useState(brand ?? "");
   const [seconds, setSeconds] = useState(30);
   const [aspect, setAspect] = useState("9:16");

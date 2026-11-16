@@ -1,3 +1,4 @@
+import { loadLike, likeText } from "@/lib/server/like";
 import { NextResponse } from "next/server";
 import { safeFetch } from "@/lib/server/safeFetch";
 import { guardContent } from "@/lib/server/moderation";
@@ -53,7 +54,7 @@ kicker (سطر صغير فوق العنوان)، sticker، title، highlight، b
 
 type Body = {
   tool?: string; info?: string; count?: number; aspect?: DAspect; dialect?: string; photos?: string[]; person?: string;
-  useBrand?: boolean; aiImages?: boolean; industry?: string; ref?: DImg | null; jobId?: string; spec?: DesignSpec; instruction?: string; index?: number; prompt?: string;
+  useBrand?: boolean; aiImages?: boolean; industry?: string; ref?: DImg | null; likeWork?: string; jobId?: string; spec?: DesignSpec; instruction?: string; index?: number; prompt?: string;
 };
 type Raw = Partial<DesignSpec> & Record<string, unknown> & { slides?: (Record<string, unknown> & { photo?: unknown; person?: Record<string, unknown> | null })[] };
 
@@ -169,6 +170,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       if (person) images.push({ url: await sign("uploads", person), label: "صورة الشخص (المدرب أو صاحب النشاط) — تنحط تلقائياً في person" });
       for (const p of ((kit?.style_refs ?? []) as string[]).slice(0, 6)) images.push({ url: await sign("uploads", p), label: "مرجع ستايل: بوست سابق يحبه العميل. تعلّم منه الأسلوب والألوان والإحساس (لا تنسخه حرفياً)" });
 
+      // «سوّ مثله»: the chosen showcase work is the style to copy (layout, colors, feel), the content stays the customer's
+      const like = await loadLike(body.likeWork);
+      if (like) for (const [i, u] of like.images.entries()) images.push({ url: u, label: `مرجع الأسلوب المطلوب${like.images.length > 1 ? ` (${i + 1}/${like.images.length})` : ""}: ${likeText(like)}` });
       const want = kind === "carousel"
         ? `كاروسيل من ${count} شرائح: الأولى cover، الأخيرة cta، والوسط فكرة وحدة لكل شريحة (point غالباً، ويمكن quote أو minimal أو bento للتنويع). نفس الألوان والخط لكل الشرائح. caption عام للكاروسيل.`
         : kind === "ads"

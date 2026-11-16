@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ShowcaseGrid } from "@/components/Showcase";
-import { getAllWorks, getSections, getSessionProfile } from "@/lib/data";
+import { getAllWorks, getContent, getSections, getSessionProfile } from "@/lib/data";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
@@ -23,7 +23,7 @@ export default async function ToolShowcase({ params }: { params: Promise<{ cat: 
   if (!name) notFound();
   const lang = await getLang();
   const T = (ar: string, en: string) => tr(lang, ar, en);
-  const [all, sections, profile] = await Promise.all([getAllWorks(), getSections(), getSessionProfile()]);
+  const [all, sections, profile, content] = await Promise.all([getAllWorks(), getSections(), getSessionProfile(), getContent()]);
   const sec = sections.find((x) => x.cat === cat);
   if (!sec || sec.hidden) notFound();
   const works = all.filter((g) => g.category === cat);
@@ -64,7 +64,7 @@ export default async function ToolShowcase({ params }: { params: Promise<{ cat: 
 
         <section className="flex flex-col gap-5">
           <h2 className="text-2xl font-bold text-navy-900">{T("مكتبة الأعمال", "Works library")} <span className="text-base font-semibold text-muted">({works.length})</span></h2>
-          <ShowcaseGrid items={works} />
+          <ShowcaseGrid items={works} signedIn={Boolean(profile)} like={content.gallery.like_enabled !== false} />
         </section>
 
         <div className="card flex flex-col items-center gap-3 p-8 text-center">

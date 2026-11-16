@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useT } from "@/components/LangProvider";
-import { SHOWCASE_CATS, isVideo, type ShowcaseItem } from "@/lib/showcase";
+import { SHOWCASE_CATS, LIKE_TOOL, isVideo, type ShowcaseItem } from "@/lib/showcase";
 
 const media = (g: ShowcaseItem) => [g.media_url, ...g.extra_media];
 
 /** «معرض شاهين»: cards + a full-screen viewer (carousels swipe, reels play with sound). */
-export function ShowcaseGrid({ items, filter = false }: { items: ShowcaseItem[]; filter?: boolean }) {
+export function ShowcaseGrid({ items, filter = false, signedIn = false, like = true }: { items: ShowcaseItem[]; filter?: boolean; signedIn?: boolean; like?: boolean }) {
   const T = useT();
   const [cat, setCat] = useState("all");
   const [open, setOpen] = useState<ShowcaseItem | null>(null);
@@ -49,12 +50,12 @@ export function ShowcaseGrid({ items, filter = false }: { items: ShowcaseItem[];
         })}
       </div>
       {shown.length === 0 && <p className="card p-8 text-center text-muted">{T("ما في أعمال بهالقسم بعد.", "Nothing in this section yet.")}</p>}
-      {open && <Viewer g={open} label={label(open.category)} onClose={() => setOpen(null)} />}
+      {open && <Viewer g={open} label={label(open.category)} signedIn={signedIn} like={like} onClose={() => setOpen(null)} />}
     </div>
   );
 }
 
-function Viewer({ g, label, onClose }: { g: ShowcaseItem; label: string; onClose: () => void }) {
+function Viewer({ g, label, signedIn, like, onClose }: { g: ShowcaseItem; label: string; signedIn: boolean; like: boolean; onClose: () => void }) {
   const T = useT();
   const list = media(g);
   const [i, setI] = useState(0);
@@ -91,8 +92,39 @@ function Viewer({ g, label, onClose }: { g: ShowcaseItem; label: string; onClose
           <span className="w-fit rounded-full bg-gold-100 px-2.5 py-0.5 text-[12px] font-bold text-navy-900">{label}{list.length > 1 ? ` · ${i + 1}/${list.length}` : ""}</span>
           <b className="text-navy-900">{g.title}</b>
           {g.description && <p className="text-sm leading-6 text-muted">{g.description}</p>}
+          {like && g.like_on && LIKE_TOOL[g.category] && <MakeLike id={g.id} tool={LIKE_TOOL[g.category]} signedIn={signedIn} />}
         </div>
       </div>
     </div>
+  );
+}
+
+/** «سوّ مثله»: the customer writes his idea; subscribers go straight to the tool with this work as the style, visitors are asked to sign up first. */
+function MakeLike({ id, tool, signedIn }: { id: string; tool: string; signedIn: boolean }) {
+  const T = useT();
+  const router = useRouter();
+  const [idea, setIdea] = useState("");
+  const [ask, setAsk] = useState(false);
+  const target = `/app/tools/${tool}?like=${id}&idea=${encodeURIComponent(idea.trim().slice(0, 1200))}`;
+  function go(e: React.FormEvent) {
+    e.preventDefault();
+    if (idea.trim().length < 3) return;
+    if (signedIn) router.push(target); else setAsk(true);
+  }
+  return (
+    <form onSubmit={go} className="mt-2 flex flex-col gap-2 border-t border-line pt-3">
+      <label className="text-[13px] font-bold text-navy-900" htmlFor={`like-${id}`}>{T("تبي مثله؟ اكتب فكرتك", "Want one like it? Write your idea")}</label>
+      <textarea id={`like-${id}`} rows={2} maxLength={1200} value={idea} onChange={(e) => { setIdea(e.target.value); setAsk(false); }} placeholder={T("مثال: مطعمي، عرض الويكند خصم 30%", "e.g. my restaurant, weekend offer 30% off")} className="field text-sm" />
+      <button disabled={idea.trim().length < 3} className="btn btn-gold py-2.5 text-[15px] font-bold disabled:opacity-50">✨ {T("سوّ مثله", "Make one like it")}</button>
+      {ask && (
+        <div role="alert" className="rounded-xl bg-gold-100 p-3 text-[13px] leading-6 text-navy-900">
+          <b>{T("لازم تكون مشترك عشان ننشئ لك.", "You need to be subscribed to create it.")}</b>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <a href="/signup" className="btn btn-primary px-4 py-2 text-[13px]">{T("اشترك الآن", "Sign up")}</a>
+            <a href={`/login?next=${encodeURIComponent(target)}`} className="btn btn-outline px-4 py-2 text-[13px]">{T("عندي حساب", "I have an account")}</a>
+          </div>
+        </div>
+      )}
+    </form>
   );
 }

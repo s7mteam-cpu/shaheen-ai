@@ -29,7 +29,9 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
   const router = useRouter();
   const [values, setValues] = useState<Values>(() => {
     const v = defaultValues(spec);
-    const p = params.get("prompt");
+    const p = params.get("prompt") ?? params.get("idea");
+    const like = params.get("like");
+    if (like && /^[0-9a-f-]{36}$/i.test(like)) v.likeWork = like;
     if (p) for (const k of ["prompt", "text", "script"]) if (k in v) { v[k] = p; break; }
     if ("voice" in v && voices[0]) v.voice = voices[0].id;
     if ("vo_voice" in v && voices[0]) v.vo_voice = voices[0].id;

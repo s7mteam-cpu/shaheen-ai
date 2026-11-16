@@ -12,7 +12,7 @@ export const SHOWCASE_CATS: [string, string, string][] = [
   ["design", "تصاميم", "Designs"], ["card", "بطاقات ودعوات", "Cards & invitations"], ["cv", "سيرة ذاتية", "CVs"], ["slides", "عروض تقديمية", "Presentations"],
   ["other", "أخرى", "Other"],
 ];
-export type ShowcaseItem = { id: string; title: string; description: string; category: string; media_url: string; media_type: string; extra_media: string[]; sort_order: number; home_order: number | null };
+export type ShowcaseItem = { id: string; title: string; description: string; category: string; media_url: string; media_type: string; extra_media: string[]; sort_order: number; home_order: number | null; like_on: boolean };
 
 /** DB row → item (the v83 columns may be missing before its SQL runs). */
 export function toItem(r: Record<string, unknown>): ShowcaseItem {
@@ -20,9 +20,15 @@ export function toItem(r: Record<string, unknown>): ShowcaseItem {
     id: String(r.id), title: String(r.title ?? ""), description: String(r.description ?? ""), category: String(r.category ?? "design"),
     media_url: String(r.media_url ?? ""), media_type: String(r.media_type ?? "image"),
     extra_media: Array.isArray(r.extra_media) ? (r.extra_media as unknown[]).map(String) : [],
-    sort_order: Number(r.sort_order) || 0, home_order: r.home_order == null ? null : Number(r.home_order),
+    sort_order: Number(r.sort_order) || 0, home_order: r.home_order == null ? null : Number(r.home_order), like_on: r.like_on !== false,
   };
 }
+/** The tool that makes each kind of work («سوّ مثله»). Kinds with no tool here (cards, CVs…) get no button. */
+export const LIKE_TOOL: Record<string, string> = {
+  post: "post", carousel: "carousel", ad: "ad-design", image: "image", "product-photo": "product-photo",
+  reel: "motion-video", motion: "motion-video", video: "video-editing", "product-video": "product-video", avatar: "avatar-video",
+  lesson: "lesson-video", quran: "quran-video", voice: "voice", nasheed: "nasheed",
+};
 export const isVideo = (u: string) => /\.(mp4|webm|mov)(\?|$)/i.test(u);
 
 /** Section texts (what the admin can override from «ترتيب الأقسام وشرحها»). */

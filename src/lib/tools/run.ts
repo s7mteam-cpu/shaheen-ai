@@ -7,6 +7,7 @@ import { toolProviders } from "@/lib/providers/registry";
 import { cloneVoice, deleteVoice, music, tts, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveFromUrl, saveResult, signedUploadUrls } from "@/lib/providers/storage";
 import type { Values } from "@/lib/tools/specs";
+import { loadLike } from "@/lib/server/like";
 
 export type Job = { id: string; user_id: string; tool_id: string; input: Values };
 export type OutFile = { path: string; type: string; caption?: string };
@@ -84,7 +85,12 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
 
   switch (job.tool_id) {
     case "image": {
+      const like = await loadLike(v.likeWork);
       const imgs = await signedUploadUrls(files(v, "images"));
+      if (like?.image && !imgs.length) { // no photo of his own: the chosen work is the style reference
+        v.prompt = `${v.prompt}. Create a NEW image in the same visual style, composition, colors and mood as the reference image (do not copy its subject or text; make what is described).${like.recipe ? ` Style notes: ${like.recipe}` : ""}`;
+        imgs.push(like.image);
+      }
       const { provider, model: m } = await config("image");
       if (provider === "google") return googleImages(m, `${v.prompt}. ${brand}`.trim(), imgs, Number(v.count));
       const endpoint = imgs.length ? (m.endsWith("/edit") ? m : `${m}/edit`) : m.replace(/\/edit$/, "");
@@ -98,9 +104,12 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
     }
 
     case "product-photo": {
+      const like = await loadLike(v.likeWork);
       const imgs = await signedUploadUrls(files(v, "images"));
+      const styleNote = like?.image ? ` The LAST image is only a style reference: copy its background, lighting, props and composition mood, but the product is the one in the other image(s).${like.recipe ? ` Style notes: ${like.recipe}` : ""}` : "";
+      if (like?.image) imgs.push(like.image);
       const { provider, model: m } = await config("product-photo");
-      const prompt = `Professional advertising product photo of the exact same product (keep its shape, label, logo and colors unchanged), ${moods[String(v.mood)] ?? ""}. ${v.extra ?? ""} ${brand}`.trim();
+      const prompt = `Professional advertising product photo of the exact same product (keep its shape, label, logo and colors unchanged), ${moods[String(v.mood)] ?? ""}. ${v.extra ?? ""} ${brand}${styleNote}`.trim();
       if (provider === "google") return googleImages(m, prompt, imgs, Number(v.count));
       const data = await falRun(m, {
         prompt,

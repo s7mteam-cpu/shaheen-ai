@@ -14,9 +14,9 @@ const panels = [["light", "خلفية فاتحة"], ["dark", "خلفية داك�
 const boards = [["auto", "تلقائي (مختلف كل مرة)"], ["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"]] as const;
 
 /** Educational animated video: the lesson, who it's for, and how it sounds. */
-export function LessonStart({ costPer30, balance, voices }: { costPer30: number; balance: number; voices: { id: string; name: string; note?: string }[] }) {
+export function LessonStart({ idea = "", costPer30, balance, voices }: { idea?: string; costPer30: number; balance: number; voices: { id: string; name: string; note?: string }[] }) {
   const router = useRouter();
-  const [topic, setTopic] = useState("");
+  const [topic, setTopic] = useState(idea);
   const [notes, setNotes] = useState("");
   const [seconds, setSeconds] = useState<number>(60);
   const [aspect, setAspect] = useState<string>("9:16");

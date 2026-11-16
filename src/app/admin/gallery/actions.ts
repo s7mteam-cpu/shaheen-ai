@@ -24,11 +24,12 @@ export async function addShowcase(_p: Res, form: FormData): Promise<Res> {
     category: CATS.has(category) ? category : "other",
     media_url: urls[0], media_type: kinds[0] === "video" ? "video" : "image",
     extra_media: urls.slice(1, 20),
+    recipe: String(form.get("recipe") ?? "").trim().slice(0, 800), like_on: form.get("like_on") === "on",
     in_app: form.get("in_app") === "on", on_home: form.get("on_home") === "on",
     sort_order: Number(form.get("sort_order")) || 0, home_order: homeOrder(form), is_published: true,
   };
   const { error } = await createAdminClient().from("gallery_items").insert(row);
-  if (error) return { error: "ما انحفظ. تأكد إنك شغّلت ملف SQL الخاص بالتحديث v83." };
+  if (error) return { error: "ما انحفظ. تأكد إنك شغّلت ملفات SQL الخاصة بآخر التحديثات (v88b وv89)." };
   done();
   return { ok: "انضاف ✓" };
 }
@@ -49,9 +50,9 @@ export async function updateShowcase(_p: Res, form: FormData): Promise<Res> {
   const { error } = await admin.from("gallery_items").update({
     title: String(form.get("title") ?? "").trim().slice(0, 120), description: String(form.get("description") ?? "").trim().slice(0, 600),
     category: CATS.has(category) ? category : "other", sort_order: Number(form.get("sort_order")) || 0, home_order: homeOrder(form),
-    is_published: form.get("is_published") === "on", in_app: form.get("in_app") === "on", on_home: form.get("on_home") === "on",
+    recipe: String(form.get("recipe") ?? "").trim().slice(0, 800), like_on: form.get("like_on") === "on", is_published: form.get("is_published") === "on", in_app: form.get("in_app") === "on", on_home: form.get("on_home") === "on",
   }).eq("id", id);
-  if (error) return { error: "ما انحفظ. تأكد إنك شغّلت ملف SQL الخاص بالتحديث v83." };
+  if (error) return { error: "ما انحفظ. تأكد إنك شغّلت ملفات SQL الخاصة بآخر التحديثات (v88b وv89)." };
   done();
   return { ok: "انحفظ ✓" };
 }

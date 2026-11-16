@@ -48,6 +48,7 @@ export function AddShowcase() {
         <label className="flex flex-col gap-1.5"><span className="label">القسم (الأداة)</span><Cats /></label>
       </div>
       <label className="flex flex-col gap-1.5"><span className="label">وصف قصير (اختياري)</span><textarea name="description" rows={2} maxLength={600} placeholder="شنو سوّينا وبأي أداة" className="field" /></label>
+      <label className="flex flex-col gap-1.5"><span className="label">أسلوب العمل لـ «سوّ مثله» (اختياري)</span><textarea name="recipe" rows={2} maxLength={800} placeholder="مثلاً: خلفية سوداء فخمة، إضاءة ذهبية، خط عريض، تكوين متماثل" className="field" /></label>
       <div className="flex flex-col gap-2">
         <span className="label">الملفات (صورة أو فيديو، لين 50 ميجا لكل ملف). للكاروسيل اختر كل الصور، وأول وحدة تصير الغلاف.</span>
         <label className={`btn btn-outline w-fit cursor-pointer px-4 py-2.5 text-sm ${busy ? "pointer-events-none opacity-50" : ""}`}>
@@ -71,6 +72,7 @@ export function AddShowcase() {
       <div className="flex flex-wrap gap-5 text-sm font-semibold">
         <label className="flex items-center gap-2"><input type="checkbox" name="in_app" defaultChecked className="h-4 w-4" />يطلع بـ «أعمال صُنعت بشاهين» داخل المنصة</label>
         <label className="flex items-center gap-2"><input type="checkbox" name="on_home" className="h-4 w-4" />يطلع بصفحة الموقع الرئيسية</label>
+        <label className="flex items-center gap-2"><input type="checkbox" name="like_on" defaultChecked className="h-4 w-4" />زر «سوّ مثله» تحت العمل</label>
         <label className="flex items-center gap-2">الترتيب <input name="sort_order" type="number" defaultValue={0} className="field w-20 py-1.5" /></label>
         <label className="flex items-center gap-2">الترتيب بالصفحة الرئيسية <input name="home_order" type="number" placeholder="نفسه" className="field w-24 py-1.5" /></label>
       </div>
@@ -79,7 +81,7 @@ export function AddShowcase() {
   );
 }
 
-export function EditShowcase({ g }: { g: { id: string; title: string; description: string; category: string; sort_order: number; is_published: boolean; in_app: boolean; on_home: boolean; home_order: number | null; extra: number } }) {
+export function EditShowcase({ g }: { g: { id: string; title: string; description: string; category: string; sort_order: number; is_published: boolean; in_app: boolean; on_home: boolean; home_order: number | null; recipe: string; like_on: boolean; extra: number } }) {
   const [r, act] = useActionState(updateShowcase, undefined);
   return (
     <form action={act} className="flex flex-col gap-2 p-3">
@@ -87,11 +89,13 @@ export function EditShowcase({ g }: { g: { id: string; title: string; descriptio
       <input name="title" defaultValue={g.title} className="field py-2 text-sm" aria-label="العنوان" />
       <Cats value={g.category} />
       <textarea name="description" defaultValue={g.description} rows={2} className="field py-2 text-sm" aria-label="الوصف" placeholder="الوصف" />
+      <textarea name="recipe" defaultValue={g.recipe} rows={2} className="field py-2 text-sm" aria-label="أسلوب العمل" placeholder="أسلوب العمل لـ «سوّ مثله»" />
       {g.extra > 0 && <span className="text-[12px] text-subtle">كاروسيل: {g.extra + 1} ملفات</span>}
       <div className="flex flex-col gap-1 text-[13px]">
         <label className="flex items-center gap-2"><input type="checkbox" name="is_published" defaultChecked={g.is_published} />منشور</label>
         <label className="flex items-center gap-2"><input type="checkbox" name="in_app" defaultChecked={g.in_app} />داخل المنصة</label>
         <label className="flex items-center gap-2"><input type="checkbox" name="on_home" defaultChecked={g.on_home} />الصفحة الرئيسية</label>
+        <label className="flex items-center gap-2"><input type="checkbox" name="like_on" defaultChecked={g.like_on} />زر «سوّ مثله»</label>
         <label className="flex items-center gap-2">الترتيب (داخل المنصة) <input name="sort_order" type="number" defaultValue={g.sort_order} className="field w-20 py-1" /></label>
         <label className="flex items-center gap-2">الترتيب بالصفحة الرئيسية <input name="home_order" type="number" defaultValue={g.home_order ?? ""} placeholder="نفسه" className="field w-20 py-1" /></label>
       </div>

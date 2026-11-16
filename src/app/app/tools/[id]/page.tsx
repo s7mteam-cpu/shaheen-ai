@@ -20,9 +20,11 @@ import { getContent, getSessionProfile, getTools, getToolsL } from "@/lib/data";
 import { toolSpecs } from "@/lib/tools/specs";
 import { listWorks } from "@/lib/works";
 import { getL } from "@/lib/server/lang";
+import { LikeNote } from "@/components/app/LikeNote";
+import { loadLike } from "@/lib/server/like";
 import { DemoVideo } from "@/components/DemoVideo";
 
-type P = { params: Promise<{ id: string }>; searchParams: Promise<{ job?: string }> };
+type P = { params: Promise<{ id: string }>; searchParams: Promise<{ job?: string; like?: string; idea?: string }> };
 
 export async function generateMetadata({ params }: P) {
   const L = await getL();
@@ -34,7 +36,10 @@ export async function generateMetadata({ params }: P) {
 export default async function ToolPage({ params, searchParams }: P) {
   const L = await getL();
   const { id } = await params;
-  const { job } = await searchParams;
+  const { job, like: likeId, idea: ideaRaw } = await searchParams;
+  const idea = String(ideaRaw ?? "").slice(0, 1200);
+  const likeWork = await loadLike(likeId);
+  const like = likeWork ? { id: likeWork.id, title: likeWork.title, thumb: likeWork.image, idea } : undefined;
   const [tools, profile, content, recent] = await Promise.all([getToolsL(), getSessionProfile(), getContent(), listWorks({ tool: id, limit: 8 })]);
   const tool = tools.find((t) => t.id === id);
   if (!tool || !toolSpecs[id]) notFound();
@@ -54,7 +59,8 @@ export default async function ToolPage({ params, searchParams }: P) {
         <p className="mt-1 text-muted">{tool.description}</p>
         <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>
       </div>
-      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
+      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart idea={idea} costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -65,7 +71,7 @@ type ToolRow = Awaited<ReturnType<typeof getTools>>[number];
 type Content = Awaited<ReturnType<typeof getContent>>;
 
 /** Motion graphics: idea form, or the live studio for one of the user's drafts. */
-async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content) {
+async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content, idea = "") {
   const L = await getL();
   const supabase = await createClient();
   if (jobId) {
@@ -87,7 +93,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
     }
   }
   const { data: kit } = await supabase.from("brand_kits").select("business_name").maybeSingle();
-  return <MotionStart costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
+  return <MotionStart idea={idea} costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
 }
 
 /** Smart montage: once the worker planned the edit, the customer edits it live here. */
@@ -123,7 +129,7 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
 }
 
 /** Posts, carousels and ads: the info form, or the live design studio for one of the user's designs. */
-async function design(jobId: string | undefined, tool: ToolRow, balance: number) {
+async function design(jobId: string | undefined, tool: ToolRow, balance: number, like?: { id: string; title: string; thumb: string | null; idea: string }) {
   const L = await getL();
   const supabase = await createClient();
   if (jobId) {
@@ -151,7 +157,7 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number)
     }
   }
   const { data: kitInd } = await supabase.from("brand_kits").select("industry").maybeSingle();
-  return <DesignStart toolId={tool.id} cost={tool.credit_cost} balance={balance} industry={(kitInd?.industry as string | null) ?? null} />;
+  return <DesignStart like={like} toolId={tool.id} cost={tool.credit_cost} balance={balance} industry={(kitInd?.industry as string | null) ?? null} />;
 }
 
 /** A finished studio video: watch / download, or reopen it for more edits (costs one edit). */

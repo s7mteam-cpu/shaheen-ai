@@ -7,6 +7,7 @@ import { Progress } from "@/components/app/Progress";
 import { createClient } from "@/lib/supabase/client";
 import { DIcon } from "@/design/icons";
 import { INDUSTRIES, industryById } from "@/design/industries";
+import { LikeNote } from "@/components/app/LikeNote";
 
 const aspects = [["4:5", "بوست طولي 4:5"], ["1:1", "مربع 1:1"], ["9:16", "ستوري 9:16"]] as const;
 const dialects: (readonly [string, string])[] = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const), ["same", "مثل ما كتبت"]];
@@ -29,10 +30,10 @@ async function uploadImage(file: File): Promise<Up> {
 export { uploadImage };
 
 /** Step 1 of the design studio: the customer's information. */
-export function DesignStart({ toolId, cost, balance, industry: savedIndustry }: { toolId: string; cost: number; balance: number; industry?: string | null }) {
+export function DesignStart({ toolId, cost, balance, industry: savedIndustry, like }: { like?: { id: string; title: string; thumb: string | null; idea: string }; toolId: string; cost: number; balance: number; industry?: string | null }) {
   const router = useRouter();
   const copy = COPY[toolId] ?? COPY.post;
-  const [info, setInfo] = useState("");
+  const [info, setInfo] = useState(like?.idea ?? "");
   const [industry, setIndustry] = useState(savedIndustry ?? "");
   const [pickOpen, setPickOpen] = useState(!savedIndustry);
   const ind = industryById(industry);
@@ -73,7 +74,7 @@ export function DesignStart({ toolId, cost, balance, industry: savedIndustry }: 
     setBusy(true); setError(null);
     try {
       const r = await fetch("/api/design/start", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tool: toolId, info, count, aspect, dialect, photos: photos.map((p) => p.path), person: person?.path, useBrand, aiImages, industry }) });
+        body: JSON.stringify({ tool: toolId, info, count, aspect, dialect, likeWork: like?.id, photos: photos.map((p) => p.path), person: person?.path, useBrand, aiImages, industry }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -93,6 +94,7 @@ export function DesignStart({ toolId, cost, balance, industry: savedIndustry }: 
 
   return (
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
+      {like && <LikeNote like={like} />}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <span className="font-semibold">{L("مجالك")}</span>
