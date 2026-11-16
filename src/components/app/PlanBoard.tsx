@@ -2,18 +2,46 @@
 import Link from "next/link";
 import { useState } from "react";
 import { L, LT } from "@/lib/i18n/ui";
-import { savePlan } from "@/app/app/brand/actions";
+import { savePlan, tagPlanJob } from "@/app/app/brand/actions";
 import { FORMAT_LABEL, FORMAT_TOOL, type Analysis, type Plan, type PlanItem } from "@/lib/plan";
 
 const FORMAT_ICON: Record<string, string> = { post: "🖼️", reel: "🎬", carousel: "🗂️" };
 
-export function PlanBoard({ identityName, plan: p0, analysis: a0, cost }: { identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number }) {
+export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit }: { identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; unit: { post: number; carousel: number; reel: number } }) {
   const [plan, setPlan] = useState<Plan | null>(p0);
   const [analysis, setAnalysis] = useState<Analysis | null>(a0);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [week, setWeek] = useState(1);
   const [dirty, setDirty] = useState(false);
+  const [state, setState] = useState<Record<number, string>>({});
+  const CAROUSEL_SLIDES = 6;
+  const itemCost = (x: PlanItem) => (x.format === "post" ? unit.post : x.format === "carousel" ? unit.carousel * CAROUSEL_SLIDES : unit.reel * 2);
+  const weekTodo = plan ? plan.items.map((x, i) => [x, i] as const).filter(([x]) => x.week === week && !x.job) : [];
+  const weekCost = weekTodo.reduce((n, [x]) => n + itemCost(x), 0);
+
+  /** Makes one slot with the normal tools (so credits, brand and quality are exactly as usual), tags it «جاهز للنشر», and remembers its job in the plan. */
+  async function prepare(i: number, base: Plan): Promise<Plan> {
+    const x = base.items[i];
+    setState((m) => ({ ...m, [i]: "جاري التجهيز..." }));
+    try {
+      const r = x.format === "reel"
+        ? await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "motion", topic: x.prompt, seconds: 30, aspect: "9:16", dialect: "kuwaiti", voiceover: false, drawings: true, drawLevel: "few" }) })
+        : await fetch("/api/design/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? CAROUSEL_SLIDES : 1, aspect: "4:5", dialect: "kuwaiti", photos: [], useBrand: true, aiImages: true }) });
+      const d = await r.json();
+      if (!r.ok || !d.jobId) { setState((m) => ({ ...m, [i]: d.error || "تعذّر التجهيز." })); return base; }
+      await tagPlanJob(d.jobId, { week: x.week, day: x.day, date: x.date, format: x.format });
+      const next = { ...base, items: base.items.map((y, j) => (j === i ? { ...y, job: d.jobId as string } : y)) };
+      setPlan(next); await savePlan(next.items, next.month);
+      setState((m) => ({ ...m, [i]: "" }));
+      return next;
+    } catch { setState((m) => ({ ...m, [i]: "تعذّر الاتصال." })); return base; }
+  }
+  async function prepareWeek() {
+    if (!plan) return;
+    let cur = plan;
+    for (const [, i] of weekTodo) cur = await prepare(i, cur);
+  }
 
   async function generate() {
     setBusy(true); setMsg("");
@@ -70,6 +98,11 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost }: { iden
             <span className="ms-auto text-[13px] text-subtle">{plan.month}</span>
             <button type="button" onClick={generate} disabled={busy} className="text-sm font-semibold text-navy-700 underline">{busy ? L("جاري الكتابة...") : `↻ ${L("خطة جديدة")} (${LT(`${cost} ريشة`, `${cost} feathers`)})`}</button>
           </div>
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 p-4 text-white">
+            <div className="flex-1 text-[14px] leading-7">{weekTodo.length > 0 ? L("جهّز منشورات هذا الأسبوع كلها دفعة وحدة. تلقاها بأعمالي ← «جاهز للنشر» وتراجعها قبل النشر.") : L("منشورات هذا الأسبوع كلها جاهزة ✓")}</div>
+            {weekTodo.length > 0 && <button type="button" onClick={prepareWeek} disabled={Object.values(state).includes("جاري التجهيز...")} className="btn btn-gold px-6 py-3 font-bold disabled:opacity-50">⚡ {L("جهّز أسبوع")} {week} ({LT(`${weekCost} ريشة`, `${weekCost} feathers`)})</button>}
+            <Link href="/app/works?c=ready" className="text-[14px] font-semibold underline">📅 {L("جاهز للنشر")}</Link>
+          </div>
           {plan.items.map((x, i) => x.week === week && (
             <article key={i} className="card flex flex-col gap-3 p-5">
               <div className="flex flex-wrap items-center gap-2">
@@ -83,9 +116,13 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost }: { iden
               <label className="flex flex-col gap-1.5"><span className="text-[14px] font-bold">{L("البرومبت (عدّله براحتك)")}</span>
                 <textarea rows={8} value={x.prompt} onChange={(e) => edit(i, "prompt", e.target.value)} maxLength={1100} className="field leading-7" /></label>
               <div className="flex flex-wrap gap-2">
-                <Link href={link(x)} className="btn btn-gold px-5 py-2.5 text-[14px] font-bold">{L("اصنع بأداة شاهين")} ←</Link>
+                {x.job
+                  ? <Link href={`/app/tools/${FORMAT_TOOL[x.format]}?job=${x.job}`} className="btn btn-primary px-5 py-2.5 text-[14px] font-bold">✓ {L("جاهز، افتحه وراجعه")}</Link>
+                  : <button type="button" disabled={state[i] === "جاري التجهيز..."} onClick={() => prepare(i, plan)} className="btn btn-gold px-5 py-2.5 text-[14px] font-bold disabled:opacity-50">{state[i] === "جاري التجهيز..." ? L("جاري التجهيز...") : `⚡ ${L("جهّزه لي")} (${LT(`${itemCost(x)} ريشة`, `${itemCost(x)} feathers`)})`}</button>}
+                <Link href={link(x)} className="btn btn-outline px-4 py-2.5 text-[14px]">{L("افتح بالأداة وعدّل بنفسك")}</Link>
                 <button type="button" onClick={() => copy(x.prompt)} className="btn btn-outline px-4 py-2.5 text-[14px]">{L("نسخ البرومبت")}</button>
               </div>
+              {state[i] && state[i] !== "جاري التجهيز..." && <p role="alert" className="text-sm font-semibold text-red-700">{L(state[i])}</p>}
               <label className="flex flex-col gap-1.5"><span className="text-[14px] font-bold">{L("الكابشن")}</span>
                 <textarea rows={4} value={x.caption} onChange={(e) => edit(i, "caption", e.target.value)} maxLength={900} className="field leading-7" /></label>
               <button type="button" onClick={() => copy(x.caption)} className="w-fit text-[13px] font-semibold text-navy-700 underline">{L("نسخ الكابشن")}</button>

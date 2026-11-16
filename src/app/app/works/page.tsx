@@ -4,12 +4,12 @@ import { listWorks } from "@/lib/works";
 import { getL } from "@/lib/server/lang";
 
 export async function generateMetadata() { return { title: (await getL())("أعمالي") }; }
-const filters = [["", "الكل"], ["image", "صور"], ["video", "فيديو"], ["audio", "صوت"]] as const;
+const filters = [["", "الكل"], ["image", "صور"], ["video", "فيديو"], ["audio", "صوت"], ["ready", "📅 جاهز للنشر"]] as const;
 
 export default async function Works({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const L = await getL();
   const { c = "" } = await searchParams;
-  const works = await listWorks({ category: c || undefined, limit: 120 });
+  const works = await listWorks({ category: c && c !== "ready" ? c : undefined, ready: c === "ready", limit: 120 });
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-[28px] font-bold text-navy-900">{L("أعمالي")}</h1>

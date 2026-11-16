@@ -56,12 +56,26 @@ export async function chooseIdentity(conceptId: string) {
 }
 
 /** The customer edits the prompts/captions of the plan: saved as typed (trimmed, limited). */
-export async function savePlan(items: { week: number; day: string; date: string; format: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string }[], month: string) {
+export async function savePlan(items: { week: number; day: string; date: string; format: string; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string }[], month: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false };
-  const clean = items.slice(0, 12).map((x) => ({ week: Number(x.week) || 1, day: String(x.day).slice(0, 12), date: String(x.date).slice(0, 8), format: ["post", "reel", "carousel"].includes(x.format) ? x.format : "post", pillar: String(x.pillar).slice(0, 40), topic: String(x.topic).slice(0, 160), hook: String(x.hook).slice(0, 200), goal: String(x.goal).slice(0, 120), prompt: String(x.prompt).slice(0, 1100), caption: String(x.caption).slice(0, 900) }));
+  const clean = items.slice(0, 12).map((x) => ({ week: Number(x.week) || 1, day: String(x.day).slice(0, 12), date: String(x.date).slice(0, 8), format: ["post", "reel", "carousel"].includes(x.format) ? x.format : "post", job: x.job && /^[0-9a-f-]{36}$/.test(x.job) ? x.job : undefined, pillar: String(x.pillar).slice(0, 40), topic: String(x.topic).slice(0, 160), hook: String(x.hook).slice(0, 200), goal: String(x.goal).slice(0, 120), prompt: String(x.prompt).slice(0, 1100), caption: String(x.caption).slice(0, 900) }));
   const { error } = await supabase.from("brand_kits").update({ content_plan: { month: String(month).slice(0, 30), items: clean } }).eq("user_id", user.id);
   revalidatePath("/app/brand/plan");
+  return { ok: !error };
+}
+
+/** Marks a made work as «جاهز للنشر» with its slot (day, date, format) so it shows under that filter in أعمالي. */
+export async function tagPlanJob(jobId: string, plan: { week: number; day: string; date: string; format: string }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !/^[0-9a-f-]{36}$/.test(jobId)) return { ok: false };
+  const admin = createAdminClient();
+  const { data: job } = await admin.from("jobs").select("input").eq("id", jobId).eq("user_id", user.id).maybeSingle();
+  if (!job) return { ok: false };
+  const tag = { week: Number(plan.week) || 1, day: String(plan.day).slice(0, 12), date: String(plan.date).slice(0, 8), format: ["post", "reel", "carousel"].includes(plan.format) ? plan.format : "post" };
+  const { error } = await admin.from("jobs").update({ input: { ...((job.input as object) ?? {}), plan: tag } }).eq("id", jobId);
+  revalidatePath("/app/works");
   return { ok: !error };
 }
