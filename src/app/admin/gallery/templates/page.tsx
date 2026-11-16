@@ -33,7 +33,7 @@ export default async function TemplatesAdmin({ searchParams }: { searchParams: P
       <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-4">
         {list.map((t) => <TemplateCard key={t.id} t={t} />)}
       </div>
-      {list.length === 0 && !error && <p className="card p-6 text-center text-muted">ما في قوالب بعد. اضغط «ولّد القوالب الناقصة».</p>}
+      {list.length === 0 && !error && <p className="card p-6 text-center text-muted">ما في قوالب بعد. اكتب العدد واضغط «ولّد».</p>}
     </div>
   );
 }

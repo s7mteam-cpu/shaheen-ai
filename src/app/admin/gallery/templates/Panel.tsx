@@ -13,6 +13,7 @@ export function Generator({ have }: { have: Record<string, number[]> }) {
   const router = useRouter();
   const [style, setStyle] = useState<string>(ILLUS_STYLES[0][0]);
   const [all, setAll] = useState(false);
+  const [count, setCount] = useState(5);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
   const [jobId, setJobId] = useState("");
@@ -27,10 +28,11 @@ export function Generator({ have }: { have: Record<string, number[]> }) {
     setMsg("");
     const styles = all ? ILLUS_STYLES.map((s) => s[0]) : [style];
     let done = 0, failed = 0;
-    for (const s of styles) {
+    outer: for (const s of styles) {
       for (let i = 0; i < TEMPLATE_IDEAS.length; i++) {
+        if (done >= count) break outer; // the number the admin asked for
         if ((have[s] ?? []).includes(i)) continue; // already built
-        setBusy(`جاري توليد قالب «${TEMPLATE_IDEAS[i].title}» (${ILLUS_STYLES.find((x) => x[0] === s)![1]})… تم ${done}`);
+        setBusy(`جاري توليد قالب «${TEMPLATE_IDEAS[i].title}» (${ILLUS_STYLES.find((x) => x[0] === s)![1]})… تم ${done} من ${count}`);
         try { await post({ style: s, idea: i }); done++; } catch (e) { failed++; setMsg((e as Error).message); if (failed >= 3) { setBusy(""); router.refresh(); return; } }
       }
     }
@@ -46,10 +48,11 @@ export function Generator({ have }: { have: Record<string, number[]> }) {
       <h2 className="text-lg font-bold text-navy-900">توليد قوالب</h2>
       <div className="flex flex-wrap items-center gap-3">
         <select value={style} onChange={(e) => setStyle(e.target.value)} className="field w-auto" disabled={all || !!busy}>{ILLUS_STYLES.map(([k, ar]) => <option key={k} value={k}>{ar}</option>)}</select>
+        <label className="flex items-center gap-2 text-sm font-semibold">كم قالب تولّد؟ <input type="number" min={1} max={200} value={count} onChange={(e) => setCount(Math.max(1, Math.min(200, Number(e.target.value) || 1)))} disabled={!!busy} className="field w-20 py-1.5" /></label>
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} className="h-4 w-4" />كل الستايلات</label>
-        <button onClick={generate} disabled={!!busy} className="btn btn-primary px-5 py-2.5 disabled:opacity-50">ولّد القوالب الناقصة</button>
+        <button onClick={generate} disabled={!!busy} className="btn btn-primary px-5 py-2.5 disabled:opacity-50">ولّد {count} قالب</button>
       </div>
-      <p className="text-[13px] leading-6 text-subtle">كل ستايل يطلع له {TEMPLATE_IDEAS.length} قوالب (فكرة لكل قالب). التوليد يصرف من رصيد الذكاء الاصطناعي عندك (تخطيط + صورة غلاف لكل قالب)، وكل قالب ياخذ نص دقيقة تقريباً. اترك الصفحة مفتوحة لين يخلص. القوالب اللي انولدت قبل ما تنعاد.</p>
+      <p className="text-[13px] leading-6 text-subtle">اكتب العدد اللي تبيه والزر يولّد هالعدد بس (القوالب الموجودة ما تنعاد). كل ستايل له لين {TEMPLATE_IDEAS.length} قوالب. التوليد يصرف من رصيد الذكاء الاصطناعي عندك (تخطيط + صورة غلاف لكل قالب)، وكل قالب ياخذ نص دقيقة تقريباً. اترك الصفحة مفتوحة لين يخلص. القوالب اللي انولدت قبل ما تنعاد.</p>
       <hr className="border-line" />
       <h3 className="font-bold text-navy-900">احفظ فيديو سويته كقالب</h3>
       <p className="text-[13px] leading-6 text-subtle">سوّ فيديو موشن بالأداة، وخذ رقمه من الرابط (الكلمة بعد <span dir="ltr">job=</span>)، والصقه هنا واختر الستايل فوق.</p>
