@@ -30,3 +30,27 @@ export async function resetBrand() {
   revalidatePath("/app/brand");
   return { ok: !error };
 }
+
+/** «اختيار الهوية»: the chosen concept becomes the brand kit (colours, font, and the drawn logo mark if the customer has no logo). Every tool then uses it. */
+export async function chooseIdentity(conceptId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  const admin = createAdminClient();
+  const { data: kit } = await admin.from("brand_kits").select("identity_options,logo_url").eq("user_id", user.id).maybeSingle();
+  const c = ((kit?.identity_options ?? []) as { id: string; palette: { hex: string }[]; fonts: { head: string }; logo?: { path?: string } }[]).find((x) => x.id === conceptId);
+  if (!c) return { ok: false };
+  let logo_url: string | null = kit?.logo_url ?? null;
+  const mark = c.logo?.path;
+  if (!logo_url && mark && mark.startsWith(`${user.id}/`)) {
+    const dl = await admin.storage.from("results").download(mark);
+    if (dl.data) {
+      const path = `${user.id}/${crypto.randomUUID()}.${mark.split(".").pop() || "png"}`;
+      const up = await admin.storage.from("uploads").upload(path, dl.data, { contentType: dl.data.type || "image/png" });
+      if (!up.error) logo_url = path;
+    }
+  }
+  const { error } = await admin.from("brand_kits").update({ identity: c, colors: c.palette.map((p) => p.hex).slice(0, 5), font: c.fonts.head, logo_url, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+  revalidatePath("/app/brand");
+  return { ok: !error };
+}
