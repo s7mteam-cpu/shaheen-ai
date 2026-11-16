@@ -15,7 +15,7 @@ export function SectionForm({ s, name, defIntro, defSteps, works }: { works: { i
       <input type="hidden" name="cat" value={s.cat} />
       <div className="flex flex-wrap items-center gap-4">
         <b className="text-lg text-navy-900">{name}</b>
-        <label className="flex items-center gap-2 text-sm font-semibold">الترتيب <input name="sort_order" type="number" defaultValue={s.sort_order} className="field w-24 py-1.5" /></label>
+        <label className="flex items-center gap-2 text-sm font-semibold">الترتيب <input name="sort_order" type="number" min={0} defaultValue={s.sort_order || ""} placeholder="تلقائي" className="field w-24 py-1.5" /></label>
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="hidden" defaultChecked={s.hidden} className="h-4 w-4" />إخفاء القسم من الموقع</label>
       </div>
       <label className="flex flex-col gap-1.5"><span className="label">العمل اللي يكون واجهة البطاقة (الغلاف)</span>

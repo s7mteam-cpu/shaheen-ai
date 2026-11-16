@@ -17,7 +17,7 @@ export default async function SectionsAdmin() {
       <div>
         <Link href="/admin/gallery" className="text-sm font-semibold text-navy-700">← رجوع للمعرض</Link>
         <h1 className="mt-2 text-[26px] font-bold text-navy-900">ترتيب الأقسام وشرحها</h1>
-        <p className="mt-1 text-sm leading-7 text-subtle">هذي البطاقات اللي تطلع للزائر بالصفحة الرئيسية تحت «أعمال صُنعت بشاهين». <b>الترتيب</b>: الرقم الأصغر يطلع أول (10، 20، 30…). و<b>الغلاف</b>: العمل اللي يطلع واجهة للبطاقة. وإذا فتح الزائر البطاقة يشوف وصف الأداة وطريقة العمل والمميزات وأعمالها. اللي تتركه فاضي يطلع فيه نص جاهز (تشوفه رمادي). القسم اللي ما فيه أعمال ما يطلع.</p>
+        <p className="mt-1 text-sm leading-7 text-subtle">هذي البطاقات اللي تطلع للزائر بالصفحة الرئيسية تحت «أعمال صُنعت بشاهين». <b>الترتيب</b>: اتركه فاضي (تلقائي) وتطلع البطاقات بنفس ترتيب أعمالك بالصفحة الرئيسية: القسم اللي فيه أول عمل يطلع أول. وإذا حطيت رقم (1، 2، 3…) يتقدم على التلقائي. و<b>الغلاف</b>: العمل اللي يطلع واجهة للبطاقة. وإذا فتح الزائر البطاقة يشوف وصف الأداة وطريقة العمل والمميزات وأعمالها. اللي تتركه فاضي يطلع فيه نص جاهز (تشوفه رمادي). القسم اللي ما فيه أعمال ما يطلع.</p>
       </div>
       {sections.map((s) => (
         <SectionForm key={s.cat} s={s} name={SHOWCASE_CATS.find((c) => c[0] === s.cat)![1]} defIntro={DEFAULT_INTRO[s.cat] ?? ""} defSteps={DEFAULT_STEPS} works={(items ?? []).filter((g) => (g.category ?? "design") === s.cat).map((g) => ({ id: g.id, title: g.title }))} />

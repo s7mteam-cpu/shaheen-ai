@@ -83,7 +83,10 @@ export const getAllWorks = cache(async (): Promise<ShowcaseItem[]> => {
   return (data ?? []).map(toItem).sort((a, b) => key(a) - key(b));
 });
 
-/** The 19 sections in the admin's order (before v88's SQL: the default order), with their texts. */
+/**
+ * The 19 sections in the order the home page shows them. A section with its own number («ترتيب الأقسام وشرحها») uses it;
+ * otherwise it follows its works: the smallest «الترتيب بالصفحة الرئيسية» number among them (so a work numbered 1 brings its card first).
+ */
 export const getSections = cache(async (): Promise<SectionInfo[]> => {
   let rows: Record<string, unknown>[] = [];
   if (dbReady()) {
@@ -91,15 +94,20 @@ export const getSections = cache(async (): Promise<SectionInfo[]> => {
     const { data } = await supabase.from("showcase_sections").select("*");
     rows = (data ?? []) as Record<string, unknown>[];
   }
+  const works = await getAllWorks();
   const lines = (v: unknown) => String(v ?? "").split("\n").map((x) => x.trim()).filter(Boolean);
   return SHOWCASE_CATS.map(([cat], i) => {
     const r = rows.find((x) => x.cat === cat);
     const steps = lines(r?.steps);
+    const own = r ? Number(r.sort_order) || 0 : 0;
+    const keys = works.filter((g) => g.category === cat).map((g) => g.home_order ?? g.sort_order);
+    const firstAt = works.findIndex((g) => g.category === cat); // equal numbers: the one whose work comes first in the list
     return {
-      cat, cover_id: String(r?.cover_id ?? ""), hidden: Boolean(r?.hidden), sort_order: r ? Number(r.sort_order) : (i + 1) * 10,
+      i: firstAt < 0 ? 9999 + i : firstAt, rank: own > 0 ? own : keys.length ? Math.min(...keys) : 9999,
+      cat, cover_id: String(r?.cover_id ?? ""), hidden: Boolean(r?.hidden), sort_order: own,
       intro: String(r?.intro ?? "").trim() || DEFAULT_INTRO[cat] || "", steps: steps.length ? steps : DEFAULT_STEPS, features: lines(r?.features),
     };
-  }).sort((a, b) => a.sort_order - b.sort_order);
+  }).sort((a, b) => a.rank - b.rank || a.i - b.i).map(({ i: _i, rank: _r, ...s }) => { void _i; void _r; return s; });
 });
 
 /** Everything for «معرض شاهين» inside the platform. */
