@@ -59,7 +59,7 @@ export default async function Home() {
               {/* one button: scrolls to «أعمال صُنعت بشاهين» (a card per tool) */}
               <div className="flex flex-col gap-3">
                 <Link href={(gallery.length > 0 || templates.length > 0) ? "#showcase" : signedIn ? "/app/showcase" : "/signup"} className="btn btn-outline w-full justify-center px-6 py-3.5 text-center text-[16px] font-semibold leading-6 lg:w-auto lg:py-4 lg:text-[17px]">{c.gallery.button || T("أعمال صُنعت بشاهين", "Made with Shaheen")} ✨</Link>
-                {templates.length > 0 && <Link href="/showcase/motion#templates" className="btn btn-outline w-full justify-center px-6 py-3.5 text-center text-[16px] font-semibold leading-6 lg:w-auto lg:py-4 lg:text-[17px]">🎬 {c.gallery.templates_button || T("القوالب", "Templates")}</Link>}
+                {templates.length > 0 && <Link href="/templates" className="btn btn-outline w-full justify-center px-6 py-3.5 text-center text-[16px] font-semibold leading-6 lg:w-auto lg:py-4 lg:text-[17px]">🎬 {c.gallery.templates_button || T("مكتبة القوالب", "Template library")}</Link>}
               </div>
             </div>
             <ul className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted md:mt-0 md:justify-start md:pb-0">

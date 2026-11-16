@@ -97,7 +97,7 @@ export const defaultContent: SiteContent = {
     ],
   },
   tools_section: { eyebrow: "أدوات شاهين", title: "كل ما يحتاجه مشروعك في مكان واحد" },
-  gallery: { title: "أعمال صُنعت بشاهين", subtitle: "نماذج حقيقية من المنصة.", button: "أعمال صُنعت بشاهين", templates_button: "القوالب", like_enabled: true },
+  gallery: { title: "أعمال صُنعت بشاهين", subtitle: "نماذج حقيقية من المنصة.", button: "أعمال صُنعت بشاهين", templates_button: "مكتبة القوالب", like_enabled: true },
   pricing: { title: "اختر باقتك الشهرية", subtitle: "كل أداة تعرض تكلفتها بالريشة قبل التنفيذ. ألغِ أو غيّر باقتك في أي وقت." },
   faq: {
     items: [
