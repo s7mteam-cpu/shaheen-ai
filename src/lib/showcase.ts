@@ -25,7 +25,7 @@ export function toItem(r: Record<string, unknown>): ShowcaseItem {
 export const isVideo = (u: string) => /\.(mp4|webm|mov)(\?|$)/i.test(u);
 
 /** Section texts (what the admin can override from «ترتيب الأقسام وشرحها»). */
-export type SectionInfo = { cat: string; hidden: boolean; sort_order: number; intro: string; steps: string[]; features: string[] };
+export type SectionInfo = { cover_id: string; cat: string; hidden: boolean; sort_order: number; intro: string; steps: string[]; features: string[] };
 
 export const DEFAULT_INTRO: Record<string, string> = {
   post: "بوستات جاهزة لحسابك: صورة وكلام وهاشتاقات، بهويتك وألوانك.",

@@ -40,7 +40,7 @@ export type SiteContent = {
   hero: { badge: string; title: string; highlight: string; subtitle: string; cta_primary: string; cta_secondary: string; points: string[]; image: string };
   steps: { title: string; subtitle: string; items: { title: string; body: string }[] };
   tools_section: { eyebrow: string; title: string };
-  gallery: { title: string; subtitle: string };
+  gallery: { title: string; subtitle: string; button: string };
   pricing: { title: string; subtitle: string };
   faq: { items: { q: string; a: string }[] };
   final_cta: { title: string; subtitle: string; cta: string };
@@ -97,7 +97,7 @@ export const defaultContent: SiteContent = {
     ],
   },
   tools_section: { eyebrow: "أدوات شاهين", title: "كل ما يحتاجه مشروعك في مكان واحد" },
-  gallery: { title: "أعمال صُنعت بشاهين", subtitle: "نماذج حقيقية من المنصة." },
+  gallery: { title: "أعمال صُنعت بشاهين", subtitle: "نماذج حقيقية من المنصة.", button: "أعمال صُنعت بشاهين" },
   pricing: { title: "اختر باقتك الشهرية", subtitle: "كل أداة تعرض تكلفتها بالريشة قبل التنفيذ. ألغِ أو غيّر باقتك في أي وقت." },
   faq: {
     items: [

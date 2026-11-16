@@ -58,7 +58,7 @@ export default async function Home() {
               </div>
               {/* one button: scrolls to «أعمال صُنعت بشاهين» (a card per tool) */}
               <div className="flex">
-                <Link href={gallery.length > 0 ? "#showcase" : signedIn ? "/app/showcase" : "/signup"} className="btn btn-outline w-full justify-center px-6 py-3.5 text-center text-[16px] font-semibold leading-6 lg:w-auto lg:py-4 lg:text-[17px]">✨ {T("أعمال صُنعت بشاهين", "Made with Shaheen")}</Link>
+                <Link href={gallery.length > 0 ? "#showcase" : signedIn ? "/app/showcase" : "/signup"} className="btn btn-outline w-full justify-center px-6 py-3.5 text-center text-[16px] font-semibold leading-6 lg:w-auto lg:py-4 lg:text-[17px]">{c.gallery.button || T("أعمال صُنعت بشاهين", "Made with Shaheen")} ✨</Link>
               </div>
             </div>
             <ul className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-muted md:mt-0 md:justify-start md:pb-0">
@@ -135,7 +135,7 @@ export default async function Home() {
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
               {sections.filter((x) => !x.hidden && gallery.some((g) => g.category === x.cat)).map((x) => {
                 const works = gallery.filter((g) => g.category === x.cat);
-                const cover = works[0];
+                const cover = works.find((g) => g.id === x.cover_id) ?? works[0];
                 const name = SHOWCASE_CATS.find((k) => k[0] === x.cat)!;
                 return (
                   <Link key={x.cat} href={`/showcase/${x.cat}`} className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">

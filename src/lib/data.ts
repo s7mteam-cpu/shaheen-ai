@@ -94,7 +94,7 @@ export const getSections = cache(async (): Promise<SectionInfo[]> => {
     const r = rows.find((x) => x.cat === cat);
     const steps = lines(r?.steps);
     return {
-      cat, hidden: Boolean(r?.hidden), sort_order: r ? Number(r.sort_order) : (i + 1) * 10,
+      cat, cover_id: String(r?.cover_id ?? ""), hidden: Boolean(r?.hidden), sort_order: r ? Number(r.sort_order) : (i + 1) * 10,
       intro: String(r?.intro ?? "").trim() || DEFAULT_INTRO[cat] || "", steps: steps.length ? steps : DEFAULT_STEPS, features: lines(r?.features),
     };
   }).sort((a, b) => a.sort_order - b.sort_order);

@@ -61,7 +61,7 @@ export async function saveSection(_p: Res, form: FormData): Promise<Res> {
   if (!CATS.has(cat)) return { error: "قسم غير معروف" };
   const clean = (k: string, max: number) => String(form.get(k) ?? "").split("\n").map((l) => l.trim()).filter(Boolean).join("\n").slice(0, max);
   const { error } = await createAdminClient().from("showcase_sections").upsert({
-    cat, sort_order: Number(form.get("sort_order")) || 0, hidden: form.get("hidden") === "on",
+    cat, cover_id: String(form.get("cover_id") ?? "").match(/^[0-9a-f-]{36}$/i) ? String(form.get("cover_id")) : null, sort_order: Number(form.get("sort_order")) || 0, hidden: form.get("hidden") === "on",
     intro: String(form.get("intro") ?? "").trim().slice(0, 400), steps: clean("steps", 1200), features: clean("features", 1200), updated_at: new Date().toISOString(),
   });
   if (error) return { error: "ما انحفظ. تأكد إنك شغّلت ملف SQL الخاص بالتحديث v88." };
