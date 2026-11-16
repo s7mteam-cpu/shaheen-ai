@@ -14,7 +14,7 @@ const panels = [["light", "خلفية فاتحة"], ["dark", "خلفية داك�
 const boards = [["auto", "تلقائي (مختلف كل مرة)"], ["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"]] as const;
 
 /** Educational animated video: the lesson, who it's for, and how it sounds. */
-export function LessonStart({ idea = "", costPer30, balance, voices }: { idea?: string; costPer30: number; balance: number; voices: { id: string; name: string; note?: string }[] }) {
+export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: { likeId?: string; idea?: string; costPer30: number; balance: number; voices: { id: string; name: string; note?: string }[] }) {
   const router = useRouter();
   const [topic, setTopic] = useState(idea);
   const [notes, setNotes] = useState("");
@@ -44,7 +44,7 @@ export function LessonStart({ idea = "", costPer30, balance, voices }: { idea?: 
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic, notes, seconds, aspect, audience, dialect, panel, board, voice, music: withMusic, drawings, illus: illus === "auto" ? undefined : illus }) });
+      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ likeWork: likeId, topic, notes, seconds, aspect, audience, dialect, panel, board, voice, music: withMusic, drawings, illus: illus === "auto" ? undefined : illus }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);

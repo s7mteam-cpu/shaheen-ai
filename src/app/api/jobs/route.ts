@@ -1,3 +1,4 @@
+import { loadLike, likeText } from "@/lib/server/like";
 import { NextResponse } from "next/server";
 import { guardContent } from "@/lib/server/moderation";
 import { industryById } from "@/design/industries";
@@ -46,6 +47,11 @@ export async function POST(req: Request) {
 
   const invalid = parent ? null : validate(spec, input);
   if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+  // «سوّ مثله»: the chosen work's style notes join the customer's own notes (videos with a notes field)
+  if (!parent && input.likeWork && spec.fields.some((f) => f.name === "notes")) {
+    const like = await loadLike(input.likeWork);
+    if (like) input = { ...input, notes: `${String(input.notes ?? "")}\n${likeText(like)}`.trim() };
+  }
   { const bad = await guardContent(user.id, { input, title: body?.title, instruction: (body as { instruction?: string } | null)?.instruction }, toolId); if (bad) return bad; }
   if (toolId === "voice" && input.clone && !(Array.isArray(input.sample) && input.sample.length)) {
     return NextResponse.json({ error: "ارفع عينة صوتك." }, { status: 400 });

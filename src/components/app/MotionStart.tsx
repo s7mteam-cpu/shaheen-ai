@@ -12,7 +12,7 @@ const aspects = [["9:16", "ريلز / تيك توك 9:16"], ["1:1", "مربع 1:
 const dialects = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const)];
 
 /** Step 1 of the motion studio: the idea. */
-export function MotionStart({ idea: ideaIn = "", costPer15, balance, brand, voices = [], industry: savedIndustry }: { idea?: string; costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string }[]; industry?: string }) {
+export function MotionStart({ likeId, idea: ideaIn = "", costPer15, balance, brand, voices = [], industry: savedIndustry }: { likeId?: string; idea?: string; costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string }[]; industry?: string }) {
   const router = useRouter();
   const [idea, setIdea] = useState(ideaIn);
   const [name, setName] = useState(brand ?? "");
@@ -42,7 +42,7 @@ export function MotionStart({ idea: ideaIn = "", costPer15, balance, brand, voic
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "motion", topic: idea, brand: name, industry, seconds, aspect, dialect, voiceover, voice, drawings, illus: illus === "auto" ? undefined : illus, panel }) });
+      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ likeWork: likeId, mode: "motion", topic: idea, brand: name, industry, seconds, aspect, dialect, voiceover, voice, drawings, illus: illus === "auto" ? undefined : illus, panel }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);

@@ -60,7 +60,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart idea={idea} costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart likeId={likeWork?.id} idea={idea} costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -71,7 +71,7 @@ type ToolRow = Awaited<ReturnType<typeof getTools>>[number];
 type Content = Awaited<ReturnType<typeof getContent>>;
 
 /** Motion graphics: idea form, or the live studio for one of the user's drafts. */
-async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content, idea = "") {
+async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content, idea = "", likeId?: string) {
   const L = await getL();
   const supabase = await createClient();
   if (jobId) {
@@ -93,7 +93,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
     }
   }
   const { data: kit } = await supabase.from("brand_kits").select("business_name").maybeSingle();
-  return <MotionStart idea={idea} costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
+  return <MotionStart likeId={likeId} idea={idea} costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
 }
 
 /** Smart montage: once the worker planned the edit, the customer edits it live here. */
