@@ -5,7 +5,7 @@ import { saveResult } from "@/lib/providers/storage";
 export type PhotoIn = { path: string; bucket?: "uploads" | "results"; label?: string };
 export type PhotoOut = { img: string; label: string };
 
-const SIZE: Record<string, [number, number]> = { "9:16": [1080, 1920], "1:1": [1080, 1080], "16:9": [1920, 1080] };
+const SIZE: Record<string, [number, number]> = { "9:16": [1080, 1920], "1:1": [1080, 1080], "16:9": [1920, 1080], "4:5": [1080, 1350] };
 
 /** Cleans the customer's own photos (product, dish, property…) list from the request: max 6, only their own files. */
 export function cleanPhotos(raw: unknown, userId: string): PhotoIn[] {

@@ -398,8 +398,8 @@ function Panel({ m, w, h, area, opacity = 1, words = true, titles = true, boost 
   let full = false;
   if (g) {
     const f0 = Math.round(g.at * MFPS);
-    inner = <GraphicView key={`${g.kind}${g.at}`} g={g} m={m} f={frame - f0} len={Math.round(g.dur * MFPS)} w={g.kind === "scene" ? w : A.w} h={g.kind === "scene" ? h : A.h} light={light} boost={boost} />;
-    if (g.kind === "scene") full = true;
+    inner = <GraphicView key={`${g.kind}${g.at}`} g={g} m={m} f={frame - f0} len={Math.round(g.dur * MFPS)} w={g.kind === "scene" || g.kind === "clip" ? w : A.w} h={g.kind === "scene" || g.kind === "clip" ? h : A.h} light={light} boost={boost} />;
+    if (g.kind === "scene" || g.kind === "clip") full = true;
   } else if (m.captions.on && words) {
     const line = lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.35);
     if (line) inner = (
@@ -484,7 +484,7 @@ function Board({ m }: { m: MontageSpec }) {
   const lines = React.useMemo(() => captionLines(m), [m]);
   const active = activeGraphic(m, t, true);
   const busy = !!active;
-  const onPic = active?.kind === "scene"; // a drawn scene fills the whole screen; the line sits on top of it
+  const onPic = active?.kind === "scene" || active?.kind === "clip"; // a drawn scene fills the whole screen; the line sits on top of it
   const line = m.captions.on && busy ? lines.find((l) => t >= l[0].s - 0.05 && t <= l[l.length - 1].e + 0.25) : undefined;
   const s = Math.min(W, H) / 1080;
   const capH = H * (H > W ? 0.16 : 0.18);

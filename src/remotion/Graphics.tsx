@@ -1,6 +1,6 @@
 /** Animated explainer scenes (timer, counter, steps, compare…) drawn inside a box: the split panel, or a card over the footage. */
 import React from "react";
-import { Easing, getRemotionEnvironment, Img, interpolate, random, spring } from "remotion";
+import { Easing, getRemotionEnvironment, Img, interpolate, Loop, OffthreadVideo, random, spring } from "remotion";
 import { MIcon } from "./icons";
 import type { IconName } from "./spec";
 
@@ -639,6 +639,27 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
         </div>
       );
       break;
+    }
+    case "clip": {
+      // real stock footage under the voice: slow push-in, our Arabic text on top, a tiny credit for whoever filmed it
+      const zoom = interpolate(f, [0, len], [1.0, 1.08]);
+      const sty = g.ty ?? m.titleY ?? null;
+      const q = Math.min(1, pop(f, 4, 14));
+      const cf = Math.max(1, Math.round((g.cdur ?? 0) * MFPS));
+      const vid = g.url ? <OffthreadVideo src={g.url} muted style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom})` }} /> : null;
+      return (
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: out, background: m.colors.bg }}>
+          {vid ? (g.cdur ? <Loop durationInFrames={cf}>{vid}</Loop> : vid) : <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${th.accent}55, ${m.colors.bg})` }} />}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,.35), transparent 38%, transparent 70%, rgba(0,0,0,.4))" }} />
+          {(g.text || g.sub) && (
+            <div style={{ position: "absolute", left: 0, right: 0, top: sty == null ? 0 : `${sty * 100}%`, transform: sty == null ? undefined : "translateY(-50%)", padding: `${50 * s}px ${50 * s}px ${sty == null ? 90 * s : 50 * s}px`, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 * s }}>
+              {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.82 * (g.ts ?? 1)} th={{ ...th, text: "#fff" }} fx={g.fx} delay={6} />}
+              {g.sub && <div style={{ padding: `${8 * s}px ${24 * s}px`, borderRadius: 999, background: th.accent, color: "#0E1B2C", fontSize: 36 * s, fontWeight: 800, transform: `scale(${q})` }}>{g.sub}</div>}
+            </div>
+          )}
+          {g.credit && <div dir="ltr" style={{ position: "absolute", left: 26 * s, bottom: 26 * s, fontSize: 20 * s, color: "rgba(255,255,255,.72)", fontWeight: 600 }}>{g.credit}</div>}
+        </div>
+      );
     }
     case "scene": {
       // AI-drawn picture: slow push-in, a light sweep, our Arabic text on top

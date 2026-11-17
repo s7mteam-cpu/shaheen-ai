@@ -11,7 +11,7 @@ export type Scene =
   | { type: "cta"; title: string; subtitle?: string; button?: string };
 
 export type Colors = { bg: string; bg2: string; text: string; accent: string; accent2: string };
-export type Aspect = "9:16" | "1:1" | "16:9";
+export type Aspect = "9:16" | "1:1" | "16:9" | "4:5";
 
 export type MotionSpec = {
   aspect: Aspect;
@@ -38,7 +38,7 @@ export const COLOR_LABELS: Record<keyof Colors, string> = {
 };
 
 export function dimensions(a: Aspect) {
-  return a === "16:9" ? { width: 1920, height: 1080 } : a === "1:1" ? { width: 1080, height: 1080 } : { width: 1080, height: 1920 };
+  return a === "16:9" ? { width: 1920, height: 1080 } : a === "1:1" ? { width: 1080, height: 1080 } : a === "4:5" ? { width: 1080, height: 1350 } : { width: 1080, height: 1920 };
 }
 
 const weight: Record<Scene["type"], number> = { intro: 1, statement: 1, myth: 1.5, points: 1.4, stat: 1, cta: 1 };

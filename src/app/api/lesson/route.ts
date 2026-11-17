@@ -11,6 +11,7 @@ import { aiJson } from "@/lib/providers/text";
 import { music, speakable, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveResult } from "@/lib/providers/storage";
 import { cleanPhotos, importPhotos } from "@/lib/server/photos";
+import { fillClips, footageReady } from "@/lib/server/footage";
 import { brandHint } from "@/lib/tools/run";
 import { illustrateScenes } from "@/lib/server/illustrate";
 import { ILLUS_STYLES } from "@/remotion/styles";
@@ -28,7 +29,7 @@ import type { Aspect } from "@/remotion/spec";
 export const maxDuration = 300;
 
 const LENGTHS = [30, 60, 90, 120];
-const ASPECTS: Aspect[] = ["9:16", "1:1", "16:9"];
+const ASPECTS: Aspect[] = ["9:16", "1:1", "16:9", "4:5"];
 const AUDIENCE: Record<string, string> = { kids: "أطفال (٥-١٠ سنوات): كلمات بسيطة جداً وجمل قصيرة ومرحة", students: "طلاب مدارس: واضح ومرتّب مع أمثلة", adults: "كبار وعامة الناس: عملي ومباشر", pros: "متخصصين: دقيق ومركّز" };
 const DIALECT: Record<string, string> = { kuwaiti: "لهجة كويتية بيضاء واضحة", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة",  gulf: "لهجة خليجية بيضاء", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة قريبة من الفصحى)", msa: "عربية فصحى مبسطة", en: "English (simple, clear)" };
 const hex = (v: unknown, d: string) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
@@ -47,12 +48,14 @@ export async function POST(req: Request) {
     if (a.tone) b.tone = a.tone;
     if (a.goal === "edu" && !b.look) b.look = "doodle";
   }
+  const real = b.tool === "real-scenes"; // «مشاهد واقعية»: real stock footage under the voice, its own tool
+  if (real) { b.mode = "motion"; b.look = "footage"; b.voiceover = b.voiceover !== false; }
   const motion = b.mode === "motion";
   const brand = String(b.brand ?? "").slice(0, 60);
-  const toolId = "motion-video"; // one tool for ads and educational videos (b.mode: "motion" = ad, otherwise educational)
+  const toolId = real ? "real-scenes" : "motion-video"; // one tool for ads and educational videos (b.mode: "motion" = ad, otherwise educational)
   const topic = String(b.topic ?? "").trim().slice(0, 8000);
   if (topic.length < 5) return NextResponse.json({ error: motion ? "اكتب فكرة الفيديو." : "اكتب الدرس أو الفكرة." }, { status: 400 });
-  { const bad = await guardContent(user.id, b, "motion-video"); if (bad) return bad; }
+  { const bad = await guardContent(user.id, b, toolId); if (bad) return bad; }
   const seconds = motion ? ([15, 30, 60].includes(Number(b.seconds)) ? Number(b.seconds) : 30) : LENGTHS.includes(Number(b.seconds)) ? Number(b.seconds) : 60;
   // the field is optional: if the customer didn't pick one, read it from their text
   const ind = industryById(String(b.industry ?? "")) ?? industryById(await guessIndustry(`${brand ? `${String(b.brand)}: ` : ""}${topic}`));
@@ -61,13 +64,13 @@ export async function POST(req: Request) {
   const voiceOn = motion ? b.voiceover === true : true;
   const tone = toneFor(typeof b.tone === "string" ? b.tone : undefined, motion ? "ad" : "edu", ind?.group); // narration tone: chosen, or read from the kind of video
 
-  const aspect = ASPECTS.includes(b.aspect as Aspect) ? (b.aspect as Aspect) : "9:16";
+  const aspect = ASPECTS.includes(b.aspect as Aspect) && (real || b.aspect !== "4:5") ? (b.aspect as Aspect) : "9:16";
   const audience = AUDIENCE[String(b.audience)] ? String(b.audience) : "students";
   const dialect = DIALECT[String(b.dialect)] ? String(b.dialect) : "kuwaiti";
   const panel = b.panel === "dark" ? "dark" : "light";
   const withMusic = b.music !== false;
   const full = b.cartoonMix === "full"; // cartoon in every scene, writing on top
-  const look = b.look === "doodle" ? "doodle" : b.look === "cartoon" ? "cartoon" : "images"; // images = montage with AI pictures · doodle = real hand-drawn animation
+  const look = b.look === "doodle" ? "doodle" : b.look === "cartoon" ? "cartoon" : b.look === "footage" ? "footage" : "images"; // images = montage with AI pictures · doodle = real hand-drawn animation
   const drawings = look === "images" ? b.drawings !== false : false;
   const tpl = motion ? await loadTemplate(b.templateId) : null; // a library template: its style, structure and look
   const illus = tpl ? tpl.style : ILLUS_STYLES.some((x) => x[0] === b.illus) ? String(b.illus) : undefined;
@@ -78,11 +81,14 @@ export async function POST(req: Request) {
     : "استخدم مشهد scene (رسمة بالذكاء الاصطناعي) من 2 إلى 5 مرات بالفيديو للقصص والأمثلة والأماكن والشخصيات";
   const drawHint = look === "cartoon"
     ? "الفيديو بأسلوب كرتون خليجي: شخصية كرتون تتكلم وتتحرك بكل مشهد تقريباً. اختر شخصية رئيسية وحدة (char) تتكرر بأغلب المشاهد بحسب موضوع الفيديو وجنس الصوت (رجّال man أو جدّ elder أو حرمة woman أو ولد boy أو بنت girl)، ويمكن شخصية ثانية لبعض المشاهد للتنويع. غيّر mood وpose حسب الجملة (point لما تشرح شي بجانبها، wave للترحيب والختام). وكثير من المشاهد ضيف doodle رسمة تنرسم بجانب الشخصية لتوضّح الفكرة وبدّل side بين l وr. "+(full ? "كل المشاهد بدون استثناء من نوع character، والنص (text وhl وsub) يكتب فوق الشخصية، وكل مشهد معه doodle يوضّح الفكرة. لا تستخدم أي نوع مشهد غير character." : "وبين الحين والثاني مشهد شرح عادي (رقم، خطوات، جدول، مقارنة، عنوان) للتنويع بين الكرتون والشرح.")+" لا تستخدم scene أبداً. واختر board من: paper, notebook, soft, pastel."
+    : look === "footage"
+    ? "الفيديو بلقطات واقعية حقيقية بدون ظهور متحدث (صوت تعليق فوق لقطات). أغلب المشاهد (70% أو أكثر) من نوع clip: حقل q كلمات بحث بالإنجليزي من 2 إلى 4 كلمات تصف لقطة واقعية تناسب معنى الجملة بالضبط (مثلاً modern apartment interior، family eating dinner، hands typing laptop)، بدون ذكر أسماء أماكن محلية، وفضّل لقطات بدون وجوه واضحة (مباني، أكل، أيدي، طبيعة، شوارع، منتجات)، وبدون كتابة أو شعارات داخل اللقطة. والنص القصير text وhl وsub يطلع فوق اللقطة. والباقي مشاهد عادية للعروض والأسعار والتواصل والختام (headline، offer، price، contact…). لا تستخدم scene ولا doodle ولا character. واختر board من: night, soft."
     : look === "doodle"
     ? "الفيديو بأسلوب رسوم متحركة حقيقية: استخدم مشهد doodle في أغلب المشاهد (60% أو أكثر) لأن الرسمة تنرسم باليد وتتحرك. اختر اسم الرسمة doodle من القائمة بما يناسب معنى الجملة، ولما تكون الجملة فيها عدة أفكار (2-4) استخدم doodle بصف items [{doodle,label}]. والمشاهد الباقية تكون عنوان أو خطوات أو رقم. لا تستخدم مشهد scene أبداً. واختر board من: paper, notebook, soft, dots."
     : drawings
     ? `${howMany}، و prompt يكون وصف إنجليزي واضح للرسمة بدون أي كتابة داخلها.${illus ? "" : " واختر \"illus\" ستايل الرسومات المناسب من: " + ILLUS_STYLES.map((x) => x[0]).join(", ") + "."}`
     : "لا تستخدم مشهد scene.";
+  if (look === "footage" && !footageReady()) return NextResponse.json({ error: "اللقطات الواقعية مو مفعّلة بعد (تحتاج مفتاح Pixabay أو Pexels من الإدارة)." }, { status: 503 });
   const admin = createAdminClient();
 
   const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", toolId).single();
@@ -170,7 +176,8 @@ export async function POST(req: Request) {
     // scenes made from the customer's own photos are kept apart: the pack rules and the cartoon switch must not remove them
     const photoScenes = cleaned.filter((g) => g.kind === "scene" && g.photo && photoOut.some((p) => p.n === g.photo))
       .map((g) => { const p = photoOut.find((x) => x.n === g.photo)!; const { photo: _p, prompt: _q, ...rest } = g; void _p; void _q; return { ...rest, img: p.img }; });
-    const kept = enforcePack(cleaned.filter((g) => !(g.kind === "scene" && g.photo)), pack);
+    const clipScenes = cleaned.filter((g) => g.kind === "clip");
+    const kept = enforcePack(cleaned.filter((g) => !(g.kind === "scene" && g.photo) && g.kind !== "clip"), pack);
     let graphics = kept.graphics;
     if (look === "cartoon" && full) { // cartoon in every scene: turn any other scene into the main character with its text on top
       const count: Record<string, number> = {};
@@ -182,6 +189,7 @@ export async function POST(req: Request) {
     // 3b) AI-drawn scenes, all at once
     if (drawings) graphics = await illustrateScenes(user.id, job.id, graphics, style, aspect, level === "all" ? 10 : level === "half" ? 8 : 6);
     else graphics = graphics.filter((g) => g.kind !== "scene");
+    if (look === "footage" && clipScenes.length) graphics = [...graphics, ...(await fillClips(clipScenes, aspect, user.id, job.id))].sort((a, b) => a.at - b.at);
     if (photoScenes.length) graphics = [...graphics, ...photoScenes].sort((a, b) => a.at - b.at);
     await admin.from("jobs").update({ progress: 80 }).eq("id", job.id);
 

@@ -85,7 +85,7 @@ export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare"
   | "scene" | "cube" | "globe" | "text3d" | "plot" | "geometry" | "burst" | "confetti" | "dotgrid" | "sketchbars"
   | "price" | "offer" | "menu" | "rating" | "testimonial" | "contact" | "specs" | "appointment" | "beforeafter" | "countdown" | "delivery" | "hours"
   | "doodle" | "character"
-  | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring" | "map" | "route" | "terrain";
+  | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring" | "map" | "route" | "terrain" | "clip";
 export type Graphic = {
   kind: GraphicKind;
   at: number; dur: number;                 // output seconds (video part)
@@ -109,6 +109,9 @@ export type Graphic = {
   shade?: boolean;                         // scene text: dark shade behind it (default on)
   ts?: number;                             // scene text: size multiplier
   prompt?: string;                         // scene: what to draw (English)
+  q?: string;                              // clip: what to search for in the stock footage library (English keywords)
+  credit?: string;                         // clip: who filmed it (shown small on the clip)
+  cdur?: number;                           // clip: length of the stock clip in seconds (it loops if the scene is longer)
   photo?: number;                          // scene made from the customer's own photo: its number (1-6), swapped for `img` on the server
   img?: string;                            // scene: storage path in "results"
   url?: string;                            // scene: signed URL (filled on load / render)
@@ -139,7 +142,7 @@ export { ICONS };
 
 /** Clean up graphics coming from the AI or the editor. */
 export function cleanGraphics(arr: unknown, len: number): Graphic[] {
-  const kinds = GRAPHIC_KINDS.map((k) => k[0]);
+  const kinds: string[] = [...GRAPHIC_KINDS.map((k) => k[0]), "clip"];
   const icon = (v: unknown) => (ICONS as readonly string[]).includes(String(v)) ? (v as IconName) : undefined;
   const str = (v: unknown, n: number) => (v === undefined || v === null || v === "" ? undefined : String(v).slice(0, n));
   const c = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -156,6 +159,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       bad: str(x?.bad, 50), good: str(x?.good, 50),
       values: Array.isArray(x?.values) ? (x.values as unknown[]).slice(0, 12).map(Number).filter(Number.isFinite) : undefined,
       fx: (["marker", "circle", "underline", "typewriter"] as const).find((f) => f === x?.fx),
+      q: str(x?.q, 80), credit: str(x?.credit, 80), cdur: Number.isFinite(Number(x?.cdur)) && x?.cdur !== undefined && x?.cdur !== null && x?.cdur !== "" ? c(Number(x.cdur), 0.5, 600) : undefined,
       photo: Number.isFinite(Number(x?.photo)) && x?.photo !== undefined && x?.photo !== null && x?.photo !== "" ? c(Math.round(Number(x.photo)), 1, 6) : undefined,
       prompt: str(x?.prompt, 400), img: typeof x?.img === "string" && /^[\w-]+\/[\w./-]+$/.test(x.img as string) ? (x.img as string) : undefined,
       url: typeof x?.url === "string" ? (x.url as string) : undefined, style: str(x?.style, 20),
@@ -166,7 +170,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt || g.photo) : ["doodle", "character", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || (g.kind === "terrain" && !!(g.place || g.lat !== undefined)) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.kind === "clip" ? !!(g.img || g.q) : g.kind === "scene" ? !!(g.img || g.prompt || g.photo) : ["doodle", "character", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || (g.kind === "terrain" && !!(g.place || g.lat !== undefined)) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];

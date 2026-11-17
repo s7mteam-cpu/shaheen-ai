@@ -116,6 +116,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
     ],
     units: () => 1,
   },
+  "real-scenes": { fields: [], units: () => 1 }, // runs in its own studio (/api/lesson), like motion-video
   "product-video": {
     fields: [
       { type: "files", name: "images", label: "صورة المنتج", accept: "image", min: 1, max: 1, hint: "صورة واضحة للمنتج (عطر، كاسة، عباية، علبة…). كل ما كانت الصورة أوضح، طلع الفيديو أحلى." },

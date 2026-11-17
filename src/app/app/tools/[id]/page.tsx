@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ToolRunner } from "@/components/app/ToolRunner";
 import { MotionStart } from "@/components/app/MotionStart";
+import { RealScenesStart } from "@/components/app/RealScenesStart";
 import { QuranStudio } from "@/components/app/QuranStudio";
 import { MotionStudio } from "@/components/app/MotionStudio";
 import { MontageStudio } from "@/components/app/MontageStudio";
@@ -63,7 +64,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -74,14 +75,14 @@ type ToolRow = Awaited<ReturnType<typeof getTools>>[number];
 type Content = Awaited<ReturnType<typeof getContent>>;
 
 /** Motion graphics: idea form, or the live studio for one of the user's drafts. */
-async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content, idea = "", likeId?: string, template?: { id: string; title: string; thumb: string | null; style: string; seconds: number }) {
+async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content, idea = "", likeId?: string, template?: { id: string; title: string; thumb: string | null; style: string; seconds: number }, toolId = "motion-video") {
   const L = await getL();
   const supabase = await createClient();
   if (jobId) {
     const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
     const spec = (data?.input as { spec?: MotionSpec } | null)?.spec;
     // new motion videos are built on the montage engine (industry packs, 48 scene kinds)
-    if (spec && "segments" in (spec as object)) return (await montage(jobId, tool, content, "motion-video")) ?? <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
+    if (spec && "segments" in (spec as object)) return (await montage(jobId, tool, content, toolId)) ?? <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
     if (data && data.status === "draft" && spec) {
       const tracks = content.motion_music?.items ?? [];
       const admin = createAdminClient();
@@ -90,12 +91,13 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
       const logo = spec.logo?.path ? { ...spec.logo, url: (await admin.storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" } : spec.logo ?? null;
       return <MotionStudio jobId={data.id} initial={{ ...spec, logo }} editCost={tool.edit_cost ?? 3} tracks={tracks} voices={content.voices.items} kitLogo={kitLogo} />;
     }
-    if (data && data.status === "done" && spec) return await reopen(data.id, "motion-video", tool);
+    if (data && data.status === "done" && spec) return await reopen(data.id, toolId, tool);
     if (data && data.status !== "draft") {
       return <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
     }
   }
   const { data: kit } = await supabase.from("brand_kits").select("business_name").maybeSingle();
+  if (toolId === "real-scenes") return <RealScenesStart costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
   return <MotionStart template={template} likeId={likeId} idea={idea} costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
 }
 
@@ -106,7 +108,7 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
   const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
   const spec = (data?.input as { spec?: MontageSpec } | null)?.spec;
   if (data?.status === "done" && spec?.segments) return await reopen(data.id, toolId, tool);
-  if (data && data.status !== "draft" && toolId === "motion-video") return <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
+  if (data && data.status !== "draft" && toolId !== "video-editing") return <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
   if (!data || data.status !== "draft" || !spec) return null;
   // animated lessons have no source footage
   const { data: signed } = spec.srcPath ? await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6) : { data: { signedUrl: "" } };
