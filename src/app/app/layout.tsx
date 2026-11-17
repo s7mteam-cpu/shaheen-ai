@@ -35,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   after(() => sheetsTick().catch(() => null)); // Google Sheets: catch up in the background, the visitor never waits
   const [profile, lang, chosen, { cur }] = await Promise.all([getSessionProfile(), getLang(), getChosenLang(), getMoney()]);
   const T = (ar: string, en: string) => tr(lang, ar, en);
+  const autoWeekly = profile ? !!(await createAdminClient().from("brand_kits").select("auto_weekly").eq("user_id", profile.id).maybeSingle()).data?.auto_weekly : false;
   const impRaw = (await cookies()).get("shaheen_imp")?.value;
   const imp = impRaw ? decodeURIComponent(impRaw) : null;
   if (!profile) redirect("/login");
@@ -108,7 +109,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <HomeGreeting name={profile.full_name?.split(" ")[0]} />
       {trial.state !== "none" && <div className="mx-auto max-w-[1400px] px-4 pt-4 sm:px-6"><TrialBanner state={trial.state} credits={trial.credits ?? 0} hours={trial.hours} expiresAt={trial.expiresAt} /></div>}
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6 lg:flex-row">
-        <div className="lg:w-[250px] lg:shrink-0"><Suspense><SideNav isAdmin={profile.role === "admin" || profile.role === "staff"} support={wa} tools={tools.map((t) => ({ id: t.id, name: t.name, icon: t.icon, category: t.category }))} /></Suspense></div>
+        <div className="lg:w-[250px] lg:shrink-0"><Suspense><SideNav ready={autoWeekly} isAdmin={profile.role === "admin" || profile.role === "staff"} support={wa} tools={tools.map((t) => ({ id: t.id, name: t.name, icon: t.icon, category: t.category }))} /></Suspense></div>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       {needContact ? <CompleteProfile name={profile.full_name ?? ""} /> : gate && ts && <WelcomeGate offer={trial.state === "offer"} credits={ts.credits} hours={ts.hours} name={profile.full_name?.split(" ")[0]} />}

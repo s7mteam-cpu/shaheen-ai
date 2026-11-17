@@ -11,7 +11,7 @@ export default async function PlanPage() {
   const L = await getL();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const { data: kit } = await supabase.from("brand_kits").select("identity,content_plan,analysis").eq("user_id", user!.id).maybeSingle();
+  const { data: kit } = await supabase.from("brand_kits").select("identity,content_plan,analysis,auto_weekly").eq("user_id", user!.id).maybeSingle();
   const adm = createAdminClient();
   const { data: tool } = await adm.from("tools").select("credit_cost").eq("id", "brand-plan").maybeSingle();
   const { data: tl } = await adm.from("tools").select("id,credit_cost").in("id", ["post", "carousel", "motion-video"]);
@@ -24,7 +24,7 @@ export default async function PlanPage() {
         <h1 className="mt-2 text-[28px] font-bold text-navy-900">{L("خطة المحتوى الشهرية")}</h1>
         <p className="mt-1 max-w-2xl text-muted">{L("تحليل لنشاطك وخطة نشر لشهر: سبت واثنين وأربعاء كل أسبوع، بوست وريلز وكاروسيل. لكل منشور برومبت احترافي جاهز تعدّله وتشغّله بأداة شاهين.")}</p>
       </div>
-      <PlanBoard identityName={idName} plan={(kit?.content_plan ?? null) as Plan | null} analysis={(kit?.analysis ?? null) as Analysis | null} cost={tool?.credit_cost ?? 4} unit={{ post: price("post"), carousel: price("carousel"), reel: price("motion-video") }} />
+      <PlanBoard identityName={idName} plan={(kit?.content_plan ?? null) as Plan | null} analysis={(kit?.analysis ?? null) as Analysis | null} cost={tool?.credit_cost ?? 4} auto={!!kit?.auto_weekly} unit={{ post: price("post"), carousel: price("carousel"), reel: price("motion-video") }} />
     </div>
   );
 }

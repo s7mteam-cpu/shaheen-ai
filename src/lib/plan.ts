@@ -1,6 +1,6 @@
 export type PlanItem = { week: number; day: "السبت" | "الاثنين" | "الأربعاء"; date: string; format: "post" | "reel" | "carousel"; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string };
 export type Analysis = { positioning: string; audience: string; voice: string; strengths: string[]; gaps: string[]; opportunities: string[]; differentiators: string[]; competitors: string };
-export type Plan = { month: string; items: PlanItem[] };
+export type Plan = { month: string; start?: string; items: PlanItem[] };
 
 export const FORMAT_LABEL: Record<string, string> = { post: "بوست", reel: "ريلز", carousel: "كاروسيل" };
 export const FORMAT_TOOL: Record<string, string> = { post: "post", carousel: "carousel", reel: "motion-video" };
@@ -23,6 +23,10 @@ export function normaliseWeek(raw: unknown, week: number, dates: string[]): Plan
     return { week, day, date: dates[i], format: ROTATION[week - 1][i], pillar: str(o.pillar, 40), job: undefined, topic: str(o.topic, 160), hook: str(o.hook, 200), goal: str(o.goal, 120), prompt: str(o.prompt, 1100), caption: str(o.caption, 900) };
   }).filter((x) => x.topic && x.prompt);
 }
+/** ISO date (yyyy-mm-dd) of the first Saturday of the plan. */
+export const planStartISO = (from = new Date()) => { const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate())); d.setUTCDate(d.getUTCDate() + ((6 - d.getUTCDay() + 7) % 7)); return d.toISOString().slice(0, 10); };
+/** Which plan week (0-3) a given day falls in; <0 not started yet, >3 finished. */
+export const planWeekOf = (start: string, now = new Date()) => Math.floor((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - Date.parse(start)) / (7 * 864e5));
 /** Saturdays, Mondays and Wednesdays of 4 weeks, starting from the first Saturday on or after `from`. */
 export function planDates(from = new Date()) {
   const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));

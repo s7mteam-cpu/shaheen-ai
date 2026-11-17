@@ -7,7 +7,7 @@ import { useT } from "@/components/LangProvider";
 
 
 /** Simple, fixed menu so customers never feel lost. Tool names/order come from /admin. */
-export function SideNav({ isAdmin, support }: { isAdmin: boolean; support?: string; tools: NavTool[] }) {
+export function SideNav({ isAdmin, support, ready }: { isAdmin: boolean; ready?: boolean; support?: string; tools: NavTool[] }) {
   const path = usePathname();
   const T = useT();
   const tab = useSearchParams().get("tab");
@@ -21,6 +21,7 @@ export function SideNav({ isAdmin, support }: { isAdmin: boolean; support?: stri
   const works = path.startsWith("/app/works");
   const show = path.startsWith("/app/showcase");
   const tpl = path.startsWith("/app/templates");
+  const rdy = path.startsWith("/app/ready");
   const brand = path.startsWith("/app/brand");
   const account = path.startsWith("/app/account") && tab !== "me" && tab !== "spend";
   const spend = path.startsWith("/app/account") && tab === "spend";
@@ -33,6 +34,7 @@ export function SideNav({ isAdmin, support }: { isAdmin: boolean; support?: stri
       <Link href="/app/tools#tools-top" aria-current={onTools ? "page" : undefined} className={item(onTools)}><Icon name="grid" size={18} className={ic(onTools)} />{T("الأدوات", "Tools")}</Link>
 
       <Link href="/app/works" aria-current={works ? "page" : undefined} className={item(works)}><Icon name="folder" size={18} className={ic(works)} />{T("أعمالي", "My works")}</Link>
+      {ready && <Link href="/app/ready" aria-current={rdy ? "page" : undefined} className={`${item(rdy)} ms-4 py-2.5 text-[14px]`}><Icon name="check" size={16} className={ic(rdy)} />{T("منشوراتك جاهزة للنشر", "Ready to post")}</Link>}
       <Link href="/app/brand" aria-current={brand ? "page" : undefined} className={item(brand)}><Icon name="palette" size={18} className={ic(brand)} />{T("هويتي التجارية", "Brand kit")}</Link>
       <Link href="/app/showcase" aria-current={show ? "page" : undefined} className={item(show)}><Icon name="sparkles" size={18} className={ic(show)} />{T("أعمال صُنعت بشاهين", "Made with Shaheen")}</Link>
       <Link href="/app/templates" aria-current={tpl ? "page" : undefined} className={item(tpl)}><Icon name="film" size={18} className={ic(tpl)} />{T("مكتبة القوالب", "Template library")}</Link>

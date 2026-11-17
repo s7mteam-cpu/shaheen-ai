@@ -1,10 +1,17 @@
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sectionOf, type SectionKey } from "@/lib/admin/sections";
 
+/** Server-only: the weekly scheduler runs the normal design/video routes "as" a customer (who switched the schedule on). Never set from a request. */
+const acting = new AsyncLocalStorage<{ id: string }>();
+export const runAsUser = <T,>(id: string, fn: () => Promise<T>) => acting.run({ id }, fn);
+
 export async function requireUser() {
+  const a = acting.getStore();
+  if (a) return { id: a.id } as unknown as import("@supabase/supabase-js").User;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;

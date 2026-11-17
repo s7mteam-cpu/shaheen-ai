@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { claudeVisionJson } from "@/lib/providers/text";
-import { FORMAT_LABEL, ROTATION, normaliseAnalysis, normaliseWeek, planDates, type Analysis, type PlanItem } from "@/lib/plan";
+import { FORMAT_LABEL, ROTATION, normaliseAnalysis, normaliseWeek, planDates, planStartISO, type Analysis, type PlanItem } from "@/lib/plan";
 import type { Concept } from "@/lib/identity";
 
 export const maxDuration = 300;
@@ -47,7 +47,7 @@ export async function POST() {
     const items: PlanItem[] = [];
     wk.forEach((r, w) => { if (r.status === "fulfilled") items.push(...normaliseWeek(r.value, w + 1, dates[w])); else console.error("plan week", w, r.reason); });
     if (items.length < 6) throw new Error(`plan ${items.length}/12`);
-    const plan = { month: `${dates[0][0]} → ${dates[3][2]}`, items };
+    const plan = { month: `${dates[0][0]} → ${dates[3][2]}`, start: planStartISO(), items };
     await admin.from("brand_kits").update({ content_plan: plan, analysis: an as Analysis | null }).eq("user_id", user.id);
     return NextResponse.json({ plan, analysis: an, cost });
   } catch (e) {

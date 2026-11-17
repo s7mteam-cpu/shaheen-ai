@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { L, LT } from "@/lib/i18n/ui";
-import { savePlan, tagPlanJob } from "@/app/app/brand/actions";
+import { savePlan, setAutoWeekly, tagPlanJob } from "@/app/app/brand/actions";
 import { FORMAT_LABEL, FORMAT_TOOL, type Analysis, type Plan, type PlanItem } from "@/lib/plan";
 
 const FORMAT_ICON: Record<string, string> = { post: "🖼️", reel: "🎬", carousel: "🗂️" };
 
-export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit }: { identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; unit: { post: number; carousel: number; reel: number } }) {
+export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit, auto: auto0 }: { identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number } }) {
   const [plan, setPlan] = useState<Plan | null>(p0);
   const [analysis, setAnalysis] = useState<Analysis | null>(a0);
   const [busy, setBusy] = useState(false);
@@ -15,6 +15,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit }: 
   const [week, setWeek] = useState(1);
   const [dirty, setDirty] = useState(false);
   const [state, setState] = useState<Record<number, string>>({});
+  const [auto, setAuto] = useState(auto0);
   const CAROUSEL_SLIDES = 6;
   const itemCost = (x: PlanItem) => (x.format === "post" ? unit.post : x.format === "carousel" ? unit.carousel * CAROUSEL_SLIDES : unit.reel * 2);
   const weekTodo = plan ? plan.items.map((x, i) => [x, i] as const).filter(([x]) => x.week === week && !x.job) : [];
@@ -36,6 +37,11 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit }: 
       setState((m) => ({ ...m, [i]: "" }));
       return next;
     } catch { setState((m) => ({ ...m, [i]: "تعذّر الاتصال." })); return base; }
+  }
+  async function toggleAuto(on: boolean) {
+    setAuto(on);
+    const r = await setAutoWeekly(on);
+    if (!r.ok) { setAuto(!on); setMsg("تعذّر حفظ الخيار."); } else setMsg(on ? "تم التفعيل. كل سبت الساعة 9 الصبح بتوقيت الكويت تلقى منشورات الأسبوع جاهزة، ويوصلك إشعار." : "تم إيقاف التجهيز التلقائي.");
   }
   async function prepareWeek() {
     if (!plan) return;
@@ -98,6 +104,11 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit }: 
             <span className="ms-auto text-[13px] text-subtle">{plan.month}</span>
             <button type="button" onClick={generate} disabled={busy} className="text-sm font-semibold text-navy-700 underline">{busy ? L("جاري الكتابة...") : `↻ ${L("خطة جديدة")} (${LT(`${cost} ريشة`, `${cost} feathers`)})`}</button>
           </div>
+          <label className="card flex cursor-pointer items-start gap-3 p-4">
+            <input type="checkbox" checked={auto} onChange={(e) => toggleAuto(e.target.checked)} className="mt-1.5 h-5 w-5" />
+            <span className="flex flex-col gap-1"><b className="text-navy-900">{L("جهّز منشوراتي تلقائياً كل أسبوع")}</b>
+              <span className="text-[13.5px] leading-6 text-muted">{L("كل سبت الساعة 9 الصبح (بتوقيت الكويت) نجهّز لك منشورات الأسبوع الثلاثة ويوصلك إشعار، وتلقاها بقسم «منشوراتك جاهزة للنشر». ننسحب الريش وقت التجهيز بس، وإذا رصيدك ما يكفي نوقف ونرسل لك إشعار.")} {LT(`التكلفة التقريبية للأسبوع: ${plan.items.filter((x) => x.week === 1).reduce((n, x) => n + itemCost(x), 0)} ريشة`, `About ${plan.items.filter((x) => x.week === 1).reduce((n, x) => n + itemCost(x), 0)} feathers per week`)}</span></span>
+          </label>
           <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 p-4 text-white">
             <div className="flex-1 text-[14px] leading-7">{weekTodo.length > 0 ? L("جهّز منشورات هذا الأسبوع كلها دفعة وحدة. تلقاها بأعمالي ← «جاهز للنشر» وتراجعها قبل النشر.") : L("منشورات هذا الأسبوع كلها جاهزة ✓")}</div>
             {weekTodo.length > 0 && <button type="button" onClick={prepareWeek} disabled={Object.values(state).includes("جاري التجهيز...")} className="btn btn-gold px-6 py-3 font-bold disabled:opacity-50">⚡ {L("جهّز أسبوع")} {week} ({LT(`${weekCost} ريشة`, `${weekCost} feathers`)})</button>}

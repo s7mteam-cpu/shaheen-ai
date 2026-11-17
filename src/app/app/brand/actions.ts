@@ -61,7 +61,9 @@ export async function savePlan(items: { week: number; day: string; date: string;
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false };
   const clean = items.slice(0, 12).map((x) => ({ week: Number(x.week) || 1, day: String(x.day).slice(0, 12), date: String(x.date).slice(0, 8), format: ["post", "reel", "carousel"].includes(x.format) ? x.format : "post", job: x.job && /^[0-9a-f-]{36}$/.test(x.job) ? x.job : undefined, pillar: String(x.pillar).slice(0, 40), topic: String(x.topic).slice(0, 160), hook: String(x.hook).slice(0, 200), goal: String(x.goal).slice(0, 120), prompt: String(x.prompt).slice(0, 1100), caption: String(x.caption).slice(0, 900) }));
-  const { error } = await supabase.from("brand_kits").update({ content_plan: { month: String(month).slice(0, 30), items: clean } }).eq("user_id", user.id);
+  const { data: old } = await supabase.from("brand_kits").select("content_plan").eq("user_id", user.id).maybeSingle();
+  const start = (old?.content_plan as { start?: string } | null)?.start;
+  const { error } = await supabase.from("brand_kits").update({ content_plan: { month: String(month).slice(0, 30), ...(start ? { start } : {}), items: clean } }).eq("user_id", user.id);
   revalidatePath("/app/brand/plan");
   return { ok: !error };
 }
@@ -77,5 +79,15 @@ export async function tagPlanJob(jobId: string, plan: { week: number; day: strin
   const tag = { week: Number(plan.week) || 1, day: String(plan.day).slice(0, 12), date: String(plan.date).slice(0, 8), format: ["post", "reel", "carousel"].includes(plan.format) ? plan.format : "post" };
   const { error } = await admin.from("jobs").update({ input: { ...((job.input as object) ?? {}), plan: tag } }).eq("id", jobId);
   revalidatePath("/app/works");
+  return { ok: !error };
+}
+
+/** The customer's own switch: «جهّز منشوراتي تلقائياً كل سبت». Turning it on again also lets a finished plan notify once more. */
+export async function setAutoWeekly(on: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  const { error } = await supabase.from("brand_kits").update({ auto_weekly: !!on, auto_state: null }).eq("user_id", user.id);
+  revalidatePath("/app", "layout");
   return { ok: !error };
 }
