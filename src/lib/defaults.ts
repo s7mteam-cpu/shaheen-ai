@@ -21,7 +21,7 @@ export type Tool = {
   id: string;
   name: string;
   description: string;
-  category: "image" | "video" | "audio";
+  category: "image" | "video" | "audio" | "docs";
   icon: string;
   credit_cost: number;
   edit_cost: number;
@@ -62,6 +62,7 @@ export const defaultPlans: Plan[] = [
 ];
 
 export const defaultTools: Tool[] = [
+  { id: "presentations", provider: "claude", name: "عروض PowerPoint", description: "اكتب فكرتك أو موضوعك أو الصق نصاً كاملاً أو ارفع ملفك (Word, PDF…)، وشاهين يكتب لك عرضاً احترافياً كاملاً بملف PowerPoint قابل للتعديل: شرائح مرتبة، ملاحظات للمتحدث، وألوان هويتك.", category: "docs", icon: "layers", credit_cost: 15, edit_cost: 0, cost_unit: "عرض (حتى 10 شرائح)", provider_model: null, is_enabled: true, sort_order: 20 },
   { id: "post", provider: "fal", name: "إنشاء بوست", description: "تصميم بوست احترافي من معلوماتك: نصوص عربية مظبوطة، أيقونات، صورك أو صور بالذكاء الاصطناعي، وتعدّل كل شي مباشرة.", category: "image", icon: "palette", credit_cost: 5, edit_cost: 2, cost_unit: "تصميم", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 1 },
   { id: "image", provider: "fal", name: "إنشاء صورة بالذكاء الاصطناعي", description: "اكتب ما تتخيله، أو ارفع صورتك واطلب التعديل: خلفية جديدة، إزالة عنصر، تحسين جودة.", category: "image", icon: "sparkles", credit_cost: 4, edit_cost: 2, cost_unit: "صورة", provider_model: "fal-ai/nano-banana-2", is_enabled: true, sort_order: 1 },
   { id: "carousel", provider: "fal", name: "كاروسيل إنستغرام", description: "سلسلة شرائح متناسقة بعناوين عربية، تشرح فكرة أو منتج خطوة بخطوة.", category: "image", icon: "layers", credit_cost: 3, edit_cost: 2, cost_unit: "شريحة", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 2 },

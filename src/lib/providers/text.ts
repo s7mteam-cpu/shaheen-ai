@@ -73,8 +73,9 @@ export async function aiJson<T>(system: string, user: string, maxTokens = 1500, 
 }
 
 /** Claude with images (style references, the customer's photos). Images are passed by URL; returns parsed JSON. */
-export async function claudeVisionJson<T>(system: string, text: string, images: { url: string; label: string }[], maxTokens = 8000, model = "claude-sonnet-5-5"): Promise<T> {
+export async function claudeVisionJson<T>(system: string, text: string, images: { url: string; label: string }[], maxTokens = 8000, model = "claude-sonnet-5-5", pdfs: string[] = []): Promise<T> {
   const content: unknown[] = [];
+  for (const data of pdfs) content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data } });
   for (const im of images) { content.push({ type: "text", text: im.label }); const m = /^data:([^;]+);base64,(.+)$/.exec(im.url); content.push({ type: "image", source: m ? { type: "base64", media_type: m[1], data: m[2] } : { type: "url", url: im.url } }); }
   content.push({ type: "text", text });
   const res = await fetch("https://api.anthropic.com/v1/messages", {

@@ -3,7 +3,7 @@ import { getToolsL } from "@/lib/data";
 import { getL } from "@/lib/server/lang";
 
 export async function generateMetadata() { return { title: (await getL())("الأدوات") }; }
-const groups = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"]] as const;
+const groups = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"], ["docs", "مستندات"]] as const;
 
 
 /** «الأدوات»: a grid of cards (2 per row on phones). Each card = picture + name + «ابدأ الإنشاء» / «علّمني الطريقة». */

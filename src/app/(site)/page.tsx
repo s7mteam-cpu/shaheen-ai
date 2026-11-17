@@ -13,7 +13,7 @@ import { tr } from "@/lib/i18n";
 
 export const revalidate = 60;
 
-const catLabel = { ar: { image: "صور", video: "فيديو", audio: "صوت" }, en: { image: "Images", video: "Video", audio: "Audio" } } as const;
+const catLabel = { ar: { image: "صور", video: "فيديو", audio: "صوت", docs: "مستندات" }, en: { image: "Images", video: "Video", audio: "Audio", docs: "Documents" } } as const;
 
 export default async function Home() {
   const lang = await getLang();

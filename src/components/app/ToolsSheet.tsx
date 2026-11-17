@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 
-export type NavTool = { id: string; name: string; icon: string; category: "image" | "video" | "audio" };
-const groups: [NavTool["category"], string][] = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"]];
+export type NavTool = { id: string; name: string; icon: string; category: "image" | "video" | "audio" | "docs" };
+const groups: [NavTool["category"], string][] = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"], ["docs", "مستندات"]];
 
 /** "إنشاء" sheet: bottom sheet on phones, side panel on desktop. */
 export function ToolsSheet({ tools, open, onClose }: { tools: NavTool[]; open: boolean; onClose: () => void }) {

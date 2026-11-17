@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ToolRunner } from "@/components/app/ToolRunner";
 import { MotionStart } from "@/components/app/MotionStart";
+import { PresentationStart } from "@/components/app/PresentationStart";
+import { DocResult } from "@/components/app/DocResult";
 import { RealScenesStart } from "@/components/app/RealScenesStart";
 import { QuranStudio } from "@/components/app/QuranStudio";
 import { MotionStudio } from "@/components/app/MotionStudio";
@@ -64,7 +66,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -73,6 +75,25 @@ export default async function ToolPage({ params, searchParams }: P) {
 
 type ToolRow = Awaited<ReturnType<typeof getTools>>[number];
 type Content = Awaited<ReturnType<typeof getContent>>;
+
+/** «عروض PowerPoint»: the request form, or the finished deck of one job. */
+async function presentations(jobId: string | undefined, tool: ToolRow, balance: number) {
+  const L = await getL();
+  const supabase = await createClient();
+  if (jobId) {
+    const { data } = await supabase.from("jobs").select("status,title,input,output,error").eq("id", jobId).maybeSingle();
+    if (data?.status === "done") {
+      const path = (data.output as { files?: { path: string }[] } | null)?.files?.[0]?.path;
+      const [url] = path ? await signedResultUrls([path]) : [];
+      const outline = ((data.input as { outline?: string[] } | null)?.outline ?? []).filter(Boolean);
+      return <DocResult title={data.title ?? tool.name} url={url} items={outline} again="/app/tools/presentations" />;
+    }
+    if (data?.status === "failed") return <p className="card p-6 text-center">{L("ما اكتمل العرض ورجعنا لك الريش. جرّب مرة ثانية.")}</p>;
+  }
+  const { data: kit } = await supabase.from("brand_kits").select("business_name,colors,logo_url").maybeSingle();
+  const hasKit = !!(kit && ((kit.colors ?? []).filter(Boolean).length || kit.logo_url));
+  return <PresentationStart cost={tool.credit_cost} balance={balance} hasKit={hasKit} />;
+}
 
 /** Motion graphics: idea form, or the live studio for one of the user's drafts. */
 async function motion(jobId: string | undefined, tool: ToolRow, balance: number, content: Content, idea = "", likeId?: string, template?: { id: string; title: string; thumb: string | null; style: string; seconds: number }, toolId = "motion-video") {
