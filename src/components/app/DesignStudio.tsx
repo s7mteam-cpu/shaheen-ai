@@ -20,7 +20,7 @@ import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
 import { designPack } from "@/design/packs";
 import { EL_LABELS } from "@/design/Design";
 import {
-  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum, DSIZE,
+  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum, DSIZE, RICH_RE, NOTE_ATS, NOTE_LOOKS, NOTE_AT_LABELS, NOTE_LOOK_LABELS,
   type DAspect, type DColors, type DImg, type DItem, type DesignSpec, type LayoutId, type Slide,
 } from "@/design/spec";
 
@@ -87,6 +87,8 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [useRef_, setUseRef] = useState(true);
   const [free, setFree] = useState(false);
+  const lastF = useRef<{ el: HTMLInputElement | HTMLTextAreaElement; key: string } | null>(null);
+  const [colHint, setColHint] = useState("");
   const [sel, setSel] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; x: number; y: number; ox: number; oy: number; sc: number } | null>(null);
@@ -118,7 +120,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
   const designW = DSIZE[spec.aspect].width;
   const setPos = (id: string, x: number, y: number, sc?: number) => setSpec((p) => ({ ...p, slides: p.slides.map((v, i) => (i === cur ? { ...v, pos: { ...(v.pos ?? {}), [id]: { x: Math.round(x), y: Math.round(y), ...(sc && sc !== 1 ? { s: sc } : {}) } } } : v)) }));
   const delEl = (id: string) => { setSpec((p) => ({ ...p, slides: p.slides.map((v, i) => (i === cur ? { ...v, hide: [...new Set([...(v.hide ?? []), id])] } : v)) })); setSel(null); };
-  const restoreAll = () => setSpec((p) => ({ ...p, slides: p.slides.map((v, i) => (i === cur ? { ...v, hide: undefined, pos: undefined } : v)) }));
+  const restoreAll = () => setSpec((p) => ({ ...p, slides: p.slides.map((v, i) => (i === cur ? { ...v, hide: undefined, pos: undefined, col: undefined } : v)) }));
   const onDown = (e: React.PointerEvent) => {
     if (!free) return;
     const el = (e.target as HTMLElement).closest("[data-el]") as HTMLElement | null;
@@ -147,6 +149,19 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   });
+  const COLS = [spec.colors.accent, spec.colors.ink, "#D4A93F", "#E03B3B", "#1E9E5A", "#2F6BFF", "#FFFFFF"];
+  const colorSel = (hex: string | null) => {
+    const f = lastF.current;
+    if (!f || !f.el.isConnected) { setColHint(L("اضغط داخل النص أولاً وحدّد الكلمة.")); return; }
+    const a = f.el.selectionStart ?? 0, b = f.el.selectionEnd ?? 0;
+    if (a === b) { setColHint(L("حدّد الكلمة بالماوس (أو الإصبع) داخل خانة النص، وبعدين اختر اللون.")); return; }
+    setColHint("");
+    const v = f.el.value;
+    const inner = v.slice(a, b).replace(RICH_RE, "$2").replace(/[{}|]/g, "");
+    const nv = v.slice(0, a) + (hex ? `{{${hex}|${inner}}}` : inner) + v.slice(b);
+    if (f.key === "note") setSlide({ note: { ...(spec.slides[cur].note ?? { text: "", at: "bl", look: "royal" }), text: nv.slice(0, 200) } });
+    else setSlide({ [f.key]: nv } as Partial<Slide>);
+  };
   const setSlide = (patch: Partial<Slide>) => setSpec((p) => ({ ...p, slides: p.slides.map((x, i) => (i === cur ? { ...x, ...patch } : x)) }));
   const setColor = (k: keyof DColors, v: string) => setSpec((p) => ({ ...p, colors: { ...p.colors, [k]: v } }));
 
@@ -228,8 +243,8 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
   const caption = spec.kind === "carousel" ? spec.caption ?? "" : s.caption ?? "";
   const text = (k: keyof Slide, label: string, maxLen: number, rows = 0) => uses.has(k) && (
     <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L(label)}</span>
-      {rows ? <textarea rows={rows} maxLength={maxLen} value={(s[k] as string) ?? ""} onChange={(e) => setSlide({ [k]: e.target.value } as Partial<Slide>)} className="field" />
-        : <input maxLength={maxLen} value={(s[k] as string) ?? ""} onChange={(e) => setSlide({ [k]: e.target.value } as Partial<Slide>)} className="field py-2.5" />}
+      {rows ? <textarea rows={rows} maxLength={maxLen} onFocus={(e) => { lastF.current = { el: e.currentTarget, key: k as string }; }} value={(s[k] as string) ?? ""} onChange={(e) => setSlide({ [k]: e.target.value } as Partial<Slide>)} className="field" />
+        : <input maxLength={maxLen} onFocus={(e) => { lastF.current = { el: e.currentTarget, key: k as string }; }} value={(s[k] as string) ?? ""} onChange={(e) => setSlide({ [k]: e.target.value } as Partial<Slide>)} className="field py-2.5" />}
     </label>
   );
 
@@ -250,6 +265,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
               <span className="rounded-full bg-tint px-3 py-1">{L(EL_LABELS[sel] ?? sel)}</span>
               <button type="button" onClick={() => setPos(sel, cp?.x ?? 0, cp?.y ?? 0, Math.max(0.3, +(sc - 0.1).toFixed(2)))} className="btn btn-outline px-3 py-1.5" aria-label={L("تصغير")}>−</button>
               <button type="button" onClick={() => setPos(sel, cp?.x ?? 0, cp?.y ?? 0, Math.min(3, +(sc + 0.1).toFixed(2)))} className="btn btn-outline px-3 py-1.5" aria-label={L("تكبير")}>+</button>
+              {["title", "kicker", "body", "meta", "handle", "brand", "tagline", "statlabel"].includes(sel) && COLS.map((h) => <button key={h} type="button" onClick={() => setSpec((p) => ({ ...p, slides: p.slides.map((v, i) => (i === cur ? { ...v, col: { ...(v.col ?? {}), [sel]: h } } : v)) }))} aria-label={h} className="h-7 w-7 rounded-full border border-black/20" style={{ background: h }} />)}
               <button type="button" onClick={() => delEl(sel)} className="btn btn-outline px-3 py-1.5 text-red-700">{L("🗑 مسح")}</button>
             </>
           ); })()}
@@ -357,10 +373,19 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
         </Card>
 
         <Card title={L("النصوص")} icon="✏️">
-          {text("kicker", L("سطر صغير فوق العنوان"), 60)}
-          {uses.has("title") && text("title", L("العنوان"), 90)}
-          {text("highlight", L("الجزء الملوّن من العنوان"), 60)}
-          {text("body", s.layout === "quote" ? L("النص أو النصيحة") : L("الوصف"), 320, 3)}
+          <div className="flex flex-col gap-2 rounded-2xl bg-tint p-3">
+            <Sub>{L("لوّن كلمة: حدّدها داخل أي خانة نص، وبعدين اختر اللون")}</Sub>
+            <div className="flex flex-wrap items-center gap-2">
+              {COLS.map((h) => <button key={h} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => colorSel(h)} aria-label={h} className="h-8 w-8 rounded-full border border-black/20" style={{ background: h }} />)}
+              <label className="flex h-8 cursor-pointer items-center gap-1 rounded-full border border-black/20 bg-white px-2 text-[12px] text-black">{L("لون آخر")}<input type="color" className="h-5 w-6 cursor-pointer border-0 p-0" onChange={(e) => colorSel(e.target.value.toUpperCase())} /></label>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => colorSel(null)} className="chip">{L("بدون لون")}</button>
+            </div>
+            <p className="text-[12px] text-subtle">{colHint || L("الكلمة الملوّنة تظهر داخل الخانة هيك {{لون|كلمة}}، لا تحذف الأقواس. ولتلوين نص كامل: فعّل «تحريك العناصر» واختر العنصر.")}</p>
+          </div>
+          {text("kicker", L("سطر صغير فوق العنوان"), 110)}
+          {uses.has("title") && text("title", L("العنوان"), 150)}
+          {text("highlight", L("الجزء الملوّن من العنوان"), 110)}
+          {text("body", s.layout === "quote" ? L("النص أو النصيحة") : L("الوصف"), 520, 3)}
           {uses.has("stat") && (
             <div className="grid grid-cols-2 gap-2">
               <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("الرقم الكبير")}</span><input value={s.stat?.value ?? ""} maxLength={8} onChange={(e) => setSlide({ stat: { ...(s.stat ?? { value: "" }), value: e.target.value } })} className="field py-2.5" placeholder="30%" /></label>
@@ -385,13 +410,29 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
               ))}
             </div>
           )}
-          {text("badge", L("الشارة"), 30)}
-          {text("cta", L("الزر"), 30)}
+          {text("badge", L("الشارة"), 60)}
+          {text("cta", L("الزر"), 60)}
           {uses.has("person") && (
             <div className="grid grid-cols-2 gap-2">
               <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("اسم الشخص")}</span><input value={s.person?.name ?? ""} maxLength={40} onChange={(e) => setSlide({ person: { ...(s.person ?? { name: "" }), name: e.target.value } })} className="field py-2.5" /></label>
               <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("صفته")}</span><input value={s.person?.role ?? ""} maxLength={40} onChange={(e) => setSlide({ person: { ...(s.person ?? { name: "" }), role: e.target.value } })} className="field py-2.5" /></label>
             </div>
+          )}
+        </Card>
+
+        <Card title={L("صندوق مميّز (شهادة، ضمان، ميزة)")} icon="🏅">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-pressed={!s.note} onClick={() => setSlide({ note: null })} className="chip">{L("بدون")}</button>
+            <button type="button" aria-pressed={!!s.note} onClick={() => setSlide({ note: s.note ?? { text: L("مع الحصول على شهادة معتمدة"), at: "bl", look: "royal" } })} className="chip">{L("إضافة صندوق")}</button>
+          </div>
+          {s.note && (
+            <>
+              <textarea rows={2} maxLength={200} value={s.note.text} onFocus={(e) => { lastF.current = { el: e.currentTarget, key: "note" }; }} onChange={(e) => setSlide({ note: { ...s.note!, text: e.target.value } })} className="field" aria-label={L("نص الصندوق")} />
+              <Sub>{L("المكان")}</Sub>
+              <div className="flex flex-wrap gap-2">{NOTE_ATS.map((id) => <button key={id} type="button" aria-pressed={s.note!.at === id} onClick={() => setSlide({ note: { ...s.note!, at: id } })} className="chip">{L(NOTE_AT_LABELS[id])}</button>)}</div>
+              <Sub>{L("الشكل")}</Sub>
+              <div className="flex flex-wrap gap-2">{NOTE_LOOKS.map((id) => <button key={id} type="button" aria-pressed={s.note!.look === id} onClick={() => setSlide({ note: { ...s.note!, look: id } })} className="chip">{L(NOTE_LOOK_LABELS[id])}</button>)}</div>
+            </>
           )}
         </Card>
 

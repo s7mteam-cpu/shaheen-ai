@@ -45,6 +45,7 @@ ${LAYOUT_IDS.map((id) => `- ${id}: ${LAYOUTS[id].hint}. الحقول: ${LAYOUTS[
 
 الحقول:
 kicker (سطر صغير فوق العنوان)، sticker، title، highlight، body، items [{icon,text}]، meta [{icon,text}]، date {day (رقم), month, weekday}، price {value (رقم فقط), old, currency (مثل د.ك), note}، stat {value (مثل 30% أو 2x), label}، badge (شارة قصيرة)، cta (2-3 كلمات)، person {name, role}، photo، imagePrompt، caption.
+note (صندوق مميّز بخلفية وإطار، للشهادات والضمانات والميزة اللي تجذب العميل) {text (جملة وحدة واضحة), at: "bl" أسفل اليسار | "br" أسفل اليمين | "bc" بالوسط, look: "royal" ملكي ذهبي | "soft" | "solid"}. إذا طلب العميل إضافة جملة بإطار أو بوكس أو خلفية أو «اطار ملكي» استخدم note ولا تحطها بالحقول العادية. حافظ على علامات الألوان {{#hex|كلمة}} إذا موجودة بالنص كما هي.
 
 الصور (photo):
 - "upload:N" لاستخدام صورة العميل رقم N (شوفها وحطها بالتخطيط المناسب).
@@ -294,7 +295,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       next.slides = next.slides.map((s, i) => {
         const old = current.slides[i];
         const r = raw.slides?.[i] as { photo?: unknown } | undefined;
-        return { ...s, photo: r?.photo === "keep" || r?.photo === undefined ? old?.photo ?? null : null, person: s.person ? { ...s.person, photo: old?.person?.photo ?? null } : null };
+        return { ...s, pos: s.pos ?? old?.pos, hide: s.hide ?? old?.hide, col: s.col ?? old?.col, note: s.note !== undefined && (raw.slides?.[i] as { note?: unknown } | undefined)?.note !== undefined ? s.note : old?.note ?? null, photo: r?.photo === "keep" || r?.photo === undefined ? old?.photo ?? null : null, person: s.person ? { ...s.person, photo: old?.person?.photo ?? null } : null };
       });
       next.icon3d = current.icon3d;
       return NextResponse.json({ spec: safeColors(next) });

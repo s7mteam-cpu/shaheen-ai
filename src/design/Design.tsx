@@ -2,7 +2,7 @@ import React from "react";
 import { Img } from "remotion";
 import { ArrowLeft, ChevronLeft, Quote } from "lucide-react";
 import { DIcon, IconStyleContext } from "./icons";
-import { DSIZE, mix, onColor, type DImg, type DItem, type DesignSpec, type Slide } from "./spec";
+import { DSIZE, mix, onColor, type DImg, type DItem, type DesignSpec, type Slide, RICH_RE, stripRich } from "./spec";
 
 /** One slide of a post / carousel / ad, drawn at full size (1080 wide). Used by the studio preview and the worker. */
 /** edit: the customer is moving things on the canvas (studio only; the worker never passes it). */
@@ -17,12 +17,14 @@ type Ctx = {
 };
 
 /** Direct editing: every main element has an id; the customer can move, resize or remove it right on the design. */
-export const EL_LABELS: Record<string, string> = { title: "العنوان", kicker: "العنوان الصغير", body: "الوصف", meta: "التفاصيل", cta: "الزر", price: "السعر", badge: "الشارة", avatar: "الصورة الشخصية", handle: "الحساب", brand: "الشعار والاسم", photo: "الصورة", sticker: "الملصق", stat: "الرقم الكبير", statlabel: "كلمة تحت الرقم", tagline: "السطر الصغير", date: "التاريخ", items: "النقاط", icon: "الأيقونة", num: "رقم الشريحة" };
+export const EL_LABELS: Record<string, string> = { title: "العنوان", kicker: "العنوان الصغير", body: "الوصف", meta: "التفاصيل", cta: "الزر", price: "السعر", badge: "الشارة", avatar: "الصورة الشخصية", handle: "الحساب", brand: "الشعار والاسم", photo: "الصورة", sticker: "الملصق", stat: "الرقم الكبير", statlabel: "كلمة تحت الرقم", note: "الصندوق المميّز", tagline: "السطر الصغير", date: "التاريخ", items: "النقاط", icon: "الأيقونة", num: "رقم الشريحة" };
 const gone = (c: Ctx, id: string) => !!c.s.hide?.includes(id);
 const da = (id: string) => ({ "data-el": id });
 const eo = (c: Ctx, id: string): React.CSSProperties => {
   const p = c.s.pos?.[id];
+  const col = c.s.col?.[id];
   return {
+    ...(col ? { color: col } : {}),
     ...(p ? { translate: `${p.x}px ${p.y}px`, ...(p.s && p.s !== 1 ? { scale: String(p.s) } : {}) } : {}),
     ...(c.edit ? { cursor: "move", outline: c.edit.sel === id ? "6px dashed #E8B44C" : "3px dashed rgba(150,150,150,.4)", outlineOffset: 8 } : {}),
   };
@@ -33,8 +35,21 @@ const rgba = (hex: string, a: number) => { const n = parseInt(hex.slice(1), 16);
 // First real letter of a name ("أكاديمية مدار" → "م" would be odd; skip "ال" only).
 const initial = (name: string) => name.trim().replace(/^ال/, "").charAt(0);
 
+/** colour a single word: {{#hex|word}} */
+const rich = (text: string): React.ReactNode => {
+  if (!text.includes("{{")) return text;
+  const out: React.ReactNode[] = []; let last = 0, i = 0;
+  for (const m of text.matchAll(RICH_RE)) {
+    if (m.index! > last) out.push(text.slice(last, m.index));
+    out.push(<span key={i++} style={{ color: m[1] }}>{m[2]}</span>);
+    last = m.index! + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+};
+
 // Long titles shrink so they never break the layout.
-const fit = (text: string, base: number, chars = 12, min = 0.5) => Math.round(base * Math.max(min, Math.min(1, Math.sqrt(chars / Math.max(1, text.length)))));
+const fit = (text: string, base: number, chars = 12, min = 0.5) => Math.round(base * Math.max(min, Math.min(1, Math.sqrt(chars / Math.max(1, stripRich(text).length)))));
 
 function Photo({ img, style, c }: { img?: DImg | null; style?: React.CSSProperties; c: Ctx }) {
   if (gone(c, "photo")) return null;
@@ -75,8 +90,8 @@ function Title({ c, base, color, hcolor, align }: { c: Ctx; base: number; color?
   const size = fit(all, base * c.k, 16);
   return (
     <h1 {...da("title")} style={{ fontSize: size, lineHeight: 1.16, fontWeight: 800, letterSpacing: -0.5, color: color ?? c.ink, textAlign: align, margin: 0, ...eo(c, "title") }}>
-      {c.s.title}
-      {c.s.highlight && <><br /><span style={{ color: hcolor ?? c.accent }}>{c.s.highlight}</span></>}
+      {rich(c.s.title)}
+      {c.s.highlight && <><br /><span style={{ color: hcolor ?? c.accent }}>{rich(c.s.highlight)}</span></>}
     </h1>
   );
 }
@@ -86,14 +101,14 @@ function Kicker({ c, color, line = true }: { c: Ctx; color?: string; line?: bool
   return (
     <div {...da("kicker")} style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 32 * c.k, fontWeight: 700, color: color ?? c.accent, ...eo(c, "kicker") }}>
       {line && <span style={{ width: 64, height: 4, background: color ?? c.accent, borderRadius: 2 }} />}
-      {c.s.kicker}
+      {rich(c.s.kicker)}
     </div>
   );
 }
 
 function Body({ c, size = 34, color, align, max }: { c: Ctx; size?: number; color?: string; align?: "center"; max?: number }) {
   if (!c.s.body || gone(c, "body")) return null;
-  return <p {...da("body")} style={{ fontSize: fit(c.s.body, size * c.k, 70, 0.72), lineHeight: 1.6, fontWeight: 500, color: color ?? c.muted, margin: 0, maxWidth: max, textAlign: align, ...eo(c, "body") }}>{c.s.body}</p>;
+  return <p {...da("body")} style={{ fontSize: fit(c.s.body, size * c.k, 70, 0.72), lineHeight: 1.6, fontWeight: 500, color: color ?? c.muted, margin: 0, maxWidth: max, textAlign: align, ...eo(c, "body") }}>{rich(c.s.body)}</p>;
 }
 
 function Meta({ list, c, color, iconColor, size = 30 }: { list?: DItem[]; c: Ctx; color?: string; iconColor?: string; size?: number }) {
@@ -101,7 +116,7 @@ function Meta({ list, c, color, iconColor, size = 30 }: { list?: DItem[]; c: Ctx
   return (
     <div {...da("meta")} style={{ display: "flex", flexWrap: "wrap", gap: "14px 44px", fontSize: size * c.k, fontWeight: 700, color: color ?? c.ink, ...eo(c, "meta") }}>
       {list.map((m, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}><DIcon name={m.icon ?? "check"} size={34 * c.k} color={iconColor ?? c.accent} />{m.text}</div>
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}><DIcon name={m.icon ?? "check"} size={34 * c.k} color={iconColor ?? c.accent} />{rich(m.text)}</div>
       ))}
     </div>
   );
@@ -112,7 +127,7 @@ function Cta({ c, bg, fg, size = 38 }: { c: Ctx; bg?: string; fg?: string; size?
   const b = bg ?? c.accent;
   return (
     <div {...da("cta")} style={{ ...eo(c, "cta"), background: b, color: fg ?? onColor(b), fontSize: size * c.k, fontWeight: 800, borderRadius: 999, padding: `${22 * c.k}px ${50 * c.k}px`, display: "flex", alignItems: "center", gap: 16, flex: "none", whiteSpace: "nowrap" }}>
-      {c.s.cta}<ArrowLeft size={40 * c.k} strokeWidth={2.4} />
+      {rich(c.s.cta)}<ArrowLeft size={40 * c.k} strokeWidth={2.4} />
     </div>
   );
 }
@@ -138,7 +153,7 @@ function Badge({ c, bg, fg, outline }: { c: Ctx; bg?: string; fg?: string; outli
   return (
     <div {...da("badge")} style={{ ...eo(c, "badge"), fontSize: 26 * c.k, fontWeight: 700, borderRadius: 999, padding: "8px 28px", whiteSpace: "nowrap",
       ...(outline ? { border: `2.5px solid ${b}`, color: b } : { background: b, color: fg ?? onColor(b) }) }}>
-      {c.s.badge}
+      {rich(c.s.badge)}
     </div>
   );
 }
@@ -248,6 +263,34 @@ function StickerInner({ c }: { c: Ctx }) {
   }
 }
 
+/** Highlighted box (certificate / guarantee): its own background and frame, so it pulls the eye. */
+function NoteBox({ c }: { c: Ctx }) {
+  const n = c.s.note;
+  if (!n || gone(c, "note")) return null;
+  const gold = "#D4A93F";
+  const look = n.look;
+  const bg = look === "royal" ? mix(c.ink, "#0B1B3A", 0.5) : look === "soft" ? c.soft : c.accent;
+  const fg = look === "royal" ? "#FFF6DC" : look === "soft" ? c.ink : c.onAccent;
+  const bd = look === "royal" ? gold : look === "soft" ? c.accent : onColor(c.accent);
+  const pos: React.CSSProperties = n.at === "br" ? { right: 70 } : n.at === "bc" ? { left: "50%", marginLeft: -c.W * 0.31 } : { left: 70 };
+  const k = c.k;
+  return (
+    <div {...da("note")} style={{
+      position: "absolute", bottom: (spec_bottom(c)), width: c.W * 0.62, ...pos, ...eo(c, "note"),
+      background: look === "royal" ? `linear-gradient(135deg, ${bg}, ${mix(bg, "#000000", 0.3)})` : bg, color: look === "royal" ? "#FFF6DC" : fg,
+      border: `${3 * k}px solid ${bd}`, borderRadius: look === "royal" ? 14 : 28, padding: `${26 * k}px ${34 * k}px`,
+      boxShadow: look === "royal" ? `0 0 0 ${6 * k}px ${bg}, 0 0 0 ${9 * k}px ${gold}, 0 18px 40px rgba(0,0,0,.28)` : "0 14px 32px rgba(0,0,0,.18)",
+      display: "flex", alignItems: "center", gap: 22 * k,
+    }}>
+      <div style={{ width: 84 * k, height: 84 * k, borderRadius: "50%", flex: "none", display: "grid", placeItems: "center", background: look === "royal" ? gold : look === "soft" ? c.accent : onColor(c.accent), color: look === "royal" ? "#1B1B1B" : look === "soft" ? c.onAccent : c.accent }}>
+        <DIcon name="award" size={46 * k} color={look === "royal" ? "#1B1B1B" : look === "soft" ? c.onAccent : c.accent} stroke={2} />
+      </div>
+      <div style={{ fontSize: fit(n.text, 34 * k, 40, 0.7), fontWeight: 800, lineHeight: 1.45 }}>{rich(n.text)}</div>
+    </div>
+  );
+}
+const spec_bottom = (c: Ctx) => (c.spec.kind === "carousel" && c.total > 1 ? 70 : 60);
+
 // ---------------- layouts ----------------
 
 function Classic(c: Ctx) {
@@ -269,7 +312,7 @@ function Classic(c: Ctx) {
                   <div style={{ width: 68 * c.k, height: 68 * c.k, borderRadius: 18, background: c.spec.icons === "3d" ? "transparent" : c.accent, display: "grid", placeItems: "center", marginBottom: 20 * c.k }}>
                     <DIcon name={it.icon ?? "check"} size={34 * c.k} color={c.onAccent} />
                   </div>
-                  <b style={{ display: "block", fontSize: fit(it.text, 30 * c.k, 22, 0.75), fontWeight: 800, lineHeight: 1.35, color: c.ink }}>{it.text}</b>
+                  <b style={{ display: "block", fontSize: fit(it.text, 30 * c.k, 22, 0.75), fontWeight: 800, lineHeight: 1.35, color: c.ink }}>{rich(it.text)}</b>
                 </div>
               ))}
             </div>
@@ -296,7 +339,7 @@ function Bold(c: Ctx) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 30 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 22 * c.k, flex: 1, minWidth: 0 }}>
             <BrandRow c={c} color={c.accent} />
-            {s.kicker && !gone(c, "kicker") && <div {...da("kicker")} style={{ ...eo(c, "kicker"), fontSize: 38 * c.k, fontWeight: 700, color: c.muted }}>{s.kicker}</div>}
+            {s.kicker && !gone(c, "kicker") && <div {...da("kicker")} style={{ fontSize: 38 * c.k, fontWeight: 700, color: c.muted, ...eo(c, "kicker") }}>{rich(s.kicker)}</div>}
           </div>
           {s.date && !gone(c, "date") && (
             <div {...da("date")} style={{ ...eo(c, "date"), width: 220 * c.k, height: 240 * c.k, background: c.accent, color: c.onAccent, borderRadius: 28, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: "none" }}>
@@ -313,7 +356,7 @@ function Bold(c: Ctx) {
               {list.map((it, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 26, padding: `${24 * c.k}px 0`, borderBottom: `2px solid ${c.line}` }}>
                   <span style={{ fontSize: 30 * c.k, fontWeight: 800, color: c.accent, width: 56 }}>{String(i + 1).padStart(2, "0")}</span>
-                  <b style={{ fontSize: fit(it.text, 38 * c.k, 28, 0.7), fontWeight: 800, flex: 1 }}>{it.text}</b>
+                  <b style={{ fontSize: fit(it.text, 38 * c.k, 28, 0.7), fontWeight: 800, flex: 1 }}>{rich(it.text)}</b>
                   <DIcon name={it.icon ?? "check"} size={40 * c.k} color={c.accent} />
                 </div>
               ))}
@@ -376,7 +419,7 @@ function Offer(c: Ctx) {
           {v && !gone(c, "stat") && (
             <div {...da("stat")} style={{ ...eo(c, "stat"), lineHeight: 0.9, fontWeight: 800, color: c.accent, fontSize: fit(v, (s.photo ? 230 : 320) * c.k, 4, 0.45) }}>{v}</div>
           )}
-          {s.stat?.label && !gone(c, "statlabel") && <div {...da("statlabel")} style={{ ...eo(c, "statlabel"), fontSize: 44 * c.k, fontWeight: 800, color: c.ink }}>{s.stat.label}</div>}
+          {s.stat?.label && !gone(c, "statlabel") && <div {...da("statlabel")} style={{ fontSize: 44 * c.k, fontWeight: 800, color: c.ink, ...eo(c, "statlabel") }}>{rich(s.stat.label)}</div>}
           <div style={{ marginTop: 10 }}><Title c={c} base={86} align="center" /></div>
           <Body c={c} align="center" max={820} />
         </div>
@@ -472,7 +515,7 @@ function Point(c: Ctx) {
                   <span style={{ width: 44 * c.k, height: 44 * c.k, borderRadius: "50%", background: c.soft, border: `2px solid ${c.line}`, display: "grid", placeItems: "center", flex: "none" }}>
                     <DIcon name={b.icon && i > 0 ? b.icon : "check"} size={24 * c.k} color={c.accent} stroke={2.4} />
                   </span>
-                  {b.text}
+                  {rich(b.text)}
                 </div>
               ))}
             </div>
@@ -525,7 +568,7 @@ function Bento(c: Ctx) {
         {list.slice(s.photo ? 0 : 1).map((it, i) => (
           <div key={i} style={tile(i % 2 ? c.soft : c.ink, { flexDirection: "row", alignItems: "center", gap: 20, padding: `${22 * c.k}px 28px` })}>
             <DIcon name={it.icon ?? "check"} size={46 * c.k} color={i % 2 ? c.accent : c.bg} />
-            <b style={{ fontSize: fit(it.text, 30 * c.k, 22, 0.7), fontWeight: 800, color: i % 2 ? c.ink : c.bg, lineHeight: 1.3 }}>{it.text}</b>
+            <b style={{ fontSize: fit(it.text, 30 * c.k, 22, 0.7), fontWeight: 800, color: i % 2 ? c.ink : c.bg, lineHeight: 1.3 }}>{rich(it.text)}</b>
           </div>
         ))}
         {!list.length && <div style={tile(c.ink)}><Meta list={s.meta} c={c} color={c.bg} /></div>}
@@ -572,10 +615,10 @@ function Minimal(c: Ctx) {
     <div style={{ position: "absolute", inset: 0, background: "transparent" }}>
       <div style={{ position: "absolute", inset: `${PAD * c.k}px ${PAD}px`, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `3px solid ${c.ink}`, paddingBottom: 26 * c.k }}>
-          <BrandRow c={c} />{!gone(c, "tagline") && <div {...da("tagline")} style={{ ...eo(c, "tagline"), fontSize: 26 * c.k, fontWeight: 700, color: c.ink }}>{s.badge ?? s.kicker ?? ""}</div>}
+          <BrandRow c={c} />{!gone(c, "tagline") && <div {...da("tagline")} style={{ fontSize: 26 * c.k, fontWeight: 700, color: c.ink, ...eo(c, "tagline") }}>{s.badge ?? s.kicker ?? ""}</div>}
         </div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 30 * c.k, paddingBottom: 40 * c.k }}>
-          <h1 {...da("title")} style={{ ...eo(c, "title"), margin: 0, fontSize: fit(`${s.title} ${s.highlight ?? ""}`, 150 * c.k, 10, 0.45), lineHeight: 1.05, fontWeight: 800, color: c.ink, letterSpacing: -2 }}>
+          <h1 {...da("title")} style={{ margin: 0, fontSize: fit(`${s.title} ${s.highlight ?? ""}`, 150 * c.k, 10, 0.45), lineHeight: 1.05, fontWeight: 800, color: c.ink, letterSpacing: -2, ...eo(c, "title") }}>
             {s.title}{s.highlight && <><br /><span style={{ color: c.accent }}>{s.highlight}</span></>}
           </h1>
           <Body c={c} size={34} max={760} />
@@ -615,6 +658,7 @@ export function DesignSlide({ spec, index, edit }: DesignProps) {
       <div style={{ position: "absolute", inset: 0 }}>{L(cc)}</div>
       <Ribbon c={c} />
       <FrameLayer c={c} />
+      <NoteBox c={c} />
       <StickerLayer c={c} />
       {spec.brand.box && spec.brand.showLogo && spec.brand.logo?.url && (
         <div style={{ position: "absolute", left: spec.brand.box.x * W, top: spec.brand.box.y * H, width: spec.brand.box.w * W, height: spec.brand.box.w * W, transform: "translate(-50%, -50%)", display: "flex", alignItems: "center", justifyContent: "center" }}>

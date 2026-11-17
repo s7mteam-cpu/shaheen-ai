@@ -32,7 +32,19 @@ export type Slide = {
   /** moved / resized elements by id (offsets in design pixels) and elements the customer removed from this slide */
   pos?: Record<string, { x: number; y: number; s?: number }>;
   hide?: string[];
+  /** whole-element text colour chosen by the customer (element id → #hex) */
+  col?: Record<string, string>;
+  /** a highlighted box (certificate / guarantee line) with its own background and frame */
+  note?: { text: string; at: "bl" | "br" | "bc"; look: "royal" | "soft" | "solid" } | null;
 };
+
+/** Per-word colour markup inside any text: {{#E8B44C|كلمة}} */
+export const RICH_RE = /\{\{(#[0-9a-fA-F]{6})\|([^{}]*)\}\}/g;
+export const stripRich = (t: string) => t.replace(RICH_RE, "$2");
+export const NOTE_ATS = ["bl", "br", "bc"] as const;
+export const NOTE_LOOKS = ["royal", "soft", "solid"] as const;
+export const NOTE_LOOK_LABELS: Record<string, string> = { royal: "ملكي ذهبي", soft: "هادئ", solid: "ملوّن" };
+export const NOTE_AT_LABELS: Record<string, string> = { bl: "أسفل اليسار", br: "أسفل اليمين", bc: "أسفل بالوسط" };
 
 export type DesignSpec = {
   kind: DKind;
@@ -150,17 +162,17 @@ export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fa
   const d = raw.date as Slide["date"], p = raw.price as Slide["price"], s = raw.stat as Slide["stat"], per = raw.person as Slide["person"];
   return {
     layout,
-    kicker: opt(raw.kicker, 60),
-    title: str(raw.title, 90) || " ",
-    highlight: opt(raw.highlight, 60),
-    body: opt(raw.body, 320),
+    kicker: opt(raw.kicker, 110),
+    title: str(raw.title, 150) || " ",
+    highlight: opt(raw.highlight, 110),
+    body: opt(raw.body, 520),
     items: items(raw.items, 5),
     meta: items(raw.meta, 3),
     date: d && str(d.day, 6) ? { day: str(d.day, 6), month: str(d.month, 14), weekday: opt(d.weekday, 14) } : null,
     price: p && str(p.value, 12) ? { value: str(p.value, 12), old: opt(p.old, 12), currency: opt(p.currency, 10), note: opt(p.note, 60) } : null,
     stat: s && str(s.value, 8) ? { value: str(s.value, 8), label: opt(s.label, 40) } : null,
-    badge: opt(raw.badge, 30),
-    cta: opt(raw.cta, 30),
+    badge: opt(raw.badge, 60),
+    cta: opt(raw.cta, 60),
     person: per && str(per.name, 40) ? { name: str(per.name, 40), role: opt(per.role, 40), photo: img(per.photo) } : null,
     sticker: (() => { const k = (raw.sticker as Sticker | null)?.kind; return k && (STICKER_IDS as readonly string[]).includes(k) ? { kind: k, text: str((raw.sticker as Sticker).text, 24) } : null; })(),
     photo: img(raw.photo),
@@ -177,6 +189,18 @@ export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fa
         r[k] = { x: Math.max(-3000, Math.min(3000, Math.round(x))), y: Math.max(-3000, Math.min(3000, Math.round(y))), ...(Number.isFinite(sc) && sc > 0 && sc !== 1 ? { s: Math.max(0.3, Math.min(3, +sc.toFixed(2))) } : {}) };
       }
       return Object.keys(r).length ? r : undefined;
+    })(),
+    col: (() => {
+      const o = raw.col && typeof raw.col === "object" ? Object.entries(raw.col as Record<string, unknown>) : [];
+      const r: Record<string, string> = {};
+      for (const [k, v] of o.slice(0, 24)) if (/^[a-z0-9]{2,12}$/.test(k) && typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v)) r[k] = v;
+      return Object.keys(r).length ? r : undefined;
+    })(),
+    note: (() => {
+      const n = raw.note as { text?: unknown; at?: unknown; look?: unknown } | null | undefined;
+      const t = n ? str(n.text, 200) : "";
+      if (!n || !t) return null;
+      return { text: t, at: (NOTE_ATS as readonly string[]).includes(String(n.at)) ? (n.at as "bl" | "br" | "bc") : "bl", look: (NOTE_LOOKS as readonly string[]).includes(String(n.look)) ? (n.look as "royal" | "soft" | "solid") : "royal" };
     })(),
     hide: Array.isArray(raw.hide) ? (raw.hide as unknown[]).filter((x): x is string => typeof x === "string" && /^[a-z0-9]{2,12}$/.test(x)).slice(0, 24) || undefined : undefined,
   };
