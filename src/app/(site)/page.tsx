@@ -1,3 +1,4 @@
+import { DeckCover } from "@/components/DeckCover";
 import { getMoney } from "@/lib/server/money";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
@@ -140,7 +141,9 @@ export default async function Home() {
                 return (
                   <Link key={x.cat} href={`/showcase/${x.cat}`} className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
                     <div className="relative aspect-[4/5] w-full overflow-hidden bg-tint">
-                      {cover.media_type === "video"
+                      {cover.media_type === "deck"
+                        ? <DeckCover title={name[1]} />
+                        : cover.media_type === "video"
                         ? <video src={cover.media_url} className="h-full w-full object-cover" muted loop playsInline autoPlay preload="metadata" />
                         // eslint-disable-next-line @next/next/no-img-element
                         : <img src={cover.media_url} alt={name[1]} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />}

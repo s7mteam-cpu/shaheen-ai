@@ -6,7 +6,7 @@ import { SHOWCASE_CATS } from "@/lib/showcase";
 import { addShowcase, updateShowcase } from "./actions";
 
 type Res = { ok?: string; error?: string } | undefined;
-type Up = { url: string; kind: "image" | "video"; name: string };
+type Up = { url: string; kind: "image" | "video" | "deck"; name: string };
 const Msg = ({ r }: { r: Res }) => (r?.error ? <span role="alert" className="text-sm font-semibold text-red-700">{r.error}</span> : r?.ok ? <span className="text-sm font-semibold text-green-700">{r.ok}</span> : null);
 function Save({ label, disabled }: { label: string; disabled?: boolean }) {
   const { pending } = useFormStatus();
@@ -33,7 +33,7 @@ export function AddShowcase() {
         if (!res.ok) throw new Error(d.error);
         const { error } = await createClient().storage.from("site").uploadToSignedUrl(d.path, d.token, file);
         if (error) throw new Error("تعذّر رفع الملف.");
-        setFiles((f) => [...f, { url: d.url, kind: d.video ? "video" : "image", name: file.name }]);
+        setFiles((f) => [...f, { url: d.url, kind: d.deck ? "deck" : d.video ? "video" : "image", name: file.name }]);
       } catch (e) { setErr(e instanceof Error ? e.message : "تعذّر رفع الملف."); }
     }
     setBusy("");
@@ -50,17 +50,17 @@ export function AddShowcase() {
       <label className="flex flex-col gap-1.5"><span className="label">وصف قصير (اختياري)</span><textarea name="description" rows={2} maxLength={600} placeholder="شنو سوّينا وبأي أداة" className="field" /></label>
       <label className="flex flex-col gap-1.5"><span className="label">أسلوب العمل لـ «سوّ مثله» (اختياري)</span><textarea name="recipe" rows={2} maxLength={800} placeholder="مثلاً: خلفية سوداء فخمة، إضاءة ذهبية، خط عريض، تكوين متماثل" className="field" /></label>
       <div className="flex flex-col gap-2">
-        <span className="label">الملفات (صورة أو فيديو، لين 50 ميجا لكل ملف). للكاروسيل اختر كل الصور، وأول وحدة تصير الغلاف.</span>
+        <span className="label">الملفات (صورة أو فيديو أو عرض PowerPoint .pptx، لين 50 ميجا لكل ملف). للكاروسيل اختر كل الصور، وأول وحدة تصير الغلاف.</span>
         <label className={`btn btn-outline w-fit cursor-pointer px-4 py-2.5 text-sm ${busy ? "pointer-events-none opacity-50" : ""}`}>
           {busy || "⬆️ اختر الملفات"}
-          <input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" className="sr-only" onChange={(e) => { void upload(e.target.files); e.target.value = ""; }} />
+          <input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime,.pptx" className="sr-only" onChange={(e) => { void upload(e.target.files); e.target.value = ""; }} />
         </label>
         {files.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {files.map((f, i) => (
               <div key={f.url} className="relative h-20 w-16 overflow-hidden rounded-lg border border-line">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {f.kind === "video" ? <video src={f.url} muted className="h-full w-full object-cover" /> : <img src={f.url} alt="" className="h-full w-full object-cover" />}
+                {f.kind === "deck" ? <span className="flex h-full w-full items-center justify-center bg-navy-900 px-1 text-center text-[10px] font-bold text-white">PowerPoint</span> : f.kind === "video" ? <video src={f.url} muted className="h-full w-full object-cover" /> : <img src={f.url} alt="" className="h-full w-full object-cover" />}
                 {i === 0 && <span className="absolute inset-x-0 bottom-0 bg-navy-900/80 text-center text-[10px] text-white">الغلاف</span>}
                 <button type="button" aria-label="شيل" onClick={() => setFiles((x) => x.filter((y) => y.url !== f.url))} className="absolute end-0.5 top-0.5 rounded-full bg-white/90 px-1.5 text-xs text-red-700">×</button>
               </div>

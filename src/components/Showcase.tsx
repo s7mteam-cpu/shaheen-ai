@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/components/LangProvider";
+import { DeckCover } from "@/components/DeckCover";
 import { SHOWCASE_CATS, LIKE_TOOL, isVideo, type ShowcaseItem } from "@/lib/showcase";
 
 const media = (g: ShowcaseItem) => [g.media_url, ...g.extra_media];
@@ -33,7 +34,7 @@ export function ShowcaseGrid({ items, filter = false, signedIn = false, like = t
           return (
             <button key={g.id} onClick={() => setOpen(g)} className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white text-start shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
               <div className="relative aspect-[4/5] w-full overflow-hidden bg-tint">
-                {vid
+                {g.media_type === "deck" ? <DeckCover title={g.title} /> : vid
                   ? <video src={g.media_url} className="h-full w-full object-cover" muted loop playsInline autoPlay preload="metadata" />
                   // eslint-disable-next-line @next/next/no-img-element
                   : <img src={g.media_url} alt={g.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />}
@@ -71,11 +72,13 @@ function Viewer({ g, label, signedIn, like, onClose }: { g: ShowcaseItem; label:
   const vid = i === 0 ? g.media_type === "video" : isVideo(u);
   return (
     <div role="dialog" aria-modal="true" aria-label={g.title} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-3 backdrop-blur-sm" onClick={onClose}>
-      <div className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className={`flex max-h-full w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ${g.media_type === "deck" ? "max-w-4xl" : "max-w-md"}`} onClick={(e) => e.stopPropagation()}>
         <div className="relative flex items-center justify-center bg-black"
           onTouchStart={(e) => setX0(e.touches[0].clientX)}
           onTouchEnd={(e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1); setX0(null); }}>
-          {vid
+          {g.media_type === "deck"
+            ? <iframe title={g.title} src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(g.media_url)}`} className="aspect-video max-h-[70vh] w-full border-0 bg-white" allowFullScreen />
+            : vid
             ? <video key={u} src={u} className="max-h-[70vh] w-full object-contain" controls autoPlay playsInline />
             // eslint-disable-next-line @next/next/no-img-element
             : <img key={u} src={u} alt={g.title} className="max-h-[70vh] w-full object-contain" />}
@@ -92,6 +95,7 @@ function Viewer({ g, label, signedIn, like, onClose }: { g: ShowcaseItem; label:
           <span className="w-fit rounded-full bg-gold-100 px-2.5 py-0.5 text-[12px] font-bold text-navy-900">{label}{list.length > 1 ? ` · ${i + 1}/${list.length}` : ""}</span>
           <b className="text-navy-900">{g.title}</b>
           {g.description && <p className="text-sm leading-6 text-muted">{g.description}</p>}
+          {g.media_type === "deck" && <a href={g.media_url} download className="btn btn-primary mt-1 w-fit px-5 py-2 text-[14px]">⬇ {T("حمّل العرض (PowerPoint)", "Download (PowerPoint)")}</a>}
           {like && g.like_on && LIKE_TOOL[g.category] && <MakeLike id={g.id} tool={LIKE_TOOL[g.category]} signedIn={signedIn} />}
         </div>
       </div>

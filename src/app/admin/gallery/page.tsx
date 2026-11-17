@@ -1,3 +1,4 @@
+import { DeckCover } from "@/components/DeckCover";
 import Link from "next/link";
 import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -39,7 +40,7 @@ export default async function GalleryAdmin({ searchParams }: { searchParams: Pro
           <div key={g.id} className="card flex flex-col overflow-hidden">
             <div className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {g.media_type === "video" ? <video src={g.media_url} muted className="aspect-[4/5] w-full object-cover" /> : <img src={g.media_url} alt="" className="aspect-[4/5] w-full object-cover" />}
+              {g.media_type === "deck" ? <div className="aspect-[4/5] w-full"><DeckCover title={g.title} /></div> : g.media_type === "video" ? <video src={g.media_url} muted className="aspect-[4/5] w-full object-cover" /> : <img src={g.media_url} alt="" className="aspect-[4/5] w-full object-cover" />}
               <span className="absolute start-2 top-2 rounded-full bg-navy-900/80 px-2.5 py-1 text-[12px] font-bold text-white">{cat(g.category ?? "design")}</span>
             </div>
             <EditShowcase g={{ id: g.id, title: g.title, description: g.description ?? "", category: g.category ?? "design", sort_order: g.sort_order, is_published: g.is_published, in_app: g.in_app ?? true, on_home: g.on_home ?? true, home_order: g.home_order ?? null, recipe: g.recipe ?? "", like_on: g.like_on ?? true, extra: (g.extra_media ?? []).length }} />

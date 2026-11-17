@@ -14,15 +14,17 @@ const done = () => { revalidatePath("/admin/gallery"); revalidatePath("/app/show
 /** A new work in «معرض شاهين»: files were uploaded straight to storage; this saves the item (first file = cover). */
 export async function addShowcase(_p: Res, form: FormData): Promise<Res> {
   if (!(await requireAdmin("gallery"))) return { error: "غير مصرّح" };
-  const urls = form.getAll("url").map(String).filter(site);
-  const kinds = form.getAll("kind").map(String);
+  let urls = form.getAll("url").map(String).filter(site);
+  let kinds = form.getAll("kind").map(String);
+  const di = kinds.indexOf("deck"); // a PowerPoint work: the file is the work (shown in a viewer), so it leads
+  if (di > 0) { urls = [urls[di], ...urls.filter((_, k) => k !== di)]; kinds = ["deck", ...kinds.filter((_, k) => k !== di)]; }
   if (!urls.length) return { error: "ارفع صورة أو فيديو أول." };
   const category = String(form.get("category") ?? "design");
   const row = {
     title: String(form.get("title") ?? "").trim().slice(0, 120) || "عمل من شاهين",
     description: String(form.get("description") ?? "").trim().slice(0, 600),
     category: CATS.has(category) ? category : "other",
-    media_url: urls[0], media_type: kinds[0] === "video" ? "video" : "image",
+    media_url: urls[0], media_type: kinds[0] === "video" ? "video" : kinds[0] === "deck" ? "deck" : "image",
     extra_media: urls.slice(1, 20),
     recipe: String(form.get("recipe") ?? "").trim().slice(0, 800), like_on: form.get("like_on") === "on",
     in_app: form.get("in_app") === "on", on_home: form.get("on_home") === "on",
