@@ -1,4 +1,4 @@
-/** Gulf cartoon characters: flat vector rigs that blink, breathe, gesture and move their mouth with the voice. */
+/** Gulf cartoon characters: vector rigs with outlines and soft shading. They blink, breathe, gesture and move their mouth with the voice. */
 import React from "react";
 
 export type CharName = "man" | "woman" | "boy" | "girl" | "elder";
@@ -11,102 +11,133 @@ export const MOODS: Mood[] = ["happy", "surprised", "think", "sad", "wow"];
 export const POSES: Pose[] = ["idle", "point", "wave"];
 export const charList = () => (Object.keys(CHARS) as CharName[]).map((n) => `${n} (${CHARS[n].label})`).join("، ");
 
-const SKIN: Record<CharName, string> = { man: "#E6B88F", woman: "#EDC39F", boy: "#F0C8A2", girl: "#F2CDA8", elder: "#D8A57B" };
-const INK = "#2A2320";
+const SKIN: Record<CharName, { b: string; s: string }> = {
+  man: { b: "#E9B98E", s: "#D69C70" }, woman: { b: "#F1C8A5", s: "#DDA77F" }, boy: { b: "#F3CBA6", s: "#E0AB82" }, girl: { b: "#F5D0AD", s: "#E3B089" }, elder: { b: "#DDA97C", s: "#C58F62" },
+};
+const LINE = "#3A2A24";
+const ol = { stroke: LINE, strokeWidth: 3.2, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
 
-/** open: 0 (closed) .. 1 (wide) · t: seconds on the clock (for idle motion) · blink 0..1 (1 = closed) */
 export function Character({ name, size, f, fps, open, mood = "happy", pose = "idle", flip = false, accent = "#E8B44C" }: { name: CharName; size: number; f: number; fps: number; open: number; mood?: Mood; pose?: Pose; flip?: boolean; accent?: string }) {
   const t = f / fps;
-  const skin = SKIN[name];
+  const sk = SKIN[name];
   const kid = name === "boy" || name === "girl";
+  const female = name === "woman" || name === "girl";
+  const uid = `${name}${size | 0}`;
   const breathe = Math.sin(t * 2.4) * 1.6;
   const talk = open > 0.05 ? open : 0;
-  const headY = -talk * 2.2 + breathe * 0.4, headR = Math.sin(t * 1.7) * 1.2 + (talk ? Math.sin(t * 9) * 1.1 : 0);
-  // blink: a quick close every ~3.2s
-  const bp = (t % 3.2) / 3.2, blink = bp > 0.94 ? Math.sin(((bp - 0.94) / 0.06) * Math.PI) : 0;
-  const eyeRy = Math.max(0.6, 6 * (1 - blink) * (mood === "surprised" || mood === "wow" ? 1.25 : 1));
-  const browLift = mood === "surprised" || mood === "wow" ? -5 : mood === "sad" ? 3 : mood === "think" ? -2 : 0;
-  const browTilt = mood === "sad" ? 8 : mood === "think" ? -4 : 0;
-  // mouth: smile curve when closed, open ellipse when talking
-  const smile = mood === "sad" ? -5 : mood === "wow" ? 9 : mood === "think" ? 1 : 6;
-  const mouthOpen = Math.max(talk, mood === "wow" ? 0.5 : 0);
-  const my = 115, mw = 10 + mouthOpen * 3;
-  const mouth = mouthOpen > 0.08
-    ? <g><ellipse cx={100} cy={my + mouthOpen * 4} rx={mw} ry={2 + mouthOpen * 11} fill="#6B1E1E" /><ellipse cx={100} cy={my + mouthOpen * 9} rx={mw * 0.6} ry={mouthOpen * 4} fill="#D9645F" opacity={mouthOpen > 0.45 ? 1 : 0} /><path d={`M${100 - mw} ${my + mouthOpen * 4 - 1} Q100 ${my + mouthOpen * 4 - 4} ${100 + mw} ${my + mouthOpen * 4 - 1}`} stroke="#fff" strokeWidth={3} fill="none" opacity={0.9} /></g>
-    : <path d={`M${100 - mw} ${my} Q100 ${my + smile} ${100 + mw} ${my}`} stroke="#6B1E1E" strokeWidth={3.2} strokeLinecap="round" fill="none" />;
-  // arms: both gesture while talking; the right one can point or wave
   const speaking = talk > 0;
+  const headY = -talk * 2.5 + breathe * 0.4, headR = Math.sin(t * 1.7) * 1.3 + (speaking ? Math.sin(t * 8) * 1.6 : 0);
+  const bp = (t % 3.4) / 3.4, blink = bp > 0.94 ? Math.sin(((bp - 0.94) / 0.06) * Math.PI) : 0;
+  const wideEye = mood === "surprised" || mood === "wow" ? 1.2 : 1;
+  const eyeRy = Math.max(1, 11.5 * (1 - blink) * wideEye);
+  const browLift = mood === "surprised" || mood === "wow" ? -6 : mood === "sad" ? 2 : mood === "think" ? -3 : 0;
+  const browTilt = mood === "sad" ? 8 : mood === "think" ? -5 : 0;
+  const eyeDX = pose === "point" ? 3.4 : mood === "think" ? 3 : 0, eyeDY = mood === "think" ? -2.5 : mood === "sad" ? 2 : 0;
+  const smile = mood === "sad" ? -6 : mood === "wow" ? 10 : mood === "think" ? 1 : 8;
+  const mouthOpen = Math.max(talk * 0.58, mood === "wow" ? 0.4 : 0);
+  const my = 119, mw = 9 + mouthOpen * 3;
+  const mouth = mouthOpen > 0.08
+    ? <g>
+        <path d={`M${100 - mw} ${my} Q100 ${my - 3} ${100 + mw} ${my} Q${100 + mw * 0.8} ${my + 4 + mouthOpen * 15} 100 ${my + 5 + mouthOpen * 15} Q${100 - mw * 0.8} ${my + 4 + mouthOpen * 15} ${100 - mw} ${my} Z`} fill="#7A2323" {...ol} strokeWidth={2.6} />
+        <path d={`M${100 - mw * 0.7} ${my + 1} Q100 ${my - 1} ${100 + mw * 0.7} ${my + 1} L${100 + mw * 0.6} ${my + 4} Q100 ${my + 2.5} ${100 - mw * 0.6} ${my + 4} Z`} fill="#fff" opacity={mouthOpen > 0.18 ? 1 : 0} />
+        <ellipse cx={100} cy={my + 3 + mouthOpen * 12} rx={mw * 0.5} ry={1.5 + mouthOpen * 3.5} fill="#E36F6A" opacity={mouthOpen > 0.3 ? 1 : 0} />
+      </g>
+    : <path d={`M${100 - mw} ${my} Q100 ${my + smile} ${100 + mw} ${my}`} fill="none" {...ol} strokeWidth={3} />;
+
+  // arms
   const ang = pose === "wave" ? -55 + Math.sin(t * 7) * 18 : pose === "point" ? 14 + Math.sin(t * 3) * 3 : 80 + Math.sin(t * 2.4) * 2 - (speaking ? 14 + Math.sin(t * 4.5) * 16 : 0);
   const angL = 100 + Math.sin(t * 2.1) * 2 + (speaking ? -(10 + Math.sin(t * 3.7 + 1) * 20) : 0);
-  const sh = { x: kid ? 140 : 152, y: kid ? 168 : 156 }, shL = { x: kid ? 60 : 48, y: sh.y }, L = kid ? 70 : 84;
+  const sh = { x: kid ? 138 : 150, y: kid ? 172 : 162 }, shL = { x: kid ? 62 : 50, y: sh.y }, L = kid ? 66 : 80;
   const hand = { x: sh.x + Math.cos((ang * Math.PI) / 180) * L, y: sh.y + Math.sin((ang * Math.PI) / 180) * L };
   const handL = { x: shL.x + Math.cos((angL * Math.PI) / 180) * L, y: shL.y + Math.sin((angL * Math.PI) / 180) * L };
   const sway = Math.sin(t * 2.2) * 1.1 + (speaking ? Math.sin(t * 6) * 0.9 : 0);
   const enter = Math.min(1, f / 10), bounce = (1 - enter) * -26 + (enter >= 1 ? Math.max(0, Math.sin(Math.min(1, (f - 10) / 8) * Math.PI)) * -5 : 0);
-  const sleeve = name === "woman" ? "#1B1B22" : name === "girl" ? "#F29BB8" : "#FFFFFF";
-  const sleeveLine = name === "woman" ? "#3A3A46" : "#D5DBE4";
-  const bodyFill = sleeve, bodyLine = sleeveLine;
-  const eyeDX = pose === "point" ? 3.5 : mood === "think" ? 3 : 0, eyeDY = mood === "think" ? -2 : 0;
 
+  const cloth = name === "woman" ? { b: "#25252E", s: "#14141A", l: "#0E0E13" } : name === "girl" ? { b: "#F59BBA", s: "#E07CA0", l: "#B24F76" } : { b: "#FFFFFF", s: "#E3E8F0", l: "#9AA6B8" };
+  const sw = kid ? 21 : 25;
+  const arm = (a: { x: number; y: number }, h: { x: number; y: number }) => (
+    <g>
+      <path d={`M${a.x} ${a.y} L${h.x} ${h.y}`} stroke={LINE} strokeWidth={sw + 6.4} strokeLinecap="round" />
+      <path d={`M${a.x} ${a.y} L${h.x} ${h.y}`} stroke={cloth.b} strokeWidth={sw} strokeLinecap="round" />
+      <circle cx={h.x} cy={h.y} r={kid ? 11 : 12.5} fill={sk.b} {...ol} />
+      <path d={`M${h.x - 3} ${h.y - 7} q4 -4 8 0`} stroke={sk.s} strokeWidth={2} fill="none" strokeLinecap="round" />
+    </g>
+  );
+
+  const face = "M56 86 C56 54 76 40 100 40 C124 40 144 54 144 86 C144 114 126 138 100 138 C74 138 56 114 56 86 Z";
+  const bodyShape = kid ? "M48 264 C46 212 56 176 82 166 L118 166 C144 176 154 212 152 264 Z" : "M36 264 C34 206 46 166 78 156 L122 156 C154 166 166 206 164 264 Z";
   const head = (
-    <g transform={`translate(0 ${headY}) rotate(${headR} 100 120)`}>
-      {/* back hair / scarf */}
-      {name === "woman" && <path d="M56 92 C50 40 78 20 100 20 C122 20 150 40 144 92 C144 124 132 140 118 144 L82 144 C68 140 56 124 56 92 Z" fill="#17171D" />}
-      {name === "girl" && <path d="M58 90 C52 44 78 26 100 26 C122 26 148 44 142 90 L144 124 L128 116 L72 116 L56 124 Z" fill="#2B1B16" />}
-      <rect x={88} y={112} width={24} height={30} rx={8} fill={skin} />
-      <ellipse cx={100} cy={86} rx={kid ? 38 : 34} ry={kid ? 40 : 38} fill={skin} />
-      <circle cx={kid ? 62 : 66} cy={90} r={6} fill={skin} /><circle cx={kid ? 138 : 134} cy={90} r={6} fill={skin} />
-      {/* cheeks */}
-      <circle cx={80} cy={104} r={6} fill="#F08A7A" opacity={0.28} /><circle cx={120} cy={104} r={6} fill="#F08A7A" opacity={0.28} />
-      {/* eyes */}
-      {[86, 114].map((x) => (
+    <g transform={`translate(0 ${headY + 11}) rotate(${headR} 100 140)`}>
+      {name === "woman" && <path d="M50 96 C42 44 74 18 100 18 C126 18 158 44 150 96 C150 128 138 146 122 150 L78 150 C62 146 50 128 50 96 Z" fill="#1B1B23" {...ol} />}
+      {name === "girl" && <path d="M52 92 C44 46 76 24 100 24 C124 24 156 46 148 92 L152 134 C146 140 136 138 130 130 L70 130 C64 138 54 140 48 134 Z" fill="#3A2218" {...ol} />}
+      {name !== "woman" && <rect x={89} y={122} width={22} height={22} rx={8} fill={sk.s} {...ol} />}
+      {name === "woman" && <path d="M52 120 C52 146 60 158 76 164 L124 164 C140 158 148 146 148 120 C138 136 122 142 100 142 C78 142 62 136 52 120 Z" fill="#1B1B23" {...ol} />}
+      <circle cx={57} cy={94} r={8} fill={sk.b} {...ol} /><circle cx={143} cy={94} r={8} fill={sk.b} {...ol} />
+      <path d={face} fill={`url(#sk${uid})`} {...ol} />
+      <ellipse cx={74} cy={112} rx={9} ry={6} fill="#F07F72" opacity={0.32} /><ellipse cx={126} cy={112} rx={9} ry={6} fill="#F07F72" opacity={0.32} />
+      {[84, 116].map((x) => (
         <g key={x}>
-          <ellipse cx={x} cy={88} rx={7.5} ry={eyeRy} fill="#fff" stroke={INK} strokeWidth={1.2} />
-          <circle cx={x + eyeDX} cy={88 + eyeDY} r={Math.min(3.6, eyeRy * 0.7)} fill={INK} />
-          <path d={`M${x - 9} ${74 + browLift + (x < 100 ? browTilt * 0.5 : -browTilt * 0.5)} Q${x} ${70 + browLift} ${x + 9} ${74 + browLift + (x < 100 ? -browTilt * 0.5 : browTilt * 0.5)}`} stroke={name === "elder" ? "#CFCFCF" : "#2A1D17"} strokeWidth={3.2} strokeLinecap="round" fill="none" />
+          <ellipse cx={x} cy={92} rx={11} ry={eyeRy} fill="#fff" {...ol} strokeWidth={2.6} />
+          <circle cx={x + eyeDX} cy={92 + eyeDY} r={Math.min(6.6, eyeRy * 0.62)} fill={name === "elder" ? "#4A3526" : "#3B2519"} />
+          <circle cx={x + eyeDX} cy={92 + eyeDY} r={Math.min(3, eyeRy * 0.3)} fill="#0C0705" />
+          <circle cx={x + eyeDX + 2.4} cy={92 + eyeDY - 2.6} r={Math.min(2.3, eyeRy * 0.22)} fill="#fff" opacity={eyeRy > 3 ? 1 : 0} />
+          {female && <path d={`M${x - 11} ${92 - eyeRy * 0.7} q11 -${6 + 3 * (1 - blink)} 22 0`} stroke={LINE} strokeWidth={3.4} fill="none" strokeLinecap="round" />}
+          <path d={`M${x - 11} ${70 + browLift + (x < 100 ? browTilt * 0.55 : -browTilt * 0.55)} Q${x} ${64 + browLift} ${x + 11} ${70 + browLift + (x < 100 ? -browTilt * 0.55 : browTilt * 0.55)}`} stroke={name === "elder" ? "#D8D8D8" : "#33221A"} strokeWidth={female ? 3.4 : 4.6} strokeLinecap="round" fill="none" />
         </g>
       ))}
-      <path d="M100 92 Q95 102 101 104" stroke="#B98760" strokeWidth={2.2} fill="none" strokeLinecap="round" />
-      {(name === "man" || name === "elder") && <path d="M82 108 Q91 101 100 106 Q109 101 118 108 Q109 111 100 109 Q91 111 82 108 Z" fill={name === "elder" ? "#E8E8E8" : "#2A1D17"} />}
-      {name === "elder" && <path d="M66 100 C66 140 84 150 100 150 C116 150 134 140 134 100 C128 120 118 126 100 126 C82 126 72 120 66 100 Z" fill="#EDEDED" />}
+      <path d="M100 98 Q94 110 101 112" stroke={sk.s} strokeWidth={3} fill="none" strokeLinecap="round" />
+      {(name === "man" || name === "elder") && <path d="M80 114 Q90 105 100 111 Q110 105 120 114 Q110 118 100 115 Q90 118 80 114 Z" fill={name === "elder" ? "#F0F0F0" : "#2E1F18"} {...ol} strokeWidth={2} />}
+      {name === "elder" && <path d="M58 104 C58 146 80 160 100 160 C120 160 142 146 142 104 C136 128 124 134 100 134 C76 134 64 128 58 104 Z" fill="#F4F4F4" {...ol} strokeWidth={2.4} />}
+      {name === "man" && <path d="M64 108 C66 126 78 134 100 134 C122 134 134 126 136 108 C132 122 122 128 100 128 C78 128 68 122 64 108 Z" fill="#3A2A22" opacity={0.85} />}
       {mouth}
-      {name === "elder" && <g fill="none" stroke={INK} strokeWidth={2.4}><circle cx={86} cy={88} r={11} /><circle cx={114} cy={88} r={11} /><path d="M97 88 H103" /></g>}
-      {/* headwear / hair front */}
+      {name === "elder" && <g fill="none" stroke={LINE} strokeWidth={3}><circle cx={84} cy={92} r={14} /><circle cx={116} cy={92} r={14} /><path d="M98 91 H102" /></g>}
       {(name === "man" || name === "elder") && <g>
-        <path d="M62 82 C58 40 80 22 100 22 C120 22 142 40 138 82 C130 62 118 52 100 52 C82 52 70 62 62 82 Z" fill="#fff" stroke="#D5DBE4" strokeWidth={1.5} />
-        <path d="M62 80 C52 98 52 118 58 134 L72 124 C68 108 68 94 72 82 Z M138 80 C148 98 148 118 142 134 L128 124 C132 108 132 94 128 82 Z" fill="#fff" stroke="#D5DBE4" strokeWidth={1.5} />
-        <path d="M64 54 C82 42 118 42 136 54" stroke="#222" strokeWidth={6} strokeLinecap="round" fill="none" />
+        <path d="M54 88 C48 40 76 20 100 20 C124 20 152 40 146 88 C138 64 122 54 100 54 C78 54 62 64 54 88 Z" fill="#fff" {...ol} />
+        <path d="M54 86 C42 108 42 132 50 148 L68 136 C62 118 62 102 68 86 Z M146 86 C158 108 158 132 150 148 L132 136 C138 118 138 102 132 86 Z" fill="#fff" {...ol} />
+        <path d="M70 66 C86 60 114 60 130 66 M58 100 C56 112 58 124 62 134 M142 100 C144 112 142 124 138 134" stroke="#CBD3DF" strokeWidth={2} fill="none" strokeLinecap="round" />
+        <path d="M58 58 C80 44 120 44 142 58" stroke="#262626" strokeWidth={8} strokeLinecap="round" fill="none" />
+        <path d="M58 58 C80 44 120 44 142 58" stroke="#fff" strokeWidth={1.4} strokeDasharray="1 7" fill="none" opacity={0.5} />
       </g>}
       {name === "boy" && <g>
-        <path d="M64 70 C62 36 84 24 100 24 C116 24 138 36 136 70 C128 58 118 54 100 54 C82 54 72 58 64 70 Z" fill="#fff" stroke="#D5DBE4" strokeWidth={1.5} />
-        <path d="M66 62 H134" stroke={accent} strokeWidth={4} /><path d="M70 50 H130" stroke={accent} strokeWidth={2.5} opacity={0.7} />
+        <path d="M58 78 C54 36 80 22 100 22 C120 22 146 36 142 78 C132 62 120 56 100 56 C80 56 68 62 58 78 Z" fill="#fff" {...ol} />
+        <path d="M60 62 H140" stroke={accent} strokeWidth={5} /><path d="M66 48 H134" stroke={accent} strokeWidth={3} opacity={0.75} />
+        <path d="M62 82 C58 70 64 64 72 62 M138 82 C142 70 136 64 128 62" stroke="#3A2218" strokeWidth={9} fill="none" strokeLinecap="round" />
       </g>}
-      {name === "woman" && <path d="M62 90 C60 58 76 44 100 44 C124 44 140 58 138 90 C136 70 122 60 100 60 C78 60 64 70 62 90 Z" fill="#17171D" />}
+      {name === "woman" && <g>
+        <path d="M52 98 C48 56 72 40 100 40 C128 40 152 56 148 98 C146 74 128 62 100 62 C72 62 54 74 52 98 Z" fill="#1B1B23" {...ol} />
+        <path d="M70 52 C86 46 114 46 130 52" stroke="#3C3C48" strokeWidth={3} fill="none" strokeLinecap="round" />
+      </g>}
       {name === "girl" && <g>
-        <path d="M62 84 C58 48 80 34 100 34 C120 34 142 48 138 84 C130 66 120 60 100 60 C80 60 70 66 62 84 Z" fill="#2B1B16" />
-        <path d="M120 36 L138 24 L136 46 Z M120 36 L102 26 L106 46 Z" fill="#F29BB8" /><circle cx={120} cy={36} r={5} fill="#E0618D" />
+        <path d="M54 92 C48 52 76 34 100 34 C124 34 152 52 146 92 C138 70 124 62 100 62 C76 62 62 70 54 92 Z" fill="#3A2218" {...ol} />
+        <path d="M126 38 L150 24 L148 52 Z M126 38 L102 26 L108 52 Z" fill="#F46FA0" {...ol} strokeWidth={2.6} /><circle cx={126} cy={38} r={7} fill="#D9487F" {...ol} strokeWidth={2.4} />
+        <path d="M70 52 C82 44 96 42 108 44" stroke="#6A4030" strokeWidth={3} fill="none" strokeLinecap="round" />
       </g>}
     </g>
   );
 
-  const bodyShape = kid ? "M52 262 C52 200 64 160 100 156 C136 160 148 200 148 262 Z" : "M38 262 C38 196 54 148 100 142 C146 148 162 196 162 262 Z";
   return (
-    <svg width={size} height={size * 1.3} viewBox="0 0 200 260" style={{ overflow: "visible", transform: flip ? "scaleX(-1)" : undefined }}>
-      <ellipse cx={100} cy={258} rx={70} ry={6} fill="#000" opacity={0.12} />
-      <g transform={`translate(0 ${breathe * 0.35 + bounce}) rotate(${sway} 100 260)`}>
-        {/* left arm */}
-        <path d={`M${shL.x} ${shL.y} L${handL.x} ${handL.y}`} stroke={sleeve} strokeWidth={kid ? 22 : 26} strokeLinecap="round" />
-        <circle cx={handL.x} cy={handL.y} r={kid ? 10 : 11} fill={skin} />
-        <path d={bodyShape} fill={bodyFill} stroke={bodyLine} strokeWidth={1.6} />
-        {name === "woman" && <path d="M88 150 L100 172 L112 150" stroke={accent} strokeWidth={3} fill="none" />}
-        {(name === "man" || name === "elder" || name === "boy") && <g><path d="M92 148 L100 168 L108 148" stroke="#D5DBE4" strokeWidth={2} fill="none" /><circle cx={100} cy={178} r={2.2} fill="#D5DBE4" /><circle cx={100} cy={196} r={2.2} fill="#D5DBE4" /></g>}
-        {name === "girl" && <path d="M60 232 H140" stroke="#fff" strokeWidth={4} strokeDasharray="2 8" strokeLinecap="round" />}
-        {name === "man" && <g><circle cx={128} cy={190} r={0} /><rect x={118} y={176} width={16} height={9} rx={2} fill="#fff" stroke="#D5DBE4" /></g>}
+    <svg width={size} height={size * 1.3} viewBox="0 0 200 270" style={{ overflow: "visible", transform: flip ? "scaleX(-1)" : undefined }}>
+      <defs>
+        <radialGradient id={`sk${uid}`} cx="0.42" cy="0.38" r="0.75"><stop offset="0" stopColor={sk.b} /><stop offset="0.7" stopColor={sk.b} /><stop offset="1" stopColor={sk.s} /></radialGradient>
+        <linearGradient id={`cl${uid}`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor={cloth.s} /><stop offset="0.35" stopColor={cloth.b} /><stop offset="1" stopColor={cloth.s} /></linearGradient>
+      </defs>
+      <ellipse cx={100} cy={266} rx={74} ry={7} fill="#000" opacity={0.13} />
+      <g transform={`translate(0 ${breathe * 0.35 + bounce}) rotate(${sway} 100 264)`}>
+        {arm(shL, handL)}
+        <path d={bodyShape} fill={`url(#cl${uid})`} {...ol} />
+        {name === "woman" && <g><path d="M86 158 Q100 184 114 158" fill="none" stroke={accent} strokeWidth={3.4} strokeLinecap="round" /><path d="M100 184 V262" stroke="#3A3A48" strokeWidth={2} /></g>}
+        {(name === "man" || name === "elder" || name === "boy") && <g>
+          <path d="M90 156 L100 178 L110 156" fill="#fff" {...ol} strokeWidth={2.4} />
+          <path d="M100 178 V262" stroke={cloth.l} strokeWidth={1.8} opacity={0.55} />
+          {[190, 210, 230].map((y) => <circle key={y} cx={100} cy={y} r={2.6} fill={cloth.l} />)}
+          {!kid && <path d="M120 196 h18 v13 h-18 z" fill="#fff" stroke={cloth.l} strokeWidth={1.8} />}
+        </g>}
+        {name === "girl" && <g><path d="M60 236 Q100 250 140 236" stroke="#fff" strokeWidth={4} fill="none" strokeLinecap="round" strokeDasharray="2 9" /><path d="M86 168 Q100 180 114 168" fill="#fff" {...ol} strokeWidth={2.4} /></g>}
+        <ellipse cx={78} cy={266} rx={17} ry={7} fill="#4B3426" {...ol} strokeWidth={2.4} /><ellipse cx={122} cy={266} rx={17} ry={7} fill="#4B3426" {...ol} strokeWidth={2.4} />
         {head}
-        {/* right arm over body */}
-        <path d={`M${sh.x} ${sh.y} L${hand.x} ${hand.y}`} stroke={sleeve} strokeWidth={kid ? 22 : 26} strokeLinecap="round" />
-        <circle cx={hand.x} cy={hand.y} r={11.5} fill={skin} />
-        {pose === "point" && <path d={`M${hand.x} ${hand.y} l${Math.cos((ang * Math.PI) / 180) * 20} ${Math.sin((ang * Math.PI) / 180) * 20}`} stroke={skin} strokeWidth={7} strokeLinecap="round" />}
+        {arm(sh, hand)}
+        {pose === "point" && <path d={`M${hand.x + Math.cos((ang * Math.PI) / 180) * 6} ${hand.y + Math.sin((ang * Math.PI) / 180) * 6} l${Math.cos((ang * Math.PI) / 180) * 17} ${Math.sin((ang * Math.PI) / 180) * 17}`} stroke={LINE} strokeWidth={10.4} strokeLinecap="round" />}
+        {pose === "point" && <path d={`M${hand.x + Math.cos((ang * Math.PI) / 180) * 6} ${hand.y + Math.sin((ang * Math.PI) / 180) * 6} l${Math.cos((ang * Math.PI) / 180) * 17} ${Math.sin((ang * Math.PI) / 180) * 17}`} stroke={sk.b} strokeWidth={5} strokeLinecap="round" />}
       </g>
     </svg>
   );
