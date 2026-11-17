@@ -5,7 +5,12 @@ import { saveResult } from "@/lib/providers/storage";
 
 export const maxDuration = 60;
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
-const MODELS = { fast: "veo-3.1-fast-generate-preview", standard: "veo-3.1-generate-preview" } as const;
+/** Model names change at Google, so ask the API which Veo models this key can really use. */
+async function veoModels(key: string): Promise<string[]> {
+  const r = await fetch(`${BASE}/models?pageSize=200`, { headers: { "x-goog-api-key": key } });
+  const d = (await r.json().catch(() => ({}))) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
+  return (d.models ?? []).filter((m) => /veo/i.test(m.name) && (m.supportedGenerationMethods ?? []).includes("predictLongRunning")).map((m) => m.name.replace(/^models\//, "")).sort().reverse();
+}
 
 /** Admin-only trial of Veo: start one 8-second clip, then poll it. Nothing here is visible to customers. */
 export async function POST(req: Request) {
@@ -16,14 +21,17 @@ export async function POST(req: Request) {
   const b = (await req.json().catch(() => ({}))) as { prompt?: string; aspect?: string; model?: string };
   const prompt = String(b.prompt ?? "").trim().slice(0, 1500);
   if (prompt.length < 5) return NextResponse.json({ error: "اكتب وصف المشهد." }, { status: 400 });
-  const model = MODELS[b.model === "standard" ? "standard" : "fast"];
+  const all = await veoModels(key);
+  if (!all.length) return NextResponse.json({ error: "مفتاحك ما يشوف أي نموذج Veo. تأكد من تفعيل الفوترة على مشروع المفتاح." }, { status: 400 });
+  const fast = all.filter((m) => /fast/i.test(m)), std = all.filter((m) => !/fast|lite/i.test(m));
+  const model = (b.model === "standard" ? std[0] : fast[0]) ?? all[0];
   const r = await fetch(`${BASE}/models/${model}:predictLongRunning`, {
     method: "POST", headers: { "x-goog-api-key": key, "content-type": "application/json" },
     body: JSON.stringify({ instances: [{ prompt }], parameters: { aspectRatio: b.aspect === "16:9" ? "16:9" : "9:16" } }),
   });
   const d = (await r.json().catch(() => ({}))) as { name?: string; error?: { message?: string } };
-  if (!r.ok || !d.name) return NextResponse.json({ error: `Google ${r.status}: ${d.error?.message ?? "no operation"}`.slice(0, 400) }, { status: 502 });
-  return NextResponse.json({ op: d.name, model });
+  if (!r.ok || !d.name) return NextResponse.json({ error: `Google ${r.status} (${model}): ${d.error?.message ?? "no operation"} | متاح: ${all.join(", ")}`.slice(0, 600) }, { status: 502 });
+  return NextResponse.json({ op: d.name, model, available: all });
 }
 
 export async function GET(req: Request) {
