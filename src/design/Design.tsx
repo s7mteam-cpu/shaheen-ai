@@ -5,13 +5,27 @@ import { DIcon, IconStyleContext } from "./icons";
 import { DSIZE, mix, onColor, type DImg, type DItem, type DesignSpec, type Slide } from "./spec";
 
 /** One slide of a post / carousel / ad, drawn at full size (1080 wide). Used by the studio preview and the worker. */
-export type DesignProps = { spec: DesignSpec; index: number };
+/** edit: the customer is moving things on the canvas (studio only; the worker never passes it). */
+export type DesignProps = { spec: DesignSpec; index: number; edit?: { sel?: string | null } };
 
 type Ctx = {
   s: Slide; spec: DesignSpec; index: number; total: number; W: number; H: number; k: number;
   bg: string; ink: string; accent: string; soft: string; muted: string; line: string; onAccent: string; font: string;
   /** an AI background is behind this slide: layouts must not paint their own opaque backdrop */
   clear?: boolean;
+  edit?: { sel?: string | null };
+};
+
+/** Direct editing: every main element has an id; the customer can move, resize or remove it right on the design. */
+export const EL_LABELS: Record<string, string> = { title: "العنوان", kicker: "العنوان الصغير", body: "الوصف", meta: "التفاصيل", cta: "الزر", price: "السعر", badge: "الشارة", avatar: "الصورة الشخصية", handle: "الحساب", brand: "الشعار والاسم", photo: "الصورة", sticker: "الملصق", stat: "الرقم الكبير", date: "التاريخ", items: "النقاط", icon: "الأيقونة", num: "رقم الشريحة" };
+const gone = (c: Ctx, id: string) => !!c.s.hide?.includes(id);
+const da = (id: string) => ({ "data-el": id });
+const eo = (c: Ctx, id: string): React.CSSProperties => {
+  const p = c.s.pos?.[id];
+  return {
+    ...(p ? { translate: `${p.x}px ${p.y}px`, ...(p.s && p.s !== 1 ? { scale: String(p.s) } : {}) } : {}),
+    ...(c.edit ? { cursor: "move", outline: c.edit.sel === id ? "6px dashed #E8B44C" : "3px dashed rgba(150,150,150,.4)", outlineOffset: 8 } : {}),
+  };
 };
 
 const PAD = 80;
@@ -23,9 +37,10 @@ const initial = (name: string) => name.trim().replace(/^ال/, "").charAt(0);
 const fit = (text: string, base: number, chars = 12, min = 0.5) => Math.round(base * Math.max(min, Math.min(1, Math.sqrt(chars / Math.max(1, text.length)))));
 
 function Photo({ img, style, c }: { img?: DImg | null; style?: React.CSSProperties; c: Ctx }) {
-  if (img?.url) return <Img src={img.url} style={{ objectFit: "cover", display: "block", ...style }} />;
+  if (gone(c, "photo")) return null;
+  if (img?.url) return <Img {...da("photo")} src={img.url} style={{ objectFit: "cover", display: "block", ...style, ...eo(c, "photo") }} />;
   return (
-    <div style={{ background: `repeating-linear-gradient(135deg, ${c.soft} 0 22px, ${mix(c.soft, c.ink, 0.05)} 22px 44px)`, display: "grid", placeItems: "center", ...style }}>
+    <div {...da("photo")} style={{ ...eo(c, "photo"), background: `repeating-linear-gradient(135deg, ${c.soft} 0 22px, ${mix(c.soft, c.ink, 0.05)} 22px 44px)`, display: "grid", placeItems: "center", ...style }}>
       <DIcon name="image" size={90} color={mix(c.ink, c.bg, 0.6)} stroke={1.4} />
     </div>
   );
@@ -45,9 +60,9 @@ function Logo({ c, size = 64, dark = false }: { c: Ctx; size?: number; dark?: bo
 function BrandRow({ c, color }: { c: Ctx; color?: string }) {
   const b = c.spec.brand;
   const hasImg = b.showLogo && !!b.logo?.url && !b.box;
-  if (!b.name && !hasImg) return <div />;
+  if ((!b.name && !hasImg) || gone(c, "brand")) return <div />;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 30 * c.k, fontWeight: 800, color: color ?? c.ink }}>
+    <div {...da("brand")} style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 30 * c.k, fontWeight: 800, color: color ?? c.ink, ...eo(c, "brand") }}>
       <Logo c={c} size={hasImg ? 70 * c.k : 58 * c.k} />
       {!hasImg && b.name}
     </div>
@@ -55,10 +70,11 @@ function BrandRow({ c, color }: { c: Ctx; color?: string }) {
 }
 
 function Title({ c, base, color, hcolor, align }: { c: Ctx; base: number; color?: string; hcolor?: string; align?: "center" }) {
+  if (gone(c, "title")) return null;
   const all = `${c.s.title} ${c.s.highlight ?? ""}`.trim();
   const size = fit(all, base * c.k, 16);
   return (
-    <h1 style={{ fontSize: size, lineHeight: 1.16, fontWeight: 800, letterSpacing: -0.5, color: color ?? c.ink, textAlign: align, margin: 0 }}>
+    <h1 {...da("title")} style={{ fontSize: size, lineHeight: 1.16, fontWeight: 800, letterSpacing: -0.5, color: color ?? c.ink, textAlign: align, margin: 0, ...eo(c, "title") }}>
       {c.s.title}
       {c.s.highlight && <><br /><span style={{ color: hcolor ?? c.accent }}>{c.s.highlight}</span></>}
     </h1>
@@ -66,9 +82,9 @@ function Title({ c, base, color, hcolor, align }: { c: Ctx; base: number; color?
 }
 
 function Kicker({ c, color, line = true }: { c: Ctx; color?: string; line?: boolean }) {
-  if (!c.s.kicker) return null;
+  if (!c.s.kicker || gone(c, "kicker")) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 32 * c.k, fontWeight: 700, color: color ?? c.accent }}>
+    <div {...da("kicker")} style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 32 * c.k, fontWeight: 700, color: color ?? c.accent, ...eo(c, "kicker") }}>
       {line && <span style={{ width: 64, height: 4, background: color ?? c.accent, borderRadius: 2 }} />}
       {c.s.kicker}
     </div>
@@ -76,14 +92,14 @@ function Kicker({ c, color, line = true }: { c: Ctx; color?: string; line?: bool
 }
 
 function Body({ c, size = 34, color, align, max }: { c: Ctx; size?: number; color?: string; align?: "center"; max?: number }) {
-  if (!c.s.body) return null;
-  return <p style={{ fontSize: fit(c.s.body, size * c.k, 70, 0.72), lineHeight: 1.6, fontWeight: 500, color: color ?? c.muted, margin: 0, maxWidth: max, textAlign: align }}>{c.s.body}</p>;
+  if (!c.s.body || gone(c, "body")) return null;
+  return <p {...da("body")} style={{ fontSize: fit(c.s.body, size * c.k, 70, 0.72), lineHeight: 1.6, fontWeight: 500, color: color ?? c.muted, margin: 0, maxWidth: max, textAlign: align, ...eo(c, "body") }}>{c.s.body}</p>;
 }
 
 function Meta({ list, c, color, iconColor, size = 30 }: { list?: DItem[]; c: Ctx; color?: string; iconColor?: string; size?: number }) {
-  if (!list?.length) return null;
+  if (!list?.length || gone(c, "meta")) return null;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "14px 44px", fontSize: size * c.k, fontWeight: 700, color: color ?? c.ink }}>
+    <div {...da("meta")} style={{ display: "flex", flexWrap: "wrap", gap: "14px 44px", fontSize: size * c.k, fontWeight: 700, color: color ?? c.ink, ...eo(c, "meta") }}>
       {list.map((m, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}><DIcon name={m.icon ?? "check"} size={34 * c.k} color={iconColor ?? c.accent} />{m.text}</div>
       ))}
@@ -92,10 +108,10 @@ function Meta({ list, c, color, iconColor, size = 30 }: { list?: DItem[]; c: Ctx
 }
 
 function Cta({ c, bg, fg, size = 38 }: { c: Ctx; bg?: string; fg?: string; size?: number }) {
-  if (!c.s.cta) return null;
+  if (!c.s.cta || gone(c, "cta")) return null;
   const b = bg ?? c.accent;
   return (
-    <div style={{ background: b, color: fg ?? onColor(b), fontSize: size * c.k, fontWeight: 800, borderRadius: 999, padding: `${22 * c.k}px ${50 * c.k}px`, display: "flex", alignItems: "center", gap: 16, flex: "none", whiteSpace: "nowrap" }}>
+    <div {...da("cta")} style={{ ...eo(c, "cta"), background: b, color: fg ?? onColor(b), fontSize: size * c.k, fontWeight: 800, borderRadius: 999, padding: `${22 * c.k}px ${50 * c.k}px`, display: "flex", alignItems: "center", gap: 16, flex: "none", whiteSpace: "nowrap" }}>
       {c.s.cta}<ArrowLeft size={40 * c.k} strokeWidth={2.4} />
     </div>
   );
@@ -103,9 +119,9 @@ function Cta({ c, bg, fg, size = 38 }: { c: Ctx; bg?: string; fg?: string; size?
 
 function Price({ c, color, sub, cur }: { c: Ctx; color?: string; sub?: string; cur?: string }) {
   const p = c.s.price;
-  if (!p) return null;
+  if (!p || gone(c, "price")) return null;
   return (
-    <div>
+    <div {...da("price")} style={eo(c, "price")}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 16, color: color ?? c.ink }}>
         <span style={{ fontSize: fit(p.value, 92 * c.k, 4, 0.6), fontWeight: 800, lineHeight: 1 }}>{p.value}</span>
         {p.currency && <span style={{ fontSize: 34 * c.k, fontWeight: 700, color: cur ?? c.accent }}>{p.currency}</span>}
@@ -117,10 +133,10 @@ function Price({ c, color, sub, cur }: { c: Ctx; color?: string; sub?: string; c
 }
 
 function Badge({ c, bg, fg, outline }: { c: Ctx; bg?: string; fg?: string; outline?: boolean }) {
-  if (!c.s.badge) return null;
+  if (!c.s.badge || gone(c, "badge")) return null;
   const b = bg ?? c.accent;
   return (
-    <div style={{ fontSize: 26 * c.k, fontWeight: 700, borderRadius: 999, padding: "8px 28px", whiteSpace: "nowrap",
+    <div {...da("badge")} style={{ ...eo(c, "badge"), fontSize: 26 * c.k, fontWeight: 700, borderRadius: 999, padding: "8px 28px", whiteSpace: "nowrap",
       ...(outline ? { border: `2.5px solid ${b}`, color: b } : { background: b, color: fg ?? onColor(b) }) }}>
       {c.s.badge}
     </div>
@@ -129,10 +145,10 @@ function Badge({ c, bg, fg, outline }: { c: Ctx; bg?: string; fg?: string; outli
 
 function Avatar({ c, size, ring }: { c: Ctx; size: number; ring?: string }) {
   const p = c.s.person;
-  if (!p) return null;
-  const style: React.CSSProperties = { width: size, height: size, borderRadius: "50%", flex: "none", boxShadow: ring ? `0 0 0 4px ${c.bg}, 0 0 0 7px ${ring}` : undefined };
-  if (p.photo?.url) return <Img src={p.photo.url} style={{ ...style, objectFit: "cover" }} />;
-  return <div style={{ ...style, background: c.accent, color: c.onAccent, display: "grid", placeItems: "center", fontSize: size * 0.44, fontWeight: 800 }}>{p.name.trim().charAt(0)}</div>;
+  if (!p || gone(c, "avatar")) return null;
+  const style: React.CSSProperties = { ...eo(c, "avatar"), width: size, height: size, borderRadius: "50%", flex: "none", boxShadow: ring ? `0 0 0 4px ${c.bg}, 0 0 0 7px ${ring}` : undefined };
+  if (p.photo?.url) return <Img {...da("avatar")} src={p.photo.url} style={{ ...style, objectFit: "cover" }} />;
+  return <div {...da("avatar")} style={{ ...style, background: c.accent, color: c.onAccent, display: "grid", placeItems: "center", fontSize: size * 0.44, fontWeight: 800 }}>{p.name.trim().charAt(0)}</div>;
 }
 
 function Dots({ c, color }: { c: Ctx; color?: string }) {
@@ -162,8 +178,8 @@ function Ribbon({ c }: { c: Ctx }) {
 
 function Handle({ c, color }: { c: Ctx; color?: string }) {
   const h = c.spec.brand.handle;
-  if (!h) return null;
-  return <div dir="auto" style={{ fontSize: 26 * c.k, fontWeight: 700, color: color ?? c.muted }}>{h}</div>;
+  if (!h || gone(c, "handle")) return null;
+  return <div {...da("handle")} dir="auto" style={{ fontSize: 26 * c.k, fontWeight: 700, color: color ?? c.muted, ...eo(c, "handle") }}>{h}</div>;
 }
 
 
@@ -208,12 +224,16 @@ function FrameLayer({ c }: { c: Ctx }) {
 
 /** A field-specific touch pinned to the top-left corner (the text side is the right). */
 function StickerLayer({ c }: { c: Ctx }) {
+  const el = StickerInner({ c });
+  return el ? <div {...da("sticker")} style={{ position: "absolute", left: 0, top: 0, width: 0, height: 0, ...eo(c, "sticker"), outline: undefined }}>{el}</div> : null;
+}
+function StickerInner({ c }: { c: Ctx }) {
   const st = c.s.sticker;
-  if (!st) return null;
+  if (!st || gone(c, "sticker")) return null;
   const a = c.accent, on = c.onAccent;
   // the layout's own badge sits in the top-left corner: step below it
   const top = c.s.badge && st.kind !== "ribbon" ? 150 : 60;
-  const abs: React.CSSProperties = { position: "absolute", pointerEvents: "none", fontFamily: `"${c.font}", Cairo, sans-serif` };
+  const abs: React.CSSProperties = { position: "absolute", pointerEvents: c.edit ? "auto" : "none", fontFamily: `"${c.font}", Cairo, sans-serif` };
   switch (st.kind) {
     case "ribbon": return <div style={{ ...abs, left: -70, top: 50, width: 340, padding: "14px 0", textAlign: "center", background: a, color: on, fontSize: 34, fontWeight: 900, transform: "rotate(-45deg)", boxShadow: "0 8px 20px rgba(0,0,0,.2)" }}>{st.text}</div>;
     case "stamp": return <div style={{ ...abs, left: 60, top, width: 190, height: 190, borderRadius: "50%", border: `5px solid ${a}`, outline: `2px solid ${a}`, outlineOffset: -16, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 30, color: a, fontSize: 30, fontWeight: 900, lineHeight: 1.15, transform: "rotate(-14deg)" }}>{st.text}</div>;
@@ -278,8 +298,8 @@ function Bold(c: Ctx) {
             <BrandRow c={c} color={c.accent} />
             {s.kicker && <div style={{ fontSize: 38 * c.k, fontWeight: 700, color: c.muted }}>{s.kicker}</div>}
           </div>
-          {s.date && (
-            <div style={{ width: 220 * c.k, height: 240 * c.k, background: c.accent, color: c.onAccent, borderRadius: 28, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: "none" }}>
+          {s.date && !gone(c, "date") && (
+            <div {...da("date")} style={{ ...eo(c, "date"), width: 220 * c.k, height: 240 * c.k, background: c.accent, color: c.onAccent, borderRadius: 28, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: "none" }}>
               <div style={{ fontSize: 112 * c.k, fontWeight: 800, lineHeight: 1 }}>{s.date.day}</div>
               <div style={{ fontSize: 34 * c.k, fontWeight: 800 }}>{s.date.month}</div>
               {s.date.weekday && <div style={{ fontSize: 22 * c.k, fontWeight: 700, opacity: 0.75 }}>{s.date.weekday}</div>}
@@ -353,8 +373,8 @@ function Offer(c: Ctx) {
         <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}><BrandRow c={c} /><Badge c={c} /></div>
         {s.photo && <Photo img={s.photo} c={c} style={{ width: 420 * c.k, height: 420 * c.k, borderRadius: "50%", marginTop: 30 * c.k, border: `10px solid ${c.bg}`, boxShadow: `0 0 0 4px ${c.accent}` }} />}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 18 * c.k }}>
-          {v && (
-            <div style={{ lineHeight: 0.9, fontWeight: 800, color: c.accent, fontSize: fit(v, (s.photo ? 230 : 320) * c.k, 4, 0.45) }}>{v}</div>
+          {v && !gone(c, "stat") && (
+            <div {...da("stat")} style={{ ...eo(c, "stat"), lineHeight: 0.9, fontWeight: 800, color: c.accent, fontSize: fit(v, (s.photo ? 230 : 320) * c.k, 4, 0.45) }}>{v}</div>
           )}
           {s.stat?.label && <div style={{ fontSize: 44 * c.k, fontWeight: 800, color: c.ink }}>{s.stat.label}</div>}
           <div style={{ marginTop: 10 }}><Title c={c} base={86} align="center" /></div>
@@ -435,18 +455,18 @@ function Point(c: Ctx) {
   const bullets = (s.items ?? []).filter((x) => x.text).slice(0, 4);
   return (
     <div style={{ position: "absolute", inset: 0, background: "transparent", overflow: "hidden" }}>
-      {c.spec.bigNum !== false && <div style={{ position: "absolute", left: PAD - 20, top: (PAD - 40) * c.k, fontSize: 360 * c.k, fontWeight: 800, lineHeight: 1, color: "transparent", WebkitTextStroke: `4px ${c.line}` }}>{n}</div>}
+      {c.spec.bigNum !== false && !gone(c, "num") && <div {...da("num")} style={{ ...eo(c, "num"), position: "absolute", left: PAD - 20, top: (PAD - 40) * c.k, fontSize: 360 * c.k, fontWeight: 800, lineHeight: 1, color: "transparent", WebkitTextStroke: `4px ${c.line}` }}>{n}</div>}
       <div style={{ position: "absolute", inset: `${PAD * c.k}px ${PAD}px`, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><BrandRow c={c} /></div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 30 * c.k }}>
-          <div style={{ width: 120 * c.k, height: 120 * c.k, borderRadius: 32, background: c.spec.icons === "3d" ? "transparent" : c.accent, display: "grid", placeItems: "center" }}>
+          <div {...da("icon")} style={{ ...eo(c, "icon"), width: 120 * c.k, height: 120 * c.k, borderRadius: 32, background: c.spec.icons === "3d" ? "transparent" : c.accent, display: "grid", placeItems: "center" }}>
             <DIcon name={icon ?? "lightbulb"} size={62 * c.k} color={c.onAccent} />
           </div>
           <Kicker c={c} />
           <Title c={c} base={96} />
           <Body c={c} size={36} />
-          {bullets.length > 1 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 18 * c.k, marginTop: 6 }}>
+          {bullets.length > 1 && !gone(c, "items") && (
+            <div {...da("items")} style={{ display: "flex", flexDirection: "column", gap: 18 * c.k, marginTop: 6, ...eo(c, "items") }}>
               {bullets.map((b, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 32 * c.k, fontWeight: 700, color: c.ink }}>
                   <span style={{ width: 44 * c.k, height: 44 * c.k, borderRadius: "50%", background: c.soft, border: `2px solid ${c.line}`, display: "grid", placeItems: "center", flex: "none" }}>
@@ -571,13 +591,13 @@ function Minimal(c: Ctx) {
 
 const RENDER = { bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout };
 
-export function DesignSlide({ spec, index }: DesignProps) {
+export function DesignSlide({ spec, index, edit }: DesignProps) {
   const s = spec.slides[index] ?? spec.slides[0];
   const { width: W, height: H } = DSIZE[spec.aspect];
   const { bg, ink, accent, soft } = spec.colors;
   const c: Ctx = {
     s, spec, index, total: spec.slides.length, W, H, k: H <= 1080 ? 0.86 : 1,
-    bg, ink, accent, soft, muted: mix(ink, bg, 0.38), line: mix(ink, bg, 0.84), onAccent: onColor(accent), font: spec.font, clear: !!s.bg?.url,
+    bg, ink, accent, soft, muted: mix(ink, bg, 0.38), line: mix(ink, bg, 0.84), onAccent: onColor(accent), font: spec.font, clear: !!s.bg?.url, edit,
   };
   const L = RENDER[s.layout] ?? Classic;
   // a carousel closes in the same colours as the other slides (the dark inverted closing slide made the set look like 3 different designs)

@@ -18,8 +18,9 @@ import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag"
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
 import { designPack } from "@/design/packs";
+import { EL_LABELS } from "@/design/Design";
 import {
-  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum,
+  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum, DSIZE,
   type DAspect, type DColors, type DImg, type DItem, type DesignSpec, type LayoutId, type Slide,
 } from "@/design/spec";
 
@@ -85,6 +86,10 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
   const [copied, setCopied] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [useRef_, setUseRef] = useState(true);
+  const [free, setFree] = useState(false);
+  const [sel, setSel] = useState<string | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ id: string; x: number; y: number; ox: number; oy: number; sc: number } | null>(null);
   const s = spec.slides[cur] ?? spec.slides[0];
   const uses = new Set(LAYOUTS[s.layout].uses);
 
@@ -110,6 +115,38 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
     return () => clearInterval(t);
   }, [sent, render.status, jobId]);
 
+  const designW = DSIZE[spec.aspect].width;
+  const setPos = (id: string, x: number, y: number, sc?: number) => setSpec((p) => ({ ...p, slides: p.slides.map((v, i) => (i === cur ? { ...v, pos: { ...(v.pos ?? {}), [id]: { x: Math.round(x), y: Math.round(y), ...(sc && sc !== 1 ? { s: sc } : {}) } } } : v)) }));
+  const delEl = (id: string) => { setSpec((p) => ({ ...p, slides: p.slides.map((v, i) => (i === cur ? { ...v, hide: [...new Set([...(v.hide ?? []), id])] } : v)) })); setSel(null); };
+  const restoreAll = () => setSpec((p) => ({ ...p, slides: p.slides.map((v, i) => (i === cur ? { ...v, hide: undefined, pos: undefined } : v)) }));
+  const onDown = (e: React.PointerEvent) => {
+    if (!free) return;
+    const el = (e.target as HTMLElement).closest("[data-el]") as HTMLElement | null;
+    const id = el?.getAttribute("data-el") ?? null;
+    setSel(id);
+    if (!id) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const cur0 = spec.slides[cur]?.pos?.[id];
+    drag.current = { id, x: e.clientX, y: e.clientY, ox: cur0?.x ?? 0, oy: cur0?.y ?? 0, sc: cur0?.s ?? 1 };
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current; const w = stageRef.current?.clientWidth;
+    if (!d || !w) return;
+    const f = designW / w;
+    setPos(d.id, d.ox + (e.clientX - d.x) * f, d.oy + (e.clientY - d.y) * f, d.sc);
+  };
+  const onUp = () => { drag.current = null; };
+  useEffect(() => {
+    if (!free) return;
+    const h = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (/INPUT|TEXTAREA|SELECT/.test(t.tagName) || !sel) return;
+      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); delEl(sel); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  });
   const setSlide = (patch: Partial<Slide>) => setSpec((p) => ({ ...p, slides: p.slides.map((x, i) => (i === cur ? { ...x, ...patch } : x)) }));
   const setColor = (k: keyof DColors, v: string) => setSpec((p) => ({ ...p, colors: { ...p.colors, [k]: v } }));
 
@@ -206,8 +243,23 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
           {spec.slides.length > 1 && <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{cur + 1} / {spec.slides.length}</span>}
         </div>
+        <div className="flex flex-wrap items-center justify-center gap-2 text-[13px]">
+          <button type="button" aria-pressed={free} onClick={() => { setFree(!free); setSel(null); }} className="chip">{free ? L("✋ تحريك العناصر: شغّال") : L("✋ تحريك العناصر")}</button>
+          {free && sel && (() => { const cp = s.pos?.[sel]; const sc = cp?.s ?? 1; return (
+            <>
+              <span className="rounded-full bg-tint px-3 py-1">{L(EL_LABELS[sel] ?? sel)}</span>
+              <button type="button" onClick={() => setPos(sel, cp?.x ?? 0, cp?.y ?? 0, Math.max(0.3, +(sc - 0.1).toFixed(2)))} className="btn btn-outline px-3 py-1.5" aria-label={L("تصغير")}>−</button>
+              <button type="button" onClick={() => setPos(sel, cp?.x ?? 0, cp?.y ?? 0, Math.min(3, +(sc + 0.1).toFixed(2)))} className="btn btn-outline px-3 py-1.5" aria-label={L("تكبير")}>+</button>
+              <button type="button" onClick={() => delEl(sel)} className="btn btn-outline px-3 py-1.5 text-red-700">{L("🗑 مسح")}</button>
+            </>
+          ); })()}
+          {free && (s.pos || s.hide?.length) && <button type="button" onClick={restoreAll} className="btn btn-outline px-3 py-1.5">{L("↺ رجّع الأصل")}</button>}
+        </div>
+        {free && !sel && <p className="text-center text-[13px] text-subtle">{L("اضغط أي عنصر بالتصميم واسحبه، أو اختاره وامسحه (زر المسح أو Delete).")}</p>}
         <div className="relative mx-auto w-full shrink-0 overflow-hidden rounded-2xl shadow-lg" style={{ maxWidth: `min(100%, 460px, calc((100vh - 15rem) * ${spec.aspect === "9:16" ? 0.5625 : spec.aspect === "1:1" ? 1 : 0.8}))` }}>
-          <DesignView spec={spec} index={cur} />
+          <div ref={stageRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} style={{ touchAction: free ? "none" : undefined }}>
+            <DesignView spec={spec} index={cur} edit={free ? { sel } : undefined} />
+          </div>
           {spec.brand.box && spec.brand.showLogo && spec.brand.logo && <LogoDrag box={spec.brand.box} onChange={(box) => setSpec((p) => ({ ...p, brand: { ...p.brand, box } }))} />}
         </div>
         {spec.slides.length > 1 || max > 1 ? (

@@ -29,6 +29,9 @@ export type Slide = {
   bg?: DImg | null;
   imagePrompt?: string;
   caption?: string;
+  /** moved / resized elements by id (offsets in design pixels) and elements the customer removed from this slide */
+  pos?: Record<string, { x: number; y: number; s?: number }>;
+  hide?: string[];
 };
 
 export type DesignSpec = {
@@ -164,6 +167,18 @@ export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fa
     bg: img(raw.bg),
     imagePrompt: opt(raw.imagePrompt, 600),
     caption: typeof raw.caption === "string" ? raw.caption.trim().slice(0, 2200) || undefined : undefined,
+    pos: (() => {
+      const o = raw.pos && typeof raw.pos === "object" ? Object.entries(raw.pos as Record<string, { x?: unknown; y?: unknown; s?: unknown }>) : [];
+      const r: Record<string, { x: number; y: number; s?: number }> = {};
+      for (const [k, v] of o.slice(0, 24)) {
+        if (!/^[a-z0-9]{2,12}$/.test(k) || !v) continue;
+        const x = Number(v.x), y = Number(v.y), sc = Number(v.s);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        r[k] = { x: Math.max(-3000, Math.min(3000, Math.round(x))), y: Math.max(-3000, Math.min(3000, Math.round(y))), ...(Number.isFinite(sc) && sc > 0 && sc !== 1 ? { s: Math.max(0.3, Math.min(3, +sc.toFixed(2))) } : {}) };
+      }
+      return Object.keys(r).length ? r : undefined;
+    })(),
+    hide: Array.isArray(raw.hide) ? (raw.hide as unknown[]).filter((x): x is string => typeof x === "string" && /^[a-z0-9]{2,12}$/.test(x)).slice(0, 24) || undefined : undefined,
   };
 }
 

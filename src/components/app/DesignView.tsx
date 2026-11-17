@@ -5,13 +5,13 @@ import { DesignStill } from "@/design/Design";
 import { DSIZE, type DesignSpec } from "@/design/spec";
 
 /** Live, scaled preview of one slide (same component the worker renders to PNG). */
-export function DesignView({ spec, index, className }: { spec: DesignSpec; index: number; className?: string }) {
+export function DesignView({ spec, index, className, edit }: { spec: DesignSpec; index: number; className?: string; edit?: { sel?: string | null } }) {
   const { width, height } = DSIZE[spec.aspect];
   return (
     <div dir="ltr" className={className} style={{ aspectRatio: `${width} / ${height}`, width: "100%" }}>
       <Thumbnail
         component={DesignStill as never}
-        inputProps={{ spec, index }}
+        inputProps={{ spec, index, edit }}
         compositionWidth={width}
         compositionHeight={height}
         frameToDisplay={0}
