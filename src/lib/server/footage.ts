@@ -113,5 +113,16 @@ export async function fillClips<G extends { kind: string; q?: string; img?: stri
       try { const c = await findClip(g.q!, g.text ?? "", g.dur, aspect, userId, jobId, used, ctx); if (c) { g.img = c.img; g.credit = c.credit; g.cdur = c.cdur; } } catch (e) { console.error("findClip", e); }
     }));
   }
+  // a scene with no clip of its own borrows a clip already found (not the neighbour's), so the video stays real footage instead of turning into a plain background
+  const good = graphics.filter((g) => g.kind === "clip" && g.img);
+  if (good.length) {
+    graphics.forEach((g, i) => {
+      if (g.kind !== "clip" || g.img) return;
+      const near = new Set([graphics[i - 1]?.img, graphics[i + 1]?.img]);
+      const pool = good.filter((x) => !near.has(x.img));
+      const src = (pool.length ? pool : good)[i % (pool.length || good.length)];
+      g.img = src.img; g.credit = src.credit; g.cdur = src.cdur;
+    });
+  }
   return graphics.map((g) => (g.kind === "clip" && !g.img ? ({ ...g, kind: g.text ? "headline" : "clip" } as G) : g)).filter((g) => g.kind !== "clip" || g.img);
 }
