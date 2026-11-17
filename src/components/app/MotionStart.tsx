@@ -119,16 +119,17 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       {busy ? <Progress value={pct} label={L("شاهين يكتب ويرسم ويجهّز الفيديو…")} /> : (
         <button disabled={idea.trim().length < 5 || balance < costPer15} className="btn btn-gold py-3.5 text-[16px]">✨ {L("أنشئ الفيديو")}</button>
       )}
-      <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة: من")} {costPer15} {L("ريشة (15 ثانية)، وفيديو 30 ثانية")} {costPer15 * 2} {L("ريشة.")}</p>
+      {!busy && <button type="button" onClick={() => setAuto(false)} className="btn btn-primary py-3.5 text-[16px]">⚙️ {L("أبي أختار بنفسي")}</button>}
+      {!busy && <p className="text-center text-[13px] text-subtle">{L("اختار بنفسك: المجال، الستايل، المدة، الصوت، الخلفية…")}</p>}
+      {!busy && <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة: من")} {costPer15} {L("ريشة (15 ثانية)، وفيديو 30 ثانية")} {costPer15 * 2} {L("ريشة.")}</p>}
       {balance < costPer15 && <p className="text-center text-[14px] text-red-700">{L("رصيدك ما يكفي.")} <a href="/app/subscribe" className="underline">{L("زوّد رصيدك")}</a></p>}
-      <button type="button" onClick={() => setAuto(false)} className="text-center text-[14px] text-navy-700 underline">{L("⚙️ أبي أختار بنفسي (المجال، الستايل، المدة، الصوت…)")}</button>
     </form>
   );
 
   return (
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
       {template && <LikeNote like={{ title: `قالب «${template.title}»`, thumb: template.thumb }} />}
-      {!template && <button type="button" onClick={() => setAuto(true)} className="self-start text-[14px] text-navy-700 underline">{L("← رجوع للوضع التلقائي (اكتب فكرتك بس)")}</button>}
+      {!template && <button type="button" onClick={() => setAuto(true)} className="btn btn-outline self-start px-4 py-2 text-[14px]">{L("← رجوع للوضع التلقائي (اكتب فكرتك بس)")}</button>}
       <IndustryPicker value={industry} onChange={pickField} hint="اختر مجالك، وتطلع لك خيارات خاصة فيه. كل مجال له حزمة (مشاهد وحركات وستايلات وفيديوهات جاهزة)." />
       {focuses.length > 0 && <div className="flex flex-col gap-2"><span className="font-semibold">{L("شو تبي بالفيديو؟")}</span>
         <div className="flex flex-wrap gap-2">{focuses.map((f) => <button key={f.id} type="button" aria-pressed={focus === f.id} onClick={() => pickFocus(f)} className="chip">{L(f.label)}</button>)}</div></div>}
