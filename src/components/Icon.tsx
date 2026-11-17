@@ -9,6 +9,7 @@ const paths: Record<string, React.ReactNode> = {
   mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3" /></>,
   waves: <><path d="M3 12h2" /><path d="M7 8v8" /><path d="M11 5v14" /><path d="M15 8v8" /><path d="M19 10v4" /></>,
   check: <path d="M20 6L9 17l-5-5" />,
+  calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18" /><path d="M8 3v4" /><path d="M16 3v4" /><path d="M8 14h3" /><path d="M13 14h3" /><path d="M8 17.5h3" /></>,
   arrow: <><path d="M19 12H5" /><path d="M11 6l-6 6 6 6" /></>,
   home: <><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /></>,
   grid: <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>,
