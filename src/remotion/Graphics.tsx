@@ -642,11 +642,10 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
     }
     case "clip": {
       // real stock footage under the voice: slow push-in, our Arabic text on top, a tiny credit for whoever filmed it
-      const zoom = interpolate(f, [0, len], [1.0, 1.08]);
-      const sty = g.ty ?? m.titleY ?? null;
+      const sty = g.ty ?? m.titleY ?? null; // no zoom on real footage: it would magnify any shake of the camera
       const q = Math.min(1, pop(f, 4, 14));
       const cf = Math.max(1, Math.round((g.cdur ?? 0) * MFPS));
-      const vid = g.url ? <OffthreadVideo src={g.url} muted style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom})` }} /> : null;
+      const vid = g.url ? <OffthreadVideo src={g.url} muted style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : null;
       return (
         <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: out, background: m.colors.bg }}>
           {vid ? (g.cdur ? <Loop durationInFrames={cf}>{vid}</Loop> : vid) : <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${th.accent}55, ${m.colors.bg})` }} />}

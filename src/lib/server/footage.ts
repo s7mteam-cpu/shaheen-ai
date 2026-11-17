@@ -1,5 +1,6 @@
 import "server-only";
 import { saveResult } from "@/lib/providers/storage";
+import { claudeVisionJson } from "@/lib/providers/text";
 
 type PFile = { quality: string; file_type: string; width: number | null; height: number | null; link: string };
 type PVideo = { id: number; duration: number; url: string; user?: { name?: string }; video_files: PFile[] };
@@ -22,58 +23,81 @@ function bestFile(v: PVideo, aspect: string): PFile | null {
   return ok[0] ?? mp4.sort((a, b) => (b.width as number) * (b.height as number) - (a.width as number) * (a.height as number))[0] ?? null;
 }
 
-/** One real stock clip for a search phrase: saved in our own storage (the provider's links are not permanent). Free for commercial use (Pexels). */
-export async function findClip(q: string, minSec: number, aspect: string, userId: string, jobId: string, used: Set<number>): Promise<Clip | null> {
-  if (!q.trim()) return null;
-  const key = process.env.PEXELS_API_KEY;
-  if (!key) return findPixabay(q, minSec, userId, jobId, used);
-  const need = NEED[aspect] ?? NEED["9:16"];
-  const r = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&orientation=${need.orient}&size=medium&per_page=12`, { headers: { Authorization: key } });
-  if (!r.ok) return null;
-  const d = (await r.json()) as { videos?: PVideo[] };
-  const list = (d.videos ?? []).filter((v) => !used.has(v.id));
-  // clips long enough for the scene first, then the rest; short and calm clips are cheaper and fit the voice better
-  const pick = [...list.filter((v) => v.duration >= minSec), ...list.filter((v) => v.duration < minSec)].find((v) => bestFile(v, aspect));
-  if (!pick) return null;
-  const f = bestFile(pick, aspect)!;
-  const res = await fetch(f.link);
-  if (!res.ok) return null;
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length > 60 * 1024 * 1024) return null;
-  used.add(pick.id);
-  return { img: await saveResult(userId, jobId, buf, "video/mp4", "mp4"), credit: `${pick.user?.name ? `${pick.user.name} · ` : ""}Pexels`, cdur: Math.max(1, pick.duration) };
-}
+type Cand = { id: number; duration: number; thumb: string; credit: string; portrait: boolean; file: () => { url: string } | null };
+type Ctx = { topic: string; industry?: string };
 
-/** Fills every "clip" scene with a real clip. A scene that finds nothing becomes a plain headline so the video never has a hole. */
-export async function fillClips<G extends { kind: string; q?: string; img?: string; credit?: string; cdur?: number; dur: number; text?: string }>(graphics: G[], aspect: string, userId: string, jobId: string): Promise<G[]> {
-  const used = new Set<number>();
-  const todo = graphics.filter((g) => g.kind === "clip" && g.q && !g.img);
-  for (let i = 0; i < todo.length; i += 4) { // 4 at a time: friendly to the free plan's rate limit
-    await Promise.all(todo.slice(i, i + 4).map(async (g) => {
-      try { const c = await findClip(g.q!, g.dur, aspect, userId, jobId, used); if (c) { g.img = c.img; g.credit = c.credit; g.cdur = c.cdur; } } catch (e) { console.error("findClip", e); }
-    }));
-  }
-  return graphics.map((g) => (g.kind === "clip" && !g.img ? ({ ...g, kind: g.text ? "headline" : "clip" } as G) : g)).filter((g) => g.kind !== "clip" || g.img);
+async function pexelsCands(q: string, aspect: string, key: string): Promise<Cand[]> {
+  const need = NEED[aspect] ?? NEED["9:16"];
+  const r = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&orientation=${need.orient}&size=medium&per_page=10`, { headers: { Authorization: key } });
+  if (!r.ok) return [];
+  const d = (await r.json()) as { videos?: (PVideo & { image?: string; width?: number; height?: number })[] };
+  return (d.videos ?? []).flatMap((v) => {
+    const f = bestFile(v, aspect);
+    return f && v.image ? [{ id: v.id, duration: v.duration, thumb: v.image, credit: `${v.user?.name ? `${v.user.name} · ` : ""}Pexels`, portrait: (v.height ?? 0) >= (v.width ?? 1), file: () => ({ url: f.link }) }] : [];
+  });
 }
 
 type XFile = { url: string; width: number; height: number; size: number };
-type XVideo = { id: number; duration: number; user?: string; videos: { large?: XFile; medium?: XFile; small?: XFile; tiny?: XFile } };
+type XVideo = { id: number; duration: number; user?: string; picture_id?: string; videos: { large?: XFile; medium?: XFile; small?: XFile; tiny?: XFile } };
 
-/** Pixabay (free for commercial use, no attribution needed): used when there is no Pexels key. Same job: one real clip, saved in our storage. */
-async function findPixabay(q: string, minSec: number, userId: string, jobId: string, used: Set<number>): Promise<Clip | null> {
-  const key = process.env.PIXABAY_API_KEY;
-  if (!key) return null;
-  const r = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&video_type=film&safesearch=true&per_page=12`);
-  if (!r.ok) return null;
+/** Pixabay (free for commercial use, no attribution needed): used when there is no Pexels key. */
+async function pixabayCands(q: string, key: string): Promise<Cand[]> {
+  const r = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&video_type=film&safesearch=true&per_page=16`);
+  if (!r.ok) return [];
   const d = (await r.json()) as { hits?: XVideo[] };
-  const list = (d.hits ?? []).filter((v) => !used.has(v.id));
-  const pick = [...list.filter((v) => v.duration >= minSec), ...list.filter((v) => v.duration < minSec)].find((v) => v.videos.large?.url || v.videos.medium?.url);
-  if (!pick) return null;
-  const f = (pick.videos.large?.url && (!pick.videos.large.size || pick.videos.large.size < 40e6) ? pick.videos.large : pick.videos.medium) ?? pick.videos.large!;
+  return (d.hits ?? []).flatMap((v) => {
+    const f = (v.videos.large?.url && (!v.videos.large.size || v.videos.large.size < 40e6) ? v.videos.large : v.videos.medium) ?? v.videos.large;
+    if (!f?.url || !v.picture_id) return [];
+    return [{ id: v.id, duration: v.duration, thumb: `https://i.vimeocdn.com/video/${v.picture_id}_640x360.jpg`, credit: `${v.user ? `${v.user} · ` : ""}Pixabay`, portrait: (f.height ?? 0) >= (f.width ?? 1), file: () => ({ url: f.url }) }];
+  });
+}
+
+/** An art director looks at the candidates' pictures and keeps only a clip that really fits the scene (0 = none is good enough). */
+async function review(cands: Cand[], q: string, text: string, ctx: Ctx): Promise<number> {
+  try {
+    const ok: Cand[] = [];
+    await Promise.all(cands.map(async (c) => { try { const h = await fetch(c.thumb, { method: "HEAD" }); if (h.ok) ok.push(c); } catch { /* skip */ } }));
+    const list = cands.filter((c) => ok.includes(c)).slice(0, 6);
+    if (list.length < 2) return list.length ? 1 : 0;
+    const r = await claudeVisionJson<{ pick?: number }>(
+      `أنت مدير فني صارم لإعلانات خليجية احترافية. ترى صور معاينة لقطات فيديو جاهزة مرقمة. اختر رقم اللقطة الأنسب للمشهد، أو 0 إذا ما فيه واحدة مناسبة فعلاً. ارفض أي لقطة: غير مرتبطة بمعنى المشهد، مبنى مهجور أو متهدم أو متسخ، مكان فوضوي أو قديم أو مظلم، جودة سيئة، وجوه قريبة لأشخاص، كتابة أو شعارات ظاهرة، أو شكلها غير فاخر وغير مناسب لإعلان تجاري. فضّل اللقطات النظيفة والمرتبة والمضيئة والمستقرة. أعد JSON: {"pick": رقم}`,
+      `فكرة الفيديو: ${ctx.topic.slice(0, 300)}\n${ctx.industry ? `المجال: ${ctx.industry}\n` : ""}نص المشهد: ${text || "-"}\nبحثنا عن: ${q}`,
+      list.map((c, i) => ({ url: c.thumb, label: `لقطة ${i + 1}` })), 200, "claude-haiku-5-5");
+    const n = Math.round(Number(r.pick) || 0);
+    return n >= 1 && n <= list.length ? cands.indexOf(list[n - 1]) + 1 : 0;
+  } catch (e) { console.error("clip review", e); return 1; } // reviewer unavailable: take the first (already sorted)
+}
+
+/** One real stock clip for a scene: candidates → reviewed → saved in our own storage (provider links are not permanent). */
+export async function findClip(q: string, text: string, minSec: number, aspect: string, userId: string, jobId: string, used: Set<number>, ctx: Ctx): Promise<Clip | null> {
+  if (!q.trim()) return null;
+  const px = process.env.PEXELS_API_KEY, pb = process.env.PIXABAY_API_KEY;
+  let cands = px ? await pexelsCands(q, aspect, px) : pb ? await pixabayCands(q, pb) : [];
+  cands = cands.filter((c) => !used.has(c.id));
+  const wantPortrait = aspect === "9:16" || aspect === "4:5";
+  // long enough for the scene first; then the shape of the video (a tall clip is not cropped, so a shaky hand is not magnified)
+  cands.sort((a, b) => Number(b.duration >= minSec) - Number(a.duration >= minSec) || Number(b.portrait === wantPortrait) - Number(a.portrait === wantPortrait));
+  const n = await review(cands, q, text, ctx);
+  if (!n) return null;
+  const pick = cands[n - 1] ?? cands[0];
+  const f = pick.file();
+  if (!f) return null;
   const res = await fetch(f.url);
   if (!res.ok) return null;
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length > 60 * 1024 * 1024) return null;
   used.add(pick.id);
-  return { img: await saveResult(userId, jobId, buf, "video/mp4", "mp4"), credit: `${pick.user ? `${pick.user} · ` : ""}Pixabay`, cdur: Math.max(1, pick.duration) };
+  return { img: await saveResult(userId, jobId, buf, "video/mp4", "mp4"), credit: pick.credit, cdur: Math.max(1, pick.duration) };
+}
+
+/** Fills every "clip" scene with a real, reviewed clip. A scene with no good clip becomes a plain headline (or is dropped), so the video never shows a bad shot. */
+export async function fillClips<G extends { kind: string; q?: string; img?: string; credit?: string; cdur?: number; dur: number; text?: string }>(graphics: G[], aspect: string, userId: string, jobId: string, ctx: Ctx): Promise<G[]> {
+  const used = new Set<number>();
+  const todo = graphics.filter((g) => g.kind === "clip" && g.q && !g.img);
+  for (let i = 0; i < todo.length; i += 3) {
+    await Promise.all(todo.slice(i, i + 3).map(async (g) => {
+      try { const c = await findClip(g.q!, g.text ?? "", g.dur, aspect, userId, jobId, used, ctx); if (c) { g.img = c.img; g.credit = c.credit; g.cdur = c.cdur; } } catch (e) { console.error("findClip", e); }
+    }));
+  }
+  return graphics.map((g) => (g.kind === "clip" && !g.img ? ({ ...g, kind: g.text ? "headline" : "clip" } as G) : g)).filter((g) => g.kind !== "clip" || g.img);
 }
