@@ -626,7 +626,7 @@ async function renderMontage(job) {
 }
 
 // ---------- Design studio: one PNG per slide ----------
-const DESIGN_TOOLS = ["post", "carousel", "ad-design", "business-cards"];
+const DESIGN_TOOLS = ["post", "carousel", "ad-design", "business-cards", "invitations"];
 async function renderDesign(job) {
   const dir = await mkdtemp(join(tmpdir(), "design-"));
   try {

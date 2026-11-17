@@ -1,14 +1,15 @@
 // Design studio data model: posts, carousels and ads, rendered by React (live preview) and by the worker (PNG).
 // Claude writes the content and picks a layout per slide; the customer edits everything live.
 
-export type DAspect = "4:5" | "1:1" | "9:16" | "card";
-export type DKind = "post" | "carousel" | "ads" | "bcard";
+export type DAspect = "4:5" | "1:1" | "9:16" | "card" | "inv";
+export type DKind = "post" | "carousel" | "ads" | "bcard" | "invite";
 export type DImg = { path: string; bucket: "uploads" | "results"; url: string };
 export type DItem = { icon?: string; text: string };
 export type DColors = { bg: string; ink: string; accent: string; soft: string };
 
 export type LayoutId = "classic" | "bold" | "bento" | "minimal" | "split" | "photo" | "offer" | "quote" | "cover" | "point" | "cta"
-  | "cardA" | "cardB" | "cardC" | "cardD" | "cardE" | "cardBack" | "cardBackB";
+  | "cardA" | "cardB" | "cardC" | "cardD" | "cardE" | "cardBack" | "cardBackB"
+  | "invA" | "invB" | "invC" | "invD" | "invE" | "invBack";
 
 export type Slide = {
   layout: LayoutId;
@@ -79,6 +80,7 @@ export const DSIZE: Record<DAspect, { width: number; height: number }> = {
   "4:5": { width: 1080, height: 1350 },
   "1:1": { width: 1080, height: 1080 },
   "9:16": { width: 1080, height: 1920 },
+  inv: { width: 1080, height: 1512 }, // 5 x 7 in invitation
   card: { width: 1050, height: 600 }, // 3.5 x 2 in at 300 dpi (the common 90 x 50 mm card, print-ready)
 };
 
@@ -110,10 +112,20 @@ export const LAYOUTS: Record<LayoutId, { label: string; hint: string; uses: (key
   cardE: { label: "طباعي بسيط", hint: "بطاقة عمل: خطوط فاصلة وخط واضح بدون زخرفة، للأطباء والمحامين والاستشاريين", uses: ["kicker", "title", "highlight", "body", "meta"] },
   cardBack: { label: "خلفية: الشعار", hint: "ظهر البطاقة: لون الهوية كامل والشعار بالوسط مع العبارة التعريفية", uses: ["title", "body"] },
   cardBackB: { label: "خلفية: تفاصيل", hint: "ظهر البطاقة: العنوان وساعات العمل وحسابات التواصل", uses: ["kicker", "title", "body", "meta"] },
+  invA: { label: "كلاسيكي ذهبي", hint: "دعوة: إطار مزدوج، الأسماء بالوسط، التاريخ بثلاثة أقسام. للزفاف والخطوبة الفخمة", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
+  invB: { label: "قوس ناعم", hint: "دعوة: قوس كبير بالوسط فيه الأسماء، ألوان هادئة. عصري ورومانسي", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
+  invC: { label: "طباعي عصري", hint: "دعوة: أسماء ضخمة بأسلوب مجلات وخطوط رفيعة وتاريخ بارز. للأسلوب الحديث البسيط", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
+  invD: { label: "ملكي داكن", hint: "دعوة: خلفية داكنة وإطار ذهبي. للحفلات الفخمة والمناسبات الرسمية", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
+  invE: { label: "تاريخ بارز", hint: "دعوة: نصف علوي ملوّن فيه التاريخ ضخم، والأسماء والتفاصيل تحت. للمواليد والتخرج والأعياد", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
+  invBack: { label: "صفحة التفاصيل", hint: "ظهر الدعوة: عنوان، ملاحظات (الزي، الاستقبال)، الوقت والمكان والتأكيد", uses: ["kicker", "title", "body", "date", "meta"] },
 };
 export const CARD_LAYOUTS: LayoutId[] = ["cardA", "cardB", "cardC", "cardD", "cardE", "cardBack", "cardBackB"];
-/** Layouts a kind of design offers (posts never get a business-card layout and the reverse). */
-export const layoutsFor = (kind: DKind): LayoutId[] => (Object.keys(LAYOUTS) as LayoutId[]).filter((id) => CARD_LAYOUTS.includes(id) === (kind === "bcard"));
+export const INVITE_LAYOUTS: LayoutId[] = ["invA", "invB", "invC", "invD", "invE", "invBack"];
+/** Layouts a kind of design offers (posts never get a business-card or invitation layout, and the reverse). */
+export const layoutsFor = (kind: DKind): LayoutId[] => (Object.keys(LAYOUTS) as LayoutId[]).filter((id) => {
+  const set = CARD_LAYOUTS.includes(id) ? "bcard" : INVITE_LAYOUTS.includes(id) ? "invite" : "post";
+  return kind === "bcard" ? set === "bcard" : kind === "invite" ? set === "invite" : set === "post";
+});
 export const LAYOUT_IDS = layoutsFor("post");
 
 export const ICON_IDS = [
@@ -221,9 +233,9 @@ export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fa
 export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknown>, base: { kind: DKind; aspect: DAspect }): DesignSpec {
   const c = (raw.colors ?? {}) as Partial<DColors>;
   const b = (raw.brand ?? {}) as DesignSpec["brand"];
-  const max = base.kind === "carousel" ? 10 : base.kind === "ads" ? 4 : base.kind === "bcard" ? 2 : 1;
+  const max = base.kind === "carousel" ? 10 : base.kind === "ads" ? 4 : base.kind === "bcard" || base.kind === "invite" ? 2 : 1;
   const slides = (Array.isArray(raw.slides) ? raw.slides : []).slice(0, max).map((s, i, all) =>
-    normaliseSlide(s as Slide & Record<string, unknown>, base.kind === "bcard" ? (i === 0 ? "cardA" : "cardBack") : base.kind === "carousel" ? (i === 0 ? "cover" : i === all.length - 1 ? "cta" : "point") : "classic"));
+    normaliseSlide(s as Slide & Record<string, unknown>, base.kind === "invite" ? (i === 0 ? "invA" : "invBack") : base.kind === "bcard" ? (i === 0 ? "cardA" : "cardBack") : base.kind === "carousel" ? (i === 0 ? "cover" : i === all.length - 1 ? "cta" : "point") : "classic"));
   return {
     kind: base.kind,
     aspect: (Object.keys(DSIZE) as DAspect[]).includes(raw.aspect as DAspect) ? (raw.aspect as DAspect) : base.aspect,
@@ -256,7 +268,7 @@ export function withUrls(s: DesignSpec, urls: Record<string, string>): DesignSpe
   return { ...s, icon3d, brand: { ...s.brand, logo: u(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, photo: u(sl.photo), bg: u(sl.bg), person: sl.person ? { ...sl.person, photo: u(sl.person.photo) } : sl.person })) };
 }
 
-export const DESIGN_TOOLS: Record<string, DKind> = { post: "post", carousel: "carousel", "ad-design": "ads", "business-cards": "bcard" };
+export const DESIGN_TOOLS: Record<string, DKind> = { post: "post", carousel: "carousel", "ad-design": "ads", "business-cards": "bcard", invitations: "invite" };
 
 /** Icon ids a design actually shows (for the 3D icon set). */
 export function usedIcons(s: DesignSpec): string[] {

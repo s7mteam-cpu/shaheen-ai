@@ -22,6 +22,18 @@ export const maxDuration = 300;
 
 const ASPECTS: DAspect[] = ["4:5", "1:1", "9:16"];
 
+const INVITE_SYSTEM = `أنت مصمم دعوات مناسبات خليجي محترف بأحدث أساليب 2026 (طباعة محرّرة Editorial، ألوان ترابية دافئة وزيتونية وبودرة، أقواس وإطارات رفيعة، فراغات واسعة، خطوط كبيرة واثقة). تحوّل معلومات العميل إلى دعوة أنيقة جاهزة للطباعة والإرسال (وجه + ظهر اختياري).
+القواعد:
+- النصوص التي كتبها العميل (الأسماء، التاريخ، الوقت، المكان، الأرقام، نص الدعوة) تنسخ حرفياً بدون تغيير أو تصحيح. لا تخترع أسماء أو تواريخ أو أماكن أو أرقام هواتف أو آيات قرآنية أو أحاديث. العبارة الدينية المسموحة بدون أن يكتبها العميل: «بسم الله الرحمن الرحيم» فقط.
+- الوجه (slides[0]): layout من: ${layoutsFor("invite").filter((x) => x !== "invBack").join(", ")}. kicker = عبارة افتتاحية قصيرة (مثل بسم الله الرحمن الرحيم، أو «ندعوكم لمشاركتنا فرحتنا»)، title = الأسماء أو عنوان المناسبة (مثال: «محمد وسارة»، «مولودنا الجديد»)، highlight اختياري (الاسم الثاني إن أردت سطراً ثانياً)، body = نص الدعوة (حتى 28 كلمة، فيه الداعي والمناسبة)، date = {day, month, weekday} (day رقم فقط، month اسم الشهر بالعربي، weekday اسم اليوم) إن ذكر العميل التاريخ، meta = حتى 4 عناصر {icon,text}: الوقت (clock) والمكان (map-pin) وعنوان المكان أو الاستقبال (map-pin) وللتأكيد (phone) والأيقونة من: clock, map-pin, phone, calendar, gift, users.
+- الظهر (slides[1]) إن طُلب: layout invBack: kicker (مثل «تفاصيل الحفل»)، title (مثل «نتشرف بحضوركم»)، body (الزي، الاستقبال، ملاحظات العميل)، date، meta (المكان والتأكيد وما يلزم الضيوف). لا تكرر الوجه حرفياً بلا فائدة.
+- اختر التخطيط والألوان والخط حسب المناسبة وذوق العميل: زفاف فخم → invA أو invD مع خط Amiri وذهبي/كحلي/زيتوني؛ زفاف عصري ورومانسي → invB بألوان وردية أو ترابية؛ بسيط عصري → invC؛ مولود/تخرج/عيد/حفلة → invE بألوان مبهجة. لا تكرر نفس الاختيار دائماً.
+- الألوان: bg خلفية الدعوة (فاتحة غالباً)، ink لون النص ويجب أن يكون **غامقاً** بتباين عالٍ مع bg (خاصة مع invD فالخلفية الداكنة تُرسم من ink)، accent لون مميز، soft سطح ثانوي. استخدم ألوان هوية العميل إن وُجدت.
+- الخط من: Cairo, Tajawal, Almarai, Changa, Amiri (Amiri للزفاف والفخامة).
+- deco من: ${DECO_IDS.join(", ")} (none أو sparkle أو leaves للدعوات غالباً). frame: none غالباً.
+- لا صور ولا sticker ولا note ولا price (photo: null).
+أعد JSON: { "font", "deco", "frame", "colors": {"bg","ink","accent","soft"}, "slides": [ {layout, kicker, title, highlight, body, date, meta:[{icon,text}]} ] }`;
+
 const BCARD_SYSTEM = `أنت مصمم هويات وبطاقات عمل خليجي محترف. تحوّل معلومات العميل إلى بطاقة عمل أنيقة جاهزة للطباعة (وجه + ظهر).
 القواعد:
 - النصوص التي كتبها العميل (الاسم، المسمى، الأرقام، البريد، الموقع، العنوان، اسم الشركة) تنسخ حرفياً كما هي بدون أي تغيير أو ترجمة أو تصحيح. لا تخترع رقم هاتف أو بريد أو موقع أو عنوان أو مسمى وظيفي ما ذكره العميل.
@@ -164,8 +176,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
     const info = String(body.info ?? "").trim().slice(0, 3000);
     if (info.length < 5) return NextResponse.json({ error: "اكتب معلومات التصميم." }, { status: 400 });
-    const count = kind === "bcard" ? (Number(body.count) === 1 ? 1 : 2) : kind === "carousel" ? Math.min(10, Math.max(3, Number(body.count) || 5)) : kind === "ads" ? Math.min(4, Math.max(1, Number(body.count) || 2)) : 1;
-    const aspect: DAspect = kind === "bcard" ? "card" : ASPECTS.includes(body.aspect as DAspect) ? (body.aspect as DAspect) : "4:5";
+    const count = kind === "bcard" || kind === "invite" ? (Number(body.count) === 1 ? 1 : 2) : kind === "carousel" ? Math.min(10, Math.max(3, Number(body.count) || 5)) : kind === "ads" ? Math.min(4, Math.max(1, Number(body.count) || 2)) : 1;
+    const aspect: DAspect = kind === "bcard" ? "card" : kind === "invite" ? "inv" : ASPECTS.includes(body.aspect as DAspect) ? (body.aspect as DAspect) : "4:5";
     const photos = (body.photos ?? []).filter(mine).slice(0, 6);
     const person = mine(body.person) ? body.person! : null;
 
@@ -173,7 +185,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       .insert({ user_id: user.id, tool_id: toolId, title: info.slice(0, 80), status: "draft", progress: 5, input: { info, count, aspect, kind, photos, person } })
       .select("id").single();
     if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
-    const cost = (kind === "post" || kind === "bcard" ? 1 : count) * tool.credit_cost;
+    const cost = (kind === "post" || kind === "bcard" || kind === "invite" ? 1 : count) * tool.credit_cost;
     const denied = await charge(job.id, cost);
     if (denied) { await admin.from("jobs").delete().eq("id", job.id); return denied; }
 
@@ -188,7 +200,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       // «سوّ مثله»: the chosen showcase work is the style to copy (layout, colors, feel), the content stays the customer's
       const like = await loadLike(body.likeWork);
       if (like) for (const [i, u] of like.images.entries()) images.push({ url: u, label: `مرجع الأسلوب المطلوب${like.images.length > 1 ? ` (${i + 1}/${like.images.length})` : ""}: ${likeText(like)}` });
-      const want = kind === "bcard"
+      const want = kind === "invite"
+        ? `دعوة مناسبة ${count === 2 ? "بوجهين (وجه وصفحة تفاصيل)" : "بوجه واحد فقط"}. المقاس 5×7 إنش عمودي.`
+        : kind === "bcard"
         ? `بطاقة عمل ${count === 2 ? "بوجهين (وجه وظهر)" : "بوجه واحد فقط"}. المقاس 90×50 مم أفقي.`
         : kind === "carousel"
         ? `كاروسيل من ${count} شرائح: الأولى cover، الأخيرة cta، والوسط فكرة وحدة لكل شريحة (point غالباً، ويمكن quote أو minimal أو bento للتنويع). نفس الألوان والخط لكل الشرائح. caption عام للكاروسيل.`
@@ -200,13 +214,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const dpack = designPack(ind?.id);
       const dpick = dpack && ind ? designBrief(dpack, ind.label) : null;
       const bgAi = body.bgMode === "ai" && kind === "carousel" && body.aiImages !== false;
-      const raw = await claudeVisionJson<Raw>(kind === "bcard" ? BCARD_SYSTEM : SYSTEM,
+      const raw = await claudeVisionJson<Raw>(kind === "invite" ? INVITE_SYSTEM : kind === "bcard" ? BCARD_SYSTEM : SYSTEM,
         `${want}\nالمقاس: ${aspect}\nلهجة النصوص: ${DIALECT[String(body.dialect)] ?? DIALECT.gulf}\n` +
         `الصور المولّدة بالذكاء الاصطناعي: ${body.aiImages === false ? "ممنوعة (استخدم صور العميل أو بدون صورة)" : "مسموحة إذا تفيد التصميم"}\n` +
         (kit ? `هوية العميل: الاسم ${kit.business_name || "غير محدد"}، الألوان ${(kit.colors ?? []).join(", ") || "غير محددة"}، الخط ${kit.font || "اختر أنت"}، الحساب ${kit.handle || kit.instagram || "غير محدد"}${kit.website ? `، الموقع ${kit.website}` : ""}\n` : "") +
         (site ? `من موقع العميل (لتعرف نشاطه وأسلوب كلامه):\n${site}\n` : "") +
         (ind ? `${industryBrief(ind)}\n${dpick?.text ?? ""}\n` : "") +
-        `${await trendsFor(ind?.id, kind === "ads" ? "ads" : kind === "carousel" ? "carousel" : "post")}\n` +
+        `${await trendsFor(ind?.id, kind === "ads" ? "ads" : kind === "carousel" ? "carousel" : kind === "bcard" ? "bcard" : kind === "invite" ? "invite" : "post")}\n` +
         `\nمعلومات العميل:\n${info}\n\n` +
         `أعد JSON: { "font", "deco", "frame", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "caption", ${bgAi ? '"bgStyle": "English, حتى 40 كلمة: أسلوب خلفية واحد موحّد لكل الشرائح (أجواء تجريدية راقية بألوان هوية العميل ومناسبة لمجاله، بدون نص أو أشخاص)", ' : ""}"slides": [ {layout, ...الحقول, "sticker", "photo", "imagePrompt", "caption"} ] }`,
         images, 9000);

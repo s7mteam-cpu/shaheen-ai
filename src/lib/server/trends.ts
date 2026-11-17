@@ -2,8 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { cachedSystem } from "@/lib/providers/text";
 import { INDUSTRIES } from "@/design/industries";
 
-export type Scope = "all" | "post" | "ads" | "carousel" | "motion" | "montage";
-export const SCOPES: [Scope, string][] = [["all", "الكل"], ["post", "البوستات"], ["carousel", "الكاروسيل"], ["ads", "الإعلانات"], ["motion", "الموشن جرافيك"], ["montage", "المونتاج"]];
+export type Scope = "all" | "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite";
+export const SCOPES: [Scope, string][] = [["all", "الكل"], ["post", "البوستات"], ["carousel", "الكاروسيل"], ["ads", "الإعلانات"], ["motion", "الموشن جرافيك"], ["montage", "المونتاج"], ["bcard", "بطاقات العمل"], ["invite", "دعوات المناسبات"]];
 export const GROUPS = [...new Set(INDUSTRIES.map((i) => i.group))];
 const DROP_DAYS = 90;               // …and is ignored after three
 
@@ -30,7 +30,7 @@ export async function researchGroup(group: string) {
 المصادر الأهم: TikTok Creative Center (Top Ads والترندات، الكويت والخليج)، Meta Ad Library، تقارير ترندات Canva وAdobe وFigma، مواقع التسويق والتصميم المعروفة، وأي تحليل لإعلانات خليجية ناجحة.
 استخرج الأنماط اللي تتكرر عند الأقوى أداءً (الهوك، الطول، ترتيب المشاهد، الألوان، الخطوط، أسلوب النص، الترجمة، الملصقات، التخطيط) — لا تنسخ تصميم أو نص أحد، فقط الأسلوب.
 ركّز على اللي يناسب السوق الخليجي والكويتي. لا تخترع أرقام ولا مصادر: كل اقتراح لازم له مصدر حقيقي فتحته.
-أعد JSON فقط: [{"title": "عنوان قصير", "insight": "وش لاحظت ولماذا ينجح (جملتين)", "instruction": "تعليمات عملية مباشرة للمصمم الآلي (جملة أو جملتين)", "scope": "all|post|ads|carousel|motion|montage|lesson", "industry": "id المجال أو ${group}", "sources": [{"title": "...", "url": "https://..."}]}] — من 3 إلى 6 اقتراحات.`;
+أعد JSON فقط: [{"title": "عنوان قصير", "insight": "وش لاحظت ولماذا ينجح (جملتين)", "instruction": "تعليمات عملية مباشرة للمصمم الآلي (جملة أو جملتين)", "scope": "all|post|ads|carousel|motion|montage|bcard|invite|lesson", "industry": "id المجال أو ${group}", "sources": [{"title": "...", "url": "https://..."}]}] — من 3 إلى 6 اقتراحات.`;
   const ask = `ابحث الحين (${new Date().toISOString().slice(0, 10)}) عن أحدث وأقوى المحتوى لمجالات «${group}» وأعد الاقتراحات.`;
   // Works with whichever AI the site has: Claude (web search) or Gemini (Google Search). Nothing here is tied to one provider.
   // Cheapest first: Gemini (Google Search has a free daily allowance), then Claude's small model.
@@ -96,7 +96,7 @@ async function save(list: Found[], origin: "research" | "customers", fallback: s
 export async function learnFromCustomers() {
   const admin = createAdminClient();
   const since = new Date(Date.now() - 60 * 864e5).toISOString();
-  const { data } = await admin.from("jobs").select("tool_id, first:input->first, spec:input->spec").in("tool_id", ["post", "carousel", "ad-design", "motion-video", "video-editing"]).eq("status", "done").gte("created_at", since).limit(2000);
+  const { data } = await admin.from("jobs").select("tool_id, first:input->first, spec:input->spec").in("tool_id", ["post", "carousel", "ad-design", "business-cards", "invitations", "motion-video", "video-editing"]).eq("status", "done").gte("created_at", since).limit(2000);
   type Snap = Record<string, unknown> & { industry?: string };
   const stats: Record<string, { n: number; changed: Record<string, number>; finals: Record<string, Record<string, number>> }> = {};
   const keys = ["deco", "frame", "font", "sticker", "layout", "captions", "transition", "grade", "board", "kinds"];

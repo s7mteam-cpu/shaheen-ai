@@ -116,6 +116,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
     ],
     units: () => 1,
   },
+  invitations: { fields: [], units: () => 1 }, // design studio (/api/design/*)
   "business-cards": { fields: [], units: () => 1 }, // design studio (/api/design/*)
   presentations: { fields: [], units: () => 1 }, // own page + route (/api/presentation)
   "real-scenes": { fields: [], units: () => 1 }, // runs in its own studio (/api/lesson), like motion-video

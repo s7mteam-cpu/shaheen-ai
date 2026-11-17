@@ -779,14 +779,152 @@ function CardBackB(c: Ctx) {
   );
 }
 
-const RENDER = { bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout, cardA: CardA, cardB: CardB, cardC: CardC, cardD: CardD, cardE: CardE, cardBack: CardBack, cardBackB: CardBackB };
+// ---------------- invitations (1080 x 1512): weddings, engagements, newborns, graduations, parties ----------------
+
+const InvNames = ({ c, base, color, hcolor }: { c: Ctx; base: number; color?: string; hcolor?: string }) =>
+  gone(c, "title") ? null : (
+    <h1 {...da("title")} style={{ margin: 0, fontSize: fit(c.s.title, base, 9, 0.5), lineHeight: 1.15, fontWeight: 800, color: color ?? c.ink, textAlign: "center", ...eo(c, "title") }}>
+      {rich(c.s.title)}{c.s.highlight && <><br /><span style={{ color: hcolor ?? c.accent }}>{rich(c.s.highlight)}</span></>}
+    </h1>
+  );
+const InvKicker = ({ c, color, size = 34 }: { c: Ctx; color?: string; size?: number }) =>
+  !c.s.kicker || gone(c, "kicker") ? null : <div {...da("kicker")} style={{ fontSize: size, fontWeight: 700, color: color ?? c.accent, textAlign: "center", letterSpacing: 1, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>;
+const InvBody = ({ c, color, size = 33, max = 700 }: { c: Ctx; color?: string; size?: number; max?: number }) =>
+  !c.s.body || gone(c, "body") ? null : <p {...da("body")} style={{ margin: 0, fontSize: fit(c.s.body, size, 90, 0.75), lineHeight: 1.75, fontWeight: 500, color: color ?? c.muted, textAlign: "center", maxWidth: max, ...eo(c, "body") }}>{rich(c.s.body)}</p>;
+/** weekday | big day | month, between thin lines */
+function InvDate({ c, color, line, size = 120 }: { c: Ctx; color?: string; line?: string; size?: number }) {
+  const d = c.s.date;
+  if (!d || gone(c, "date")) return null;
+  const col = color ?? c.ink, ln = line ?? c.accent;
+  return (
+    <div {...da("date")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 34, color: col, ...eo(c, "date") }}>
+      <div style={{ textAlign: "center", fontSize: size * 0.3, fontWeight: 700, borderTop: `3px solid ${ln}`, borderBottom: `3px solid ${ln}`, padding: "10px 22px" }}>{d.weekday ?? ""}</div>
+      <div style={{ fontSize: size, fontWeight: 800, lineHeight: 1, color: c.accent }}>{d.day}</div>
+      <div style={{ textAlign: "center", fontSize: size * 0.3, fontWeight: 700, borderTop: `3px solid ${ln}`, borderBottom: `3px solid ${ln}`, padding: "10px 22px" }}>{d.month}</div>
+    </div>
+  );
+}
+function InvMeta({ c, color, size = 31, icon }: { c: Ctx; color?: string; size?: number; icon?: string }) {
+  const list = c.s.meta ?? [];
+  if (!list.length || gone(c, "meta")) return null;
+  return (
+    <div {...da("meta")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: size * 0.55, fontSize: size, fontWeight: 700, color: color ?? c.ink, textAlign: "center", ...eo(c, "meta") }}>
+      {list.map((m, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 14 }}><DIcon name={m.icon ?? "map-pin"} size={size * 1.1} color={icon ?? c.accent} /><span>{rich(m.text)}</span></div>)}
+    </div>
+  );
+}
+const Orn = ({ color, w = 300 }: { color: string; w?: number }) => (
+  <svg width={w} height={26} viewBox="0 0 300 26" fill="none" stroke={color} strokeWidth="2"><path d="M0 13H120M180 13H300" /><path d="M150 2 L162 13 L150 24 L138 13 Z" fill={color} /><circle cx="126" cy="13" r="3" fill={color} /><circle cx="174" cy="13" r="3" fill={color} /></svg>
+);
+
+function InvA(c: Ctx) {
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", inset: 44, border: `4px solid ${c.accent}` }} />
+      <div style={{ position: "absolute", inset: 64, border: `1.5px solid ${c.accent}` }} />
+      <div style={{ position: "absolute", inset: "130px 120px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}><InvKicker c={c} /><Orn color={c.accent} /></div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28 }}><InvBody c={c} size={34} /><InvNames c={c} base={150} /></div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 36 }}><InvDate c={c} /><InvMeta c={c} /></div>
+      </div>
+    </div>
+  );
+}
+
+function InvB(c: Ctx) {
+  return (
+    <div style={{ position: "absolute", inset: 0, background: c.soft }}>
+      <div style={{ position: "absolute", left: 90, right: 90, top: 90, bottom: 90, background: c.bg, borderRadius: "540px 540px 40px 40px", border: `4px solid ${c.accent}`, boxShadow: `0 0 0 14px ${c.bg}, 0 0 0 16px ${c.accent}` }} />
+      <div style={{ position: "absolute", left: 170, right: 170, top: 230, bottom: 150, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", textAlign: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}><InvKicker c={c} /><InvBody c={c} size={30} max={560} /></div>
+        <InvNames c={c} base={140} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28 }}><InvDate c={c} size={104} /><InvMeta c={c} size={29} /></div>
+      </div>
+    </div>
+  );
+}
+
+function InvC(c: Ctx) {
+  const d = c.s.date;
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", inset: "100px 96px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ borderBottom: `3px solid ${c.ink}`, paddingBottom: 22, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {!gone(c, "kicker") && <div {...da("kicker")} style={{ fontSize: 32, fontWeight: 700, color: c.ink, ...eo(c, "kicker") }}>{rich(c.s.kicker ?? "")}</div>}
+          <span style={{ width: 24, height: 24, background: c.accent }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 30 }}>
+          {!gone(c, "title") && <h1 {...da("title")} style={{ margin: 0, fontSize: fit(c.s.title, 190, 8, 0.4), lineHeight: 1.0, fontWeight: 800, color: c.ink, letterSpacing: -3, ...eo(c, "title") }}>{rich(c.s.title)}{c.s.highlight && <><br /><span style={{ color: c.accent }}>{rich(c.s.highlight)}</span></>}</h1>}
+          {!gone(c, "body") && c.s.body && <p {...da("body")} style={{ margin: 0, fontSize: 34, lineHeight: 1.7, fontWeight: 500, color: c.muted, maxWidth: 680, ...eo(c, "body") }}>{rich(c.s.body)}</p>}
+        </div>
+        <div style={{ borderTop: `3px solid ${c.ink}`, paddingTop: 34, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 30 }}>
+          {d && !gone(c, "date") && <div {...da("date")} style={{ ...eo(c, "date"), display: "flex", alignItems: "baseline", gap: 18, color: c.ink }}><span style={{ fontSize: 150, fontWeight: 800, lineHeight: 0.9, color: c.accent }}>{d.day}</span><span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.2 }}>{d.month}<br />{d.weekday}</span></div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 30, fontWeight: 700, color: c.ink }} {...da("meta")}>
+            {(c.s.meta ?? []).map((m, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}><DIcon name={m.icon ?? "map-pin"} size={32} color={c.accent} />{rich(m.text)}</div>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InvD(c: Ctx) {
+  const bg = c.ink, fg = c.bg;
+  return (
+    <div style={{ position: "absolute", inset: 0, background: bg }}>
+      <div style={{ position: "absolute", inset: 48, border: `3px solid ${c.accent}` }} />
+      <div style={{ position: "absolute", inset: 66, border: `1px solid ${c.accent}`, opacity: 0.7 }} />
+      {[[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => <div key={`${x}${y}`} style={{ position: "absolute", width: 90, height: 90, [x ? "right" : "left"]: 48, [y ? "bottom" : "top"]: 48, borderTop: y ? "none" : `10px solid ${c.accent}`, borderBottom: y ? `10px solid ${c.accent}` : "none", [x ? "borderRight" : "borderLeft"]: `10px solid ${c.accent}` }} />)}
+      <div style={{ position: "absolute", inset: "140px 130px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}><InvKicker c={c} /><Orn color={c.accent} /></div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 30 }}><InvBody c={c} color={mix(fg, bg, 0.3)} size={33} /><InvNames c={c} base={150} color={fg} hcolor={c.accent} /></div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 36 }}><InvDate c={c} color={fg} /><InvMeta c={c} color={fg} /></div>
+      </div>
+    </div>
+  );
+}
+
+function InvE(c: Ctx) {
+  const d = c.s.date;
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 640, background: c.accent, color: c.onAccent, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+        {c.s.kicker && !gone(c, "kicker") && <div {...da("kicker")} style={{ fontSize: 36, fontWeight: 700, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>}
+        {d && !gone(c, "date") && <div {...da("date")} style={{ textAlign: "center", ...eo(c, "date") }}><div style={{ fontSize: 330, fontWeight: 800, lineHeight: 0.95 }}>{d.day}</div><div style={{ fontSize: 56, fontWeight: 800 }}>{d.month} · {d.weekday}</div></div>}
+      </div>
+      <div style={{ position: "absolute", top: 640, bottom: 0, left: 110, right: 110, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-evenly", textAlign: "center" }}>
+        <InvNames c={c} base={120} />
+        <InvBody c={c} size={32} />
+        <InvMeta c={c} size={29} />
+      </div>
+    </div>
+  );
+}
+
+function InvBack(c: Ctx) {
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", inset: 48, border: `3px solid ${c.accent}` }} />
+      <div style={{ position: "absolute", inset: "150px 130px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 44 }}>
+        <InvKicker c={c} />
+        <InvNames c={c} base={110} />
+        <Orn color={c.accent} />
+        <InvBody c={c} size={34} />
+        <InvDate c={c} size={96} />
+        <InvMeta c={c} size={33} />
+      </div>
+    </div>
+  );
+}
+
+const RENDER = { bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout, cardA: CardA, cardB: CardB, cardC: CardC, cardD: CardD, cardE: CardE, cardBack: CardBack, cardBackB: CardBackB, invA: InvA, invB: InvB, invC: InvC, invD: InvD, invE: InvE, invBack: InvBack };
 
 export function DesignSlide({ spec, index, edit }: DesignProps) {
   const s = spec.slides[index] ?? spec.slides[0];
   const { width: W, height: H } = DSIZE[spec.aspect];
   const { bg, ink, accent, soft } = spec.colors;
   const c: Ctx = {
-    s, spec, index, total: spec.slides.length, W, H, k: spec.aspect === "card" ? 1 : H <= 1080 ? 0.86 : 1,
+    s, spec, index, total: spec.slides.length, W, H, k: spec.aspect === "card" || spec.aspect === "inv" ? 1 : H <= 1080 ? 0.86 : 1,
     bg, ink, accent, soft, muted: mix(ink, bg, 0.38), line: mix(ink, bg, 0.84), onAccent: onColor(accent), font: spec.font, clear: !!s.bg?.url, edit,
   };
   const L = RENDER[s.layout] ?? Classic;
@@ -801,7 +939,7 @@ export function DesignSlide({ spec, index, edit }: DesignProps) {
           <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, ${rgba(bg, 0.62)} 0%, ${rgba(bg, 0.78)} 55%, ${rgba(bg, 0.86)} 100%)` }} />
         </>
       )}
-      {!s.bg?.url && !["cta", "photo", "split", "bento", "cardC", "cardD", "cardBack"].includes(s.layout) && <Deco c={c} />}
+      {!s.bg?.url && !["cta", "photo", "split", "bento", "cardC", "cardD", "cardBack", "invB", "invD", "invE"].includes(s.layout) && <Deco c={c} />}
       <div style={{ position: "absolute", inset: 0 }}>{L(cc)}</div>
       <Ribbon c={c} />
       <FrameLayer c={c} />
