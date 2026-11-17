@@ -60,6 +60,7 @@ export type MontageSpec = {
   panel?: "light" | "dark";                                       // look of the graphics panel in split layout
   board?: BoardStyle;                                             // background pattern of the panel
   dstyle?: DStyle;                                                // look of the hand-drawn pictures
+  cstyle?: DStyle;                                                // look of the cartoon character (separate from the pictures and the board)
   graphics?: Graphic[];                                           // animated scenes synced to the speech
   quality?: "1080" | "4k";                                         // export size
   domain?: string;                                                // field from the playbook (education, restaurant…)
@@ -69,10 +70,10 @@ export type MontageSpec = {
 
 /** Split = animated graphics on top (or the side) and the speaker below — the "explainer reel" look. */
 /** Look of the hand-drawn pictures (doodles). */
-export type DStyle = "marker" | "neon" | "chalk" | "shadow" | "blueprint";
-export const DSTYLES: [DStyle, string][] = [["marker", "ماركر ملوّن"], ["neon", "نيون مضيء"], ["chalk", "سبورة طباشير"], ["shadow", "ظل أسود (سيلويت)"], ["blueprint", "مخطط هندسي"]];
+export type DStyle = "marker" | "neon" | "chalk" | "shadow" | "blueprint" | "glass" | "clay";
+export const DSTYLES: [DStyle, string][] = [["marker", "ماركر ملوّن"], ["neon", "نيون مضيء"], ["chalk", "سبورة طباشير"], ["shadow", "ظل أسود (سيلويت)"], ["blueprint", "مخطط هندسي"], ["glass", "زجاج ثلاثي الأبعاد"], ["clay", "صلصال (كلاي ميشن)"]];
 /** The board each look sits best on. */
-export const DSTYLE_BOARD: Partial<Record<DStyle, BoardStyle>> = { neon: "night", chalk: "chalk", blueprint: "blueprint", shadow: "paper" };
+export const DSTYLE_BOARD: Partial<Record<DStyle, BoardStyle>> = { neon: "night", chalk: "chalk", blueprint: "blueprint", shadow: "paper", glass: "night", clay: "pastel" };
 export type Layout = "full" | "split" | "circle" | "corner" | "card" | "dynamic" | "board"; // board = no footage (animated lesson)
 export const LAYOUTS: [Layout, string][] = [["full", "ملء الشاشة"], ["split", "مقسومة: رسوم فوق وأنت تحت"], ["dynamic", "ذكي: تصغر لدائرة لما يطلع مشهد"], ["circle", "أنت داخل دائرة"], ["corner", "أنت بمربع صغير بالزاوية"], ["card", "أنت ببطاقة بحواف ناعمة"]];
 export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist" | "bars" | "donut" | "line" | "quote" | "arrow"
@@ -122,9 +123,9 @@ export const GRAPHIC_KINDS: [GraphicKind, string][] = [
   ["map", "خريطة ودبوس الموقع"], ["route", "طريق على الخريطة"],
 ];
 /** Board backgrounds — each lesson can look different. */
-export type BoardStyle = "soft" | "paper" | "grid" | "dots" | "notebook" | "chalk" | "blueprint" | "night" | "pastel" | "sunrise" | "sketch";
-export const BOARD_STYLES: [BoardStyle, string][] = [["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"], ["sketch", "مرسوم باليد"]];
-export const DARK_BOARDS: BoardStyle[] = ["chalk", "blueprint", "night"];
+export type BoardStyle = "neon" | "soft" | "paper" | "grid" | "dots" | "notebook" | "chalk" | "blueprint" | "night" | "pastel" | "sunrise" | "sketch";
+export const BOARD_STYLES: [BoardStyle, string][] = [["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["neon", "نيون داكن"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"], ["sketch", "مرسوم باليد"]];
+export const DARK_BOARDS: BoardStyle[] = ["chalk", "blueprint", "night", "neon"];
 export { ICONS };
 
 /** Clean up graphics coming from the AI or the editor. */

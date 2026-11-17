@@ -18,6 +18,9 @@
     "@fontsource/almarai": "^5.2.0",
     "@fontsource/changa": "^5.2.0",
     "@fontsource/amiri": "^5.2.0",
-    "@fontsource/amiri-quran": "^5.3.0"
+    "@fontsource/amiri-quran": "^5.3.0",
+    "three": "^0.187.0",
+    "@react-three/fiber": "^9.8.2",
+    "@remotion/three": "4.0.542"
   }
 }

@@ -11,7 +11,7 @@ const aspects = [["9:16", "ريلز / تيك توك 9:16"], ["1:1", "مربع 1:
 const audiences = [["kids", "أطفال"], ["students", "طلاب"], ["adults", "عامة الناس"], ["pros", "متخصصين"]] as const;
 const dialects: (readonly [string, string])[] = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const), ["en", "English"]];
 const panels = [["light", "خلفية فاتحة"], ["dark", "خلفية داكنة"]] as const;
-const boards = [["auto", "تلقائي (مختلف كل مرة)"], ["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"]] as const;
+const boards = [["auto", "تلقائي (مختلف كل مرة)"], ["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["neon", "نيون داكن"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"]] as const;
 
 /** Educational animated video: the lesson, who it's for, and how it sounds. */
 export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: { likeId?: string; idea?: string; costPer30: number; balance: number; voices: { id: string; name: string; note?: string }[] }) {
@@ -30,6 +30,7 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
   const [drawings, setDrawings] = useState(true);
   const [mix, setMix] = useState<"full" | "mixed">("mixed");
   const [dstyle, setDstyle] = useState<string>("marker");
+  const [cstyle, setCstyle] = useState<string>("marker");
   const [look, setLook] = useState<"images" | "doodle" | "cartoon">("images");
   const [level, setLevel] = useState<"few" | "half" | "all">("few");
   const [illus, setIllus] = useState<string>("auto");
@@ -48,7 +49,7 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ look, dstyle, cartoonMix: mix, drawLevel: level, likeWork: likeId, topic, notes, seconds, aspect, audience, dialect, panel, board, voice, music: withMusic, drawings, illus: illus === "auto" ? undefined : illus }) });
+      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ look, dstyle, cstyle, cartoonMix: mix, drawLevel: level, likeWork: likeId, topic, notes, seconds, aspect, audience, dialect, panel, board, voice, music: withMusic, drawings, illus: illus === "auto" ? undefined : illus }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -76,7 +77,8 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل اللوحة")}</span>{chips(panels, panel, setPanel)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("خلفية اللوحة")}</span>{chips(boards, board, setBoard)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل الفيديو")}</span>{chips([["images", "🖼️ مونتاج صور ومشاهد"], ["doodle", "✏️ رسوم متحركة تنرسم باليد"], ["cartoon", "🧑‍🏫 كرتون خليجي يتكلم"]] as readonly (readonly [string, string])[], look, (v) => setLook(v as "images" | "doodle" | "cartoon"))}<span className="text-[13px] text-subtle">{look === "doodle" ? L("رسمات بسيطة تنرسم قدامك بقلم وتتحرك، فيديو متحرك حقيقي بدون صور.") : look === "cartoon" ? L("شخصيات كرتون خليجية تتحرك وتتكلم بصوت الفيديو، ومعها رسمات تنرسم. اختر صوت يناسب الشخصية.") : L("مشاهد ورسومات بالذكاء الاصطناعي مركّبة مع بعض.")}</span></div>
-      {look !== "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسم")}</span>{chips([["marker", "✏️ ماركر ملوّن"], ["neon", "💡 نيون مضيء"], ["chalk", "🧑‍🏫 سبورة طباشير"], ["shadow", "🌑 ظل أسود"], ["blueprint", "📐 مخطط هندسي"]] as readonly (readonly [string, string])[], dstyle, setDstyle)}<span className="text-[13px] text-subtle">{L("يغيّر شكل الرسمات والخلفية كلها: النيون على خلفية سودا مضيئة، والطباشير على سبورة، والمخطط بخلفية زرقا وقياسات.")}</span></div>}
+      {look === "cartoon" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الشخصية")}</span>{chips([["marker", "🎨 كرتون ملوّن"], ["neon", "💡 نيون مضيء"], ["chalk", "🧑‍🏫 طباشير"], ["blueprint", "📐 مخطط"], ["shadow", "🌑 ظل أسود"], ["glass", "🔮 زجاج"], ["clay", "🧸 صلصال"]] as readonly (readonly [string, string])[], cstyle, setCstyle)}</div>}
+      {look !== "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسمات")}</span>{chips([["marker", "✏️ ماركر ملوّن"], ["neon", "💡 نيون مضيء"], ["chalk", "🧑‍🏫 سبورة طباشير"], ["shadow", "🌑 ظل أسود"], ["blueprint", "📐 مخطط هندسي"], ["glass", "🔮 زجاج ثلاثي الأبعاد"], ["clay", "🧸 صلصال (كلاي ميشن)"]] as readonly (readonly [string, string])[], dstyle, setDstyle)}<span className="text-[13px] text-subtle">{L("هذا شكل الرسمات اللي تنرسم فقط. الشخصية والخلفية لهم خيارهم لحاله.")}</span></div>}
       {look === "cartoon" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("كم يكون الكرتون؟")}</span>{chips([["full", "كرتون كامل (الشخصية بكل مشهد والكتابة فوقها)"], ["mixed", "مختلط (لقطات كرتون + لقطات شرح وجداول)"]] as readonly (readonly [string, string])[], mix, (v) => setMix(v as "full" | "mixed"))}</div>}
       <label className={look !== "images" ? "hidden" : "flex items-center gap-3"}><input type="checkbox" checked={drawings} onChange={(e) => setDrawings(e.target.checked)} className="h-5 w-5" /><span>{L("🎨 مشاهد مرسومة بالذكاء الاصطناعي (قصص وأمثلة وشخصيات)")}</span></label>
       {drawings && look === "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسومات")}</span>{chips([["auto", "شاهين يختار"], ...ILLUS_STYLES.map(([v, l]) => [v, l] as const)] as readonly (readonly [string, string])[], illus, setIllus)}</div>}

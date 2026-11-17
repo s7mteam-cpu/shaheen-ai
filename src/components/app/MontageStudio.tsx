@@ -18,7 +18,7 @@ import { ILLUS_STYLES } from "@/remotion/styles";
 import { CaptionDrag } from "@/components/app/CaptionDrag";
 import { MusicEditor } from "@/components/app/MusicEditor";
 import { BeatPanel, GrainPicker, StickerPanel, StockSearch } from "@/components/app/MontageExtras";
-import { BOARD_STYLES, DSTYLES, DSTYLE_BOARD, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
+import { BOARD_STYLES, DSTYLES, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
@@ -374,9 +374,14 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               <button type="button" aria-pressed={spec.panel === "dark"} onClick={() => setSpec({ ...spec, panel: "dark" })} className="chip">{L("لوحة داكنة")}</button>
             </div>
           )}
+          {(spec.graphics ?? []).some((g) => g.kind === "character") && (
+            <div className="flex flex-col gap-2"><span className="text-[13px] font-semibold text-navy-800">{L("ستايل الشخصية")}</span>
+              <div className="flex flex-wrap gap-2">{DSTYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.cstyle ?? "marker") === v} onClick={() => setSpec({ ...spec, cstyle: v === "marker" ? undefined : v })} className="chip">{L(v === "marker" ? "كرتون ملوّن" : l)}</button>)}</div>
+            </div>
+          )}
           {(spec.graphics ?? []).some((g) => g.kind === "doodle" || (g.kind === "character" && g.doodle)) && (
             <div className="flex flex-col gap-2"><span className="text-[13px] font-semibold text-navy-800">{L("ستايل الرسمات")}</span>
-              <div className="flex flex-wrap gap-2">{DSTYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.dstyle ?? "marker") === v} onClick={() => setSpec({ ...spec, dstyle: v === "marker" ? undefined : v, ...(DSTYLE_BOARD[v] ? { board: DSTYLE_BOARD[v] } : {}) })} className="chip">{L(l)}</button>)}</div>
+              <div className="flex flex-wrap gap-2">{DSTYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.dstyle ?? "marker") === v} onClick={() => setSpec({ ...spec, dstyle: v === "marker" ? undefined : v })} className="chip">{L(l)}</button>)}</div>
             </div>
           )}
           {spec.layout && spec.layout !== "full" && (

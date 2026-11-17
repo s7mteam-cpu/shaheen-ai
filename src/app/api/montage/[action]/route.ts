@@ -70,6 +70,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     panel: s.panel === "dark" || s.panel === "light" ? s.panel : base.panel ?? "light",
     board: ok(BOARD_STYLES, s.board) ?? base.board,
     dstyle: ok(DSTYLES, s.dstyle), // from the studio; none = classic marker
+    cstyle: ok(DSTYLES, s.cstyle), // character look
     // pictures must be the customer's own (or already in this project)
     graphics: cleanGraphics(Array.isArray(s.graphics) ? s.graphics : base.graphics ?? [], len)
       .map((g) => (g.img && (!g.img.startsWith(`${userId}/`) || g.img.includes("..")) && !(base.graphics ?? []).some((x) => x.img === g.img) ? { ...g, img: undefined, url: undefined } : g)),

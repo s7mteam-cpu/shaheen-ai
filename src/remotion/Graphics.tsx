@@ -19,6 +19,7 @@ function SceneImg({ src, style }: { src: string; style: React.CSSProperties; rea
 import { DARK_BOARDS, MFPS, type DStyle, type Graphic, type MontageSpec } from "./montage";
 import { DOODLES } from "./doodles";
 import { Character } from "./characters";
+import { Doodle3D } from "./Obj3D";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 const cl = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -46,6 +47,7 @@ export function panelBackground(m: MontageSpec, light: boolean) {
     case "notebook": return `linear-gradient(90deg, transparent calc(100% - 92px), rgba(224,69,58,.45) calc(100% - 92px), rgba(224,69,58,.45) calc(100% - 88px), transparent calc(100% - 88px)), repeating-linear-gradient(180deg, transparent 0 70px, rgba(47,91,234,.16) 70px 73px), #FFFDF8`;
     case "chalk": return "radial-gradient(120% 90% at 50% 30%, #2C4538 0%, #1C2E25 70%, #14221B 100%)";
     case "blueprint": return `linear-gradient(rgba(255,255,255,.07) 2px, transparent 2px) 0 0 / 60px 60px, linear-gradient(90deg, rgba(255,255,255,.07) 2px, transparent 2px) 0 0 / 60px 60px, radial-gradient(120% 90% at 50% 20%, #165A9A 0%, #0D3966 100%)`;
+    case "neon": return `radial-gradient(60% 40% at 50% 100%, rgba(255,79,216,.22) 0%, transparent 70%), linear-gradient(rgba(38,240,255,.07) 2px, transparent 2px) 0 0 / 70px 70px, linear-gradient(90deg, rgba(38,240,255,.07) 2px, transparent 2px) 0 0 / 70px 70px, radial-gradient(120% 90% at 50% 0%, #12072B 0%, #05030D 100%)`;
     case "night": return `radial-gradient(120% 90% at 85% 10%, ${m.colors.bg} 0%, #070B14 100%)`;
     case "pastel": return "linear-gradient(160deg, #FFE9F0 0%, #FFF6DD 45%, #E3F4FF 100%)";
     case "sunrise": return `radial-gradient(110% 80% at 80% 0%, ${a}33 0%, transparent 60%), linear-gradient(180deg, #FFF4E6 0%, #FDE7D3 100%)`;
@@ -175,6 +177,12 @@ function DoodleDraw({ name, f, start, dur, size, ink, fill, skin, ds = "marker",
       )}
     </div>
   );
+}
+
+/** A picture of the doodle in the video's chosen look: drawn with a pen (2D) or modelled in 3D (glass / clay). */
+function Pic(props: React.ComponentProps<typeof DoodleDraw>) {
+  if (props.ds === "glass" || props.ds === "clay") return <Doodle3D name={props.name} f={props.f} start={props.start} size={props.size} mat={props.ds} accent={props.fill} />;
+  return <DoodleDraw {...props} />;
 }
 
 export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graphic; m: MontageSpec; f: number; len: number; w: number; h: number; light: boolean; boost?: number }) {
@@ -1175,8 +1183,8 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
       const skin = light ? "#1B2A4A" : "#F1EEE6";
       const dsz = (tall ? 250 : 300) * s;
       const slide = interpolate(f, [0, 12], [60 * s, 0], { ...cl, easing: ease });
-      const charEl = <div style={{ transform: `translateX(${(left ? -1 : 1) * slide}px)`, opacity: interpolate(f, [0, 8], [0, 1], cl), flexShrink: 0 }}><Character name={g.char ?? "man"} size={cs} f={f} fps={MFPS} open={open} mood={g.mood} pose={g.doodle ? (g.pose ?? "point") : g.pose} flip={flip} accent={th.accent} /></div>;
-      const prop = g.doodle ? <DoodleDraw name={g.doodle} f={f} start={10} dur={Math.min(34, Math.max(14, len * 0.45))} size={dsz} ink={skin} fill={th.accent} skin="#F2C9A0" ds={m.dstyle} seed={Math.floor(g.at * 3)} /> : null;
+      const charEl = <div style={{ transform: `translateX(${(left ? -1 : 1) * slide}px)`, opacity: interpolate(f, [0, 8], [0, 1], cl), flexShrink: 0 }}><Character name={g.char ?? "man"} size={cs} f={f} fps={MFPS} open={open} mood={g.mood} pose={g.doodle ? (g.pose ?? "point") : g.pose} flip={flip} accent={th.accent} look={!m.cstyle || m.cstyle === "marker" ? "cartoon" : m.cstyle} ink={skin} /></div>;
+      const prop = g.doodle ? <Pic name={g.doodle} f={f} start={10} dur={Math.min(34, Math.max(14, len * 0.45))} size={dsz} ink={skin} fill={th.accent} skin="#F2C9A0" ds={m.dstyle} seed={Math.floor(g.at * 3)} /> : null;
       body = (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 * s }}>
           <div style={{ display: "flex", flexDirection: left ? "row" : "row-reverse", alignItems: "center", justifyContent: "center", gap: 30 * s, direction: "ltr" }}>
@@ -1211,7 +1219,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
               const st = 3 + i * (each + 4);
               return (
                 <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 * s, maxWidth: size * 1.25 }}>
-                  <DoodleDraw name={it.doodle!} f={f} start={st} dur={each} size={size} ink={ink} fill={th.accent} skin={skin} ds={m.dstyle} seed={Math.floor(g.at * 3) + i} />
+                  <Pic name={it.doodle!} f={f} start={st} dur={each} size={size} ink={ink} fill={th.accent} skin={skin} ds={m.dstyle} seed={Math.floor(g.at * 3) + i} />
                   {it.label && <div style={{ fontSize: Math.min(54, 46 * (n > 2 ? 0.8 : 1)) * s, fontWeight: 800, color: th.text, textAlign: "center", lineHeight: 1.2, opacity: interpolate(f, [st + each, st + each + 8], [0, 1], cl) }}>{it.label}</div>}
                 </div>
               );
