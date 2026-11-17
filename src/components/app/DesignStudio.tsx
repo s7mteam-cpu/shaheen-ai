@@ -9,6 +9,17 @@ import "@fontsource/changa/arabic-500.css";
 import "@fontsource/changa/arabic-700.css";
 import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
+import "@fontsource/aref-ruqaa/arabic-400.css";
+import "@fontsource/aref-ruqaa/arabic-700.css";
+import "@fontsource/aref-ruqaa-ink/arabic-400.css";
+import "@fontsource/aref-ruqaa-ink/arabic-700.css";
+import "@fontsource/katibeh/arabic-400.css";
+import "@fontsource/reem-kufi/arabic-400.css";
+import "@fontsource/reem-kufi/arabic-700.css";
+import "@fontsource/el-messiri/arabic-400.css";
+import "@fontsource/el-messiri/arabic-700.css";
+import "@fontsource/mirza/arabic-400.css";
+import "@fontsource/mirza/arabic-700.css";
 import Link from "next/link";
 import { Card, More } from "@/components/app/Collapse";
 import { useEffect, useRef, useState } from "react";
@@ -21,7 +32,7 @@ import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
 import { designPack } from "@/design/packs";
 import { EL_LABELS } from "@/design/Design";
 import {
-  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, ICON_IDS, LAYOUTS, layoutsFor, PALETTES, lum, DSIZE, RICH_RE, NOTE_ATS, NOTE_LOOKS, NOTE_AT_LABELS, NOTE_LOOK_LABELS,
+  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, fontsFor, ICON_IDS, LAYOUTS, layoutsFor, PALETTES, lum, DSIZE, RICH_RE, NOTE_ATS, NOTE_LOOKS, NOTE_AT_LABELS, NOTE_LOOK_LABELS,
   type DAspect, type DColors, type DImg, type DItem, type DesignSpec, type LayoutId, type Slide,
 } from "@/design/spec";
 
@@ -340,8 +351,15 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           })()}
           <Sub>{L("الخط")}</Sub>
           <div className="flex flex-wrap gap-2">
-            {DFONTS.map((f) => <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} className="chip" style={{ fontFamily: f.id }}>{L(f.label)}</button>)}
+            {fontsFor(spec.kind).map((f) => <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} className="chip" style={{ fontFamily: f.id }}>{L(f.label)}</button>)}
           </div>
+          {(spec.kind === "invite" || spec.kind === "bcard") && (<>
+            <Sub>{L("خط الأسماء والعناوين")}</Sub>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" aria-pressed={!spec.titleFont} onClick={() => setSpec({ ...spec, titleFont: undefined })} className="chip">{L("نفس الخط")}</button>
+              {fontsFor(spec.kind).map((f) => <button key={f.id} type="button" aria-pressed={spec.titleFont === f.id} onClick={() => setSpec({ ...spec, titleFont: f.id })} className="chip" style={{ fontFamily: f.id }}>{L(f.label)}</button>)}
+            </div>
+          </>)}
           </More>
           <Sub>{L("المقاس")}</Sub>
           <div className="flex flex-wrap gap-2">

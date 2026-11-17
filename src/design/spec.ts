@@ -52,6 +52,8 @@ export type DesignSpec = {
   kind: DKind;
   aspect: DAspect;
   font: string;
+  /** a decorative face for names / titles / the date (invitations); the body text keeps `font` */
+  titleFont?: string;
   colors: DColors;
   brand: { name?: string; handle?: string; logo?: DImg | null; showLogo: boolean; box?: { x: number; y: number; w: number } | null };
   slides: Slide[];
@@ -91,6 +93,18 @@ export const DFONTS = [
   { id: "Changa", label: "تشانغا" },
   { id: "Amiri", label: "أميري" },
 ] as const;
+/** Calligraphic / decorative Arabic faces for invitations and cards (names, titles): ruqaa, ink pen, kufi, handwritten. */
+export const DECOR_FONTS = [
+  { id: "Aref Ruqaa", label: "رقعة" },
+  { id: "Aref Ruqaa Ink", label: "رقعة بالحبر" },
+  { id: "Katibeh", label: "كاتبة (خط يدوي)" },
+  { id: "Reem Kufi", label: "ريم كوفي" },
+  { id: "El Messiri", label: "المسيري" },
+  { id: "Mirza", label: "ميرزا (مائل)" },
+] as const;
+export const ALL_FONT_IDS: string[] = [...DFONTS.map((f) => f.id), ...DECOR_FONTS.map((f) => f.id)];
+/** Fonts the studio offers for a kind of design. */
+export const fontsFor = (kind: DKind): readonly { id: string; label: string }[] => (kind === "invite" ? [...DECOR_FONTS, ...DFONTS] : kind === "bcard" ? [...DFONTS, DECOR_FONTS[3], DECOR_FONTS[4]] : DFONTS);
 
 /** Which fields each layout shows: the studio offers exactly these, and Claude is told the same. */
 export const LAYOUTS: Record<LayoutId, { label: string; hint: string; uses: (keyof Slide)[] }> = {
@@ -239,7 +253,8 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
   return {
     kind: base.kind,
     aspect: (Object.keys(DSIZE) as DAspect[]).includes(raw.aspect as DAspect) ? (raw.aspect as DAspect) : base.aspect,
-    font: DFONTS.some((f) => f.id === raw.font) ? (raw.font as string) : "Cairo",
+    font: ALL_FONT_IDS.includes(String(raw.font)) ? (raw.font as string) : "Cairo",
+    titleFont: ALL_FONT_IDS.includes(String(raw.titleFont)) ? (raw.titleFont as string) : undefined,
     colors: { bg: hex(c.bg, "#F3ECE2"), ink: hex(c.ink, "#1E1B18"), accent: hex(c.accent, "#B4532F"), soft: hex(c.soft, "#FBF7F1") },
     brand: { name: opt(b?.name, 50), handle: opt(b?.handle, 60), logo: img(b?.logo), showLogo: b?.showLogo !== false, box: box(b?.box) },
     slides: slides.length ? slides : [normaliseSlide({ title: "عنوانك هنا" })],

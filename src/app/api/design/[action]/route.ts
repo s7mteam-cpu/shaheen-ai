@@ -16,7 +16,7 @@ import { industryBrief, industryById } from "@/design/industries";
 import { designBrief, designPack } from "@/design/packs";
 import { guessIndustry } from "@/lib/server/guessIndustry";
 import { snapshot, trendsFor } from "@/lib/server/trends";
-import { usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, layoutsFor, DECO_IDS, FRAME_IDS, STICKER_IDS, STICKER_LABELS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
+import { DECOR_FONTS, usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, layoutsFor, DECO_IDS, FRAME_IDS, STICKER_IDS, STICKER_LABELS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
 
 export const maxDuration = 300;
 
@@ -29,10 +29,10 @@ const INVITE_SYSTEM = `أنت مصمم دعوات مناسبات خليجي مح
 - الظهر (slides[1]) إن طُلب: layout invBack: kicker (مثل «تفاصيل الحفل»)، title (مثل «نتشرف بحضوركم»)، body (الزي، الاستقبال، ملاحظات العميل)، date، meta (المكان والتأكيد وما يلزم الضيوف). لا تكرر الوجه حرفياً بلا فائدة.
 - اختر التخطيط والألوان والخط حسب المناسبة وذوق العميل: زفاف فخم → invA أو invD مع خط Amiri وذهبي/كحلي/زيتوني؛ زفاف عصري ورومانسي → invB بألوان وردية أو ترابية؛ بسيط عصري → invC؛ مولود/تخرج/عيد/حفلة → invE بألوان مبهجة. لا تكرر نفس الاختيار دائماً.
 - الألوان: bg خلفية الدعوة (فاتحة غالباً)، ink لون النص ويجب أن يكون **غامقاً** بتباين عالٍ مع bg (خاصة مع invD فالخلفية الداكنة تُرسم من ink)، accent لون مميز، soft سطح ثانوي. استخدم ألوان هوية العميل إن وُجدت.
-- الخط من: Cairo, Tajawal, Almarai, Changa, Amiri (Amiri للزفاف والفخامة).
+- font (خط النصوص الصغيرة، يجب أن يكون واضحاً): Cairo, Tajawal, Almarai, Amiri, El Messiri. و titleFont (خط الأسماء والعنوان والتاريخ، خط زخرفي): ${DECOR_FONTS.map((f) => `${f.id} (${f.label})`).join("، ")}. اختر titleFont يناسب المناسبة: Aref Ruqaa أو Aref Ruqaa Ink للزفاف الفخم والتقليدي (خط رقعة بالحبر)، Katibeh للرومانسي والخط اليدوي، Mirza للمائل الناعم، Reem Kufi للعصري الهندسي، El Messiri للأنيق الهادئ. نوّع الاختيار.
 - deco من: ${DECO_IDS.join(", ")} (none أو sparkle أو leaves للدعوات غالباً). frame: none غالباً.
 - لا صور ولا sticker ولا note ولا price (photo: null).
-أعد JSON: { "font", "deco", "frame", "colors": {"bg","ink","accent","soft"}, "slides": [ {layout, kicker, title, highlight, body, date, meta:[{icon,text}]} ] }`;
+أعد JSON: { "font", "titleFont", "deco", "frame", "colors": {"bg","ink","accent","soft"}, "slides": [ {layout, kicker, title, highlight, body, date, meta:[{icon,text}]} ] }`;
 
 const BCARD_SYSTEM = `أنت مصمم هويات وبطاقات عمل خليجي محترف. تحوّل معلومات العميل إلى بطاقة عمل أنيقة جاهزة للطباعة (وجه + ظهر).
 القواعد:
@@ -41,10 +41,10 @@ const BCARD_SYSTEM = `أنت مصمم هويات وبطاقات عمل خليج�
 - الظهر (slides[1]) إن طُلب: layout إما cardBack (لون الهوية كامل مع الشعار + عبارة تعريفية: title اسم الجهة، body العبارة) أو cardBackB (تفاصيل: kicker، title مثل «تواصل معنا» أو «موقعنا»، body، meta بدون تكرار ما في الوجه حرفياً إلا الضروري).
 - نوّع الأسلوب حسب مجال العميل وذوقه: فخم/تقليدي → cardB أو cardE مع Amiri والذهبي أو الكحلي، تقني/عصري → cardD أو cardC، طبي/قانوني/استشاري → cardE أو cardA بألوان هادئة، تجاري عام → cardA. لا تكرر نفس الاختيار دائماً.
 - الألوان: إذا للعميل ألوان هوية استخدمها بالأدوار: bg خلفية البطاقة (فاتحة غالباً)، ink لون النص (تباين عالٍ مع bg)، accent لون الهوية المميز، soft سطح ثانوي. وإلا اختر ألواناً راقية تناسب المجال.
-- الخط من: Cairo, Tajawal, Almarai, Changa, Amiri (Amiri للفخامة والتراث).
+- font: Cairo, Tajawal, Almarai, Changa, Amiri. و titleFont اختياري للاسم والعنوان فقط: Reem Kufi أو El Messiri أو Aref Ruqaa للفخامة والتقليدي.
 - deco من: ${DECO_IDS.join(", ")} (استخدم none أو lines أو corner للبطاقات غالباً حتى لا تزدحم). frame من: ${FRAME_IDS.join(", ")} (none غالباً أو gold للفخامة).
 - لا تستخدم صور (photo: null) ولا sticker ولا note ولا price.
-أعد JSON: { "font", "deco", "frame", "colors": {"bg","ink","accent","soft"}, "brand": {"name"}, "slides": [ {layout, kicker, title, highlight, body, meta:[{icon,text}]} ] }`;
+أعد JSON: { "font", "titleFont", "deco", "frame", "colors": {"bg","ink","accent","soft"}, "brand": {"name"}, "slides": [ {layout, kicker, title, highlight, body, meta:[{icon,text}]} ] }`;
 const DIALECT: Record<string, string> = { kuwaiti: "كويتية بإملاء واضح", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة",  gulf: "خليجية بيضاء", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة قريبة من الفصحى)", msa: "عربية فصحى سهلة", same: "نفس لهجة العميل" };
 
 const SYSTEM = `أنت مدير فني ومصمم سوشال ميديا خليجي خبير بأحدث أساليب التصميم 2026 (Editorial، Swiss typography، Bento grids، Bold minimal). تحوّل معلومات العميل إلى تصميم احترافي جاهز للنشر، مو تصميم عام ومكرر.

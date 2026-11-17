@@ -650,7 +650,7 @@ function CardMeta({ c, size = 25, cols = 1, color, icon }: { c: Ctx; size?: numb
 }
 const CardName = ({ c, base, color, hcolor, align }: { c: Ctx; base: number; color?: string; hcolor?: string; align?: "center" | "right" | "left" }) =>
   gone(c, "title") ? null : (
-    <h1 {...da("title")} style={{ margin: 0, fontSize: fit(c.s.title, base, 12, 0.55), lineHeight: 1.12, fontWeight: 800, color: color ?? c.ink, textAlign: align, ...eo(c, "title") }}>
+    <h1 {...da("title")} style={{ ...tf(c), margin: 0, fontSize: fit(c.s.title, base, 12, 0.55), lineHeight: 1.12, fontWeight: 800, color: color ?? c.ink, textAlign: align, ...eo(c, "title") }}>
       {rich(c.s.title)}{c.s.highlight && <span style={{ color: hcolor ?? c.accent }}> {rich(c.s.highlight)}</span>}
     </h1>
   );
@@ -781,14 +781,15 @@ function CardBackB(c: Ctx) {
 
 // ---------------- invitations (1080 x 1512): weddings, engagements, newborns, graduations, parties ----------------
 
+const tf = (c: Ctx): React.CSSProperties => (c.spec.titleFont ? { fontFamily: `"${c.spec.titleFont}", "${c.font}", sans-serif` } : {});
 const InvNames = ({ c, base, color, hcolor }: { c: Ctx; base: number; color?: string; hcolor?: string }) =>
   gone(c, "title") ? null : (
-    <h1 {...da("title")} style={{ margin: 0, fontSize: fit(c.s.title, base, 9, 0.5), lineHeight: 1.15, fontWeight: 800, color: color ?? c.ink, textAlign: "center", ...eo(c, "title") }}>
+    <h1 {...da("title")} style={{ ...tf(c), margin: 0, fontSize: fit(c.s.title, base, 9, 0.5), lineHeight: 1.15, fontWeight: 800, color: color ?? c.ink, textAlign: "center", ...eo(c, "title") }}>
       {rich(c.s.title)}{c.s.highlight && <><br /><span style={{ color: hcolor ?? c.accent }}>{rich(c.s.highlight)}</span></>}
     </h1>
   );
 const InvKicker = ({ c, color, size = 34 }: { c: Ctx; color?: string; size?: number }) =>
-  !c.s.kicker || gone(c, "kicker") ? null : <div {...da("kicker")} style={{ fontSize: size, fontWeight: 700, color: color ?? c.accent, textAlign: "center", letterSpacing: 1, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>;
+  !c.s.kicker || gone(c, "kicker") ? null : <div {...da("kicker")} style={{ ...tf(c), fontSize: c.spec.titleFont ? size * 1.2 : size, fontWeight: 700, color: color ?? c.accent, textAlign: "center", letterSpacing: 1, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>;
 const InvBody = ({ c, color, size = 33, max = 700 }: { c: Ctx; color?: string; size?: number; max?: number }) =>
   !c.s.body || gone(c, "body") ? null : <p {...da("body")} style={{ margin: 0, fontSize: fit(c.s.body, size, 90, 0.75), lineHeight: 1.75, fontWeight: 500, color: color ?? c.muted, textAlign: "center", maxWidth: max, ...eo(c, "body") }}>{rich(c.s.body)}</p>;
 /** weekday | big day | month, between thin lines */
@@ -799,7 +800,7 @@ function InvDate({ c, color, line, size = 120 }: { c: Ctx; color?: string; line?
   return (
     <div {...da("date")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 34, color: col, ...eo(c, "date") }}>
       <div style={{ textAlign: "center", fontSize: size * 0.3, fontWeight: 700, borderTop: `3px solid ${ln}`, borderBottom: `3px solid ${ln}`, padding: "10px 22px" }}>{d.weekday ?? ""}</div>
-      <div style={{ fontSize: size, fontWeight: 800, lineHeight: 1, color: c.accent }}>{d.day}</div>
+      <div style={{ ...tf(c), fontSize: size, fontWeight: 800, lineHeight: 1, color: c.accent }}>{d.day}</div>
       <div style={{ textAlign: "center", fontSize: size * 0.3, fontWeight: 700, borderTop: `3px solid ${ln}`, borderBottom: `3px solid ${ln}`, padding: "10px 22px" }}>{d.month}</div>
     </div>
   );
@@ -854,7 +855,7 @@ function InvC(c: Ctx) {
           <span style={{ width: 24, height: 24, background: c.accent }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 30 }}>
-          {!gone(c, "title") && <h1 {...da("title")} style={{ margin: 0, fontSize: fit(c.s.title, 190, 8, 0.4), lineHeight: 1.0, fontWeight: 800, color: c.ink, letterSpacing: -3, ...eo(c, "title") }}>{rich(c.s.title)}{c.s.highlight && <><br /><span style={{ color: c.accent }}>{rich(c.s.highlight)}</span></>}</h1>}
+          {!gone(c, "title") && <h1 {...da("title")} style={{ ...tf(c), margin: 0, fontSize: fit(c.s.title, 190, 8, 0.4), lineHeight: 1.0, fontWeight: 800, color: c.ink, letterSpacing: -3, ...eo(c, "title") }}>{rich(c.s.title)}{c.s.highlight && <><br /><span style={{ color: c.accent }}>{rich(c.s.highlight)}</span></>}</h1>}
           {!gone(c, "body") && c.s.body && <p {...da("body")} style={{ margin: 0, fontSize: 34, lineHeight: 1.7, fontWeight: 500, color: c.muted, maxWidth: 680, ...eo(c, "body") }}>{rich(c.s.body)}</p>}
         </div>
         <div style={{ borderTop: `3px solid ${c.ink}`, paddingTop: 34, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 30 }}>
