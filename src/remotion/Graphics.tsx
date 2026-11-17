@@ -18,6 +18,7 @@ function SceneImg({ src, style }: { src: string; style: React.CSSProperties; rea
 }
 import { DARK_BOARDS, MFPS, type Graphic, type MontageSpec } from "./montage";
 import { DOODLES } from "./doodles";
+import { Character } from "./characters";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 const cl = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -1134,6 +1135,32 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
           </div>
           {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.75} th={th} delay={16} fx={g.fx} />}
           {g.sub && <Badge text={g.sub} f={f} delay={22} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "character": {
+      // who is speaking right now? the voice-over's own word times drive the mouth
+      const tNow = g.at + f / MFPS;
+      const words = m.vo?.on ? m.vo.words : [];
+      const wi = words.findIndex((x) => tNow >= x.s && tNow <= x.e);
+      const open = wi >= 0 ? 0.3 + 0.7 * Math.abs(Math.sin(f * 0.95 + wi * 1.7)) * (0.6 + 0.4 * Math.abs(Math.sin(f * 0.37))) : 0;
+      const tall = h > w * 0.9;
+      const cs = (tall ? 380 : 330) * s;
+      const left = g.side === "l"; // character on the left looks right; on the right looks left (towards the drawing)
+      const flip = !left;
+      const skin = light ? "#1B2A4A" : "#F1EEE6";
+      const dsz = (tall ? 250 : 300) * s;
+      const slide = interpolate(f, [0, 12], [60 * s, 0], { ...cl, easing: ease });
+      const charEl = <div style={{ transform: `translateX(${(left ? -1 : 1) * slide}px)`, opacity: interpolate(f, [0, 8], [0, 1], cl), flexShrink: 0 }}><Character name={g.char ?? "man"} size={cs} f={f} fps={MFPS} open={open} mood={g.mood} pose={g.doodle ? (g.pose ?? "point") : g.pose} flip={flip} accent={th.accent} /></div>;
+      const prop = g.doodle ? <DoodleDraw name={g.doodle} f={f} start={10} dur={Math.min(34, Math.max(14, len * 0.45))} size={dsz} ink={skin} fill={th.accent} skin="#F2C9A0" /> : null;
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 * s }}>
+          <div style={{ display: "flex", flexDirection: left ? "row" : "row-reverse", alignItems: "center", justifyContent: "center", gap: 30 * s, direction: "ltr" }}>
+            {charEl}{prop}
+          </div>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * (tall ? 0.6 : 0.66)} th={th} delay={6} fx={g.fx} />}
+          {g.sub && <Badge text={g.sub} f={f} delay={16} s={s} th={th} light={light} />}
         </div>
       );
       break;

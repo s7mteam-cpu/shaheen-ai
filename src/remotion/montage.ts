@@ -1,6 +1,7 @@
 /** Smart montage = the customer's own footage + an edit plan (data). Player previews it, the worker renders it. */
 import { ICONS, dimensions, type Aspect, type IconName } from "./spec";
 import { DOODLES } from "./doodles";
+import { CHARS, MOODS, POSES, type CharName, type Mood, type Pose } from "./characters";
 
 export type Word = { t: string; s: number; e: number };          // source seconds
 export type Seg = { s: number; e: number };                       // kept source range, in output order
@@ -72,7 +73,7 @@ export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare"
   | "definition" | "quiz" | "truefalse" | "timeline" | "cycle" | "mindmap" | "proscons" | "equation" | "fraction" | "vocab" | "pyramid" | "table" | "fillblank"
   | "scene" | "cube" | "globe" | "text3d" | "plot" | "geometry" | "burst" | "confetti" | "dotgrid" | "sketchbars"
   | "price" | "offer" | "menu" | "rating" | "testimonial" | "contact" | "specs" | "appointment" | "beforeafter" | "countdown" | "delivery" | "hours"
-  | "doodle"
+  | "doodle" | "character"
   | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring" | "map" | "route";
 export type Graphic = {
   kind: GraphicKind;
@@ -85,6 +86,7 @@ export type Graphic = {
   icon?: IconName;                         // icon / emoji graphic
   emoji?: string;
   items?: { label: string; icon?: IconName; value?: number; doodle?: string }[]; // steps, flow, checklist, bars (doodle row: one drawing per item)
+  char?: CharName; mood?: Mood; pose?: Pose; side?: "l" | "r"; // character: who talks, how they feel, the gesture, which side
   doodle?: string;                         // doodle: name of the hand-drawn picture (doodles.ts)
   values?: number[];                       // line chart
   fx?: "marker" | "circle" | "underline" | "typewriter"; // headline effect on the hl word
@@ -106,7 +108,7 @@ export const GRAPHIC_KINDS: [GraphicKind, string][] = [
   ["mindmap", "خريطة ذهنية"], ["proscons", "مزايا وعيوب"], ["equation", "معادلة / حساب"], ["fraction", "كسر بالدائرة"], ["vocab", "كلمة ومعناها"],
   ["pyramid", "هرم"], ["table", "جدول"], ["fillblank", "املأ الفراغ"],
   ["scene", "مشهد مرسوم بالذكاء الاصطناعي"], ["cube", "مكعب ثلاثي الأبعاد"], ["globe", "كرة أرضية تدور"], ["text3d", "نص ثلاثي الأبعاد"],
-  ["plot", "رسم دالة رياضية"], ["geometry", "شكل هندسي"], ["burst", "ختم وانفجار «تم»"], ["confetti", "احتفال كونفيتي"], ["dotgrid", "شبكة نقاط متحركة"], ["sketchbars", "رسم بياني مرسوم باليد"], ["doodle", "رسمة متحركة تنرسم باليد"],
+  ["plot", "رسم دالة رياضية"], ["geometry", "شكل هندسي"], ["burst", "ختم وانفجار «تم»"], ["confetti", "احتفال كونفيتي"], ["dotgrid", "شبكة نقاط متحركة"], ["sketchbars", "رسم بياني مرسوم باليد"], ["doodle", "رسمة متحركة تنرسم باليد"], ["character", "شخصية كرتون تتكلم"],
   ["price", "سعر قبل وبعد"], ["offer", "شارة خصم"], ["menu", "منيو بالأسعار"], ["rating", "تقييم بالنجوم"], ["testimonial", "رأي عميل"], ["contact", "بطاقة تواصل"],
   ["specs", "مواصفات بأيقونات"], ["appointment", "حجز موعد"], ["beforeafter", "قبل وبعد"], ["countdown", "العرض ينتهي بعد"], ["delivery", "توصيل"], ["hours", "ساعات العمل"],
   ["dish", "طبق ساخن بالبخار"], ["shine", "لمعة وبريق"], ["mist", "عطر ورذاذ"], ["ecg", "نبض القلب"], ["flight", "رحلة طيران"], ["scales", "ميزان العدالة"],
@@ -133,7 +135,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       kind, at: +c(Number(x?.at) || 0, 0, Math.max(0, len - 0.5)).toFixed(2), dur: +c(Number(x?.dur) || 2.5, 1, 8).toFixed(2),
       text: str(x?.text, 70), hl: str(x?.hl, 30), sub: str(x?.sub, 40),
       value: Number.isFinite(Number(x?.value)) && x?.value !== undefined && x?.value !== null && x?.value !== "" ? c(Number(x.value), 0, 1e9) : undefined,
-      doodle: doodleName(x?.doodle), suffix: str(x?.suffix, 12), icon: icon(x?.icon), emoji: str(x?.emoji, 4), items,
+      doodle: doodleName(x?.doodle), char: (Object.keys(CHARS) as CharName[]).find((k) => k === x?.char), mood: MOODS.find((k) => k === x?.mood), pose: POSES.find((k) => k === x?.pose), side: x?.side === "l" ? "l" : x?.side === "r" ? "r" : undefined, suffix: str(x?.suffix, 12), icon: icon(x?.icon), emoji: str(x?.emoji, 4), items,
       bad: str(x?.bad, 50), good: str(x?.good, 50),
       values: Array.isArray(x?.values) ? (x.values as unknown[]).slice(0, 12).map(Number).filter(Number.isFinite) : undefined,
       fx: (["marker", "circle", "underline", "typewriter"] as const).find((f) => f === x?.fx),
@@ -146,7 +148,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["doodle", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["doodle", "character", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];

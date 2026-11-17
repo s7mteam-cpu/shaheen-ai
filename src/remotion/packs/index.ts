@@ -69,7 +69,7 @@ export function enforcePack<G extends { kind: GraphicKind }>(graphics: G[], p?: 
   let n = 0;
   const borrowed: GraphicKind[] = [];
   const out = graphics.filter((g) => {
-    if (p.scenes.includes(g.kind) || g.kind === "doodle") return true;
+    if (p.scenes.includes(g.kind) || g.kind === "doodle" || g.kind === "character") return true;
     if (n >= BORROW_LIMIT) return false;
     n++; borrowed.push(g.kind);
     return true;

@@ -1,5 +1,6 @@
 "use client";
 import { DOODLES } from "@/remotion/doodles";
+import { CHARS, MOODS, POSES } from "@/remotion/characters";
 import { L, LT } from "@/lib/i18n/ui";
 import "@fontsource/tajawal/arabic-500.css";
 import "@fontsource/tajawal/arabic-800.css";
@@ -143,6 +144,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       : kind === "cycle" ? { ...base, text: L("الدورة"), items: [{ label: L("مرحلة ١") }, { label: L("مرحلة ٢") }, { label: L("مرحلة ٣") }, { label: L("مرحلة ٤") }] }
       : kind === "mindmap" ? { ...base, text: L("الموضوع"), items: [{ label: L("فرع ١") }, { label: L("فرع ٢") }, { label: L("فرع ٣") }, { label: L("فرع ٤") }] }
       : kind === "proscons" ? { ...base, items: [{ label: L("ميزة"), value: 1 }, { label: L("ميزة ثانية"), value: 1 }, { label: L("عيب"), value: 0 }] }
+      : kind === "character" ? { ...base, dur: 4, char: "man" as const, mood: "happy" as const, pose: "point" as const, doodle: "bulb", text: L("تعال أشرح لك") }
       : kind === "doodle" ? { ...base, dur: 4, doodle: "bulb", text: L("فكرة ذكية") }
       : kind === "equation" ? { ...base, text: "2 + 3 = 5" }
       : kind === "fraction" ? { ...base, values: [3, 4], text: L("ثلاثة أرباع") }
@@ -391,9 +393,25 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                     <option value="">{L("بدون تأثير")}</option><option value="marker">{L("تظليل")}</option><option value="circle">{L("دائرة")}</option><option value="underline">{L("خط تحت")}</option><option value="typewriter">{L("آلة كاتبة")}</option>
                   </select>
                 )}
-                {g.kind === "doodle" && !g.items?.length && (
-                  <select value={g.doodle ?? "bulb"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, doodle: e.target.value } : x)) })} aria-label={L("الرسمة")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
-                    {Object.entries(DOODLES).map(([k, d]) => <option key={k} value={k}>{L(d.label)}</option>)}
+                {g.kind === "character" && (
+                  <>
+                    <select value={g.char ?? "man"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, char: e.target.value as typeof x.char } : x)) })} aria-label={L("الشخصية")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
+                      {Object.entries(CHARS).map(([k, c]) => <option key={k} value={k}>{L(c.label)}</option>)}
+                    </select>
+                    <select value={g.mood ?? "happy"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, mood: e.target.value as typeof x.mood } : x)) })} aria-label={L("الشعور")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
+                      {MOODS.map((k) => <option key={k} value={k}>{L({ happy: "مبتسم", surprised: "متفاجئ", think: "يفكر", sad: "حزين", wow: "مبهور" }[k])}</option>)}
+                    </select>
+                    <select value={g.pose ?? "idle"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, pose: e.target.value as typeof x.pose } : x)) })} aria-label={L("الحركة")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
+                      {POSES.map((k) => <option key={k} value={k}>{L({ idle: "واقف", point: "يأشّر", wave: "يلوّح" }[k])}</option>)}
+                    </select>
+                    <select value={g.side ?? "r"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, side: e.target.value as "l" | "r" } : x)) })} aria-label={L("مكانه")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
+                      <option value="r">{L("يمين")}</option><option value="l">{L("يسار")}</option>
+                    </select>
+                  </>
+                )}
+                {(g.kind === "doodle" || g.kind === "character") && !g.items?.length && (
+                  <select value={g.doodle ?? (g.kind === "character" ? "" : "bulb")} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, doodle: e.target.value || undefined } : x)) })} aria-label={L("الرسمة")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
+                    {g.kind === "character" && <option value="">{L("بدون رسمة")}</option>}{Object.entries(DOODLES).map(([k, d]) => <option key={k} value={k}>{L(d.label)}</option>)}
                   </select>
                 )}
                 <button type="button" onClick={() => setSpec({ ...spec, graphics: (spec.graphics ?? []).filter((_, j) => j !== i) })} className="shrink-0 rounded-lg px-2 py-1 text-red-700 hover:bg-red-50">{L("حذف")}</button>

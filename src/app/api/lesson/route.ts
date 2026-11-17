@@ -50,8 +50,8 @@ export async function POST(req: Request) {
   const dialect = DIALECT[String(b.dialect)] ? String(b.dialect) : "kuwaiti";
   const panel = b.panel === "dark" ? "dark" : "light";
   const withMusic = b.music !== false;
-  const look = b.look === "doodle" ? "doodle" : "images"; // images = montage with AI pictures · doodle = real hand-drawn animation
-  const drawings = look === "doodle" ? false : b.drawings !== false;
+  const look = b.look === "doodle" ? "doodle" : b.look === "cartoon" ? "cartoon" : "images"; // images = montage with AI pictures · doodle = real hand-drawn animation
+  const drawings = look === "images" ? b.drawings !== false : false;
   const tpl = motion ? await loadTemplate(b.templateId) : null; // a library template: its style, structure and look
   const illus = tpl ? tpl.style : ILLUS_STYLES.some((x) => x[0] === b.illus) ? String(b.illus) : undefined;
   // how many AI drawings: few (2-5 scenes), half of the scenes, or every scene
@@ -59,7 +59,9 @@ export async function POST(req: Request) {
   const howMany = level === "all" ? "كل مشهد بالفيديو لازم يكون من نوع scene (رسمة بالذكاء الاصطناعي) بدون استثناء، والنص القصير يطلع فوق الرسمة (text وhl وsub)"
     : level === "half" ? "اجعل حوالي نصف مشاهد الفيديو من نوع scene (رسمة بالذكاء الاصطناعي) موزعة بالتساوي، والباقي مشاهد عادية (عناوين، خطوات، أرقام…)"
     : "استخدم مشهد scene (رسمة بالذكاء الاصطناعي) من 2 إلى 5 مرات بالفيديو للقصص والأمثلة والأماكن والشخصيات";
-  const drawHint = look === "doodle"
+  const drawHint = look === "cartoon"
+    ? "الفيديو بأسلوب كرتون خليجي: شخصية كرتون تتكلم وتتحرك بكل مشهد تقريباً. اختر شخصية رئيسية وحدة (char) تتكرر بأغلب المشاهد بحسب موضوع الفيديو وجنس الصوت (رجّال man أو جدّ elder أو حرمة woman أو ولد boy أو بنت girl)، ويمكن شخصية ثانية لبعض المشاهد للتنويع. غيّر mood وpose حسب الجملة (point لما تشرح شي بجانبها، wave للترحيب والختام). وكثير من المشاهد ضيف doodle رسمة تنرسم بجانب الشخصية لتوضّح الفكرة وبدّل side بين l وr. وبين الحين والثاني مشهد عادي (رقم، خطوات، عنوان) للتنويع. لا تستخدم scene أبداً. واختر board من: paper, notebook, soft, pastel."
+    : look === "doodle"
     ? "الفيديو بأسلوب رسوم متحركة حقيقية: استخدم مشهد doodle في أغلب المشاهد (60% أو أكثر) لأن الرسمة تنرسم باليد وتتحرك. اختر اسم الرسمة doodle من القائمة بما يناسب معنى الجملة، ولما تكون الجملة فيها عدة أفكار (2-4) استخدم doodle بصف items [{doodle,label}]. والمشاهد الباقية تكون عنوان أو خطوات أو رقم. لا تستخدم مشهد scene أبداً. واختر board من: paper, notebook, soft, dots."
     : drawings
     ? `${howMany}، و prompt يكون وصف إنجليزي واضح للرسمة بدون أي كتابة داخلها.${illus ? "" : " واختر \"illus\" ستايل الرسومات المناسب من: " + ILLUS_STYLES.map((x) => x[0]).join(", ") + "."}`

@@ -28,7 +28,7 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
   const [voice, setVoice] = useState(voices[0]?.id ?? "");
   const [withMusic, setWithMusic] = useState(true);
   const [drawings, setDrawings] = useState(true);
-  const [look, setLook] = useState<"images" | "doodle">("images");
+  const [look, setLook] = useState<"images" | "doodle" | "cartoon">("images");
   const [level, setLevel] = useState<"few" | "half" | "all">("few");
   const [illus, setIllus] = useState<string>("auto");
   const [busy, setBusy] = useState(false);
@@ -73,8 +73,8 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(aspects, aspect, setAspect)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل اللوحة")}</span>{chips(panels, panel, setPanel)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("خلفية اللوحة")}</span>{chips(boards, board, setBoard)}</div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل الفيديو")}</span>{chips([["images", "🖼️ مونتاج صور ومشاهد"], ["doodle", "✏️ رسوم متحركة تنرسم باليد"]] as readonly (readonly [string, string])[], look, (v) => setLook(v as "images" | "doodle"))}<span className="text-[13px] text-subtle">{look === "doodle" ? L("رسمات بسيطة تنرسم قدامك بقلم وتتحرك، فيديو متحرك حقيقي بدون صور.") : L("مشاهد ورسومات بالذكاء الاصطناعي مركّبة مع بعض.")}</span></div>
-      <label className={look === "doodle" ? "hidden" : "flex items-center gap-3"}><input type="checkbox" checked={drawings} onChange={(e) => setDrawings(e.target.checked)} className="h-5 w-5" /><span>{L("🎨 مشاهد مرسومة بالذكاء الاصطناعي (قصص وأمثلة وشخصيات)")}</span></label>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل الفيديو")}</span>{chips([["images", "🖼️ مونتاج صور ومشاهد"], ["doodle", "✏️ رسوم متحركة تنرسم باليد"], ["cartoon", "🧑‍🏫 كرتون خليجي يتكلم"]] as readonly (readonly [string, string])[], look, (v) => setLook(v as "images" | "doodle" | "cartoon"))}<span className="text-[13px] text-subtle">{look === "doodle" ? L("رسمات بسيطة تنرسم قدامك بقلم وتتحرك، فيديو متحرك حقيقي بدون صور.") : look === "cartoon" ? L("شخصيات كرتون خليجية تتحرك وتتكلم بصوت الفيديو، ومعها رسمات تنرسم. اختر صوت يناسب الشخصية.") : L("مشاهد ورسومات بالذكاء الاصطناعي مركّبة مع بعض.")}</span></div>
+      <label className={look !== "images" ? "hidden" : "flex items-center gap-3"}><input type="checkbox" checked={drawings} onChange={(e) => setDrawings(e.target.checked)} className="h-5 w-5" /><span>{L("🎨 مشاهد مرسومة بالذكاء الاصطناعي (قصص وأمثلة وشخصيات)")}</span></label>
       {drawings && look === "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسومات")}</span>{chips([["auto", "شاهين يختار"], ...ILLUS_STYLES.map(([v, l]) => [v, l] as const)] as readonly (readonly [string, string])[], illus, setIllus)}</div>}
       {drawings && look === "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("كم رسمة بالفيديو؟")}</span>{chips([["few", "قليلة (2-4 مشاهد)"], ["half", "متوسطة (نص المشاهد)"], ["all", "كل المشاهد"]] as readonly (readonly [string, string])[], level, (v) => setLevel(v as "few" | "half" | "all"))}<span className="text-[13px] text-subtle">{L("كل رسمة تنرسم بالذكاء الاصطناعي وتحتاج وقت أكثر. «كل المشاهد» يعطي فيديو كله بالستايل.")}</span></div>}
       <label className="flex items-center gap-3"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} className="h-5 w-5" /><span>{L("موسيقى خلفية هادئة")}</span></label>
