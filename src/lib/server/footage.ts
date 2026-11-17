@@ -1,5 +1,6 @@
 import "server-only";
 import { saveResult } from "@/lib/providers/storage";
+import sharp from "sharp";
 import { claudeVisionJson } from "@/lib/providers/text";
 
 type PFile = { quality: string; file_type: string; width: number | null; height: number | null; link: string };
@@ -60,19 +61,39 @@ async function pixabayCands(q: string, key: string): Promise<Cand[]> {
 let lastErr = "";
 export const footageError = () => lastErr;
 
+
+/** Anthropic cannot always fetch a provider's thumbnail URL itself (400), so we download it, shrink it and send the picture inline. */
+async function thumbData(url: string): Promise<string | null> {
+  try {
+    if (!url) return null;
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    const buf = await sharp(Buffer.from(await r.arrayBuffer())).resize({ width: 512, withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer();
+    return `data:image/jpeg;base64,${buf.toString("base64")}`;
+  } catch { return null; }
+}
+/** Keeps only candidates whose picture we could actually load, and swaps in the inline copy. */
+async function withPictures(cands: Cand[]): Promise<Cand[]> {
+  const top = cands.slice(0, 6);
+  const got = await Promise.all(top.map(async (c) => { const d = await thumbData(c.thumb); return d ? { ...c, thumb: d } : null; }));
+  const ok = got.filter((c): c is Cand => !!c);
+  if (!ok.length && top.length) lastErr = "thumbnails could not be loaded";
+  return ok;
+}
+
 /** An art director looks at the candidates' pictures and picks the best fit. Returns its 1-based number, or 0 when even the best is not good enough. */
 async function review(cands: Cand[], q: string, text: string, ctx: Ctx): Promise<number> {
-  const list = cands.slice(0, 8);
-  if (list.length < 1) return 0;
+  const list = cands.slice(0, 6);
+  if (!list.length) return 0;
   try {
     const r = await claudeVisionJson<{ pick?: number; score?: number }>(
-      `أنت مدير فني صارم لإعلانات خليجية (الكويت) راقية تُعرض لجمهور محافظ. ترى صور معاينة لقطات فيديو جاهزة مرقمة. اختر أنسب لقطة لمعنى المشهد وأعطها درجة من 0 إلى 10. لا تعطِ فوق 6 إلا إذا كانت اللقطة: تطابق معنى الجملة فعلاً (قاعة تدريب تبان قاعة محاضرات أو مؤتمر، مدرّب يبان مدرّب...)، بيئة مهنية راقية ونظيفة ومضيئة، وكل من فيها بلباس رسمي محتشم ومحترم. أعطِ أقل من 4 لأي لقطة فيها: ملهى أو ديسكو أو كازينو أو حفلة أو رقص أو إضاءة ملونة أو دخان أو مشروبات كحولية، أو لباس كاشف أو غير رسمي أو غير لائق، أو سلوك غير مهني، أو مبنى مهجور أو متسخ أو مكان مظلم أو فوضوي، أو علاقتها بالمعنى ضعيفة، أو وجه قريب جداً، أو كتابة وشعارات واضحة، أو أشرطة سوداء أو حواف فارغة حول الصورة أو صورة لا تملأ الإطار، أو جودة سيئة. اللقطة المتوسطة المقبولة أفضل من لقطة مبهرة غير مناسبة. أعد JSON: {"pick": رقم اللقطة, "score": الدرجة}`,
+      `أنت مدير فني صارم لإعلانات خليجية (الكويت) راقية تُعرض لجمهور محافظ. ترى صور معاينة لقطات فيديو جاهزة مرقمة. اختر أنسب لقطة لمعنى المشهد وأعطها درجة من 0 إلى 10. لا تعطِ فوق 6 إلا إذا كانت اللقطة: تطابق معنى الجملة فعلاً (قاعة تدريب تبان قاعة محاضرات أو مؤتمر، مدرّب يبان مدرّب...)، بيئة مهنية راقية ونظيفة ومضيئة، وكل من فيها بلباس رسمي محتشم ومحترم. أعطِ أقل من 4 لأي لقطة فيها: ملهى أو ديسكو أو كازينو أو حفلة أو رقص أو إضاءة ملونة أو دخان أو مشروبات كحولية، أو لباس كاشف أو غير رسمي أو غير لائق، أو سلوك غير مهني، أو مبنى مهجور أو متسخ أو مكان مظلم أو فوضوي، أو علاقتها بالمعنى ضعيفة، أو وجه قريب جداً، أو كتابة وشعارات واضحة، أو أشرطة سوداء أو حواف فارغة حول الصورة أو صورة لا تملأ الإطار، أو جودة سيئة. اللقطة المتوسطة المقبولة أفضل من لقطة مبهرة غير مناسبة. أعد JSON فقط يبدأ بـ { مباشرة بلا أي شرح: {"pick": رقم اللقطة, "score": الدرجة}`,
       `فكرة الفيديو: ${ctx.topic.slice(0, 300)}\n${ctx.industry ? `المجال: ${ctx.industry}\n` : ""}نص المشهد: ${text || "-"}\nبحثنا عن: ${q}`,
-      list.map((c, i) => ({ url: c.thumb, label: `لقطة ${i + 1}` })), 200, "claude-sonnet-5-5");
+      list.map((c, i) => ({ url: c.thumb, label: `لقطة ${i + 1}` })), 600, "claude-sonnet-5-5");
     const n = Math.round(Number(r.pick) || 0), score = Number(r.score);
     if (n < 1 || n > list.length) return 0;
     return Number.isFinite(score) && score < 6 ? 0 : n;
-  } catch (e) { lastErr = `review failed: ${(e as Error).message?.slice(0, 80)}`; console.error("clip review", e); return 0; } // never show a shot nobody checked
+  } catch (e) { lastErr = `review failed: ${(e as Error).message?.slice(0, 240)}`; console.error("clip review", e); return 0; } // never show a shot nobody checked
 }
 
 
@@ -95,11 +116,11 @@ const wordQ = (text: string) => WORDS.find(([re]) => re.test(text))?.[1] ?? "";
 async function verify(c: Cand, text: string, ctx: Ctx): Promise<boolean> {
   try {
     const r = await claudeVisionJson<{ ok?: boolean; why?: string }>(
-      `أنت مدقق جودة نهائي لإعلان خليجي (الكويت) راقٍ لجمهور محافظ. ترى لقطة واحدة. أجب ok=true فقط إذا كانت: (1) تعبّر فعلاً عن معنى جملة المشهد، (2) بيئة مهنية راقية ونظيفة ومضيئة، (3) كل من فيها بلباس رسمي محتشم وسلوك مهني، (4) ليس فيها حفلة أو رقص أو ملهى أو كحول أو إضاءة ملونة أو تجمع صاخب أو أشرطة سوداء. أي شك أو لقطة مقبولة بالكاد = ok=false. أعد JSON: {"ok": true|false, "why": "سبب قصير"}`,
+      `أنت مدقق جودة نهائي لإعلان خليجي (الكويت) راقٍ لجمهور محافظ. ترى لقطة واحدة. أجب ok=true فقط إذا كانت: (1) تعبّر فعلاً عن معنى جملة المشهد، (2) بيئة مهنية راقية ونظيفة ومضيئة، (3) كل من فيها بلباس رسمي محتشم وسلوك مهني، (4) ليس فيها حفلة أو رقص أو ملهى أو كحول أو إضاءة ملونة أو تجمع صاخب أو أشرطة سوداء. أي شك أو لقطة مقبولة بالكاد = ok=false. أعد JSON فقط يبدأ بـ { مباشرة بلا أي شرح: {"ok": true|false, "why": "سبب قصير"}`,
       `فكرة الفيديو: ${ctx.topic.slice(0, 300)}\nنص المشهد: ${text || "-"}`,
-      [{ url: c.thumb, label: "اللقطة" }], 120, "claude-sonnet-5-5");
+      [{ url: c.thumb, label: "اللقطة" }], 600, "claude-sonnet-5-5");
     return r.ok === true;
-  } catch (e) { lastErr = `verify failed: ${(e as Error).message?.slice(0, 80)}`; console.error("clip verify", e); return false; }
+  } catch (e) { lastErr = `verify failed: ${(e as Error).message?.slice(0, 240)}`; console.error("clip verify", e); return false; }
 }
 
 /** One real stock clip for a scene: candidates → reviewed → saved in our own storage (provider links are not permanent). */
@@ -110,9 +131,10 @@ export async function findClip(q: string, text: string, minSec: number, aspect: 
   const tryOnce = async (query: string) => {
     let all = px ? await pexelsCands(query, aspect, px) : [];
     if (!all.length && pb) all = await pixabayCands(query, pb);
-    const cands = all.filter((c) => !used.has(c.id));
+    const pre = all.filter((c) => !used.has(c.id));
     // long enough for the scene first; then the shape of the video (a tall clip is not cropped, so a shaky hand is not magnified)
-    cands.sort((x, y) => Number(y.duration >= minSec) - Number(x.duration >= minSec) || Number(y.portrait === wantPortrait) - Number(x.portrait === wantPortrait));
+    pre.sort((x, y) => Number(y.duration >= minSec) - Number(x.duration >= minSec) || Number(y.portrait === wantPortrait) - Number(x.portrait === wantPortrait));
+    const cands = await withPictures(pre);
     for (let k = 0; k < 3 && cands.length; k++) { // pick → strict check → if it fails, the next best
       const n = await review(cands, query, text, ctx);
       if (!n) return null;

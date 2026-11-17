@@ -75,7 +75,7 @@ export async function aiJson<T>(system: string, user: string, maxTokens = 1500, 
 /** Claude with images (style references, the customer's photos). Images are passed by URL; returns parsed JSON. */
 export async function claudeVisionJson<T>(system: string, text: string, images: { url: string; label: string }[], maxTokens = 8000, model = "claude-sonnet-5-5"): Promise<T> {
   const content: unknown[] = [];
-  for (const im of images) { content.push({ type: "text", text: im.label }); content.push({ type: "image", source: { type: "url", url: im.url } }); }
+  for (const im of images) { content.push({ type: "text", text: im.label }); const m = /^data:([^;]+);base64,(.+)$/.exec(im.url); content.push({ type: "image", source: m ? { type: "base64", media_type: m[1], data: m[2] } : { type: "url", url: im.url } }); }
   content.push({ type: "text", text });
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -86,5 +86,6 @@ export async function claudeVisionJson<T>(system: string, text: string, images: 
   const data = (await res.json()) as { content: { text?: string }[] };
   const out = data.content.map((c) => c.text ?? "").join("");
   const o = out.indexOf("{");
+  if (o < 0 || out.lastIndexOf("}") < o) throw new Error(`no JSON in reply (${(data as { stop_reason?: string }).stop_reason ?? "?"}): ${out.slice(0, 120)}`);
   return JSON.parse(out.slice(o, out.lastIndexOf("}") + 1)) as T;
 }
