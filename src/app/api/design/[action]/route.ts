@@ -16,11 +16,23 @@ import { industryBrief, industryById } from "@/design/industries";
 import { designBrief, designPack } from "@/design/packs";
 import { guessIndustry } from "@/lib/server/guessIndustry";
 import { snapshot, trendsFor } from "@/lib/server/trends";
-import { usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, DECO_IDS, FRAME_IDS, STICKER_IDS, STICKER_LABELS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
+import { usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, layoutsFor, DECO_IDS, FRAME_IDS, STICKER_IDS, STICKER_LABELS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
 
 export const maxDuration = 300;
 
 const ASPECTS: DAspect[] = ["4:5", "1:1", "9:16"];
+
+const BCARD_SYSTEM = `أنت مصمم هويات وبطاقات عمل خليجي محترف. تحوّل معلومات العميل إلى بطاقة عمل أنيقة جاهزة للطباعة (وجه + ظهر).
+القواعد:
+- النصوص التي كتبها العميل (الاسم، المسمى، الأرقام، البريد، الموقع، العنوان، اسم الشركة) تنسخ حرفياً كما هي بدون أي تغيير أو ترجمة أو تصحيح. لا تخترع رقم هاتف أو بريد أو موقع أو عنوان أو مسمى وظيفي ما ذكره العميل.
+- الوجه (slides[0]): layout من هذي: ${layoutsFor("bcard").filter((x) => !x.includes("Back")).join(", ")}. title = اسم الشخص (أو اسم الشركة لو بطاقة شركة)، kicker = المسمى الوظيفي (أو المجال)، highlight اختياري (كلمة وحدة من الاسم أو اسم الشركة)، body = عبارة تعريفية قصيرة جداً إن وجدت بكلام العميل، meta = وسائل التواصل بحد أقصى 5 كل واحدة {icon,text} والأيقونة من: phone (جوال/هاتف)، message (بريد إلكتروني)، globe (موقع/حساب)، map-pin (عنوان)، clock (دوام).
+- الظهر (slides[1]) إن طُلب: layout إما cardBack (لون الهوية كامل مع الشعار + عبارة تعريفية: title اسم الجهة، body العبارة) أو cardBackB (تفاصيل: kicker، title مثل «تواصل معنا» أو «موقعنا»، body، meta بدون تكرار ما في الوجه حرفياً إلا الضروري).
+- نوّع الأسلوب حسب مجال العميل وذوقه: فخم/تقليدي → cardB أو cardE مع Amiri والذهبي أو الكحلي، تقني/عصري → cardD أو cardC، طبي/قانوني/استشاري → cardE أو cardA بألوان هادئة، تجاري عام → cardA. لا تكرر نفس الاختيار دائماً.
+- الألوان: إذا للعميل ألوان هوية استخدمها بالأدوار: bg خلفية البطاقة (فاتحة غالباً)، ink لون النص (تباين عالٍ مع bg)، accent لون الهوية المميز، soft سطح ثانوي. وإلا اختر ألواناً راقية تناسب المجال.
+- الخط من: Cairo, Tajawal, Almarai, Changa, Amiri (Amiri للفخامة والتراث).
+- deco من: ${DECO_IDS.join(", ")} (استخدم none أو lines أو corner للبطاقات غالباً حتى لا تزدحم). frame من: ${FRAME_IDS.join(", ")} (none غالباً أو gold للفخامة).
+- لا تستخدم صور (photo: null) ولا sticker ولا note ولا price.
+أعد JSON: { "font", "deco", "frame", "colors": {"bg","ink","accent","soft"}, "brand": {"name"}, "slides": [ {layout, kicker, title, highlight, body, meta:[{icon,text}]} ] }`;
 const DIALECT: Record<string, string> = { kuwaiti: "كويتية بإملاء واضح", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة",  gulf: "خليجية بيضاء", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة قريبة من الفصحى)", msa: "عربية فصحى سهلة", same: "نفس لهجة العميل" };
 
 const SYSTEM = `أنت مدير فني ومصمم سوشال ميديا خليجي خبير بأحدث أساليب التصميم 2026 (Editorial، Swiss typography، Bento grids، Bold minimal). تحوّل معلومات العميل إلى تصميم احترافي جاهز للنشر، مو تصميم عام ومكرر.
@@ -152,8 +164,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
     const info = String(body.info ?? "").trim().slice(0, 3000);
     if (info.length < 5) return NextResponse.json({ error: "اكتب معلومات التصميم." }, { status: 400 });
-    const count = kind === "carousel" ? Math.min(10, Math.max(3, Number(body.count) || 5)) : kind === "ads" ? Math.min(4, Math.max(1, Number(body.count) || 2)) : 1;
-    const aspect = ASPECTS.includes(body.aspect as DAspect) ? (body.aspect as DAspect) : "4:5";
+    const count = kind === "bcard" ? (Number(body.count) === 1 ? 1 : 2) : kind === "carousel" ? Math.min(10, Math.max(3, Number(body.count) || 5)) : kind === "ads" ? Math.min(4, Math.max(1, Number(body.count) || 2)) : 1;
+    const aspect: DAspect = kind === "bcard" ? "card" : ASPECTS.includes(body.aspect as DAspect) ? (body.aspect as DAspect) : "4:5";
     const photos = (body.photos ?? []).filter(mine).slice(0, 6);
     const person = mine(body.person) ? body.person! : null;
 
@@ -161,7 +173,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       .insert({ user_id: user.id, tool_id: toolId, title: info.slice(0, 80), status: "draft", progress: 5, input: { info, count, aspect, kind, photos, person } })
       .select("id").single();
     if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
-    const cost = (kind === "post" ? 1 : count) * tool.credit_cost;
+    const cost = (kind === "post" || kind === "bcard" ? 1 : count) * tool.credit_cost;
     const denied = await charge(job.id, cost);
     if (denied) { await admin.from("jobs").delete().eq("id", job.id); return denied; }
 
@@ -176,7 +188,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       // «سوّ مثله»: the chosen showcase work is the style to copy (layout, colors, feel), the content stays the customer's
       const like = await loadLike(body.likeWork);
       if (like) for (const [i, u] of like.images.entries()) images.push({ url: u, label: `مرجع الأسلوب المطلوب${like.images.length > 1 ? ` (${i + 1}/${like.images.length})` : ""}: ${likeText(like)}` });
-      const want = kind === "carousel"
+      const want = kind === "bcard"
+        ? `بطاقة عمل ${count === 2 ? "بوجهين (وجه وظهر)" : "بوجه واحد فقط"}. المقاس 90×50 مم أفقي.`
+        : kind === "carousel"
         ? `كاروسيل من ${count} شرائح: الأولى cover، الأخيرة cta، والوسط فكرة وحدة لكل شريحة (point غالباً، ويمكن quote أو minimal أو bento للتنويع). نفس الألوان والخط لكل الشرائح. caption عام للكاروسيل.`
         : kind === "ads"
           ? `${count} تصاميم إعلانية مختلفة لنفس المنتج، كل واحد بزاوية تسويقية مختلفة (عرض، فائدة، دليل اجتماعي، ندرة...) وبتخطيط مختلف. كل تصميم له caption خاص.`
@@ -186,7 +200,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const dpack = designPack(ind?.id);
       const dpick = dpack && ind ? designBrief(dpack, ind.label) : null;
       const bgAi = body.bgMode === "ai" && kind === "carousel" && body.aiImages !== false;
-      const raw = await claudeVisionJson<Raw>(SYSTEM,
+      const raw = await claudeVisionJson<Raw>(kind === "bcard" ? BCARD_SYSTEM : SYSTEM,
         `${want}\nالمقاس: ${aspect}\nلهجة النصوص: ${DIALECT[String(body.dialect)] ?? DIALECT.gulf}\n` +
         `الصور المولّدة بالذكاء الاصطناعي: ${body.aiImages === false ? "ممنوعة (استخدم صور العميل أو بدون صورة)" : "مسموحة إذا تفيد التصميم"}\n` +
         (kit ? `هوية العميل: الاسم ${kit.business_name || "غير محدد"}، الألوان ${(kit.colors ?? []).join(", ") || "غير محددة"}، الخط ${kit.font || "اختر أنت"}، الحساب ${kit.handle || kit.instagram || "غير محدد"}${kit.website ? `، الموقع ${kit.website}` : ""}\n` : "") +

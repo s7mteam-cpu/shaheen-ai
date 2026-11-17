@@ -632,14 +632,161 @@ function Minimal(c: Ctx) {
   );
 }
 
-const RENDER = { bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout };
+// ---------------- business cards (1050 x 600, text in Arabic, front + back) ----------------
+
+/** Contact lines (phone, mail, site, address) with icons: one column, or two. */
+function CardMeta({ c, size = 25, cols = 1, color, icon }: { c: Ctx; size?: number; cols?: 1 | 2; color?: string; icon?: string }) {
+  const list = c.s.meta ?? [];
+  if (!list.length || gone(c, "meta")) return null;
+  return (
+    <div {...da("meta")} style={{ display: "grid", gridTemplateColumns: cols === 2 ? "1fr 1fr" : "1fr", gap: `${size * 0.5}px ${size * 1.4}px`, fontSize: size, fontWeight: 700, color: color ?? c.ink, ...eo(c, "meta") }}>
+      {list.map((m, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: size * 0.45, minWidth: 0 }}>
+          <DIcon name={m.icon ?? "check"} size={size * 1.15} color={icon ?? c.accent} /><span style={{ direction: "ltr", unicodeBidi: "plaintext", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rich(m.text)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+const CardName = ({ c, base, color, hcolor, align }: { c: Ctx; base: number; color?: string; hcolor?: string; align?: "center" | "right" | "left" }) =>
+  gone(c, "title") ? null : (
+    <h1 {...da("title")} style={{ margin: 0, fontSize: fit(c.s.title, base, 12, 0.55), lineHeight: 1.12, fontWeight: 800, color: color ?? c.ink, textAlign: align, ...eo(c, "title") }}>
+      {rich(c.s.title)}{c.s.highlight && <span style={{ color: hcolor ?? c.accent }}> {rich(c.s.highlight)}</span>}
+    </h1>
+  );
+const CardRole = ({ c, size = 28, color, align }: { c: Ctx; size?: number; color?: string; align?: "center" | "right" | "left" }) =>
+  !c.s.kicker || gone(c, "kicker") ? null : <div {...da("kicker")} style={{ fontSize: size, fontWeight: 700, color: color ?? c.accent, textAlign: align, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>;
+const CardBody = ({ c, size = 22, color, align, max }: { c: Ctx; size?: number; color?: string; align?: "center" | "right" | "left"; max?: number }) =>
+  !c.s.body || gone(c, "body") ? null : <div {...da("body")} style={{ fontSize: size, lineHeight: 1.5, fontWeight: 500, color: color ?? c.muted, textAlign: align, maxWidth: max, ...eo(c, "body") }}>{rich(c.s.body)}</div>;
+
+function CardA(c: Ctx) {
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 56, background: c.accent }} />
+      <div style={{ position: "absolute", top: 50, bottom: 50, right: 56 + 54, left: 60, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <BrandRow c={c} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <CardName c={c} base={64} />
+          <CardRole c={c} />
+          <CardBody c={c} max={620} />
+        </div>
+        <CardMeta c={c} cols={2} size={23} />
+      </div>
+    </div>
+  );
+}
+
+function CardB(c: Ctx) {
+  return (
+    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: "40px 70px", textAlign: "center" }}>
+      <BrandRow c={c} />
+      <CardName c={c} base={58} align="center" />
+      <CardRole c={c} size={26} align="center" />
+      <div style={{ width: 130, height: 4, background: c.accent, borderRadius: 2, margin: "6px 0" }} />
+      <CardBody c={c} size={21} align="center" max={700} />
+      {!gone(c, "meta") && c.s.meta?.length ? (
+        <div {...da("meta")} style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px 34px", fontSize: 22, fontWeight: 700, color: c.ink, marginTop: 8, ...eo(c, "meta") }}>
+          {c.s.meta.map((m, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}><DIcon name={m.icon ?? "check"} size={26} color={c.accent} /><span style={{ direction: "ltr", unicodeBidi: "plaintext" }}>{rich(m.text)}</span></div>)}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CardC(c: Ctx) {
+  const b = c.spec.brand;
+  const hasImg = b.showLogo && !!b.logo?.url && !b.box;
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 380, background: c.accent, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, color: c.onAccent }}>
+        {hasImg ? <Img src={b.logo!.url} style={{ width: 230, height: 230, objectFit: "contain" }} /> : <div style={{ width: 170, height: 170, borderRadius: "50%", border: `5px solid ${c.onAccent}`, display: "grid", placeItems: "center", fontSize: 92, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
+        {!hasImg && b.name && <div style={{ fontSize: 28, fontWeight: 800, textAlign: "center", padding: "0 24px" }}>{b.name}</div>}
+      </div>
+      <div style={{ position: "absolute", top: 46, bottom: 46, right: 64, left: 380 + 56, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
+        <CardName c={c} base={60} />
+        <CardRole c={c} />
+        <CardBody c={c} size={21} />
+        <div style={{ height: 3, width: 90, background: c.accent, margin: "10px 0" }} />
+        <CardMeta c={c} size={23} />
+      </div>
+    </div>
+  );
+}
+
+function CardD(c: Ctx) {
+  const bg = c.ink, fg = c.bg;
+  return (
+    <div style={{ position: "absolute", inset: 0, background: bg, overflow: "hidden" }}>
+      <div style={{ position: "absolute", width: 520, height: 520, borderRadius: "50%", background: c.accent, opacity: 0.9, left: -190, top: -250 }} />
+      <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", border: `3px solid ${c.accent}`, right: -200, bottom: -210, opacity: 0.8 }} />
+      <div style={{ position: "absolute", top: 48, bottom: 48, right: 64, left: 64, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", justifyContent: "flex-start" }}><BrandRow c={{ ...c, ink: fg, bg: c.ink }} color={fg} /></div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <CardName c={c} base={68} color={fg} hcolor={c.accent} />
+          <CardRole c={c} color={c.accent} />
+          <CardBody c={c} size={21} color={mix(fg, bg, 0.35)} max={640} />
+        </div>
+        <CardMeta c={c} cols={2} size={23} color={fg} />
+      </div>
+    </div>
+  );
+}
+
+function CardE(c: Ctx) {
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", top: 56, bottom: 56, right: 70, left: 70, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `3px solid ${c.ink}`, paddingBottom: 18 }}>
+          <BrandRow c={c} />
+          <span style={{ width: 22, height: 22, background: c.accent }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <CardName c={c} base={70} />
+          <CardRole c={c} color={c.muted} size={30} />
+          <CardBody c={c} size={21} max={640} />
+        </div>
+        <div style={{ borderTop: `3px solid ${c.ink}`, paddingTop: 18 }}><CardMeta c={c} cols={2} size={22} /></div>
+      </div>
+    </div>
+  );
+}
+
+function CardBack(c: Ctx) {
+  const b = c.spec.brand;
+  const hasImg = b.showLogo && !!b.logo?.url && !b.box;
+  const fg = c.onAccent;
+  return (
+    <div style={{ position: "absolute", inset: 0, background: c.accent, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, color: fg, textAlign: "center", padding: "40px 80px" }}>
+      {hasImg ? <Img src={b.logo!.url} style={{ maxWidth: 420, maxHeight: 220, objectFit: "contain" }} /> : <div style={{ width: 150, height: 150, borderRadius: "50%", border: `5px solid ${fg}`, display: "grid", placeItems: "center", fontSize: 80, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
+      <CardName c={c} base={52} color={fg} hcolor={fg} align="center" />
+      <CardBody c={c} size={24} color={fg} align="center" max={720} />
+    </div>
+  );
+}
+
+function CardBackB(c: Ctx) {
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 24, background: c.accent }} />
+      <div style={{ position: "absolute", top: 56, bottom: 56, right: 24 + 56, left: 64, display: "flex", flexDirection: "column", justifyContent: "center", gap: 18 }}>
+        {c.s.kicker && !gone(c, "kicker") && <div {...da("kicker")} style={{ fontSize: 26, fontWeight: 700, color: c.accent, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>}
+        <CardName c={c} base={54} />
+        <CardBody c={c} size={23} max={720} />
+        <div style={{ height: 3, width: 90, background: c.accent }} />
+        <CardMeta c={c} size={25} />
+      </div>
+    </div>
+  );
+}
+
+const RENDER = { bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout, cardA: CardA, cardB: CardB, cardC: CardC, cardD: CardD, cardE: CardE, cardBack: CardBack, cardBackB: CardBackB };
 
 export function DesignSlide({ spec, index, edit }: DesignProps) {
   const s = spec.slides[index] ?? spec.slides[0];
   const { width: W, height: H } = DSIZE[spec.aspect];
   const { bg, ink, accent, soft } = spec.colors;
   const c: Ctx = {
-    s, spec, index, total: spec.slides.length, W, H, k: H <= 1080 ? 0.86 : 1,
+    s, spec, index, total: spec.slides.length, W, H, k: spec.aspect === "card" ? 1 : H <= 1080 ? 0.86 : 1,
     bg, ink, accent, soft, muted: mix(ink, bg, 0.38), line: mix(ink, bg, 0.84), onAccent: onColor(accent), font: spec.font, clear: !!s.bg?.url, edit,
   };
   const L = RENDER[s.layout] ?? Classic;
@@ -654,7 +801,7 @@ export function DesignSlide({ spec, index, edit }: DesignProps) {
           <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, ${rgba(bg, 0.62)} 0%, ${rgba(bg, 0.78)} 55%, ${rgba(bg, 0.86)} 100%)` }} />
         </>
       )}
-      {!s.bg?.url && !["cta", "photo", "split", "bento"].includes(s.layout) && <Deco c={c} />}
+      {!s.bg?.url && !["cta", "photo", "split", "bento", "cardC", "cardD", "cardBack"].includes(s.layout) && <Deco c={c} />}
       <div style={{ position: "absolute", inset: 0 }}>{L(cc)}</div>
       <Ribbon c={c} />
       <FrameLayer c={c} />

@@ -21,7 +21,7 @@ import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
 import { designPack } from "@/design/packs";
 import { EL_LABELS } from "@/design/Design";
 import {
-  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, ICON_IDS, LAYOUTS, LAYOUT_IDS, PALETTES, lum, DSIZE, RICH_RE, NOTE_ATS, NOTE_LOOKS, NOTE_AT_LABELS, NOTE_LOOK_LABELS,
+  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, ICON_IDS, LAYOUTS, layoutsFor, PALETTES, lum, DSIZE, RICH_RE, NOTE_ATS, NOTE_LOOKS, NOTE_AT_LABELS, NOTE_LOOK_LABELS,
   type DAspect, type DColors, type DImg, type DItem, type DesignSpec, type LayoutId, type Slide,
 } from "@/design/spec";
 
@@ -200,7 +200,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
     [slides[cur], slides[j]] = [slides[j], slides[cur]];
     setSpec({ ...spec, slides }); setCur(j);
   }
-  const max = spec.kind === "carousel" ? 10 : spec.kind === "ads" ? 4 : 1;
+  const max = spec.kind === "carousel" ? 10 : spec.kind === "ads" ? 4 : spec.kind === "bcard" ? 2 : 1;
 
   if (sent) {
     return (
@@ -267,7 +267,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           {free && (s.pos || s.hide?.length) && <button type="button" onClick={restoreAll} className="btn btn-outline px-3 py-1.5">{L("↺ رجّع الأصل")}</button>}
         </div>
         {free && !sel && <p className="text-center text-[13px] text-subtle">{L("اضغط أي عنصر بالتصميم واسحبه، أو اختاره وامسحه (زر المسح أو Delete).")}</p>}
-        <div className="relative mx-auto w-full shrink-0 overflow-hidden rounded-2xl shadow-lg" style={{ maxWidth: `min(100%, 460px, calc((100vh - 15rem) * ${spec.aspect === "9:16" ? 0.5625 : spec.aspect === "1:1" ? 1 : 0.8}))` }}>
+        <div className="relative mx-auto w-full shrink-0 overflow-hidden rounded-2xl shadow-lg" style={{ maxWidth: spec.aspect === "card" ? "min(100%, 640px)" : `min(100%, 460px, calc((100vh - 15rem) * ${spec.aspect === "9:16" ? 0.5625 : spec.aspect === "1:1" ? 1 : 0.8}))` }}>
           <div ref={stageRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} style={{ touchAction: free ? "none" : undefined }}>
             <DesignView spec={spec} index={cur} edit={free ? { sel } : undefined} />
           </div>
@@ -298,7 +298,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
         <Card title={L("التصميم")} icon="🎨">
           <Sub>{L("تخطيط")} {spec.slides.length > 1 ? L("هذي الشريحة") : L("التصميم")}</Sub>
           <div className="flex flex-wrap gap-2">
-            {LAYOUT_IDS.map((id) => <button key={id} type="button" aria-pressed={s.layout === id} onClick={() => setSlide({ layout: id as LayoutId })} className="chip" title={L(LAYOUTS[id].hint)}>{L(LAYOUTS[id].label)}</button>)}
+            {layoutsFor(spec.kind).map((id) => <button key={id} type="button" aria-pressed={s.layout === id} onClick={() => setSlide({ layout: id as LayoutId })} className="chip" title={L(LAYOUTS[id].hint)}>{L(LAYOUTS[id].label)}</button>)}
           </div>
           <More label={L("المزيد من خيارات التصميم (زخرفة، إطار، ملصق، أيقونات، خط)")}>
           <Sub>{L("زخرفة الخلفية")}</Sub>
@@ -345,7 +345,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           </More>
           <Sub>{L("المقاس")}</Sub>
           <div className="flex flex-wrap gap-2">
-            {ASPECTS.map(([a, l]) => <button key={a} type="button" aria-pressed={spec.aspect === a} onClick={() => setSpec({ ...spec, aspect: a })} className="chip">{L(l)}</button>)}
+            {spec.kind !== "bcard" && ASPECTS.map(([a, l]) => <button key={a} type="button" aria-pressed={spec.aspect === a} onClick={() => setSpec({ ...spec, aspect: a })} className="chip">{L(l)}</button>)}
           </div>
         </Card>
 
@@ -392,7 +392,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
             </div>
           )}
           {uses.has("items") && <><Sub>{s.layout === "point" ? L("الأيقونة والنقاط") : L("المزايا")}</Sub><ListEdit list={s.items ?? []} onChange={(items) => setSlide({ items })} max={s.layout === "bold" || s.layout === "bento" || s.layout === "point" ? 4 : 3} placeholder={L("ميزة")} /></>}
-          {uses.has("meta") && <><Sub>{L("التفاصيل (تاريخ، وقت، مكان، هاتف)")}</Sub><ListEdit list={s.meta ?? []} onChange={(meta) => setSlide({ meta })} max={3} placeholder={L("تفصيل")} /></>}
+          {uses.has("meta") && <><Sub>{L("التفاصيل (تاريخ، وقت، مكان، هاتف)")}</Sub><ListEdit list={s.meta ?? []} onChange={(meta) => setSlide({ meta })} max={spec.kind === "bcard" ? 5 : 3} placeholder={L("تفصيل")} /></>}
           {uses.has("date") && (
             <div className="grid grid-cols-3 gap-2">
               {(["day", "month", "weekday"] as const).map((k, i) => (

@@ -1,13 +1,14 @@
 // Design studio data model: posts, carousels and ads, rendered by React (live preview) and by the worker (PNG).
 // Claude writes the content and picks a layout per slide; the customer edits everything live.
 
-export type DAspect = "4:5" | "1:1" | "9:16";
-export type DKind = "post" | "carousel" | "ads";
+export type DAspect = "4:5" | "1:1" | "9:16" | "card";
+export type DKind = "post" | "carousel" | "ads" | "bcard";
 export type DImg = { path: string; bucket: "uploads" | "results"; url: string };
 export type DItem = { icon?: string; text: string };
 export type DColors = { bg: string; ink: string; accent: string; soft: string };
 
-export type LayoutId = "classic" | "bold" | "bento" | "minimal" | "split" | "photo" | "offer" | "quote" | "cover" | "point" | "cta";
+export type LayoutId = "classic" | "bold" | "bento" | "minimal" | "split" | "photo" | "offer" | "quote" | "cover" | "point" | "cta"
+  | "cardA" | "cardB" | "cardC" | "cardD" | "cardE" | "cardBack" | "cardBackB";
 
 export type Slide = {
   layout: LayoutId;
@@ -78,6 +79,7 @@ export const DSIZE: Record<DAspect, { width: number; height: number }> = {
   "4:5": { width: 1080, height: 1350 },
   "1:1": { width: 1080, height: 1080 },
   "9:16": { width: 1080, height: 1920 },
+  card: { width: 1050, height: 600 }, // 3.5 x 2 in at 300 dpi (the common 90 x 50 mm card, print-ready)
 };
 
 export const DFONTS = [
@@ -101,8 +103,18 @@ export const LAYOUTS: Record<LayoutId, { label: string; hint: string; uses: (key
   cover: { label: "غلاف", hint: "أول شريحة بالكاروسيل أو بوست بعنوان ضخم", uses: ["kicker", "title", "highlight", "body", "photo"] },
   point: { label: "نقطة", hint: "شريحة داخلية: رقم، أيقونة، عنوان، شرح قصير", uses: ["kicker", "title", "body", "items"] },
   cta: { label: "خاتمة", hint: "آخر شريحة: شعار، دعوة، زر، الحساب", uses: ["title", "body", "cta", "meta"] },
+  cardA: { label: "شريط جانبي", hint: "بطاقة عمل: شريط لون جانبي، الشعار، الاسم والمسمى، وسائل التواصل بأيقونات", uses: ["kicker", "title", "highlight", "body", "meta"] },
+  cardB: { label: "وسط فخم", hint: "بطاقة عمل: كل شي بالوسط، الشعار فوق، خط ذهبي، التفاصيل بصف تحت", uses: ["kicker", "title", "highlight", "body", "meta"] },
+  cardC: { label: "نصفين", hint: "بطاقة عمل: نصف ملوّن فيه الشعار والنصف الثاني فيه الاسم والتفاصيل", uses: ["kicker", "title", "highlight", "body", "meta"] },
+  cardD: { label: "عصري داكن", hint: "بطاقة عمل: خلفية داكنة، اسم كبير، تفاصيل بعمودين", uses: ["kicker", "title", "highlight", "body", "meta"] },
+  cardE: { label: "طباعي بسيط", hint: "بطاقة عمل: خطوط فاصلة وخط واضح بدون زخرفة، للأطباء والمحامين والاستشاريين", uses: ["kicker", "title", "highlight", "body", "meta"] },
+  cardBack: { label: "خلفية: الشعار", hint: "ظهر البطاقة: لون الهوية كامل والشعار بالوسط مع العبارة التعريفية", uses: ["title", "body"] },
+  cardBackB: { label: "خلفية: تفاصيل", hint: "ظهر البطاقة: العنوان وساعات العمل وحسابات التواصل", uses: ["kicker", "title", "body", "meta"] },
 };
-export const LAYOUT_IDS = Object.keys(LAYOUTS) as LayoutId[];
+export const CARD_LAYOUTS: LayoutId[] = ["cardA", "cardB", "cardC", "cardD", "cardE", "cardBack", "cardBackB"];
+/** Layouts a kind of design offers (posts never get a business-card layout and the reverse). */
+export const layoutsFor = (kind: DKind): LayoutId[] => (Object.keys(LAYOUTS) as LayoutId[]).filter((id) => CARD_LAYOUTS.includes(id) === (kind === "bcard"));
+export const LAYOUT_IDS = layoutsFor("post");
 
 export const ICON_IDS = [
   "check", "star", "heart", "sparkles", "zap", "clock", "calendar", "map-pin", "phone", "message", "gift", "bag", "cart", "tag",
@@ -158,7 +170,7 @@ const items = (v: unknown, max: number): DItem[] =>
   (Array.isArray(v) ? v : []).map((x) => ({ icon: (ICON_IDS as readonly string[]).includes(x?.icon) ? x.icon : undefined, text: str(x?.text ?? x, 90) })).filter((x) => x.text).slice(0, max);
 
 export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fallback: LayoutId = "classic"): Slide {
-  const layout = (LAYOUT_IDS as string[]).includes(String(raw.layout)) ? (raw.layout as LayoutId) : fallback;
+  const layout = (Object.keys(LAYOUTS) as string[]).includes(String(raw.layout)) ? (raw.layout as LayoutId) : fallback;
   const d = raw.date as Slide["date"], p = raw.price as Slide["price"], s = raw.stat as Slide["stat"], per = raw.person as Slide["person"];
   return {
     layout,
@@ -167,7 +179,7 @@ export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fa
     highlight: opt(raw.highlight, 110),
     body: opt(raw.body, 520),
     items: items(raw.items, 5),
-    meta: items(raw.meta, 3),
+    meta: items(raw.meta, (CARD_LAYOUTS as string[]).includes(layout) ? 5 : 3),
     date: d && str(d.day, 6) ? { day: str(d.day, 6), month: str(d.month, 14), weekday: opt(d.weekday, 14) } : null,
     price: p && str(p.value, 12) ? { value: str(p.value, 12), old: opt(p.old, 12), currency: opt(p.currency, 10), note: opt(p.note, 60) } : null,
     stat: s && str(s.value, 8) ? { value: str(s.value, 8), label: opt(s.label, 40) } : null,
@@ -209,9 +221,9 @@ export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fa
 export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknown>, base: { kind: DKind; aspect: DAspect }): DesignSpec {
   const c = (raw.colors ?? {}) as Partial<DColors>;
   const b = (raw.brand ?? {}) as DesignSpec["brand"];
-  const max = base.kind === "carousel" ? 10 : base.kind === "ads" ? 4 : 1;
+  const max = base.kind === "carousel" ? 10 : base.kind === "ads" ? 4 : base.kind === "bcard" ? 2 : 1;
   const slides = (Array.isArray(raw.slides) ? raw.slides : []).slice(0, max).map((s, i, all) =>
-    normaliseSlide(s as Slide & Record<string, unknown>, base.kind === "carousel" ? (i === 0 ? "cover" : i === all.length - 1 ? "cta" : "point") : "classic"));
+    normaliseSlide(s as Slide & Record<string, unknown>, base.kind === "bcard" ? (i === 0 ? "cardA" : "cardBack") : base.kind === "carousel" ? (i === 0 ? "cover" : i === all.length - 1 ? "cta" : "point") : "classic"));
   return {
     kind: base.kind,
     aspect: (Object.keys(DSIZE) as DAspect[]).includes(raw.aspect as DAspect) ? (raw.aspect as DAspect) : base.aspect,
@@ -244,7 +256,7 @@ export function withUrls(s: DesignSpec, urls: Record<string, string>): DesignSpe
   return { ...s, icon3d, brand: { ...s.brand, logo: u(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, photo: u(sl.photo), bg: u(sl.bg), person: sl.person ? { ...sl.person, photo: u(sl.person.photo) } : sl.person })) };
 }
 
-export const DESIGN_TOOLS: Record<string, DKind> = { post: "post", carousel: "carousel", "ad-design": "ads" };
+export const DESIGN_TOOLS: Record<string, DKind> = { post: "post", carousel: "carousel", "ad-design": "ads", "business-cards": "bcard" };
 
 /** Icon ids a design actually shows (for the 3D icon set). */
 export function usedIcons(s: DesignSpec): string[] {
