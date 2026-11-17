@@ -245,6 +245,11 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           <div className="flex flex-wrap gap-2">
             {FRAME_IDS.map((id) => <button key={id} type="button" aria-pressed={(spec.frame ?? "none") === id} onClick={() => setSpec({ ...spec, frame: id })} className="chip">{L(FRAME_LABELS[id])}</button>)}
           </div>
+          <Sub>{L("الأرقام الكبيرة بالزاوية")}</Sub>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-pressed={spec.bigNum !== false} onClick={() => setSpec({ ...spec, bigNum: undefined })} className="chip">{L("إظهار")}</button>
+            <button type="button" aria-pressed={spec.bigNum === false} onClick={() => setSpec({ ...spec, bigNum: false })} className="chip">{L("إخفاء")}</button>
+          </div>
           <Sub>{L("ملصق بالزاوية")}</Sub>
           <div className="flex flex-wrap gap-2">
             <button type="button" aria-pressed={!s.sticker} onClick={() => setSlide({ sticker: null })} className="chip">{L("بدون")}</button>

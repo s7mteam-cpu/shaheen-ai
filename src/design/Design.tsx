@@ -430,12 +430,12 @@ function Cover(c: Ctx) {
 
 function Point(c: Ctx) {
   const { s } = c;
-  const n = String(c.spec.kind === "carousel" ? c.index : c.index + 1).padStart(2, "0");
+  const n = String(Math.max(1, c.spec.kind === "carousel" ? c.index : c.index + 1)).padStart(2, "0");
   const icon = s.items?.[0]?.icon;
   const bullets = (s.items ?? []).filter((x) => x.text).slice(0, 4);
   return (
     <div style={{ position: "absolute", inset: 0, background: "transparent", overflow: "hidden" }}>
-      <div style={{ position: "absolute", left: PAD - 20, top: (PAD - 40) * c.k, fontSize: 360 * c.k, fontWeight: 800, lineHeight: 1, color: "transparent", WebkitTextStroke: `4px ${c.line}` }}>{n}</div>
+      {c.spec.bigNum !== false && <div style={{ position: "absolute", left: PAD - 20, top: (PAD - 40) * c.k, fontSize: 360 * c.k, fontWeight: 800, lineHeight: 1, color: "transparent", WebkitTextStroke: `4px ${c.line}` }}>{n}</div>}
       <div style={{ position: "absolute", inset: `${PAD * c.k}px ${PAD}px`, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><BrandRow c={c} /></div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 30 * c.k }}>
