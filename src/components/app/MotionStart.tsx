@@ -21,6 +21,7 @@ const boards = [["auto", "تلقائي (مختلف كل مرة)"], ["soft", "ن�
 /** Motion graphics: one form for ads and educational videos. */
 export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, balance, brand, voices = [], industry: savedIndustry }: { template?: { id: string; title: string; thumb: string | null; style: string; seconds: number }; likeId?: string; idea?: string; costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string }[]; industry?: string }) {
   const router = useRouter();
+  const [auto, setAuto] = useState(!template); // «تلقائي»: write the idea and press create, Shaheen decides the rest
   const [goal, setGoal] = useState<"ad" | "edu">("ad");
   const [focus, setFocus] = useState("");
   const [idea, setIdea] = useState(ideaIn);
@@ -91,14 +92,43 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
     } catch (err) { setError((err as Error).message || L("صار خطأ.")); setBusy(false); }
   }
 
+  async function goAuto(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    try {
+      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ auto: true, topic: idea, brand: name, likeWork: likeId }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(L(d.error));
+      setPct(100);
+      router.push(`/app/tools/motion-video?job=${d.jobId}`);
+    } catch (err) { setError((err as Error).message || L("صار خطأ.")); setBusy(false); }
+  }
+
   const chips = <T extends string | number>(list: readonly (readonly [T, string])[], value: T, set: (v: T) => void) => (
     <div className="flex flex-wrap gap-2">{list.map(([v, l]) => <button key={String(v)} type="button" aria-pressed={value === v} onClick={() => set(v)} className="chip">{L(l)}</button>)}</div>
   );
   const showVoice = (edu || voiceover) && voices.length > 0;
 
+  if (auto) return (
+    <form onSubmit={goAuto} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
+      <label className="flex flex-col gap-2"><span className="font-semibold">{L("اكتب اللي تبيه، وشاهين يسوي الباقي")}</span>
+        <textarea required minLength={5} maxLength={1200} rows={6} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
+          placeholder={L("مثال: إعلان لمطعم فريد الصويلح بالكويت، خصم 20٪ على الوجبات العائلية هالأسبوع، ريلز مع تعليق صوتي. أو: اشرح للطلاب الفرق بين الكسور العشرية والاعتيادية.")} /></label>
+      <p className="text-[13px] text-subtle">{L("شاهين يختار لحاله: المجال، إعلان أو شرح، المدة، المقاس، الستايل. اكتب اللي تبيه بكلامك (مدة، مقاس، تعليق صوتي…) ويلتزم فيه.")}</p>
+      {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
+      {busy ? <Progress value={pct} label={L("شاهين يكتب ويرسم ويجهّز الفيديو…")} /> : (
+        <button disabled={idea.trim().length < 5 || balance < costPer15} className="btn btn-gold py-3.5 text-[16px]">✨ {L("أنشئ الفيديو")}</button>
+      )}
+      <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة: من")} {costPer15} {L("ريشة (15 ثانية)، وفيديو 30 ثانية")} {costPer15 * 2} {L("ريشة.")}</p>
+      {balance < costPer15 && <p className="text-center text-[14px] text-red-700">{L("رصيدك ما يكفي.")} <a href="/app/subscribe" className="underline">{L("زوّد رصيدك")}</a></p>}
+      <button type="button" onClick={() => setAuto(false)} className="text-center text-[14px] text-navy-700 underline">{L("⚙️ أبي أختار بنفسي (المجال، الستايل، المدة، الصوت…)")}</button>
+    </form>
+  );
+
   return (
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
       {template && <LikeNote like={{ title: `قالب «${template.title}»`, thumb: template.thumb }} />}
+      {!template && <button type="button" onClick={() => setAuto(true)} className="self-start text-[14px] text-navy-700 underline">{L("← رجوع للوضع التلقائي (اكتب فكرتك بس)")}</button>}
       <IndustryPicker value={industry} onChange={pickField} hint="اختر مجالك، وتطلع لك خيارات خاصة فيه. كل مجال له حزمة (مشاهد وحركات وستايلات وفيديوهات جاهزة)." />
       {focuses.length > 0 && <div className="flex flex-col gap-2"><span className="font-semibold">{L("شو تبي بالفيديو؟")}</span>
         <div className="flex flex-wrap gap-2">{focuses.map((f) => <button key={f.id} type="button" aria-pressed={focus === f.id} onClick={() => pickFocus(f)} className="chip">{L(f.label)}</button>)}</div></div>}

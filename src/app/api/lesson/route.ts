@@ -19,6 +19,7 @@ import { PLAYBOOK } from "@/remotion/playbook";
 import { enforcePack, packBrief, packById } from "@/remotion/packs";
 import { industryById } from "@/design/industries";
 import { guessIndustry } from "@/lib/server/guessIndustry";
+import { autoPlan } from "@/lib/server/autoPlan";
 import { snapshot, trendsFor } from "@/lib/server/trends";
 import type { Aspect } from "@/remotion/spec";
 
@@ -35,6 +36,12 @@ export async function POST(req: Request) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
   const b = ((await req.json().catch(() => null)) ?? {}) as Record<string, unknown>;
+  // «تلقائي»: only the idea was written; the kind of video, length and size are read from it
+  if (b.auto === true) {
+    const a = await autoPlan(String(b.topic ?? ""));
+    b.mode = a.goal === "edu" ? "lesson" : "motion"; b.seconds = a.seconds; b.aspect = a.aspect; b.voiceover = a.voiceover;
+    if (a.goal === "edu" && !b.look) b.look = "doodle";
+  }
   const motion = b.mode === "motion";
   const brand = String(b.brand ?? "").slice(0, 60);
   const toolId = "motion-video"; // one tool for ads and educational videos (b.mode: "motion" = ad, otherwise educational)
@@ -43,7 +50,7 @@ export async function POST(req: Request) {
   { const bad = await guardContent(user.id, b, "motion-video"); if (bad) return bad; }
   const seconds = motion ? ([15, 30, 60].includes(Number(b.seconds)) ? Number(b.seconds) : 30) : LENGTHS.includes(Number(b.seconds)) ? Number(b.seconds) : 60;
   // the field is optional: if the customer didn't pick one, read it from their text
-  const ind = industryById(String(b.industry ?? "")) ?? (motion ? industryById(await guessIndustry(`${brand ? `${String(b.brand)}: ` : ""}${topic}`)) : undefined);
+  const ind = industryById(String(b.industry ?? "")) ?? industryById(await guessIndustry(`${brand ? `${String(b.brand)}: ` : ""}${topic}`));
   const pack = packById(ind?.id);
   const guide = ind && pack ? packBrief(pack, ind.label) : "";
   const voiceOn = motion ? b.voiceover === true : true;
