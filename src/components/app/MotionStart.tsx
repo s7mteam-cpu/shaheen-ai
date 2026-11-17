@@ -112,7 +112,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   if (auto) return (
     <form onSubmit={goAuto} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("اكتب اللي تبيه، وشاهين يسوي الباقي")}</span>
-        <textarea required minLength={5} maxLength={1200} rows={6} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
+        <textarea required minLength={5} maxLength={8000} rows={6} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
           placeholder={L("مثال: إعلان لمطعم فريد الصويلح بالكويت، خصم 20٪ على الوجبات العائلية هالأسبوع، ريلز مع تعليق صوتي. أو: اشرح للطلاب الفرق بين الكسور العشرية والاعتيادية.")} /></label>
       <p className="text-[13px] text-subtle">{L("شاهين يختار لحاله: المجال، إعلان أو شرح، المدة، المقاس، الستايل. اكتب اللي تبيه بكلامك (مدة، مقاس، تعليق صوتي…) ويلتزم فيه.")}</p>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
@@ -134,7 +134,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       {focuses.length > 0 && <div className="flex flex-col gap-2"><span className="font-semibold">{L("شو تبي بالفيديو؟")}</span>
         <div className="flex flex-wrap gap-2">{focuses.map((f) => <button key={f.id} type="button" aria-pressed={focus === f.id} onClick={() => pickFocus(f)} className="chip">{L(f.label)}</button>)}</div></div>}
       <label className="flex flex-col gap-2"><span className="font-semibold">{edu ? L("الدرس أو الفكرة") : L("فكرة الفيديو")}</span>
-        <textarea required minLength={5} maxLength={edu ? 4000 : 1200} rows={edu ? 6 : 4} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
+        <textarea required minLength={5} maxLength={8000} rows={edu ? 6 : 4} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
           placeholder={edu ? L("مثال: اشرح للطلاب الفرق بين الكسور العشرية والاعتيادية مع مثال من الحياة اليومية. أو الصق نص الدرس كامل.") : L("مثال: فيديو توعوي عن خرافات الكربوهيدرات لعيادة تغذية، ينتهي بدعوة لحجز استشارة")} /></label>
       {edu
         ? <div className="flex flex-col gap-2"><span className="font-semibold">{L("لمين الفيديو؟")}</span>{chips(audiences, audience, setAudience)}</div>

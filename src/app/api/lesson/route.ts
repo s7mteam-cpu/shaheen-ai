@@ -45,7 +45,7 @@ export async function POST(req: Request) {
   const motion = b.mode === "motion";
   const brand = String(b.brand ?? "").slice(0, 60);
   const toolId = "motion-video"; // one tool for ads and educational videos (b.mode: "motion" = ad, otherwise educational)
-  const topic = String(b.topic ?? "").trim().slice(0, 4000);
+  const topic = String(b.topic ?? "").trim().slice(0, 8000);
   if (topic.length < 5) return NextResponse.json({ error: motion ? "اكتب فكرة الفيديو." : "اكتب الدرس أو الفكرة." }, { status: 400 });
   { const bad = await guardContent(user.id, b, "motion-video"); if (bad) return bad; }
   const seconds = motion ? ([15, 30, 60].includes(Number(b.seconds)) ? Number(b.seconds) : 30) : LENGTHS.includes(Number(b.seconds)) ? Number(b.seconds) : 60;
