@@ -2,6 +2,7 @@
 import React from "react";
 import { Easing, getRemotionEnvironment, Img, interpolate, random, spring } from "remotion";
 import { MIcon } from "./icons";
+import type { IconName } from "./spec";
 
 // the preview player doesn't wait for pictures: keep a drawn scene (and its text) hidden until its picture has loaded, so the words never appear alone first
 const LOADED = new Set<string>();
@@ -921,8 +922,12 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
           {items.map((it, i) => {
             const q = Math.min(1, pop(f, 8 + i * 6, 13));
             const [k, v] = it.label.includes(":") ? it.label.split(/:(.+)/) : [it.label, ""];
+            const kw = it.label;
+            const auto = g.kind === "hours" ? "clock" : /واتس|whats|wa\b/i.test(kw) ? "whatsapp" : /انست|إنست|insta|ig\b/i.test(kw) ? "instagram" : /ايميل|إيميل|بريد|mail|\S@\S+\.\S/i.test(kw) ? "mail" : /موقع|www|\.com|\.net|http/i.test(kw) ? "web" : /عنوان|فرع|شارع|منطقة|location/i.test(kw) ? "pin" : "phone";
+            const ic = (it.icon && it.icon !== "phone" ? it.icon : auto) as IconName;
+            const bg = ic === "whatsapp" ? "#25D366" : ic === "instagram" ? "linear-gradient(45deg,#F9A13C,#E1306C,#7B3FE4)" : th.accent;
             return <div key={i} style={{ display: "flex", alignItems: "center", gap: 20 * s, padding: `${16 * s}px ${24 * s}px`, borderRadius: 24 * s, background: th.card, border: `${2 * s}px solid ${th.line}`, opacity: q, transform: `translateY(${(1 - q) * 30 * s}px)` }}>
-              <div style={{ width: 70 * s, height: 70 * s, borderRadius: 20 * s, flexShrink: 0, background: th.accent, display: "flex", alignItems: "center", justifyContent: "center" }}><MIcon name={it.icon ?? (g.kind === "hours" ? "clock" : "phone")} size={40 * s} color="#fff" stroke={2.2} /></div>
+              <div style={{ width: 70 * s, height: 70 * s, borderRadius: 20 * s, flexShrink: 0, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}><MIcon name={ic} size={40 * s} color="#fff" stroke={2.2} /></div>
               <span style={{ fontSize: 42 * s, fontWeight: 800, color: th.text }}>{k}</span>
               {v && <span dir="auto" style={{ marginInlineStart: "auto", fontSize: 40 * s, fontWeight: 700, color: th.accent }}>{v}</span>}
             </div>;
