@@ -36,6 +36,16 @@ export default async function AiAdmin() {
       </form>
 
       <section className="card flex flex-col gap-3 p-6">
+        <h2 className="text-lg font-bold">{L("لقطات بالذكاء الاصطناعي (مشاهد واقعية)")}</h2>
+        <p className="text-sm text-subtle">{L("العميل يختار في «مشاهد واقعية» بين لقطات جاهزة (أرخص) ولقطات يولّدها الذكاء الاصطناعي (جودة أعلى وسعر ضعف). تشتغل بنموذج Gemini Omni، وتحتاج المفتاح GEMINI_VIDEO_API_KEY في Vercel.")}</p>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <code dir="ltr">GEMINI_VIDEO_API_KEY</code>
+          <span className={process.env.GEMINI_VIDEO_API_KEY ? "font-bold text-emerald-700" : "font-bold text-red-700"}>{process.env.GEMINI_VIDEO_API_KEY ? L("موجود ✓") : L("غير موجود")}</span>
+          <Link href="/admin/ai/veo" className="font-semibold text-navy-700 underline">{L("جرّب توليد لقطة")}</Link>
+        </div>
+      </section>
+
+      <section className="card flex flex-col gap-3 p-6">
         <h2 className="text-lg font-bold">{L("مفاتيح المزودين")}</h2>
         <p className="text-sm text-subtle">{L("المفاتيح تنحط في إعدادات الاستضافة (Vercel ← Environment Variables) — لأمانها ما تنحفظ في لوحة الإدارة.")}</p>
         <ul className="flex flex-col gap-2">

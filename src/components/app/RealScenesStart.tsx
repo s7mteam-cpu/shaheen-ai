@@ -18,6 +18,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
   const router = useRouter();
   const [text, setText] = useState("");
   const [mine, setMine] = useState(false);
+  const [ai, setAi] = useState(false);
   const [spoken, setSpoken] = useState("");
   const [aspect, setAspect] = useState<string>("9:16");
   const [seconds, setSeconds] = useState(30);
@@ -34,7 +35,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pct, setPct] = useState(0);
-  const cost = Math.max(1, Math.round(seconds / 15)) * costPer15;
+  const cost = Math.max(1, Math.round(seconds / 15)) * costPer15 * (ai ? 2 : 1); // same factor as the server
   useEffect(() => {
     if (!busy) return;
     setPct(2);
@@ -51,7 +52,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
     setBusy(true); setError(null);
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        tool: "real-scenes", topic: mine ? `${text.trim()}${text.trim() ? "\n\n" : ""}الكلام الذي يُقرأ بالحرف:\n${spoken.trim()}` : text, notes: mine ? "اقرأ «الكلام الذي يُقرأ بالحرف» كتعليق صوتي بدون أي تغيير أو إضافة أو حذف، وقسّمه لجمل فقط، واختر لكل جملة مشهداً يناسبها. باقي النص وصف للمشاهد فقط ولا يُقرأ." : "", brand, industry, seconds, aspect, dialect,
+        tool: "real-scenes", source: ai ? "ai" : "stock", topic: mine ? `${text.trim()}${text.trim() ? "\n\n" : ""}الكلام الذي يُقرأ بالحرف:\n${spoken.trim()}` : text, notes: mine ? "اقرأ «الكلام الذي يُقرأ بالحرف» كتعليق صوتي بدون أي تغيير أو إضافة أو حذف، وقسّمه لجمل فقط، واختر لكل جملة مشهداً يناسبها. باقي النص وصف للمشاهد فقط ولا يُقرأ." : "", brand, industry, seconds, aspect, dialect,
         voiceover, voice, vgender, vage, tone, music: withMusic, photos: photos.map((p) => ({ path: p.path, bucket: p.bucket, label: p.label })) }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
@@ -63,6 +64,9 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
   const showVoice = voiceover && voices.length > 0;
   return (
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("نوع اللقطات")}</span>
+        <div className="flex flex-wrap gap-2">{([[false, "لقطات جاهزة (أرخص وأسرع)"], [true, "بالذكاء الاصطناعي (جودة أعلى، سعر ضعف)"]] as const).map(([v, l]) => <button key={String(v)} type="button" aria-pressed={ai === v} onClick={() => setAi(v)} className="chip">{L(l)}</button>)}</div>
+        {ai && <span className="text-[13px] text-subtle">{L("كل مشهد يتولّد من جملته بالضبط، فياخذ وقت أطول (دقائق).")}</span>}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("الكلام اللي ينقال بالفيديو")}</span>
         <div className="flex flex-wrap gap-2">{([[false, "شاهين يأخذ الكلام من نصي"], [true, "أنا أكتب الكلام اللي ينقال"]] as const).map(([v, l]) => <button key={String(v)} type="button" aria-pressed={mine === v} onClick={() => setMine(v)} className="chip">{L(l)}</button>)}</div></div>
       <label className="flex flex-col gap-2"><span className="font-semibold">{mine ? L("وصف المشاهد (اختياري): شو تبي يبان بالفيديو؟") : L("اكتب نص الإعلان أو الفكرة")}</span>
@@ -95,9 +99,9 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
       </More>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
       {busy ? <Progress value={pct} label={L("شاهين يكتب ويدوّر على اللقطات ويركّب الفيديو…")} /> : (
-        <button disabled={text.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">🎬 {L("أنشئ الفيديو")} · {cost} {L("ريشة")}</button>
+        <button disabled={(mine ? spoken.trim().length < 5 : text.trim().length < 5) || balance < cost} className="btn btn-gold py-3.5 text-[16px]">🎬 {L("أنشئ الفيديو")} · {cost} {L("ريشة")}</button>
       )}
-      <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة:")} {costPer15} {L("ريشة لكل 15 ثانية.")}</p>
+      <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة:")} {costPer15 * (ai ? 2 : 1)} {L("ريشة لكل 15 ثانية.")}</p>
       {balance < cost && <p className="text-center text-[14px] text-red-700">{L("رصيدك ما يكفي.")} <a href="/app/subscribe" className="underline">{L("زوّد رصيدك")}</a></p>}
       <p className="text-center text-[13px] text-subtle">{L("بعدها يفتح لك الاستوديو: تعدّل النصوص والألوان والصوت، وتغيّر اللي تبيه.")}</p>
     </form>

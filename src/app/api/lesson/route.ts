@@ -12,6 +12,7 @@ import { music, speakable, ttsTimed, type VoiceSettings } from "@/lib/providers/
 import { saveResult } from "@/lib/providers/storage";
 import { cleanPhotos, importPhotos } from "@/lib/server/photos";
 import { fillClips, footageReady, footageError } from "@/lib/server/footage";
+import { aiClipsReady, fillAiClips, omniError } from "@/lib/server/omni";
 import { brandHint } from "@/lib/tools/run";
 import { illustrateScenes } from "@/lib/server/illustrate";
 import { ILLUS_STYLES } from "@/remotion/styles";
@@ -49,6 +50,8 @@ export async function POST(req: Request) {
     if (a.goal === "edu" && !b.look) b.look = "doodle";
   }
   const real = b.tool === "real-scenes"; // «مشاهد واقعية»: real stock footage under the voice, its own tool
+  const ai = real && b.source === "ai"; // «لقطات بالذكاء الاصطناعي»: each scene is generated from its sentence, not searched in a library
+  const t0 = Date.now();
   if (real) { b.mode = "motion"; b.look = "footage"; b.voiceover = b.voiceover !== false; }
   const motion = b.mode === "motion";
   const brand = String(b.brand ?? "").slice(0, 60);
@@ -81,6 +84,8 @@ export async function POST(req: Request) {
     : "استخدم مشهد scene (رسمة بالذكاء الاصطناعي) من 2 إلى 5 مرات بالفيديو للقصص والأمثلة والأماكن والشخصيات";
   const drawHint = look === "cartoon"
     ? "الفيديو بأسلوب كرتون خليجي: شخصية كرتون تتكلم وتتحرك بكل مشهد تقريباً. اختر شخصية رئيسية وحدة (char) تتكرر بأغلب المشاهد بحسب موضوع الفيديو وجنس الصوت (رجّال man أو جدّ elder أو حرمة woman أو ولد boy أو بنت girl)، ويمكن شخصية ثانية لبعض المشاهد للتنويع. غيّر mood وpose حسب الجملة (point لما تشرح شي بجانبها، wave للترحيب والختام). وكثير من المشاهد ضيف doodle رسمة تنرسم بجانب الشخصية لتوضّح الفكرة وبدّل side بين l وr. "+(full ? "كل المشاهد بدون استثناء من نوع character، والنص (text وhl وsub) يكتب فوق الشخصية، وكل مشهد معه doodle يوضّح الفكرة. لا تستخدم أي نوع مشهد غير character." : "وبين الحين والثاني مشهد شرح عادي (رقم، خطوات، جدول، مقارنة، عنوان) للتنويع بين الكرتون والشرح.")+" لا تستخدم scene أبداً. واختر board من: paper, notebook, soft, pastel."
+    : ai
+    ? "الفيديو بلقطات واقعية يولّدها الذكاء الاصطناعي لكل جملة (صوت تعليق فوق لقطات). كل المشاهد من نوع clip تقريباً، وحقل q وصف سينمائي بالإنجليزي من 25 إلى 45 كلمة لما يظهر باللقطة بالضبط: من فيه، لباسه، المكان، الإضاءة، حركة الكاميرا. حافظ على نفس الأشخاص والمكان والألوان بين المشاهد: كرر وصف الشخصية نفسه حرفياً (مثلاً: Gulf Arab woman in her 40s, elegant black abaya and soft grey headscarf) في كل مشهد تظهر فيه، وكذلك المكان. اللباس خليجي رسمي محتشم دائماً. اجعل اللقطة تعبّر عن معنى الجملة نفسها لا عن شي عام. بدون كتابة أو شعارات أو شاشات فيها نص، وبدون حفلات أو رقص أو إضاءة ملونة. لا تذكر أسماء أماكن أو أشخاص حقيقيين."
     : look === "footage"
     ? "الفيديو بلقطات واقعية حقيقية بدون ظهور متحدث (صوت تعليق فوق لقطات). أغلب المشاهد (70% أو أكثر) من نوع clip: حقل q كلمات بحث بالإنجليزي من 2 إلى 4 كلمات تصف لقطة واقعية تناسب معنى الجملة بالضبط (مثلاً modern apartment interior، family eating dinner، hands typing laptop)، بدون ذكر أسماء أماكن محلية، وفضّل لقطات بدون وجوه واضحة (مباني، أكل، أيدي، طبيعة، شوارع، منتجات)، وبدون كتابة أو شعارات داخل اللقطة. اكتب q بوصف فاخر ونظيف ومضيء (مثل modern luxury apartment interior bright، clean modern kitchen، sea view balcony)، وتجنّب كلمات مثل old أو building أو construction أو ruins لأنها تجيب مباني مهجورة، ولا تكرر نفس q بين مشهدين. والنص القصير text وhl وsub يطلع فوق اللقطة. والباقي مشاهد عادية للعروض والأسعار والتواصل والختام (headline، offer، price، contact…). لا تستخدم scene ولا doodle ولا character. واختر board من: night, soft."
     : look === "doodle"
@@ -88,12 +93,13 @@ export async function POST(req: Request) {
     : drawings
     ? `${howMany}، و prompt يكون وصف إنجليزي واضح للرسمة بدون أي كتابة داخلها.${illus ? "" : " واختر \"illus\" ستايل الرسومات المناسب من: " + ILLUS_STYLES.map((x) => x[0]).join(", ") + "."}`
     : "لا تستخدم مشهد scene.";
-  if (look === "footage" && !footageReady()) return NextResponse.json({ error: "اللقطات الواقعية مو مفعّلة بعد (تحتاج مفتاح Pixabay أو Pexels من الإدارة)." }, { status: 503 });
+  if (ai && !aiClipsReady()) return NextResponse.json({ error: "اللقطات بالذكاء الاصطناعي مو مفعّلة بعد (تحتاج مفتاح Gemini للفيديو من الإدارة)." }, { status: 503 });
+  if (look === "footage" && !ai && !footageReady()) return NextResponse.json({ error: "اللقطات الواقعية مو مفعّلة بعد (تحتاج مفتاح Pixabay أو Pexels من الإدارة)." }, { status: 503 });
   const admin = createAdminClient();
 
   const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", toolId).single();
   if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
-  const cost = Math.max(1, Math.round(seconds / 15)) * tool.credit_cost;
+  const cost = Math.max(1, Math.round(seconds / 15)) * tool.credit_cost * (ai ? 2 : 1); // AI clips cost the customer double (the price of a 15-second step is the tool's)
 
   const { data: job, error } = await admin.from("jobs")
     .insert({ user_id: user.id, tool_id: toolId, title: topic.slice(0, 80), status: "running", progress: 5, input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null } })
@@ -190,9 +196,10 @@ export async function POST(req: Request) {
     if (drawings) graphics = await illustrateScenes(user.id, job.id, graphics, style, aspect, level === "all" ? 10 : level === "half" ? 8 : 6);
     else graphics = graphics.filter((g) => g.kind !== "scene");
     if (look === "footage" && clipScenes.length) {
+      if (ai) await fillAiClips(clipScenes, aspect, user.id, job.id, t0 + 215_000); // scenes Google could not make fall through to the library / a neighbour's clip below
       const filled = await fillClips(clipScenes, aspect, user.id, job.id, { topic, industry: ind?.label });
       // no real clip at all means this is not what the customer asked for: refund instead of handing over a different kind of video
-      if (!filled.some((g) => g.kind === "clip")) throw new Error(`no clips found: ${footageError() || "search returned nothing"} | q=${clipScenes.map((g) => g.q).join(" ; ").slice(0, 200)}`);
+      if (!filled.some((g) => g.kind === "clip")) throw new Error(`no clips found: ${ai ? `AI: ${omniError() || "none made"} | ` : ""}${footageError() || "search returned nothing"} | q=${clipScenes.map((g) => g.q).join(" ; ").slice(0, 200)}`);
       graphics = [...graphics, ...filled].sort((a, b) => a.at - b.at);
     }
     if (photoScenes.length) graphics = [...graphics, ...photoScenes].sort((a, b) => a.at - b.at);
