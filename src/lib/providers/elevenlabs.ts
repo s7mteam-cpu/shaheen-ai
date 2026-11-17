@@ -101,3 +101,18 @@ export async function transcribe(audio: Blob, filename: string) {
   const json = (await res.json()) as { text?: string };
   return (json.text ?? "").trim();
 }
+
+/** Voice Design: describe a voice in words (accent, gender, age, style) and get previews to listen to. */
+export async function designVoice(description: string, text?: string) {
+  const body: Record<string, unknown> = { voice_description: description.slice(0, 1000), model_id: "eleven_multilingual_ttv_v2" };
+  if (text && text.trim().length >= 100) body.text = text.trim().slice(0, 1000); else body.auto_generate_text = true;
+  const res = await fetch(`${API}/text-to-voice/design?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": key(), "content-type": "application/json" }, body: JSON.stringify(body) }).then(check);
+  const d = (await res.json()) as { previews?: { generated_voice_id: string; audio_base_64: string }[] };
+  return (d.previews ?? []).slice(0, 3).map((p) => ({ id: p.generated_voice_id, audio: p.audio_base_64 }));
+}
+
+/** Keep one of the previews: it becomes a real voice in the account. Returns the voice id. */
+export async function saveDesignedVoice(name: string, description: string, generatedId: string) {
+  const res = await fetch(`${API}/text-to-voice`, { method: "POST", headers: { "xi-api-key": key(), "content-type": "application/json" }, body: JSON.stringify({ voice_name: name.slice(0, 60), voice_description: description.padEnd(20, ".").slice(0, 1000), generated_voice_id: generatedId }) }).then(check);
+  return ((await res.json()) as { voice_id: string }).voice_id;
+}

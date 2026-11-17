@@ -6,6 +6,7 @@ export const SECTIONS = [
   { key: "content", path: "/admin/content", label: "نصوص وصور الموقع" },
   { key: "tools", path: "/admin/tools", label: "الأدوات والأسعار" },
   { key: "ai", path: "/admin/ai", label: "الذكاء الاصطناعي" },
+  { key: "voices", path: "/admin/voices", label: "تصميم الأصوات" },
   { key: "plans", path: "/admin/plans", label: "الباقات" },
   { key: "customers", path: "/admin/customers", label: "العملاء" },
   { key: "leads", path: "/admin/leads", label: "طلبات الإدارة" },
