@@ -59,22 +59,24 @@ export const footageError = () => lastErr;
 
 /** An art director looks at the candidates' pictures and picks the best fit. Returns its 1-based number, or 0 when even the best is not good enough. */
 async function review(cands: Cand[], q: string, text: string, ctx: Ctx): Promise<number> {
-  const list = cands.slice(0, 6);
+  const list = cands.slice(0, 8);
   if (list.length < 2) return list.length;
   try {
     const r = await claudeVisionJson<{ pick?: number; score?: number }>(
-      `أنت مدير فني لإعلانات خليجية احترافية. ترى صور معاينة لقطات فيديو جاهزة مرقمة. اختر أنسب لقطة للمشهد وأعطها درجة من 0 إلى 10. ليس مطلوباً مكان بعينه، المطلوب لقطة تناسب معنى الجملة وتبان نظيفة ومرتبة ومضيئة. أنزل الدرجة جداً (أقل من 4) لأي لقطة: لا علاقة لها بالمعنى، أو مبنى مهجور أو متهدم أو متسخ، أو مكان فوضوي أو مظلم، أو جودة سيئة، أو وجه قريب لشخص، أو كتابة وشعارات ظاهرة. أعد JSON: {"pick": رقم اللقطة, "score": الدرجة}`,
+      `أنت مدير فني صارم لإعلانات خليجية (الكويت) راقية تُعرض لجمهور محافظ. ترى صور معاينة لقطات فيديو جاهزة مرقمة. اختر أنسب لقطة لمعنى المشهد وأعطها درجة من 0 إلى 10. لا تعطِ فوق 6 إلا إذا كانت اللقطة: تطابق معنى الجملة فعلاً (قاعة تدريب تبان قاعة محاضرات أو مؤتمر، مدرّب يبان مدرّب...)، بيئة مهنية راقية ونظيفة ومضيئة، وكل من فيها بلباس رسمي محتشم ومحترم. أعطِ أقل من 4 لأي لقطة فيها: ملهى أو ديسكو أو كازينو أو حفلة أو رقص أو إضاءة ملونة أو دخان أو مشروبات كحولية، أو لباس كاشف أو غير رسمي أو غير لائق، أو سلوك غير مهني، أو مبنى مهجور أو متسخ أو مكان مظلم أو فوضوي، أو علاقتها بالمعنى ضعيفة، أو وجه قريب جداً، أو كتابة وشعارات واضحة، أو جودة سيئة. اللقطة المتوسطة المقبولة أفضل من لقطة مبهرة غير مناسبة. أعد JSON: {"pick": رقم اللقطة, "score": الدرجة}`,
       `فكرة الفيديو: ${ctx.topic.slice(0, 300)}\n${ctx.industry ? `المجال: ${ctx.industry}\n` : ""}نص المشهد: ${text || "-"}\nبحثنا عن: ${q}`,
-      list.map((c, i) => ({ url: c.thumb, label: `لقطة ${i + 1}` })), 200, "claude-haiku-5-5");
+      list.map((c, i) => ({ url: c.thumb, label: `لقطة ${i + 1}` })), 200, "claude-sonnet-5-5");
     const n = Math.round(Number(r.pick) || 0), score = Number(r.score);
     if (n < 1 || n > list.length) return 1;
-    return Number.isFinite(score) && score < 4 ? 0 : n;
+    return Number.isFinite(score) && score < 6 ? 0 : n;
   } catch (e) { console.error("clip review", e); return 1; } // reviewer unavailable: take the first (already sorted)
 }
 
 
 /** Plain Arabic nouns → the simple English word stock sites index best. A named place in the text wins over whatever the writer guessed. */
 const WORDS: [RegExp, string][] = [
+  [/مدرب|مدربة|محاضر|محاضرة|تشرح|يشرح/, "speaker presenting business seminar"], [/قاعة|جمهور|حضور|الحضور|ورشة|ورشه|دورة تدريبية|ندوة|مؤتمر/, "business seminar audience conference"],
+  [/مصافحة|مصافحه|اتفاق|شراكة/, "business handshake office"], [/يفكر|حيرة|محتار|ضغط|توتر/, "businessman thinking office desk"], [/نقاش|تبادل|حوار|اجتماع/, "business meeting discussion"],
   [/فندق|فنادق|نزل|منتجع/, "hotel"], [/مطعم|مطاعم|وجبة|عشاء|غداء/, "restaurant food"], [/كافيه|مقهى|قهوة|كوفي/, "coffee shop"],
   [/برج|ابراج|أبراج|ناطحة/, "skyscraper"], [/شقة|شقق|عقار|عقارات|فيلا|منزل|بيت/, "apartment interior"], [/بحر|إطلالة|اطلالة|شاطئ|شاطيء/, "sea view"],
   [/سيارة|سيارات|معرض سيارات/, "car"], [/عيادة|طبيب|اسنان|أسنان|مستشفى/, "dentist clinic"], [/صالون|حلاقة|تجميل|مكياج/, "beauty salon"],
