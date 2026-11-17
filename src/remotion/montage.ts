@@ -59,6 +59,7 @@ export type MontageSpec = {
   layout?: Layout;                                                // full screen, or graphics panel + speaker (split)
   panel?: "light" | "dark";                                       // look of the graphics panel in split layout
   board?: BoardStyle;                                             // background pattern of the panel
+  dstyle?: DStyle;                                                // look of the hand-drawn pictures
   graphics?: Graphic[];                                           // animated scenes synced to the speech
   quality?: "1080" | "4k";                                         // export size
   domain?: string;                                                // field from the playbook (education, restaurant…)
@@ -67,6 +68,11 @@ export type MontageSpec = {
 };
 
 /** Split = animated graphics on top (or the side) and the speaker below — the "explainer reel" look. */
+/** Look of the hand-drawn pictures (doodles). */
+export type DStyle = "marker" | "neon" | "chalk" | "shadow" | "blueprint";
+export const DSTYLES: [DStyle, string][] = [["marker", "ماركر ملوّن"], ["neon", "نيون مضيء"], ["chalk", "سبورة طباشير"], ["shadow", "ظل أسود (سيلويت)"], ["blueprint", "مخطط هندسي"]];
+/** The board each look sits best on. */
+export const DSTYLE_BOARD: Partial<Record<DStyle, BoardStyle>> = { neon: "night", chalk: "chalk", blueprint: "blueprint", shadow: "paper" };
 export type Layout = "full" | "split" | "circle" | "corner" | "card" | "dynamic" | "board"; // board = no footage (animated lesson)
 export const LAYOUTS: [Layout, string][] = [["full", "ملء الشاشة"], ["split", "مقسومة: رسوم فوق وأنت تحت"], ["dynamic", "ذكي: تصغر لدائرة لما يطلع مشهد"], ["circle", "أنت داخل دائرة"], ["corner", "أنت بمربع صغير بالزاوية"], ["card", "أنت ببطاقة بحواف ناعمة"]];
 export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare" | "icon" | "flow" | "checklist" | "bars" | "donut" | "line" | "quote" | "arrow"

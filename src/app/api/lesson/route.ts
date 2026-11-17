@@ -10,7 +10,7 @@ import { saveResult } from "@/lib/providers/storage";
 import { brandHint } from "@/lib/tools/run";
 import { illustrateScenes } from "@/lib/server/illustrate";
 import { ILLUS_STYLES } from "@/remotion/styles";
-import { BOARD_STYLES, CAPTION_STYLES, DARK_BOARDS, cleanGraphics, type BoardStyle, type MontageSpec } from "@/remotion/montage";
+import { BOARD_STYLES, CAPTION_STYLES, DARK_BOARDS, DSTYLES, DSTYLE_BOARD, cleanGraphics, type BoardStyle, type MontageSpec } from "@/remotion/montage";
 import { SYSTEM, type Plan } from "@/lib/server/motionPlan";
 import { PLAYBOOK } from "@/remotion/playbook";
 import { enforcePack, packBrief, packById } from "@/remotion/packs";
@@ -169,7 +169,9 @@ export async function POST(req: Request) {
     const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
     const forced = motion && (b.panel === "light" || b.panel === "dark");
     const fits = (x: BoardStyle) => !forced || DARK_BOARDS.includes(x) === (panel === "dark");
-    const board: BoardStyle = boards.includes(b.board as BoardStyle) ? (b.board as BoardStyle)
+    const dstyle = look !== "images" ? DSTYLES.find((x) => x[0] === b.dstyle)?.[0] : undefined; // look of the hand-drawn pictures
+    const forcedBoard = dstyle ? DSTYLE_BOARD[dstyle] : undefined;
+    const board: BoardStyle = forcedBoard ? forcedBoard : boards.includes(b.board as BoardStyle) ? (b.board as BoardStyle)
       : boards.includes(plan.board as BoardStyle) && fits(plan.board as BoardStyle) ? (plan.board as BoardStyle)
       : pack && pack.boards.some(fits) ? pick(pack.boards.filter(fits))
       : panel === "dark" ? pick(DARK_BOARDS) : pick(boards.filter((x) => !DARK_BOARDS.includes(x)));
@@ -191,7 +193,7 @@ export async function POST(req: Request) {
       intro: { on: false, title: String(plan.title ?? brand).slice(0, 60), subtitle: "" },
       // motion (ads): end card with the business name + contact from «هويتي»
       outro: motion && kit?.business_name ? { on: true, title: String(kit.business_name).slice(0, 60), subtitle: contact } : { on: false, title: "", subtitle: "" },
-      illus: style, borrowed: kept.borrowed, music: musicTrack, layout: "board", panel: DARK_BOARDS.includes(board) ? "dark" : panel, board, graphics, domain,
+      illus: style, borrowed: kept.borrowed, music: musicTrack, layout: "board", panel: DARK_BOARDS.includes(board) ? "dark" : panel, board, ...(dstyle && dstyle !== "marker" ? { dstyle } : {}), graphics, domain,
       vo,
       videoVolume: 0, sfx: true, progress: !motion, quality: "1080",
     };

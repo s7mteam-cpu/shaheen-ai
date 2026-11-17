@@ -16,7 +16,7 @@ function SceneImg({ src, style }: { src: string; style: React.CSSProperties; rea
   }, [src]);
   return <Img src={src} style={style} />;
 }
-import { DARK_BOARDS, MFPS, type Graphic, type MontageSpec } from "./montage";
+import { DARK_BOARDS, MFPS, type DStyle, type Graphic, type MontageSpec } from "./montage";
 import { DOODLES } from "./doodles";
 import { Character } from "./characters";
 
@@ -107,8 +107,9 @@ function Tile({ children, s, th, light, q }: { children: React.ReactNode; s: num
 
 /** One graphic. f = frames since it started, len = its length in frames, w/h = box size. */
 
-/** A hand-drawn doodle: a pen draws it stroke by stroke, then it fills with colour and stays gently alive. */
-function DoodleDraw({ name, f, start, dur, size, ink, fill, skin }: { name: string; f: number; start: number; dur: number; size: number; ink: string; fill: string; skin: string }) {
+/** A hand-drawn doodle: a pen draws it stroke by stroke, then it fills / glows and stays gently alive.
+ *  ds = look: marker (classic), neon (glowing tubes), chalk (chalkboard), shadow (silhouette), blueprint (technical drawing). */
+function DoodleDraw({ name, f, start, dur, size, ink, fill, skin, ds = "marker", seed = 0 }: { name: string; f: number; start: number; dur: number; size: number; ink: string; fill: string; skin: string; ds?: DStyle; seed?: number }) {
   const d = DOODLES[name] ?? DOODLES.star;
   const refs = React.useRef<(SVGPathElement | null)[]>([]);
   const [lens, setLens] = React.useState<number[]>([]);
@@ -117,7 +118,6 @@ function DoodleDraw({ name, f, start, dur, size, ink, fill, skin }: { name: stri
   const total = lens.reduce((a, x) => a + x, 0) || 1;
   const p = interpolate(f, [start, start + dur], [0, 1], { ...cl, easing: Easing.inOut(Easing.quad) });
   const done = f >= start + dur;
-  // which stroke is the pen on, and how far along it
   let acc = 0, cur = d.p.length - 1, curFrac = 1;
   const fracs = d.p.map((_, i) => {
     const l = lens[i] ?? total / d.p.length, a = acc / total, b = (acc + l) / total; acc += l;
@@ -130,24 +130,47 @@ function DoodleDraw({ name, f, start, dur, size, ink, fill, skin }: { name: stri
     if (!el || done || p <= 0) { setPen(null); return; }
     const pt = el.getPointAtLength(curFrac * (lens[cur] ?? el.getTotalLength()));
     setPen({ x: pt.x, y: pt.y });
-  }, [f, cur, curFrac, done, p, lens]);
+  }, [f, cur, curFrac, done, p, lens]); // eslint-disable-line react-hooks/exhaustive-deps
   const fillK = interpolate(f, [start + dur, start + dur + 10], [0, 1], cl);
   const pop = interpolate(f, [start, start + 8], [0.92, 1], { ...cl, easing: ease });
   const t = Math.max(0, f - (start + dur));
   const idle = done ? { y: Math.sin(t / 9) * 0.02 * size, r: Math.sin(t / 15) * 1.6, s: 1 + Math.sin(t / 11) * 0.015 } : { y: 0, r: 0, s: 1 };
-  const sw = Math.max(2, size * 0.032);
   const penOut = interpolate(f, [start + dur - 2, start + dur + 6], [1, 0], cl);
+  const NEON = ["#26F0FF", "#FF4FD8", "#B8FF3D", "#FFD23D"];
+  const col = ds === "neon" ? NEON[seed % NEON.length] : ds === "chalk" ? "#F5F1E6" : ds === "blueprint" ? "#DCEBFF" : ink;
+  const sw = (ds === "blueprint" ? 0.017 : ds === "chalk" ? 0.034 : ds === "neon" ? 0.03 : ds === "shadow" ? 0.04 : 0.032) * size;
+  const solid = ds === "shadow";
+  const fl = ds === "neon" ? 0.9 + 0.1 * Math.sin(f * 1.7) - (Math.floor(f / 23) % 7 === 3 && f % 23 < 2 ? 0.45 : 0) : 1;
+  const fillOf = (i: number) => (d.f ?? []).includes(i) || (solid && (d.f?.length ? false : i === 0));
+  const penFill = ds === "chalk" ? "#F5F1E6" : ds === "blueprint" ? "#FFD84D" : fill;
+  const paths = (c: string, w: number, withRef: boolean, extra?: React.CSSProperties) => d.p.map((dd, i) => (
+    <path key={i} ref={withRef ? (el) => { refs.current[i] = el; } : undefined} d={dd} fill="none" stroke={c} strokeWidth={w * 100 / size} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - fracs[i]} style={{ opacity: fracs[i] > 0 ? 1 : 0, ...extra }} />
+  ));
+  const fills = (c: string, o: number) => d.p.map((dd, i) => fillOf(i) ? <path key={`f${i}`} d={dd} fill={c} opacity={fillK * o} stroke="none" /> : null);
+  const hatch = ds === "chalk" || ds === "blueprint";
   return (
     <div style={{ position: "relative", width: size, height: size, transform: `translateY(${idle.y}px) rotate(${idle.r}deg) scale(${pop * idle.s})` }}>
-      <svg width={size} height={size} viewBox="0 0 100 100" style={{ overflow: "visible", direction: "ltr", filter: "url(#rough)" }}>
-        {d.p.map((dd, i) => (d.f ?? []).includes(i) ? <path key={`f${i}`} d={dd} fill={fill} opacity={fillK * 0.9} stroke="none" /> : null)}
-        {d.p.map((dd, i) => <path key={i} ref={(el) => { refs.current[i] = el; }} d={dd} fill="none" stroke={ink} strokeWidth={sw * 100 / size} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - fracs[i]} style={{ opacity: fracs[i] > 0 ? 1 : 0 }} />)}
+      {solid && <svg width={size} height={size} viewBox="0 0 100 100" style={{ position: "absolute", left: size * 0.07, top: size * 0.06, overflow: "visible", filter: `blur(${size * 0.012}px)`, opacity: 0.2 * fillK }}>{d.p.map((dd, i) => <path key={i} d={dd} fill={ink} stroke={ink} strokeWidth={4} strokeLinejoin="round" />)}</svg>}
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ overflow: "visible", direction: "ltr", filter: ds === "neon" ? `drop-shadow(0 0 ${size * 0.016}px ${col}) drop-shadow(0 0 ${size * 0.04}px ${col})` : ds === "chalk" ? "url(#chalk)" : "url(#rough)", opacity: fl }}>
+        {hatch && <defs><pattern id={`h${ds}${seed}`} width={3.2} height={3.2} patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1={0} y1={0} x2={0} y2={3.2} stroke={ds === "chalk" ? fill : col} strokeWidth={0.9} /></pattern></defs>}
+        {ds === "blueprint" && <g opacity={fillK}>
+          <path d="M-6 -6 h8 M-6 -6 v8 M106 -6 h-8 M106 -6 v8 M-6 106 h8 M-6 106 v-8 M106 106 h-8 M106 106 v-8" stroke={col} strokeWidth={0.8} fill="none" />
+          <path d="M-8 50 H108 M50 -8 V108" stroke={col} strokeWidth={0.5} strokeDasharray="5 3 1 3" opacity={0.55} fill="none" />
+          <path d="M-13 0 V100 M-16 0 H-10 M-16 100 H-10" stroke={col} strokeWidth={0.8} fill="none" />
+          <path d="M-13 0 l-2.4 5 h4.8 Z M-13 100 l-2.4 -5 h4.8 Z" fill={col} />
+          <text x={0} y={0} transform="translate(-17 50) rotate(-90)" textAnchor="middle" fontSize={7} fill={col} style={{ fontFamily: "monospace" }}>{`${(40 + seed * 12) | 0} mm`}</text>
+        </g>}
+        {hatch ? d.p.map((dd, i) => fillOf(i) ? <path key={`f${i}`} d={dd} fill={`url(#h${ds}${seed})`} opacity={fillK * 0.85} stroke="none" /> : null) : fills(ds === "neon" ? col : solid ? ink : fill, ds === "neon" ? 0.14 : solid ? 1 : 0.9)}
+        {paths(col, sw, true)}
+        {ds === "neon" && paths("#FFFFFF", sw * 0.32, false)}
       </svg>
-      {pen && (
+      {pen && ds === "neon" && <div style={{ position: "absolute", left: pen.x * size / 100 - size * 0.03, top: pen.y * size / 100 - size * 0.03, width: size * 0.06, height: size * 0.06, borderRadius: 999, background: "#fff", boxShadow: `0 0 ${size * 0.05}px ${size * 0.025}px ${col}`, opacity: penOut }} />}
+      {pen && ds !== "neon" && (
         <svg width={size * 0.8} height={size * 0.8} viewBox="-10 -70 100 100" style={{ position: "absolute", left: pen.x * size / 100 - 10 * size * 0.008, top: pen.y * size / 100 - 70 * size * 0.008, overflow: "visible", opacity: penOut, pointerEvents: "none", filter: "drop-shadow(0 3px 4px rgba(0,0,0,.25))" }}>
-          <path d="M30 -34 C40 -52 62 -56 74 -44 C84 -34 80 -18 66 -14 L40 -10 Z" fill={skin} stroke={ink} strokeWidth={2.5} strokeLinejoin="round" />
-          <path d="M0 0 L8 -14 L34 -40 L46 -30 L18 -4 Z" fill={fill} stroke={ink} strokeWidth={2.5} strokeLinejoin="round" />
-          <path d="M0 0 L8 -14 L18 -4 Z" fill={ink} />
+          <path d="M30 -34 C40 -52 62 -56 74 -44 C84 -34 80 -18 66 -14 L40 -10 Z" fill={skin} stroke="#2A2320" strokeWidth={2.5} strokeLinejoin="round" />
+          {ds === "blueprint"
+            ? <><path d="M0 0 L5 -10 L32 -42 L40 -35 L12 -3 Z" fill={penFill} stroke="#2A2320" strokeWidth={2} strokeLinejoin="round" /><path d="M0 0 L5 -10 L12 -3 Z" fill="#2A2320" /></>
+            : <><path d="M0 0 L8 -14 L34 -40 L46 -30 L18 -4 Z" fill={penFill} stroke="#2A2320" strokeWidth={2.5} strokeLinejoin="round" /><path d="M0 0 L8 -14 L18 -4 Z" fill={ds === "chalk" ? "#D9D4C6" : "#2A2320"} /></>}
         </svg>
       )}
     </div>
@@ -1153,7 +1176,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
       const dsz = (tall ? 250 : 300) * s;
       const slide = interpolate(f, [0, 12], [60 * s, 0], { ...cl, easing: ease });
       const charEl = <div style={{ transform: `translateX(${(left ? -1 : 1) * slide}px)`, opacity: interpolate(f, [0, 8], [0, 1], cl), flexShrink: 0 }}><Character name={g.char ?? "man"} size={cs} f={f} fps={MFPS} open={open} mood={g.mood} pose={g.doodle ? (g.pose ?? "point") : g.pose} flip={flip} accent={th.accent} /></div>;
-      const prop = g.doodle ? <DoodleDraw name={g.doodle} f={f} start={10} dur={Math.min(34, Math.max(14, len * 0.45))} size={dsz} ink={skin} fill={th.accent} skin="#F2C9A0" /> : null;
+      const prop = g.doodle ? <DoodleDraw name={g.doodle} f={f} start={10} dur={Math.min(34, Math.max(14, len * 0.45))} size={dsz} ink={skin} fill={th.accent} skin="#F2C9A0" ds={m.dstyle} seed={Math.floor(g.at * 3)} /> : null;
       body = (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 * s }}>
           <div style={{ display: "flex", flexDirection: left ? "row" : "row-reverse", alignItems: "center", justifyContent: "center", gap: 30 * s, direction: "ltr" }}>
@@ -1188,7 +1211,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
               const st = 3 + i * (each + 4);
               return (
                 <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 * s, maxWidth: size * 1.25 }}>
-                  <DoodleDraw name={it.doodle!} f={f} start={st} dur={each} size={size} ink={ink} fill={th.accent} skin={skin} />
+                  <DoodleDraw name={it.doodle!} f={f} start={st} dur={each} size={size} ink={ink} fill={th.accent} skin={skin} ds={m.dstyle} seed={Math.floor(g.at * 3) + i} />
                   {it.label && <div style={{ fontSize: Math.min(54, 46 * (n > 2 ? 0.8 : 1)) * s, fontWeight: 800, color: th.text, textAlign: "center", lineHeight: 1.2, opacity: interpolate(f, [st + each, st + each + 8], [0, 1], cl) }}>{it.label}</div>}
                 </div>
               );
@@ -1313,7 +1336,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
   const sketch = m.board === "sketch";
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: `${40 * s}px ${60 * s}px`, opacity: out, transform: `translateY(${(1 - out) * -20 * s}px)` }}>
-      <svg width={0} height={0} style={{ position: "absolute" }}><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves={2} seed={Math.floor(f / 4) % 3} /><feDisplacementMap in="SourceGraphic" scale={4 * s} /></filter></svg>
+      <svg width={0} height={0} style={{ position: "absolute" }}><filter id="chalk" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves={2} seed={Math.floor(f / 5) % 4} result="n" /><feDisplacementMap in="SourceGraphic" in2="n" scale={3.2 * s} result="d" /><feComponentTransfer in="d"><feFuncA type="discrete" tableValues="0 .55 .8 1 1" /></feComponentTransfer></filter><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves={2} seed={Math.floor(f / 4) % 3} /><feDisplacementMap in="SourceGraphic" scale={4 * s} /></filter></svg>
       <div style={{ width: "100%", display: "flex", justifyContent: "center", filter: sketch ? "url(#rough)" : undefined }}>{body}</div>
       {overlay}
     </div>

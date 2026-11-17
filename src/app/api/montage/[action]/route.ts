@@ -14,7 +14,7 @@ import { packBrief, packById } from "@/remotion/packs";
 import { industryById } from "@/design/industries";
 import { illustrate, illustrateScenes } from "@/lib/server/illustrate";
 import { signedResultUrls } from "@/lib/providers/storage";
-import { BOARD_STYLES, CAPTION_STYLES, GRADES, ICONS, LAYOUTS, TITLE_STYLES, TRANSITIONS, captionLines, cleanGraphics, cleanMusicTiming, cleanStickers, cleanBeats, BEAT_FX, videoSeconds, type MontageSpec, type Music } from "@/remotion/montage";
+import { BOARD_STYLES, CAPTION_STYLES, DSTYLES, GRADES, ICONS, LAYOUTS, TITLE_STYLES, TRANSITIONS, captionLines, cleanGraphics, cleanMusicTiming, cleanStickers, cleanBeats, BEAT_FX, videoSeconds, type MontageSpec, type Music } from "@/remotion/montage";
 
 const ok = <T extends string>(list: [T, string][], v: unknown): T | undefined => list.find((x) => x[0] === v)?.[0];
 
@@ -69,6 +69,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     quality: s.quality === "4k" || s.quality === "1080" ? s.quality : base.quality ?? "1080",
     panel: s.panel === "dark" || s.panel === "light" ? s.panel : base.panel ?? "light",
     board: ok(BOARD_STYLES, s.board) ?? base.board,
+    dstyle: ok(DSTYLES, s.dstyle), // from the studio; none = classic marker
     // pictures must be the customer's own (or already in this project)
     graphics: cleanGraphics(Array.isArray(s.graphics) ? s.graphics : base.graphics ?? [], len)
       .map((g) => (g.img && (!g.img.startsWith(`${userId}/`) || g.img.includes("..")) && !(base.graphics ?? []).some((x) => x.img === g.img) ? { ...g, img: undefined, url: undefined } : g)),
