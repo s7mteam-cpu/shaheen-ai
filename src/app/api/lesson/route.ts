@@ -1,3 +1,5 @@
+import { CHAR_GENDER } from "@/remotion/characters";
+import { voiceGender } from "@/lib/voiceGender";
 import { loadLike, likeText } from "@/lib/server/like";
 import { loadTemplate, templateText } from "@/lib/server/templates";
 import { NextResponse } from "next/server";
@@ -108,8 +110,16 @@ export async function POST(req: Request) {
     if (voiceOn && lines.some((l) => l.say)) {
       // 2) voice with word timings
       const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
-      const voices = ((vc?.value as { items?: { id: string; model?: string; settings?: VoiceSettings }[] })?.items ?? []);
-      const voiceId = voices.some((v) => v.id === b.voice) ? String(b.voice) : voices[0]?.id ?? "pNInz6obpgDQGcFmaJgB";
+      const voices = ((vc?.value as { items?: { id: string; name?: string; note?: string; gender?: string; model?: string; settings?: VoiceSettings }[] })?.items ?? []);
+      let voiceId = voices.some((v) => v.id === b.voice) ? String(b.voice) : voices[0]?.id ?? "pNInz6obpgDQGcFmaJgB";
+      if (look === "cartoon") { // the narrator follows the main character: a man's voice for a man, a woman's for a woman
+        const cnt: Record<string, number> = {};
+        for (const l of lines) { const sc = l.scene as { kind?: string; char?: string } | undefined; if (sc?.kind === "character" && sc.char) cnt[sc.char] = (cnt[sc.char] ?? 0) + 1; }
+        const main = (Object.entries(cnt).sort((a, c) => c[1] - a[1])[0]?.[0] ?? "man") as keyof typeof CHAR_GENDER;
+        const want = CHAR_GENDER[main];
+        const cur = voiceGender(voices.find((x) => x.id === voiceId));
+        if (want && cur && cur !== want) { const alt = voices.find((x) => voiceGender(x) === want); if (alt) voiceId = alt.id; }
+      }
       const vInfo = voices.find((x) => x.id === voiceId);
       const spoken = lines.filter((l) => l.say);
       const text = spoken.map((l) => (/[.!؟?]$/.test(l.say) ? l.say : `${l.say}.`)).join(" ");

@@ -403,6 +403,10 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                     <select value={g.char ?? "man"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, char: e.target.value as typeof x.char } : x)) })} aria-label={L("الشخصية")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
                       {Object.entries(CHARS).map(([k, c]) => <option key={k} value={k}>{L(c.label)}</option>)}
                     </select>
+                    <select value={g.char2 ?? ""} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, char2: (e.target.value || undefined) as typeof x.char2 } : x)) })} aria-label={L("شخصية ثانية (حوار)")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
+                      <option value="">{L("بدون حوار")}</option>
+                      {Object.entries(CHARS).map(([k, c]) => <option key={k} value={k}>{L("مع")} {L(c.label)}</option>)}
+                    </select>
                     <select value={g.mood ?? "happy"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, mood: e.target.value as typeof x.mood } : x)) })} aria-label={L("الشعور")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
                       {MOODS.map((k) => <option key={k} value={k}>{L({ happy: "مبتسم", surprised: "متفاجئ", think: "يفكر", sad: "حزين", wow: "مبهور" }[k])}</option>)}
                     </select>

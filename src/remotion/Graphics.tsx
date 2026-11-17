@@ -1184,11 +1184,13 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
       const dsz = (tall ? 250 : 300) * s;
       const slide = interpolate(f, [0, 12], [60 * s, 0], { ...cl, easing: ease });
       const charEl = <div style={{ transform: `translateX(${(left ? -1 : 1) * slide}px)`, opacity: interpolate(f, [0, 8], [0, 1], cl), flexShrink: 0 }}><Character name={g.char ?? "man"} size={cs} f={f} fps={MFPS} open={open} mood={g.mood} pose={g.doodle ? (g.pose ?? "point") : g.pose} flip={flip} accent={th.accent} look={!m.cstyle || m.cstyle === "marker" ? "cartoon" : m.cstyle} ink={skin} /></div>;
+      const two = !!g.char2 && g.char2 !== undefined;
+      const char2El = two ? <div style={{ transform: `translateX(${(left ? 1 : -1) * slide}px)`, opacity: interpolate(f, [4, 12], [0, 1], cl), flexShrink: 0 }}><Character name={g.char2!} size={cs * 0.86} f={f + 7} fps={MFPS} open={0} mood="happy" pose="idle" flip={left} look={!m.cstyle || m.cstyle === "marker" ? "cartoon" : m.cstyle} ink={skin} /></div> : null;
       const prop = g.doodle ? <Pic name={g.doodle} f={f} start={10} dur={Math.min(34, Math.max(14, len * 0.45))} size={dsz} ink={skin} fill={th.accent} skin="#F2C9A0" ds={m.dstyle} seed={Math.floor(g.at * 3)} /> : null;
       body = (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 * s }}>
           <div style={{ display: "flex", flexDirection: left ? "row" : "row-reverse", alignItems: "center", justifyContent: "center", gap: 30 * s, direction: "ltr" }}>
-            {charEl}{prop}
+            {two ? (left ? <>{charEl}{char2El}</> : <>{char2El}{charEl}</>) : <>{charEl}{prop}</>}
           </div>
           {g.text && g.tpos !== "top" && <Words text={g.text} hl={g.hl} f={f} size={big * (tall ? 0.6 : 0.66)} th={th} delay={6} fx={g.fx} />}
           {g.sub && g.tpos !== "top" && <Badge text={g.sub} f={f} delay={16} s={s} th={th} light={light} />}
