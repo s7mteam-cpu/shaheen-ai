@@ -4,6 +4,7 @@ import { L } from "@/lib/i18n/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Progress } from "@/components/app/Progress";
+import { More } from "@/components/app/Collapse";
 import { ILLUS_STYLES } from "@/remotion/styles";
 
 const lengths = [[30, "30 ثانية"], [60, "دقيقة"], [90, "دقيقة ونص"], [120, "دقيقتين"]] as const;
@@ -31,7 +32,7 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
   const [mix, setMix] = useState<"full" | "mixed">("mixed");
   const [dstyle, setDstyle] = useState<string>("marker");
   const [cstyle, setCstyle] = useState<string>("marker");
-  const [look, setLook] = useState<"images" | "doodle" | "cartoon">("images");
+  const [look, setLook] = useState<"images" | "doodle" | "cartoon">("doodle");
   const [level, setLevel] = useState<"few" | "half" | "all">("few");
   const [illus, setIllus] = useState<string>("auto");
   const [busy, setBusy] = useState(false);
@@ -74,18 +75,20 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
       )}
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span>{chips(lengths, seconds, setSeconds)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(aspects, aspect, setAspect)}</div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل اللوحة")}</span>{chips(panels, panel, setPanel)}</div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("خلفية اللوحة")}</span>{chips(boards, board, setBoard)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل الفيديو")}</span>{chips([["images", "🖼️ مونتاج صور ومشاهد"], ["doodle", "✏️ رسوم متحركة تنرسم باليد"], ["cartoon", "🧑‍🏫 كرتون خليجي يتكلم"]] as readonly (readonly [string, string])[], look, (v) => setLook(v as "images" | "doodle" | "cartoon"))}<span className="text-[13px] text-subtle">{look === "doodle" ? L("رسمات بسيطة تنرسم قدامك بقلم وتتحرك، فيديو متحرك حقيقي بدون صور.") : look === "cartoon" ? L("شخصيات كرتون خليجية تتحرك وتتكلم بصوت الفيديو، ومعها رسمات تنرسم. اختر صوت يناسب الشخصية.") : L("مشاهد ورسومات بالذكاء الاصطناعي مركّبة مع بعض.")}</span></div>
       {look === "cartoon" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الشخصية")}</span>{chips([["marker", "🎨 كرتون ملوّن"], ["neon", "💡 نيون مضيء"], ["chalk", "🧑‍🏫 طباشير"], ["blueprint", "📐 مخطط"], ["shadow", "🌑 ظل أسود"], ["glass", "🔮 زجاج"], ["clay", "🧸 صلصال"]] as readonly (readonly [string, string])[], cstyle, setCstyle)}</div>}
       {look !== "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسمات")}</span>{chips([["marker", "✏️ ماركر ملوّن"], ["neon", "💡 نيون مضيء"], ["chalk", "🧑‍🏫 سبورة طباشير"], ["shadow", "🌑 ظل أسود"], ["blueprint", "📐 مخطط هندسي"], ["glass", "🔮 زجاج ثلاثي الأبعاد"], ["clay", "🧸 صلصال (كلاي ميشن)"]] as readonly (readonly [string, string])[], dstyle, setDstyle)}<span className="text-[13px] text-subtle">{L("هذا شكل الرسمات اللي تنرسم فقط. الشخصية والخلفية لهم خيارهم لحاله.")}</span></div>}
       {look === "cartoon" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("كم يكون الكرتون؟")}</span>{chips([["full", "كرتون كامل (الشخصية بكل مشهد والكتابة فوقها)"], ["mixed", "مختلط (لقطات كرتون + لقطات شرح وجداول)"]] as readonly (readonly [string, string])[], mix, (v) => setMix(v as "full" | "mixed"))}</div>}
+      <More label={L("المزيد من الخيارات (الخلفية، ستايل الرسومات، الموسيقى، ملاحظات)")}>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل اللوحة")}</span>{chips(panels, panel, setPanel)}</div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("خلفية اللوحة")}</span>{chips(boards, board, setBoard)}</div>
       <label className={look !== "images" ? "hidden" : "flex items-center gap-3"}><input type="checkbox" checked={drawings} onChange={(e) => setDrawings(e.target.checked)} className="h-5 w-5" /><span>{L("🎨 مشاهد مرسومة بالذكاء الاصطناعي (قصص وأمثلة وشخصيات)")}</span></label>
       {drawings && look === "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسومات")}</span>{chips([["auto", "شاهين يختار"], ...ILLUS_STYLES.map(([v, l]) => [v, l] as const)] as readonly (readonly [string, string])[], illus, setIllus)}</div>}
       {drawings && look === "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("كم رسمة بالفيديو؟")}</span>{chips([["few", "قليلة (2-4 مشاهد)"], ["half", "متوسطة (نص المشاهد)"], ["all", "كل المشاهد"]] as readonly (readonly [string, string])[], level, (v) => setLevel(v as "few" | "half" | "all"))}<span className="text-[13px] text-subtle">{L("كل رسمة تنرسم بالذكاء الاصطناعي وتحتاج وقت أكثر. «كل المشاهد» يعطي فيديو كله بالستايل.")}</span></div>}
       <label className="flex items-center gap-3"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} className="h-5 w-5" /><span>{L("موسيقى خلفية هادئة")}</span></label>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("ملاحظات")} <span className="font-normal text-subtle">{L("(اختياري)")}</span></span>
         <input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} className="field" placeholder={L("مثال: اختم بسؤال للطلاب، واذكر اسم الأكاديمية")} /></label>
+      </More>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
       {busy ? <Progress value={pct} label={L("شاهين يكتب الدرس ويسجّل الصوت ويرسم المشاهد…")} /> : (
         <button disabled={topic.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">✨ {L("أنشئ الفيديو التعليمي")} ({cost} {L("ريشة")})</button>

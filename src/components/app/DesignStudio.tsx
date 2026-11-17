@@ -10,6 +10,7 @@ import "@fontsource/changa/arabic-700.css";
 import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
 import Link from "next/link";
+import { Card, More } from "@/components/app/Collapse";
 import { useEffect, useRef, useState } from "react";
 import { DesignView } from "@/components/app/DesignView";
 import { uploadImage } from "@/components/app/DesignStart";
@@ -26,12 +27,6 @@ import {
 
 type Kit = { colors: string[]; font: string | null; handle: string | null; name: string | null; logo: DImg | null } | null;
 
-const Card = ({ title, icon, children }: { title: string; icon?: string; children: React.ReactNode }) => (
-  <section className="card flex flex-col gap-4 p-5">
-    <h2 className="flex items-center gap-2 text-[18px] font-bold text-navy-900">{icon && <span aria-hidden>{icon}</span>}{title}</h2>
-    {children}
-  </section>
-);
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 const COLOR_LABELS: Record<keyof DColors, string> = { bg: "الخلفية", ink: "النصوص", accent: "اللون المميز", soft: "البطاقات" };
 const ASPECTS: [DAspect, string][] = [["4:5", "طولي 4:5"], ["1:1", "مربع 1:1"], ["9:16", "ستوري 9:16"]];
@@ -305,6 +300,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           <div className="flex flex-wrap gap-2">
             {LAYOUT_IDS.map((id) => <button key={id} type="button" aria-pressed={s.layout === id} onClick={() => setSlide({ layout: id as LayoutId })} className="chip" title={L(LAYOUTS[id].hint)}>{L(LAYOUTS[id].label)}</button>)}
           </div>
+          <More label={L("المزيد من خيارات التصميم (زخرفة، إطار، ملصق، أيقونات، خط)")}>
           <Sub>{L("زخرفة الخلفية")}</Sub>
           <div className="flex flex-wrap gap-2">
             {DECO_IDS.map((id) => <button key={id} type="button" aria-pressed={(spec.deco ?? "circles") === id} onClick={() => setSpec({ ...spec, deco: id })} className="chip">{L(DECO_LABELS[id])}</button>)}
@@ -346,6 +342,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           <div className="flex flex-wrap gap-2">
             {DFONTS.map((f) => <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} className="chip" style={{ fontFamily: f.id }}>{L(f.label)}</button>)}
           </div>
+          </More>
           <Sub>{L("المقاس")}</Sub>
           <div className="flex flex-wrap gap-2">
             {ASPECTS.map(([a, l]) => <button key={a} type="button" aria-pressed={spec.aspect === a} onClick={() => setSpec({ ...spec, aspect: a })} className="chip">{L(l)}</button>)}
@@ -353,14 +350,6 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
         </Card>
 
         <Card title={L("الألوان")} icon="🖌️">
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            {(Object.keys(COLOR_LABELS) as (keyof DColors)[]).map((k) => (
-              <label key={k} className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]">
-                {L(COLOR_LABELS[k])}
-                <input type="color" value={spec.colors[k]} onChange={(e) => setColor(k, e.target.value)} aria-label={L(COLOR_LABELS[k])} className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0" />
-              </label>
-            ))}
-          </div>
           <Sub>{L("لوحات جاهزة")}</Sub>
           <div className="flex flex-wrap gap-2">
             {[...(designPack(spec.industry)?.palettes ?? []).map((colors, i) => ({ name: `${L("مجالك")} ${i + 1}`, colors })), ...PALETTES].map((p) => (
@@ -370,6 +359,16 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
             ))}
           </div>
           {kit && <button type="button" onClick={applyBrand} className="btn btn-outline self-start px-4 py-2 text-sm">{L("✨ طبّق هويتي (ألوان، خط، شعار)")}</button>}
+          <More label={L("المزيد من خيارات الألوان (اختيار لون لكل جزء)")}>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {(Object.keys(COLOR_LABELS) as (keyof DColors)[]).map((k) => (
+              <label key={k} className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]">
+                {L(COLOR_LABELS[k])}
+                <input type="color" value={spec.colors[k]} onChange={(e) => setColor(k, e.target.value)} aria-label={L(COLOR_LABELS[k])} className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0" />
+              </label>
+            ))}
+          </div>
+          </More>
         </Card>
 
         <Card title={L("النصوص")} icon="✏️">
@@ -420,7 +419,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           )}
         </Card>
 
-        <Card title={L("صندوق مميّز (شهادة، ضمان، ميزة)")} icon="🏅">
+        <Card more title={L("صندوق مميّز (شهادة، ضمان، ميزة)")} icon="🏅">
           <div className="flex flex-wrap gap-2">
             <button type="button" aria-pressed={!s.note} onClick={() => setSlide({ note: null })} className="chip">{L("بدون")}</button>
             <button type="button" aria-pressed={!!s.note} onClick={() => setSlide({ note: s.note ?? { text: L("مع الحصول على شهادة معتمدة"), at: "bl", look: "royal" } })} className="chip">{L("إضافة صندوق")}</button>
@@ -488,7 +487,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           }} className="btn btn-primary self-start px-5 py-2.5">{busy === "revise" ? L("شاهين يعدّل…") : LT(`طبّق التعديل (${editCost} ريشة)`, `Apply edit (${editCost} credits)`)}</button>
         </Card>
 
-        <Card title={L("الكابشن")} icon="📝">
+        <Card more title={L("الكابشن")} icon="📝">
           <textarea rows={5} maxLength={2200} value={caption} onChange={(e) => spec.kind === "carousel" ? setSpec({ ...spec, caption: e.target.value }) : setSlide({ caption: e.target.value })} className="field" placeholder={L("نص المنشور اللي ينكتب تحت التصميم")} />
           <button type="button" onClick={() => { navigator.clipboard?.writeText(caption).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }} className="btn btn-outline self-start px-4 py-2 text-sm">{copied ? L("✓ انتسخ") : L("📋 نسخ الكابشن")}</button>
         </Card>
@@ -497,7 +496,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
         <button type="button" disabled={!!busy} onClick={async () => {
           const d = await call<{ ok: boolean }>("export", { spec }, "export");
           if (d) { setSent(true); setRender({ status: "queued", progress: 0, files: [] }); }
-        }} className="btn btn-gold py-4 text-[17px]">{busy === "export" ? L("جاري الإرسال…") : LT(`⬇️ صدّر ${spec.slides.length > 1 ? `${spec.slides.length} صور` : "الصورة"} PNG (مجاناً)`, `⬇️ Export ${spec.slides.length > 1 ? `${spec.slides.length} images` : "image"} as PNG (free)`)}</button>
+        }} className="btn btn-gold sticky bottom-3 z-30 py-4 text-[17px] shadow-lg">{busy === "export" ? L("جاري الإرسال…") : LT(`⬇️ صدّر ${spec.slides.length > 1 ? `${spec.slides.length} صور` : "الصورة"} PNG (مجاناً)`, `⬇️ Export ${spec.slides.length > 1 ? `${spec.slides.length} images` : "image"} as PNG (free)`)}</button>
       </div>
     </div>
     </>

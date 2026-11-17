@@ -12,6 +12,7 @@ import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
 import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
+import { Card, More } from "@/components/app/Collapse";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
 import { ILLUS_STYLES } from "@/remotion/styles";
@@ -27,12 +28,6 @@ import { createClient } from "@/lib/supabase/client";
 
 type Track = { name: string; mood?: string; url: string };
 
-const Card = ({ title, icon, children }: { title: string; icon?: string; children: React.ReactNode }) => (
-  <section className="card flex flex-col gap-4 p-5">
-    <h2 className="flex items-center gap-2 text-[18px] font-bold text-navy-900">{icon && <span aria-hidden>{icon}</span>}{title}</h2>
-    {children}
-  </section>
-);
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 const styles: [CaptionStyle, string][] = CAPTION_STYLES;
 const positions: [CaptionPos, string][] = [["top", "فوق"], ["middle", "بالوسط"], ["lower", "تحت الوسط"], ["bottom", "تحت"]];
@@ -362,7 +357,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           </div>
         </Card>
 
-        <Card title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
+        <Card more title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
           <Sub>{L("شكل الفيديو")}</Sub>
           <div className="flex flex-wrap gap-2">
             {spec.layout === "board" ? <span className="text-[14px] text-subtle">{L("فيديو تعليمي متحرك: الرسوم تملأ الشاشة مع صوت الشرح.")}</span>
@@ -454,7 +449,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           </div>
         </Card>
 
-        <Card title={L("لمسات احترافية")} icon="🎬">
+        <Card more title={L("لمسات احترافية")} icon="🎬">
           <div className="grid gap-2.5 sm:grid-cols-2">
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
               <span className="font-semibold">{L("🔊 مؤثرات صوتية")}</span>
@@ -583,7 +578,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           )}
         </Card>
 
-        <Card title={L("صور إضافية فوق الكلام")} icon="🖼️">
+        <Card more title={L("صور إضافية فوق الكلام")} icon="🖼️">
           {(spec.broll ?? []).length > 0 ? (
             <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {(spec.broll ?? []).map((b, i) => (
@@ -610,7 +605,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           <StockSearch jobId={jobId} disabled={!!busy} onAdd={(p) => setSpec((sp) => ({ ...sp, broll: [...(sp.broll ?? []), { path: p.path, url: p.url, bucket: "results" as const, credit: p.credit, at: +nowAt().toFixed(2), dur: 2.5 }].sort((a, b) => a.at - b.at) }))} />
         </Card>
 
-        <Card title={L("ترجمة بلغة ثانية")} icon="🌍">
+        <Card more title={L("ترجمة بلغة ثانية")} icon="🌍">
           {spec.subs2 ? (
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
               <span className="font-semibold">{L("إظهار ترجمة")} {SUB_LANGS.find((l) => l.id === spec.subs2!.lang)?.label} {L("تحت الكلام")}</span>
@@ -624,7 +619,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           </button>
         </Card>
 
-        <Card title={L("تعديل متقدّم (بالوصف)")} icon="✨">
+        <Card more title={L("تعديل متقدّم (بالوصف)")} icon="✨">
           <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} className="field" placeholder={L("مثال: زيد عناوين للأفكار الأساسية، وكبّر أكثر على الجمل القوية، وخلّ الألوان أحمر وأسود")} />
           <button type="button" disabled={!instruction.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
             onClick={async () => { const d = await call<{ spec: MontageSpec }>("revise", { spec: { ...spec, src: "", words: [], face: [] }, instruction }); if (d) { const urls = new Map((spec.broll ?? []).map((b) => [b.path, b.url])); setSpec({ ...d.spec, src: spec.src, words: spec.words, segments: spec.segments, face: spec.face, logo: d.spec.logo ? { ...d.spec.logo, url: spec.logo?.url ?? "" } : null, broll: (d.spec.broll ?? []).map((b) => ({ ...b, url: urls.get(b.path) ?? "" })), subs2: spec.subs2, vo: spec.vo, music: d.spec.music?.path && spec.music?.path === d.spec.music.path ? { ...d.spec.music, url: spec.music.url } : d.spec.music }); setInstruction(""); } }}>
@@ -633,7 +628,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           <p className="text-[12px] text-subtle">{L("يعدّل العناوين والتكبير والإيموجي والانتقالات والمؤثرات والألوان والخط والبطاقات ومكان الترجمة. القصّ نفسه يبقى مثل ما هو.")}</p>
         </Card>
 
-        <Card title={L("موسيقى خلفية")} icon="🎵">
+        <Card more title={L("موسيقى خلفية")} icon="🎵">
           {tracks.length > 0 && (
             <ul className="flex flex-col gap-2">
               {tracks.map((t) => {
@@ -657,7 +652,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
 
         {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
 
-        <button type="button" disabled={!!busy} className="btn btn-gold w-full py-4 text-[17px]"
+        <button type="button" disabled={!!busy} className="btn btn-gold sticky bottom-3 z-30 w-full py-4 text-[17px] shadow-lg"
           onClick={async () => { const d = await call<{ ok: true }>("export", { spec: { ...spec, src: "" } }); if (d) { try { localStorage.removeItem(key); } catch {} setSent(true); } }}>
           {busy === "export" ? L("جاري الإرسال…") : L("⬇️ تصدير الفيديو (MP4)")}
         </button>
