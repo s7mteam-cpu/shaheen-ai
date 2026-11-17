@@ -17,7 +17,8 @@ const dialects: (readonly [string, string])[] = [...GULF_DIALECTS.map(([v, ar]) 
 export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
   const router = useRouter();
   const [text, setText] = useState("");
-  const [exact, setExact] = useState(false);
+  const [mine, setMine] = useState(false);
+  const [spoken, setSpoken] = useState("");
   const [aspect, setAspect] = useState<string>("9:16");
   const [seconds, setSeconds] = useState(30);
   const [dialect, setDialect] = useState<string>("kuwaiti");
@@ -50,7 +51,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
     setBusy(true); setError(null);
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        tool: "real-scenes", topic: text, notes: exact ? "اقرأ نص العميل بالحرف كتعليق صوتي بدون تغيير أو إضافة، وقسّمه لجمل فقط." : "", brand, industry, seconds, aspect, dialect,
+        tool: "real-scenes", topic: mine ? `${text.trim()}${text.trim() ? "\n\n" : ""}الكلام الذي يُقرأ بالحرف:\n${spoken.trim()}` : text, notes: mine ? "اقرأ «الكلام الذي يُقرأ بالحرف» كتعليق صوتي بدون أي تغيير أو إضافة أو حذف، وقسّمه لجمل فقط، واختر لكل جملة مشهداً يناسبها. باقي النص وصف للمشاهد فقط ولا يُقرأ." : "", brand, industry, seconds, aspect, dialect,
         voiceover, voice, vgender, vage, tone, music: withMusic, photos: photos.map((p) => ({ path: p.path, bucket: p.bucket, label: p.label })) }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
@@ -62,10 +63,15 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
   const showVoice = voiceover && voices.length > 0;
   return (
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
-      <label className="flex flex-col gap-2"><span className="font-semibold">{L("اكتب نص الإعلان أو الكلام اللي تبي ينقال بالفيديو")}</span>
-        <textarea required minLength={5} maxLength={8000} rows={6} value={text} onChange={(e) => setText(e.target.value)} className="field"
-          placeholder={L("مثال: تدوّر على شقة تناسب عائلتك؟ في برج الأفق شقق جاهزة للسكن، إطلالة بحرية وموقف خاص. زورونا اليوم واحجز شقتك بدون مقدم.")} /></label>
-      <label className="flex items-center gap-3"><input type="checkbox" checked={exact} onChange={(e) => setExact(e.target.checked)} className="h-5 w-5" /><span>{L("اقرأ نصي كما هو بدون تغيير")}</span></label>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("الكلام اللي ينقال بالفيديو")}</span>
+        <div className="flex flex-wrap gap-2">{([[false, "شاهين يأخذ الكلام من نصي"], [true, "أنا أكتب الكلام اللي ينقال"]] as const).map(([v, l]) => <button key={String(v)} type="button" aria-pressed={mine === v} onClick={() => setMine(v)} className="chip">{L(l)}</button>)}</div></div>
+      <label className="flex flex-col gap-2"><span className="font-semibold">{mine ? L("وصف المشاهد (اختياري): شو تبي يبان بالفيديو؟") : L("اكتب نص الإعلان أو الفكرة")}</span>
+        <textarea required={!mine} minLength={mine ? 0 : 5} maxLength={6000} rows={mine ? 4 : 6} value={text} onChange={(e) => setText(e.target.value)} className="field"
+          placeholder={mine ? L("مثال: فندق فخم، قاعة تدريب، مصافحة مهنية. (تقدر تخليه فاضي وشاهين يختار اللقطات من كلامك)") : L("مثال: تدوّر على شقة تناسب عائلتك؟ في برج الأفق شقق جاهزة للسكن، إطلالة بحرية وموقف خاص. زورونا اليوم واحجز شقتك بدون مقدم.")} /></label>
+      {mine && (
+        <label className="flex flex-col gap-2"><span className="font-semibold">{L("الكلام اللي يقوله المعلّق (ينقرأ بالحرف)")}</span>
+          <textarea required minLength={5} maxLength={2000} rows={5} value={spoken} onChange={(e) => setSpoken(e.target.value)} className="field" placeholder={L("اكتب الكلام اللي تبيه ينقال بالضبط، وشاهين ما يغيّر فيه شي.")} /></label>
+      )}
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("مقاس الفيديو")}</span>{chips(sizes, aspect, setAspect)}
         <span className="text-[13px] text-subtle">{L("شاهين يقص اللقطات ويظبطها على المقاس اللي تختاره.")}</span></div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span>{chips(lengths, seconds, setSeconds)}</div>
