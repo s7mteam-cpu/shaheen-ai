@@ -72,6 +72,19 @@ async function review(cands: Cand[], q: string, text: string, ctx: Ctx): Promise
   } catch (e) { console.error("clip review", e); return 1; } // reviewer unavailable: take the first (already sorted)
 }
 
+
+/** Plain Arabic nouns → the simple English word stock sites index best. A named place in the text wins over whatever the writer guessed. */
+const WORDS: [RegExp, string][] = [
+  [/فندق|فنادق|نزل|منتجع/, "hotel"], [/مطعم|مطاعم|وجبة|عشاء|غداء/, "restaurant food"], [/كافيه|مقهى|قهوة|كوفي/, "coffee shop"],
+  [/برج|ابراج|أبراج|ناطحة/, "skyscraper"], [/شقة|شقق|عقار|عقارات|فيلا|منزل|بيت/, "apartment interior"], [/بحر|إطلالة|اطلالة|شاطئ|شاطيء/, "sea view"],
+  [/سيارة|سيارات|معرض سيارات/, "car"], [/عيادة|طبيب|اسنان|أسنان|مستشفى/, "dentist clinic"], [/صالون|حلاقة|تجميل|مكياج/, "beauty salon"],
+  [/جيم|نادي رياضي|رياضة|تمرين/, "gym workout"], [/مدرسة|تعليم|دورة|طلاب|جامعة/, "students learning"], [/سفر|رحلة|رحلات|طيران|حجز طيران/, "travel airplane"],
+  [/متجر|تسوق|مول|ملابس|أزياء|ازياء/, "shopping fashion"], [/توصيل|طلبات|شحن/, "delivery"], [/شركة|مكتب|اجتماع|أعمال|اعمال/, "business office"],
+  [/عائلة|اسرة|أسرة|اطفال|أطفال/, "family"], [/عطر|عطور|عود|بخور/, "perfume"], [/مجوهرات|ذهب|خاتم|الماس|ألماس/, "jewelry"],
+  [/تصميم|ديكور|اثاث|أثاث/, "interior design"], [/تقسيط|تمويل|بنك|قرض/, "business finance"],
+];
+const wordQ = (text: string) => WORDS.find(([re]) => re.test(text))?.[1] ?? "";
+
 /** One real stock clip for a scene: candidates → reviewed → saved in our own storage (provider links are not permanent). */
 export async function findClip(q: string, text: string, minSec: number, aspect: string, userId: string, jobId: string, used: Set<number>, ctx: Ctx): Promise<Clip | null> {
   if (!q.trim()) return null;
@@ -87,12 +100,10 @@ export async function findClip(q: string, text: string, minSec: number, aspect: 
     return n ? cands[n - 1] : null;
   };
   const words = q.trim().split(/\s+/);
+  const named = wordQ(text);
+  const tries = [...new Set([named, q.trim(), words.slice(0, 3).join(" "), words.slice(0, 2).join(" "), words[0]].filter(Boolean))];
   let pick: Cand | null = null;
-  for (const n of [words.length, 3, 2, 1]) {
-    if (n > words.length || (n === words.length && pick)) continue;
-    pick = await tryOnce(words.slice(0, n).join(" "));
-    if (pick) break;
-  }
+  for (const t of tries) { pick = await tryOnce(t); if (pick) break; }
   if (!pick) return null;
   const f = pick.file();
   if (!f) return null;
