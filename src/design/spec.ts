@@ -56,7 +56,7 @@ export type DesignSpec = {
   caption?: string;
   deco?: Deco;
   frame?: Frame;
-  bigNum?: boolean;               // false = hide the huge outlined slide number on "point" slides
+  bigNum?: boolean;               // true = show the huge outlined slide number on "point" slides (hidden by default)
   industry?: string;
   icons?: "line" | "duo" | "emoji" | "3d";
   icon3d?: Record<string, DImg>;   // AI-made 3D icons by icon id (when icons = "3d")
@@ -222,7 +222,7 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
     caption: typeof raw.caption === "string" ? raw.caption.trim().slice(0, 2200) || undefined : undefined,
     deco: (DECO_IDS as readonly string[]).includes(String(raw.deco)) ? (raw.deco as Deco) : "circles",
     frame: (FRAME_IDS as readonly string[]).includes(String(raw.frame)) ? (raw.frame as Frame) : "none",
-    bigNum: raw.bigNum === false ? false : undefined,
+    bigNum: raw.bigNum === true ? true : undefined,
     industry: typeof raw.industry === "string" ? raw.industry.slice(0, 30) : undefined,
     icons: raw.icons === "duo" || raw.icons === "emoji" || raw.icons === "3d" ? raw.icons : "line",
     icon3d: Object.fromEntries(Object.entries((raw.icon3d ?? {}) as Record<string, unknown>).filter(([k]) => (ICON_IDS as readonly string[]).includes(k)).map(([k, v]) => [k, img(v)]).filter(([, v]) => v)) as Record<string, DImg>,

@@ -311,8 +311,8 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           </div>
           <Sub>{L("الأرقام الكبيرة بالزاوية")}</Sub>
           <div className="flex flex-wrap gap-2">
-            <button type="button" aria-pressed={spec.bigNum !== false} onClick={() => setSpec({ ...spec, bigNum: undefined })} className="chip">{L("إظهار")}</button>
-            <button type="button" aria-pressed={spec.bigNum === false} onClick={() => setSpec({ ...spec, bigNum: false })} className="chip">{L("إخفاء")}</button>
+            <button type="button" aria-pressed={spec.bigNum === true} onClick={() => setSpec({ ...spec, bigNum: true })} className="chip">{L("إظهار")}</button>
+            <button type="button" aria-pressed={spec.bigNum !== true} onClick={() => setSpec({ ...spec, bigNum: undefined })} className="chip">{L("إخفاء")}</button>
           </div>
           <Sub>{L("ملصق بالزاوية")}</Sub>
           <div className="flex flex-wrap gap-2">

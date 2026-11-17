@@ -498,7 +498,7 @@ function Point(c: Ctx) {
   const bullets = (s.items ?? []).filter((x) => x.text).slice(0, 4);
   return (
     <div style={{ position: "absolute", inset: 0, background: "transparent", overflow: "hidden" }}>
-      {c.spec.bigNum !== false && !gone(c, "num") && <div {...da("num")} style={{ ...eo(c, "num"), position: "absolute", left: PAD - 20, top: (PAD - 40) * c.k, fontSize: 360 * c.k, fontWeight: 800, lineHeight: 1, color: "transparent", WebkitTextStroke: `4px ${c.line}` }}>{n}</div>}
+      {c.spec.bigNum === true && !gone(c, "num") && <div {...da("num")} style={{ ...eo(c, "num"), position: "absolute", left: PAD - 20, top: (PAD - 40) * c.k, fontSize: 360 * c.k, fontWeight: 800, lineHeight: 1, color: "transparent", WebkitTextStroke: `4px ${c.line}` }}>{n}</div>}
       <div style={{ position: "absolute", inset: `${PAD * c.k}px ${PAD}px`, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><BrandRow c={c} /></div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 30 * c.k }}>

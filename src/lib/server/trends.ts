@@ -85,7 +85,10 @@ async function save(list: Found[], origin: "research" | "customers", fallback: s
     sources: (t.sources ?? []).filter((s) => /^https?:\/\//.test(String(s?.url))).slice(0, 5).map((s) => ({ title: String(s.title ?? s.url).slice(0, 120), url: String(s.url).slice(0, 400) })),
   }));
   if (origin === "research") for (const r of rows) if (!r.sources.length) r.insight = `${r.insight} (بدون مصدر — راجعه بحذر)`;
-  if (rows.length) await createAdminClient().from("trends").insert(rows);
+  // approved automatically when it has a real source (or comes from what customers keep); the ones without a source wait for a look
+  const now = new Date().toISOString();
+  const out = rows.map((r) => (origin === "customers" || r.sources.length ? { ...r, status: "approved", approved_at: now } : r));
+  if (out.length) await createAdminClient().from("trends").insert(out);
   return rows.length;
 }
 

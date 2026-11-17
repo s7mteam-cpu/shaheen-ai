@@ -20,6 +20,7 @@ import { enforcePack, packBrief, packById } from "@/remotion/packs";
 import { industryById } from "@/design/industries";
 import { guessIndustry } from "@/lib/server/guessIndustry";
 import { autoPlan } from "@/lib/server/autoPlan";
+import { pickVoice, toneFor, TONE_HINT, withTone, type VoiceItem } from "@/lib/voiceMatch";
 import { snapshot, trendsFor } from "@/lib/server/trends";
 import type { Aspect } from "@/remotion/spec";
 
@@ -40,6 +41,9 @@ export async function POST(req: Request) {
   if (b.auto === true) {
     const a = await autoPlan(String(b.topic ?? ""));
     b.mode = a.goal === "edu" ? "lesson" : "motion"; b.seconds = a.seconds; b.aspect = a.aspect; b.voiceover = a.voiceover;
+    if (a.gender) b.vgender = a.gender;
+    if (a.age) b.vage = a.age;
+    if (a.tone) b.tone = a.tone;
     if (a.goal === "edu" && !b.look) b.look = "doodle";
   }
   const motion = b.mode === "motion";
@@ -54,6 +58,7 @@ export async function POST(req: Request) {
   const pack = packById(ind?.id);
   const guide = ind && pack ? packBrief(pack, ind.label) : "";
   const voiceOn = motion ? b.voiceover === true : true;
+  const tone = toneFor(typeof b.tone === "string" ? b.tone : undefined, motion ? "ad" : "edu", ind?.group); // narration tone: chosen, or read from the kind of video
 
   const aspect = ASPECTS.includes(b.aspect as Aspect) ? (b.aspect as Aspect) : "9:16";
   const audience = AUDIENCE[String(b.audience)] ? String(b.audience) : "students";
@@ -97,7 +102,7 @@ export async function POST(req: Request) {
     // 1) script + scenes
     const words = Math.round(seconds * 2.2);
     const like = await loadLike(b.likeWork);
-    const ask = (tpl ? `${templateText(tpl, drawings ? level : "none")}\n\n` : "") + (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, "motion")}`;
+    const ask = (tpl ? `${templateText(tpl, drawings ? level : "none")}\n\n` : "") + (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\n${voiceOn ? `نبرة التعليق: ${TONE_HINT[tone]}\n` : ""}المدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, "motion")}`;
     let plan: Plan;
     try { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask, 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
     catch { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask + "\nمهم: أعد JSON صالح ومكتمل فقط.", 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
@@ -118,8 +123,9 @@ export async function POST(req: Request) {
     if (voiceOn && lines.some((l) => l.say)) {
       // 2) voice with word timings
       const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
-      const voices = ((vc?.value as { items?: { id: string; name?: string; note?: string; gender?: string; model?: string; settings?: VoiceSettings }[] })?.items ?? []);
-      let voiceId = voices.some((v) => v.id === b.voice) ? String(b.voice) : voices[0]?.id ?? "pNInz6obpgDQGcFmaJgB";
+      const voices = ((vc?.value as { items?: VoiceItem[] })?.items ?? []);
+      // a voice picked by name wins; otherwise the best match for the dialect, gender and age the customer asked for
+      let voiceId = voices.some((v) => v.id === b.voice) ? String(b.voice) : pickVoice(voices, { dialect, gender: String(b.vgender ?? ""), age: String(b.vage ?? "") })?.id ?? "pNInz6obpgDQGcFmaJgB";
       if (look === "cartoon") { // the narrator follows the main character: a man's voice for a man, a woman's for a woman
         const cnt: Record<string, number> = {};
         for (const l of lines) { const sc = l.scene as { kind?: string; char?: string } | undefined; if (sc?.kind === "character" && sc.char) cnt[sc.char] = (cnt[sc.char] ?? 0) + 1; }
@@ -131,7 +137,7 @@ export async function POST(req: Request) {
       const vInfo = voices.find((x) => x.id === voiceId);
       const spoken = lines.filter((l) => l.say);
       const text = spoken.map((l) => (/[.!؟?]$/.test(l.say) ? l.say : `${l.say}.`)).join(" ");
-      const v = await ttsTimed(text, voiceId, vInfo?.model || undefined, vInfo?.settings);
+      const v = await ttsTimed(text, voiceId, vInfo?.model || undefined, withTone(vInfo?.settings, tone));
       if (!v.words.length) throw new Error("no words");
       const voPath = await saveResult(user.id, job.id, v.audio, "audio/mpeg", "mp3");
       vo = { path: voPath, url: "", on: true, words: v.words, text, voice: voiceId };

@@ -8,6 +8,7 @@ import { Progress } from "@/components/app/Progress";
 import { IndustryPicker } from "@/components/app/IndustryPicker";
 import { More } from "@/components/app/Collapse";
 import { focusFor } from "@/lib/videoFocus";
+import { TONES, VOICE_AGES } from "@/lib/voiceMatch";
 import { ILLUS_STYLES } from "@/remotion/styles";
 
 const adLengths = [[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"]] as const;
@@ -19,7 +20,7 @@ const panels = [["auto", "حسب مجالي"], ["light", "فاتحة"], ["dark",
 const boards = [["auto", "تلقائي (مختلف كل مرة)"], ["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["neon", "نيون داكن"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"]] as const;
 
 /** Motion graphics: one form for ads and educational videos. */
-export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, balance, brand, voices = [], industry: savedIndustry }: { template?: { id: string; title: string; thumb: string | null; style: string; seconds: number }; likeId?: string; idea?: string; costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string }[]; industry?: string }) {
+export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, balance, brand, voices = [], industry: savedIndustry }: { template?: { id: string; title: string; thumb: string | null; style: string; seconds: number }; likeId?: string; idea?: string; costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string; dialects?: string[] }[]; industry?: string }) {
   const router = useRouter();
   const [auto, setAuto] = useState(!template); // «تلقائي»: write the idea and press create, Shaheen decides the rest
   const [goal, setGoal] = useState<"ad" | "edu">("ad");
@@ -34,7 +35,10 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   useEffect(() => { setDialect(myDialect()); }, []);
   const [industry, setIndustry] = useState(savedIndustry ?? "");
   const [voiceover, setVoiceover] = useState(true);
-  const [voice, setVoice] = useState(voices[0]?.id ?? "");
+  const [voice, setVoice] = useState(""); // "" = Shaheen picks the best match
+  const [vgender, setVgender] = useState("");
+  const [vage, setVage] = useState("");
+  const [tone, setTone] = useState("auto");
   const [withMusic, setWithMusic] = useState(true);
   const [drawings, setDrawings] = useState(true);
   const [mix, setMix] = useState<"full" | "mixed">("mixed");
@@ -83,7 +87,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
         mode: edu ? "lesson" : "motion", topic: idea, notes: [focusNote, notes].filter(Boolean).join("\n"), brand: edu ? undefined : name, industry, audience, seconds, aspect, dialect, panel: panel === "auto" ? undefined : panel, board,
-        voiceover: edu ? true : voiceover, voice, music: withMusic, look, dstyle, cstyle, cartoonMix: mix, drawLevel: level, drawings, illus: illus === "auto" ? undefined : illus,
+        voiceover: edu ? true : voiceover, voice, vgender, vage, tone, music: withMusic, look, dstyle, cstyle, cartoonMix: mix, drawLevel: level, drawings, illus: illus === "auto" ? undefined : illus,
         tpos, tscale, templateId: template?.id, likeWork: likeId }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
@@ -148,7 +152,17 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(aspects, aspect, setAspect)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("اللهجة")}</span>{chips(edu ? dialects : dialects.filter(([v]) => v !== "en"), dialect, setDialect)}</div>
       {!edu && <label className="flex items-center gap-3"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} className="h-5 w-5" /><span>{L("🎙 تعليق صوتي بصوت خليجي")}</span></label>}
-      {showVoice && <label className="flex flex-col gap-2"><span className="font-semibold">{L("الصوت")}</span><select value={voice} onChange={(e) => setVoice(e.target.value)} className="field">{voices.map((v) => <option key={v.id} value={v.id}>{v.name}{v.note ? ` — ${v.note}` : ""}</option>)}</select></label>}
+      {showVoice && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">
+          <span className="font-semibold">{L("🎙 الصوت")}</span>
+          <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("رجل أو امرأة")}</span>{chips([["", "أي صوت"], ["m", "رجل"], ["f", "امرأة"]] as readonly (readonly [string, string])[], vgender, setVgender)}</div>
+          <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("العمر")}</span>{chips([["", "أي عمر"], ...VOICE_AGES] as readonly (readonly [string, string])[], vage, setVage)}</div>
+          <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("نبرة الصوت")}</span>{chips(TONES as readonly (readonly [string, string])[], tone, setTone)}</div>
+          <label className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("أو اختر صوت بعينه")}</span>
+            <select value={voice} onChange={(e) => setVoice(e.target.value)} className="field"><option value="">{L("تلقائي: الأنسب للهجة واختياراتك")}</option>
+              {voices.filter((v) => !v.dialects?.length || v.dialects.includes("any") || v.dialects.includes(dialect) || (v.dialects.includes("gulf") && ["kuwaiti", "saudi", "emirati", "qatari", "bahraini", "omani"].includes(dialect))).map((v) => <option key={v.id} value={v.id}>{v.name}{v.note ? ` — ${v.note}` : ""}</option>)}</select></label>
+        </div>
+      )}
       <More label={L("المزيد من الخيارات (الخلفية، مكان النص، الرسومات، الموسيقى)")}>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل اللوحة")}</span>{chips(panels, panel, setPanel)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("خلفية اللوحة")}</span>{chips(boards, board, setBoard)}</div>

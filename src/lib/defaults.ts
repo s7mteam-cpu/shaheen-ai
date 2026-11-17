@@ -47,7 +47,7 @@ export type SiteContent = {
   final_cta: { title: string; subtitle: string; cta: string };
   footer: { tagline: string; company: string; whatsapp: string; email: string; instagram: string };
   legal: { updated: string; updated_en: string; refund_days: string; terms: string; terms_en: string; privacy: string; privacy_en: string; refund: string; refund_en: string; content: string; content_en: string };
-  voices: { items: { id: string; name: string; note: string; google_voice?: string }[] };
+  voices: { items: { id: string; name: string; note: string; google_voice?: string; gender?: string; age?: string; dialects?: string[]; model?: string }[] };
   /** Background-music library for the motion studio (royalty-free tracks you uploaded). */
   motion_music: { items: { name: string; mood?: string; url: string }[] };
   quran_reciters: { items: { id: string; name: string; folder: string }[] };
