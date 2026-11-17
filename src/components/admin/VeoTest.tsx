@@ -6,8 +6,6 @@ const SAMPLE = "لقطة سينمائية لمدربة خليجية بعباية
 export function VeoTest() {
   const [prompt, setPrompt] = useState(SAMPLE);
   const [aspect, setAspect] = useState("9:16");
-  const [model, setModel] = useState("fast");
-  const [price, setPrice] = useState("");
   const [busy, setBusy] = useState(false);
   const [secs, setSecs] = useState(0);
   const [url, setUrl] = useState("");
@@ -20,13 +18,15 @@ export function VeoTest() {
     const t0 = Date.now();
     timer.current = setInterval(() => setSecs(Math.round((Date.now() - t0) / 1000)), 1000);
     try {
-      const r = await fetch("/api/admin/veo-test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt, aspect, model }) });
+      const r = await fetch("/api/admin/veo-test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt, aspect }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "فشل");
+      if (d.url) { setUrl(d.url); setTook(Math.round((Date.now() - t0) / 1000)); return; }
       for (let i = 0; i < 60; i++) { // up to ~10 minutes
         await new Promise((res) => setTimeout(res, 10000));
         const p = await (await fetch(`/api/admin/veo-test?op=${encodeURIComponent(d.op)}`)).json();
         if (p.error) throw new Error(p.error);
+        if (p.done && p.error) throw new Error(p.error);
         if (p.done) { setUrl(p.url); setTook(Math.round((Date.now() - t0) / 1000)); return; }
       }
       throw new Error("طوّل أكثر من 10 دقائق.");
@@ -34,21 +34,18 @@ export function VeoTest() {
     finally { if (timer.current) clearInterval(timer.current); setBusy(false); }
   }
 
-  const cost = Number(price) > 0 ? (8 * Number(price)).toFixed(2) : "";
-  return (
+    return (
     <div className="card flex max-w-2xl flex-col gap-4 p-5">
       <textarea className="field" rows={5} value={prompt} onChange={(e) => setPrompt(e.target.value)} maxLength={1500} />
       <div className="flex flex-wrap gap-2">
         {([["9:16", "عمودي 9:16"], ["16:9", "أفقي 16:9"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={aspect === v} onClick={() => setAspect(v)} className="chip">{l}</button>)}
-        {([["fast", "Veo 3.1 Fast (أرخص)"], ["standard", "Veo 3.1 Standard (أعلى)"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={model === v} onClick={() => setModel(v)} className="chip">{l}</button>)}
       </div>
-      <label className="flex items-center gap-2 text-sm">سعر الثانية بالدولار من صفحة Google (اختياري للحساب): <input className="field w-28" dir="ltr" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.15" /></label>
-      <button type="button" disabled={busy} onClick={go} className="btn btn-primary w-fit">{busy ? `جاري التوليد… ${secs} ثانية` : "ولّد لقطة 8 ثواني"}</button>
+      <button type="button" disabled={busy} onClick={go} className="btn btn-primary w-fit">{busy ? `جاري التوليد… ${secs} ثانية` : "ولّد لقطة"}</button>
       {err && <p className="text-sm text-red-700" dir="ltr">{err}</p>}
       {url && (
         <div className="flex flex-col gap-2">
           <video src={url} controls playsInline className="max-h-[70vh] rounded-xl bg-black" />
-          <p className="text-sm text-subtle">الوقت اللي أخذه التوليد: {took} ثانية. مدة اللقطة: 8 ثواني.{cost ? ` التكلفة التقديرية بسعرك: ${cost} دولار.` : ""} التكلفة الفعلية تشوفها في Google Cloud ← الفوترة.</p>
+          <p className="text-sm text-subtle">الوقت اللي أخذه التوليد: {took} ثانية. التكلفة الفعلية تشوفها في Google Cloud ← الفوترة.</p>
         </div>
       )}
     </div>
