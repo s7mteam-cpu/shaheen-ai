@@ -17,7 +17,7 @@ type Ctx = {
 };
 
 /** Direct editing: every main element has an id; the customer can move, resize or remove it right on the design. */
-export const EL_LABELS: Record<string, string> = { title: "العنوان", kicker: "العنوان الصغير", body: "الوصف", meta: "التفاصيل", cta: "الزر", price: "السعر", badge: "الشارة", avatar: "الصورة الشخصية", handle: "الحساب", brand: "الشعار والاسم", photo: "الصورة", sticker: "الملصق", stat: "الرقم الكبير", date: "التاريخ", items: "النقاط", icon: "الأيقونة", num: "رقم الشريحة" };
+export const EL_LABELS: Record<string, string> = { title: "العنوان", kicker: "العنوان الصغير", body: "الوصف", meta: "التفاصيل", cta: "الزر", price: "السعر", badge: "الشارة", avatar: "الصورة الشخصية", handle: "الحساب", brand: "الشعار والاسم", photo: "الصورة", sticker: "الملصق", stat: "الرقم الكبير", statlabel: "كلمة تحت الرقم", tagline: "السطر الصغير", date: "التاريخ", items: "النقاط", icon: "الأيقونة", num: "رقم الشريحة" };
 const gone = (c: Ctx, id: string) => !!c.s.hide?.includes(id);
 const da = (id: string) => ({ "data-el": id });
 const eo = (c: Ctx, id: string): React.CSSProperties => {
@@ -296,7 +296,7 @@ function Bold(c: Ctx) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 30 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 22 * c.k, flex: 1, minWidth: 0 }}>
             <BrandRow c={c} color={c.accent} />
-            {s.kicker && <div style={{ fontSize: 38 * c.k, fontWeight: 700, color: c.muted }}>{s.kicker}</div>}
+            {s.kicker && !gone(c, "kicker") && <div {...da("kicker")} style={{ ...eo(c, "kicker"), fontSize: 38 * c.k, fontWeight: 700, color: c.muted }}>{s.kicker}</div>}
           </div>
           {s.date && !gone(c, "date") && (
             <div {...da("date")} style={{ ...eo(c, "date"), width: 220 * c.k, height: 240 * c.k, background: c.accent, color: c.onAccent, borderRadius: 28, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: "none" }}>
@@ -376,7 +376,7 @@ function Offer(c: Ctx) {
           {v && !gone(c, "stat") && (
             <div {...da("stat")} style={{ ...eo(c, "stat"), lineHeight: 0.9, fontWeight: 800, color: c.accent, fontSize: fit(v, (s.photo ? 230 : 320) * c.k, 4, 0.45) }}>{v}</div>
           )}
-          {s.stat?.label && <div style={{ fontSize: 44 * c.k, fontWeight: 800, color: c.ink }}>{s.stat.label}</div>}
+          {s.stat?.label && !gone(c, "statlabel") && <div {...da("statlabel")} style={{ ...eo(c, "statlabel"), fontSize: 44 * c.k, fontWeight: 800, color: c.ink }}>{s.stat.label}</div>}
           <div style={{ marginTop: 10 }}><Title c={c} base={86} align="center" /></div>
           <Body c={c} align="center" max={820} />
         </div>
@@ -572,10 +572,10 @@ function Minimal(c: Ctx) {
     <div style={{ position: "absolute", inset: 0, background: "transparent" }}>
       <div style={{ position: "absolute", inset: `${PAD * c.k}px ${PAD}px`, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `3px solid ${c.ink}`, paddingBottom: 26 * c.k }}>
-          <BrandRow c={c} /><div style={{ fontSize: 26 * c.k, fontWeight: 700, color: c.ink }}>{s.badge ?? s.kicker ?? ""}</div>
+          <BrandRow c={c} />{!gone(c, "tagline") && <div {...da("tagline")} style={{ ...eo(c, "tagline"), fontSize: 26 * c.k, fontWeight: 700, color: c.ink }}>{s.badge ?? s.kicker ?? ""}</div>}
         </div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 30 * c.k, paddingBottom: 40 * c.k }}>
-          <h1 style={{ margin: 0, fontSize: fit(`${s.title} ${s.highlight ?? ""}`, 150 * c.k, 10, 0.45), lineHeight: 1.05, fontWeight: 800, color: c.ink, letterSpacing: -2 }}>
+          <h1 {...da("title")} style={{ ...eo(c, "title"), margin: 0, fontSize: fit(`${s.title} ${s.highlight ?? ""}`, 150 * c.k, 10, 0.45), lineHeight: 1.05, fontWeight: 800, color: c.ink, letterSpacing: -2 }}>
             {s.title}{s.highlight && <><br /><span style={{ color: c.accent }}>{s.highlight}</span></>}
           </h1>
           <Body c={c} size={34} max={760} />
