@@ -59,7 +59,8 @@ async function pixabayCands(q: string, key: string): Promise<Cand[]> {
 }
 
 let lastErr = "";
-export const footageError = () => lastErr;
+const stats = { found: 0, seen: 0, noPick: 0, vetoed: 0 };
+export const footageError = () => lastErr || `found ${stats.found}, loaded ${stats.seen}, rejected-by-review ${stats.noPick}, vetoed ${stats.vetoed}`;
 
 
 /** Anthropic cannot always fetch a provider's thumbnail URL itself (400), so we download it, shrink it and send the picture inline. */
@@ -82,7 +83,7 @@ async function withPictures(cands: Cand[]): Promise<Cand[]> {
 }
 
 /** An art director looks at the candidates' pictures and picks the best fit. Returns its 1-based number, or 0 when even the best is not good enough. */
-async function review(cands: Cand[], q: string, text: string, ctx: Ctx): Promise<number> {
+async function review(cands: Cand[], q: string, text: string, ctx: Ctx, minScore = 6): Promise<number> {
   const list = cands.slice(0, 6);
   if (!list.length) return 0;
   try {
@@ -92,7 +93,7 @@ async function review(cands: Cand[], q: string, text: string, ctx: Ctx): Promise
       list.map((c, i) => ({ url: c.thumb, label: `لقطة ${i + 1}` })), 600, "claude-sonnet-5-5");
     const n = Math.round(Number(r.pick) || 0), score = Number(r.score);
     if (n < 1 || n > list.length) return 0;
-    return Number.isFinite(score) && score < 6 ? 0 : n;
+    return Number.isFinite(score) && score < minScore ? 0 : n;
   } catch (e) { lastErr = `review failed: ${(e as Error).message?.slice(0, 240)}`; console.error("clip review", e); return 0; } // never show a shot nobody checked
 }
 
@@ -128,17 +129,19 @@ export async function findClip(q: string, text: string, minSec: number, aspect: 
   if (!q.trim()) return null;
   const px = process.env.PEXELS_API_KEY, pb = process.env.PIXABAY_API_KEY;
   const wantPortrait = aspect === "9:16" || aspect === "4:5";
-  const tryOnce = async (query: string) => {
+  const tryOnce = async (query: string, strict: boolean) => {
     let all = px ? await pexelsCands(query, aspect, px) : [];
     if (!all.length && pb) all = await pixabayCands(query, pb);
     const pre = all.filter((c) => !used.has(c.id));
     // long enough for the scene first; then the shape of the video (a tall clip is not cropped, so a shaky hand is not magnified)
     pre.sort((x, y) => Number(y.duration >= minSec) - Number(x.duration >= minSec) || Number(y.portrait === wantPortrait) - Number(x.portrait === wantPortrait));
     const cands = await withPictures(pre);
-    for (let k = 0; k < 3 && cands.length; k++) { // pick → strict check → if it fails, the next best
-      const n = await review(cands, query, text, ctx);
-      if (!n) return null;
-      if (await verify(cands[n - 1], text, ctx)) return cands[n - 1];
+    stats.found += all.length; stats.seen += cands.length;
+    for (let k = 0; k < (strict ? 3 : 1) && cands.length; k++) { // pick → strict check → if it fails, the next best
+      const n = await review(cands, query, text, ctx, strict ? 6 : 4);
+      if (!n) { stats.noPick++; return null; }
+      if (!strict || (await verify(cands[n - 1], text, ctx))) return cands[n - 1];
+      stats.vetoed++;
       cands.splice(n - 1, 1);
     }
     return null;
@@ -147,7 +150,10 @@ export async function findClip(q: string, text: string, minSec: number, aspect: 
   const named = wordQ(text);
   const tries = [...new Set([named, q.trim(), words.slice(0, 3).join(" "), words.slice(0, 2).join(" "), words[0]].filter(Boolean))];
   let pick: Cand | null = null;
-  for (const t of tries) { pick = await tryOnce(t); if (pick) break; }
+  for (const strict of [true, false]) { // first the strict standard on every wording; only then a looser one (still never a banned shot)
+    for (const t of tries) { pick = await tryOnce(t, strict); if (pick) break; }
+    if (pick) break;
+  }
   if (!pick) return null;
   const f = pick.file();
   if (!f) return null;
@@ -162,6 +168,7 @@ export async function findClip(q: string, text: string, minSec: number, aspect: 
 /** Fills every "clip" scene with a real, reviewed clip. A scene with no good clip becomes a plain headline (or is dropped), so the video never shows a bad shot. */
 export async function fillClips<G extends { kind: string; q?: string; img?: string; credit?: string; cdur?: number; dur: number; text?: string }>(graphics: G[], aspect: string, userId: string, jobId: string, ctx: Ctx): Promise<G[]> {
   const used = new Set<number>();
+  Object.assign(stats, { found: 0, seen: 0, noPick: 0, vetoed: 0 }); lastErr = "";
   const todo = graphics.filter((g) => g.kind === "clip" && g.q && !g.img);
   for (let i = 0; i < todo.length; i += 3) {
     await Promise.all(todo.slice(i, i + 3).map(async (g) => {
