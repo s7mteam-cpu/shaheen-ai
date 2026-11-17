@@ -33,7 +33,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   const [dialect, setDialect] = useState<string>("kuwaiti");
   useEffect(() => { setDialect(myDialect()); }, []);
   const [industry, setIndustry] = useState(savedIndustry ?? "");
-  const [voiceover, setVoiceover] = useState(false);
+  const [voiceover, setVoiceover] = useState(true);
   const [voice, setVoice] = useState(voices[0]?.id ?? "");
   const [withMusic, setWithMusic] = useState(true);
   const [drawings, setDrawings] = useState(true);
@@ -114,7 +114,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("اكتب اللي تبيه، وشاهين يسوي الباقي")}</span>
         <textarea required minLength={5} maxLength={8000} rows={6} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
           placeholder={L("مثال: إعلان لمطعم فريد الصويلح بالكويت، خصم 20٪ على الوجبات العائلية هالأسبوع، ريلز مع تعليق صوتي. أو: اشرح للطلاب الفرق بين الكسور العشرية والاعتيادية.")} /></label>
-      <p className="text-[13px] text-subtle">{L("شاهين يختار لحاله: المجال، إعلان أو شرح، المدة، المقاس، الستايل. اكتب اللي تبيه بكلامك (مدة، مقاس، تعليق صوتي…) ويلتزم فيه.")}</p>
+      <p className="text-[13px] text-subtle">{L("شاهين يختار لحاله: المجال، إعلان أو شرح، المدة، المقاس، الستايل. اكتب اللي تبيه بكلامك (مدة، مقاس، «بدون صوت»…) ويلتزم فيه. والفيديو يطلع بتعليق صوتي خليجي إلا إذا طلبت غير ذلك.")}</p>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
       {busy ? <Progress value={pct} label={L("شاهين يكتب ويرسم ويجهّز الفيديو…")} /> : (
         <button disabled={idea.trim().length < 5 || balance < costPer15} className="btn btn-gold py-3.5 text-[16px]">✨ {L("أنشئ الفيديو")}</button>
