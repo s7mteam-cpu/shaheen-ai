@@ -7,7 +7,7 @@ export const SHOWCASE_CATS: [string, string, string][] = [
   ["image", "صور بالذكاء الاصطناعي", "AI images"], ["product-photo", "تصوير منتجات", "Product photos"],
   ["reel", "ريلز", "Reels"], ["motion", "موشن جرافيك", "Motion graphics"], ["video", "مونتاج فيديو", "Video editing"],
   ["product-video", "فيديو منتج", "Product videos"], ["avatar", "فيديو بشخصية واقعية", "Avatar videos"],
-  ["lesson", "فيديو تعليمي", "Lesson videos"], ["quran", "فيديو قرآني", "Quran videos"],
+  ["quran", "فيديو قرآني", "Quran videos"],
   ["voice", "أصوات", "Voice"], ["nasheed", "همهمة", "Nasheed"],
   ["design", "تصاميم", "Designs"], ["card", "بطاقات ودعوات", "Cards & invitations"], ["cv", "سيرة ذاتية", "CVs"], ["slides", "عروض تقديمية", "Presentations"],
   ["other", "أخرى", "Other"],
@@ -27,7 +27,7 @@ export function toItem(r: Record<string, unknown>): ShowcaseItem {
 export const LIKE_TOOL: Record<string, string> = {
   post: "post", carousel: "carousel", ad: "ad-design", image: "image", "product-photo": "product-photo",
   reel: "motion-video", motion: "motion-video", video: "video-editing", "product-video": "product-video", avatar: "avatar-video",
-  lesson: "lesson-video", quran: "quran-video", voice: "voice", nasheed: "nasheed",
+  quran: "quran-video", voice: "voice", nasheed: "nasheed",
 };
 export const isVideo = (u: string) => /\.(mp4|webm|mov)(\?|$)/i.test(u);
 
@@ -41,11 +41,10 @@ export const DEFAULT_INTRO: Record<string, string> = {
   image: "صور من فكرتك مباشرة، بأي أسلوب تبيه.",
   "product-photo": "صور منتجك بخلفيات وإضاءة احترافية بدون استوديو.",
   reel: "ريلز عمودي بإيقاع سريع، جاهز للنشر.",
-  motion: "موشن جرافيك: عناوين وأرقام وشعارات تتحرك بشكل أنيق.",
+  motion: "موشن جرافيك لأي مجال: إعلانات وشرح تعليمي، رسوم وعناوين وأرقام تتحرك بشكل أنيق.",
   video: "مونتاج فيديو من لقطاتك: قص وترجمة وموسيقى.",
   "product-video": "فيديو يعرض منتجك من كل زاوية ويحفّز على الشراء.",
   avatar: "شخصية واقعية تتكلم عن مشروعك بصوتها وحركتها.",
-  lesson: "فيديوهات تعليمية مرتبة وواضحة.",
   quran: "فيديوهات قرآنية بخط وصوت وخلفيات هادئة.",
   voice: "أصوات طبيعية للتعليق والإعلانات.",
   nasheed: "همهمات وأناشيد بدون آلات موسيقية.",

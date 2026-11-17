@@ -2,8 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { cachedSystem } from "@/lib/providers/text";
 import { INDUSTRIES } from "@/design/industries";
 
-export type Scope = "all" | "post" | "ads" | "carousel" | "motion" | "montage" | "lesson";
-export const SCOPES: [Scope, string][] = [["all", "الكل"], ["post", "البوستات"], ["carousel", "الكاروسيل"], ["ads", "الإعلانات"], ["motion", "الموشن جرافيك"], ["montage", "المونتاج"], ["lesson", "الفيديو التعليمي"]];
+export type Scope = "all" | "post" | "ads" | "carousel" | "motion" | "montage";
+export const SCOPES: [Scope, string][] = [["all", "الكل"], ["post", "البوستات"], ["carousel", "الكاروسيل"], ["ads", "الإعلانات"], ["motion", "الموشن جرافيك"], ["montage", "المونتاج"]];
 export const GROUPS = [...new Set(INDUSTRIES.map((i) => i.group))];
 const DROP_DAYS = 90;               // …and is ignored after three
 
@@ -93,7 +93,7 @@ async function save(list: Found[], origin: "research" | "customers", fallback: s
 export async function learnFromCustomers() {
   const admin = createAdminClient();
   const since = new Date(Date.now() - 60 * 864e5).toISOString();
-  const { data } = await admin.from("jobs").select("tool_id, first:input->first, spec:input->spec").in("tool_id", ["post", "carousel", "ad-design", "motion-video", "video-editing", "lesson-video"]).eq("status", "done").gte("created_at", since).limit(2000);
+  const { data } = await admin.from("jobs").select("tool_id, first:input->first, spec:input->spec").in("tool_id", ["post", "carousel", "ad-design", "motion-video", "video-editing"]).eq("status", "done").gte("created_at", since).limit(2000);
   type Snap = Record<string, unknown> & { industry?: string };
   const stats: Record<string, { n: number; changed: Record<string, number>; finals: Record<string, Record<string, number>> }> = {};
   const keys = ["deco", "frame", "font", "sticker", "layout", "captions", "transition", "grade", "board", "kinds"];

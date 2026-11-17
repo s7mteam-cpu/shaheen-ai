@@ -37,10 +37,10 @@ export async function POST(req: Request) {
   const b = ((await req.json().catch(() => null)) ?? {}) as Record<string, unknown>;
   const motion = b.mode === "motion";
   const brand = String(b.brand ?? "").slice(0, 60);
-  const toolId = motion ? "motion-video" : "lesson-video";
+  const toolId = "motion-video"; // one tool for ads and educational videos (b.mode: "motion" = ad, otherwise educational)
   const topic = String(b.topic ?? "").trim().slice(0, 4000);
   if (topic.length < 5) return NextResponse.json({ error: motion ? "اكتب فكرة الفيديو." : "اكتب الدرس أو الفكرة." }, { status: 400 });
-  { const bad = await guardContent(user.id, b, motion ? "motion-video" : "lesson-video"); if (bad) return bad; }
+  { const bad = await guardContent(user.id, b, "motion-video"); if (bad) return bad; }
   const seconds = motion ? ([15, 30, 60].includes(Number(b.seconds)) ? Number(b.seconds) : 30) : LENGTHS.includes(Number(b.seconds)) ? Number(b.seconds) : 60;
   // the field is optional: if the customer didn't pick one, read it from their text
   const ind = industryById(String(b.industry ?? "")) ?? (motion ? industryById(await guessIndustry(`${brand ? `${String(b.brand)}: ` : ""}${topic}`)) : undefined);
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
   const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", toolId).single();
   if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
-  const cost = Math.max(1, Math.round(seconds / (motion ? 15 : 30))) * tool.credit_cost;
+  const cost = Math.max(1, Math.round(seconds / 15)) * tool.credit_cost;
 
   const { data: job, error } = await admin.from("jobs")
     .insert({ user_id: user.id, tool_id: toolId, title: topic.slice(0, 80), status: "running", progress: 5, input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null } })
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     // 1) script + scenes
     const words = Math.round(seconds * 2.2);
     const like = await loadLike(b.likeWork);
-    const ask = (tpl ? `${templateText(tpl, drawings ? level : "none")}\n\n` : "") + (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, motion ? "motion" : "lesson")}`;
+    const ask = (tpl ? `${templateText(tpl, drawings ? level : "none")}\n\n` : "") + (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\nالمدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, "motion")}`;
     let plan: Plan;
     try { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask, 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
     catch { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask + "\nمهم: أعد JSON صالح ومكتمل فقط.", 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }

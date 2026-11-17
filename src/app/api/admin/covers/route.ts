@@ -14,7 +14,6 @@ const PROMPTS: Record<string, string> = {
   image: "a modern creative studio desk with a large monitor displaying a breathtaking golden-hour desert landscape artwork, soft glowing light, plants and a coffee cup, cinematic",
   carousel: "a hand holding a smartphone swiping through an Instagram carousel of elegant product slides, soft bokeh background of a cosy Kuwaiti café",
   "motion-video": "a laptop on a dark wooden desk playing colourful animated motion graphics on screen, neon purple and gold reflections, creative studio at night",
-  "lesson-video": "a tablet on a bright study desk playing an animated educational video with charts and icons, open notebooks, pencils and a cup of tea, daylight from a window",
   "quran-video": "an open Holy Quran resting on a carved wooden rehal stand inside a peaceful mosque at sunset, warm golden light through arches, soft bokeh, serene and respectful",
   "video-editing": "a professional video editing desk with two monitors showing a colourful timeline, a mirrorless camera and headphones on the desk, moody teal and orange lighting",
   "product-video": "a luxury perfume bottle on a slowly rotating display pedestal with dramatic studio lighting and soft smoke, high-end product commercial shoot",

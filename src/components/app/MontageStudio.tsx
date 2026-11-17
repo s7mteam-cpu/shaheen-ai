@@ -362,7 +362,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         <Card title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
           <Sub>{L("شكل الفيديو")}</Sub>
           <div className="flex flex-wrap gap-2">
-            {spec.layout === "board" ? <span className="text-[14px] text-subtle">{L("فيديو تعليمي متحرك: الرسوم تملأ الشاشة مع صوت الشرح.")}</span>
+            {spec.layout === "board" ? <span className="text-[14px] text-subtle">{L("فيديو متحرك: الرسوم تملأ الشاشة مع صوت الشرح.")}</span>
               : LAYOUTS.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.layout ?? "full") === v} onClick={() => setSpec({ ...spec, layout: v })} className="chip">{L(l)}</button>)}
           </div>
           {spec.layout && spec.layout !== "full" && (

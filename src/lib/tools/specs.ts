@@ -106,11 +106,6 @@ export const toolSpecs: Record<string, ToolSpec> = {
     fields: [{ type: "text", name: "surah", label: "السورة", required: true, max: 3 }],
     units: () => 1,
   },
-  // Has its own start form (LessonStart) and studio (MontageStudio); this entry only registers the tool.
-  "lesson-video": {
-    fields: [{ type: "text", name: "topic", label: "الدرس أو الفكرة", required: true, max: 4000 }],
-    units: (v) => Math.max(1, Math.round(n(v.seconds, 60) / 30)),
-  },
   "motion-video": {
     inspire: true,
     fields: [

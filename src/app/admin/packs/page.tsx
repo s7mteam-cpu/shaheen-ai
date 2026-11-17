@@ -18,7 +18,6 @@ const TOOLS = [
   { id: "ad-design", label: "الإعلانات", kind: "design" },
   { id: "motion-video", label: "الموشن جرافيك", kind: "video" },
   { id: "video-editing", label: "المونتاج", kind: "video" },
-  { id: "lesson-video", label: "الفيديو التعليمي", kind: "video" },
 ] as const;
 
 // What "complete" means for one field, per kind of tool
@@ -60,7 +59,7 @@ export default async function Packs({ searchParams }: { searchParams: Promise<{ 
     lib = [["تخطيطات بالمكتبة", LAYOUT_IDS.length], ["زخارف", DECO_IDS.length], ["إطارات", FRAME_IDS.length - 1], ["أنواع الملصقات", STICKER_IDS.length], ["مجالات", INDUSTRIES.length]];
   } else {
     head = ["الإصدار", "مشاهد خاصة", "مشاهد متاحة", "فيديوهات جاهزة", "انتقالات", "ألوان", "ترجمة", "خلفيات", "ستايلات رسم", "يستعير أكثر"];
-    const list = tool.id === "lesson-video" ? INDUSTRIES.filter((i) => i.group === "تعليم وتدريب" || ["clinic", "nutrition", "tech", "law"].includes(i.id)) : INDUSTRIES;
+    const list = INDUSTRIES;
     rows = list.map((i) => {
       const p = PACKS.find((x) => x.id === i.id)!;
       const r = packReport(p);

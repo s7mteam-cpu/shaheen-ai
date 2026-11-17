@@ -35,7 +35,6 @@ export async function POST(req: Request) {
     if ("error" in built) return NextResponse.json({ error: built.error }, { status: 400 });
     input = built.input;
   }
-  if (toolId === "lesson-video") return NextResponse.json({ error: "استخدم نموذج الفيديو التعليمي." }, { status: 400 });
   if (toolId === "quran-video") return NextResponse.json({ error: "استخدم استوديو الفيديو القرآني." }, { status: 400 });
   if (toolId === "motion-video") return NextResponse.json({ error: "استخدم استوديو الموشن جرافيك." }, { status: 400 });
   if (["post", "carousel", "ad-design"].includes(toolId) && !parent) return NextResponse.json({ error: "استخدم استوديو التصميم." }, { status: 400 });

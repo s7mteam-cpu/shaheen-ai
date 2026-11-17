@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ToolRunner } from "@/components/app/ToolRunner";
 import { MotionStart } from "@/components/app/MotionStart";
-import { LessonStart } from "@/components/app/LessonStart";
 import { QuranStudio } from "@/components/app/QuranStudio";
 import { MotionStudio } from "@/components/app/MotionStudio";
 import { MontageStudio } from "@/components/app/MontageStudio";
@@ -44,6 +43,7 @@ export default async function ToolPage({ params, searchParams }: P) {
   const template = tplFull ? { id: tplFull.id, title: tplFull.title, thumb: tplFull.thumb_url, style: tplFull.style, seconds: tplFull.seconds } : undefined;
   const like = likeWork ? { id: likeWork.id, title: likeWork.title, thumb: likeWork.image, idea } : undefined;
   const [tools, profile, content, recent] = await Promise.all([getToolsL(), getSessionProfile(), getContent(), listWorks({ tool: id, limit: 8 })]);
+  if (id === "lesson-video") redirect(job ? `/app/tools/motion-video?job=${job}` : "/app/tools/motion-video"); // the educational video is now part of motion graphics
   const tool = tools.find((t) => t.id === id);
   if (!tool || !toolSpecs[id]) notFound();
   return (
@@ -63,7 +63,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : id === "lesson-video" ? ((job && (await montage(job, tool, content, "lesson-video"))) || <LessonStart likeId={likeWork?.id} idea={idea} costPer30={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} />) : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "motion-video" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -106,7 +106,7 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
   const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
   const spec = (data?.input as { spec?: MontageSpec } | null)?.spec;
   if (data?.status === "done" && spec?.segments) return await reopen(data.id, toolId, tool);
-  if (data && data.status !== "draft" && toolId === "lesson-video") return <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
+  if (data && data.status !== "draft" && toolId === "motion-video") return <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
   if (!data || data.status !== "draft" || !spec) return null;
   // animated lessons have no source footage
   const { data: signed } = spec.srcPath ? await createAdminClient().storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 6) : { data: { signedUrl: "" } };
