@@ -11,7 +11,7 @@ import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
 import { Player } from "@remotion/player";
 import Link from "next/link";
-import { Card, More } from "@/components/app/Collapse";
+import { Card } from "@/components/app/Collapse";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MotionVideo } from "@/remotion/MotionVideo";
 import { Progress } from "@/components/app/Progress";

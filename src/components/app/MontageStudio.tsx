@@ -12,7 +12,7 @@ import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
 import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
-import { Card, More } from "@/components/app/Collapse";
+import { Card } from "@/components/app/Collapse";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
 import { ILLUS_STYLES } from "@/remotion/styles";
