@@ -189,7 +189,8 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
   const th = themeFor(m, light);
   const s = Math.min(w / 1080, h / 760) * boost;
   const out = interpolate(f, [len - 8, len], [1, 0], cl);
-  const big = 104 * s;
+  const big = 104 * s * Math.max(0.6, Math.min(1.6, m.tscale ?? 1));
+  const textTop = (g.tpos ?? m.tpos) === "top";
   let body: React.ReactNode = null;
   let overlay: React.ReactNode = null;
 
@@ -1192,11 +1193,11 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
           <div style={{ display: "flex", flexDirection: left ? "row" : "row-reverse", alignItems: "center", justifyContent: "center", gap: 30 * s, direction: "ltr" }}>
             {two ? (left ? <>{charEl}{char2El}</> : <>{char2El}{charEl}</>) : <>{charEl}{prop}</>}
           </div>
-          {g.text && g.tpos !== "top" && <Words text={g.text} hl={g.hl} f={f} size={big * (tall ? 0.6 : 0.66)} th={th} delay={6} fx={g.fx} />}
-          {g.sub && g.tpos !== "top" && <Badge text={g.sub} f={f} delay={16} s={s} th={th} light={light} />}
+          {g.text && !textTop && <Words text={g.text} hl={g.hl} f={f} size={big * (tall ? 0.6 : 0.66)} th={th} delay={6} fx={g.fx} />}
+          {g.sub && !textTop && <Badge text={g.sub} f={f} delay={16} s={s} th={th} light={light} />}
         </div>
       );
-      if (g.tpos === "top") body = (
+      if (textTop) body = (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 * s }}>
           {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * (tall ? 0.66 : 0.72)} th={th} delay={4} fx={g.fx} />}
           {g.sub && <Badge text={g.sub} f={f} delay={12} s={s} th={th} light={light} />}
@@ -1215,7 +1216,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
       const each = Math.min(44, Math.max(16, (len * 0.7 - 6) / n));
       body = (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 * s }}>
-          {g.text && n > 1 && <Words text={g.text} hl={g.hl} f={f} size={big * 0.62} th={th} />}
+          {g.text && (n > 1 || textTop) && <Words text={g.text} hl={g.hl} f={f} size={big * (n > 1 ? 0.62 : 0.72)} th={th} />}
           <div style={{ display: "flex", gap: 36 * s, direction: "rtl", alignItems: "flex-start" }}>
             {list.map((it, i) => {
               const st = 3 + i * (each + 4);
@@ -1227,7 +1228,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
               );
             })}
           </div>
-          {g.text && n === 1 && <Words text={g.text} hl={g.hl} f={f} size={big * 0.72} th={th} delay={Math.round(each * 0.6)} fx={g.fx} />}
+          {g.text && n === 1 && !textTop && <Words text={g.text} hl={g.hl} f={f} size={big * 0.72} th={th} delay={Math.round(each * 0.6)} fx={g.fx} />}
           {g.sub && <Badge text={g.sub} f={f} delay={Math.round(each) + 6} s={s} th={th} light={light} />}
         </div>
       );

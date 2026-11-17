@@ -59,7 +59,10 @@ export type MontageSpec = {
   layout?: Layout;                                                // full screen, or graphics panel + speaker (split)
   panel?: "light" | "dark";                                       // look of the graphics panel in split layout
   board?: BoardStyle;                                             // background pattern of the panel
-  dstyle?: DStyle;                                                // look of the hand-drawn pictures
+  dstyle?: DStyle;
+  /** text above the drawing in every scene, and its size, for the whole video (one setting, not per scene) */
+  tpos?: "top";
+  tscale?: number;                                                // look of the hand-drawn pictures
   cstyle?: DStyle;                                                // look of the cartoon character (separate from the pictures and the board)
   graphics?: Graphic[];                                           // animated scenes synced to the speech
   quality?: "1080" | "4k";                                         // export size

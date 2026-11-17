@@ -70,6 +70,8 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     panel: s.panel === "dark" || s.panel === "light" ? s.panel : base.panel ?? "light",
     board: ok(BOARD_STYLES, s.board) ?? base.board,
     dstyle: ok(DSTYLES, s.dstyle), // from the studio; none = classic marker
+    tpos: s.tpos === "top" ? "top" : undefined,
+    tscale: typeof s.tscale === "number" && s.tscale >= 0.6 && s.tscale <= 1.6 && s.tscale !== 1 ? Math.round(s.tscale * 100) / 100 : undefined,
     cstyle: ok(DSTYLES, s.cstyle), // character look
     // pictures must be the customer's own (or already in this project)
     graphics: cleanGraphics(Array.isArray(s.graphics) ? s.graphics : base.graphics ?? [], len)

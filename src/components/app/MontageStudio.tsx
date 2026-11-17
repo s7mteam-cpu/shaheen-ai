@@ -19,7 +19,7 @@ import { ILLUS_STYLES } from "@/remotion/styles";
 import { CaptionDrag } from "@/components/app/CaptionDrag";
 import { MusicEditor } from "@/components/app/MusicEditor";
 import { BeatPanel, GrainPicker, StickerPanel, StockSearch } from "@/components/app/MontageExtras";
-import { BOARD_STYLES, DSTYLES, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
+import { BOARD_STYLES, DSTYLES, DSTYLE_BOARD, DARK_BOARDS, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
@@ -357,7 +357,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           </div>
         </Card>
 
-        <Card more title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
+        <Card title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
           <Sub>{L("شكل الفيديو")}</Sub>
           <div className="flex flex-wrap gap-2">
             {spec.layout === "board" ? <span className="text-[14px] text-subtle">{L("فيديو تعليمي متحرك: الرسوم تملأ الشاشة مع صوت الشرح.")}</span>
@@ -371,12 +371,12 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           )}
           {(spec.graphics ?? []).some((g) => g.kind === "character") && (
             <div className="flex flex-col gap-2"><span className="text-[13px] font-semibold text-navy-800">{L("ستايل الشخصية")}</span>
-              <div className="flex flex-wrap gap-2">{DSTYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.cstyle ?? "marker") === v} onClick={() => setSpec({ ...spec, cstyle: v === "marker" ? undefined : v })} className="chip">{L(v === "marker" ? "كرتون ملوّن" : l)}</button>)}</div>
+              <div className="flex flex-wrap gap-2">{DSTYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.cstyle ?? "marker") === v} onClick={() => setSpec({ ...spec, cstyle: v === "marker" ? undefined : v, ...(v !== "marker" && DSTYLE_BOARD[v] ? { board: DSTYLE_BOARD[v], panel: DARK_BOARDS.includes(DSTYLE_BOARD[v]!) ? "dark" : spec.panel } : {}) })} className="chip">{L(v === "marker" ? "كرتون ملوّن" : l)}</button>)}</div>
             </div>
           )}
           {(spec.graphics ?? []).some((g) => g.kind === "doodle" || (g.kind === "character" && g.doodle)) && (
             <div className="flex flex-col gap-2"><span className="text-[13px] font-semibold text-navy-800">{L("ستايل الرسمات")}</span>
-              <div className="flex flex-wrap gap-2">{DSTYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.dstyle ?? "marker") === v} onClick={() => setSpec({ ...spec, dstyle: v === "marker" ? undefined : v })} className="chip">{L(l)}</button>)}</div>
+              <div className="flex flex-wrap gap-2">{DSTYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.dstyle ?? "marker") === v} onClick={() => setSpec({ ...spec, dstyle: v === "marker" ? undefined : v, ...(v !== "marker" && DSTYLE_BOARD[v] ? { board: DSTYLE_BOARD[v], panel: DARK_BOARDS.includes(DSTYLE_BOARD[v]!) ? "dark" : spec.panel } : {}) })} className="chip">{L(l)}</button>)}</div>
             </div>
           )}
           {spec.layout && spec.layout !== "full" && (
@@ -384,6 +384,15 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               <div className="flex flex-wrap gap-2">{BOARD_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.board ?? "soft") === v} onClick={() => setSpec({ ...spec, board: v })} className="chip">{L(l)}</button>)}</div>
             </div>
           )}
+          <div className="flex flex-col gap-2"><span className="text-[13px] font-semibold text-navy-800">{L("مكان النص بكل المشاهد")}</span>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" aria-pressed={spec.tpos !== "top"} onClick={() => setSpec({ ...spec, tpos: undefined })} className="chip">{L("تحت الرسمة")}</button>
+              <button type="button" aria-pressed={spec.tpos === "top"} onClick={() => setSpec({ ...spec, tpos: "top" })} className="chip">{L("فوق الرسمة")}</button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2"><span className="text-[13px] font-semibold text-navy-800">{L("حجم النص بكل المشاهد")}</span>
+            <div className="flex flex-wrap gap-2">{([[0.8, "أصغر"], [1, "عادي"], [1.2, "أكبر"], [1.4, "كبير جداً"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.tscale ?? 1) === v} onClick={() => setSpec({ ...spec, tscale: v === 1 ? undefined : v })} className="chip">{L(l)}</button>)}</div>
+          </div>
           <p className="text-[13px] leading-6 text-subtle">{L("المشاهد تطلع مع كلامك بالضبط. تقدر تكتب لشاهين تحت مثلاً: «لما أقول دقيقة حط ساعة فوق»، أو تضيفها بنفسك عند اللحظة اللي واقف عليها بالفيديو.")}</p>
           <Sub>{L("المشاهد المتحركة")}</Sub>
           <div className="flex flex-col gap-2">

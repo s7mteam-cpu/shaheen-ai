@@ -206,7 +206,7 @@ export async function POST(req: Request) {
       intro: { on: false, title: String(plan.title ?? brand).slice(0, 60), subtitle: "" },
       // motion (ads): end card with the business name + contact from «هويتي»
       outro: motion && kit?.business_name ? { on: true, title: String(kit.business_name).slice(0, 60), subtitle: contact } : { on: false, title: "", subtitle: "" },
-      illus: style, borrowed: kept.borrowed, music: musicTrack, layout: "board", panel: DARK_BOARDS.includes(board) ? "dark" : panel, board, ...(dstyle && dstyle !== "marker" ? { dstyle } : {}), ...(cstyle && cstyle !== "marker" ? { cstyle } : {}), graphics, domain,
+      illus: style, borrowed: kept.borrowed, music: musicTrack, layout: "board", panel: DARK_BOARDS.includes(board) ? "dark" : panel, board, ...(dstyle && dstyle !== "marker" ? { dstyle } : {}), ...(b.tpos === "top" ? { tpos: "top" as const } : {}), ...(Number(b.tscale) >= 0.6 && Number(b.tscale) <= 1.6 && Number(b.tscale) !== 1 ? { tscale: Number(b.tscale) } : {}), ...(cstyle && cstyle !== "marker" ? { cstyle } : {}), graphics, domain,
       vo,
       videoVolume: 0, sfx: true, progress: !motion, quality: "1080",
     };

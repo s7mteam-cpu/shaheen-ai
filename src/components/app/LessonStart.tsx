@@ -34,6 +34,8 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
   const [cstyle, setCstyle] = useState<string>("marker");
   const [look, setLook] = useState<"images" | "doodle" | "cartoon">("doodle");
   const [level, setLevel] = useState<"few" | "half" | "all">("few");
+  const [tpos, setTpos] = useState<string>("");
+  const [tscale, setTscale] = useState<number>(1);
   const [illus, setIllus] = useState<string>("auto");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ look, dstyle, cstyle, cartoonMix: mix, drawLevel: level, likeWork: likeId, topic, notes, seconds, aspect, audience, dialect, panel, board, voice, music: withMusic, drawings, illus: illus === "auto" ? undefined : illus }) });
+      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tpos, tscale, look, dstyle, cstyle, cartoonMix: mix, drawLevel: level, likeWork: likeId, topic, notes, seconds, aspect, audience, dialect, panel, board, voice, music: withMusic, drawings, illus: illus === "auto" ? undefined : illus }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -80,6 +82,8 @@ export function LessonStart({ likeId, idea = "", costPer30, balance, voices }: {
       {look !== "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسمات")}</span>{chips([["marker", "✏️ ماركر ملوّن"], ["neon", "💡 نيون مضيء"], ["chalk", "🧑‍🏫 سبورة طباشير"], ["shadow", "🌑 ظل أسود"], ["blueprint", "📐 مخطط هندسي"], ["glass", "🔮 زجاج ثلاثي الأبعاد"], ["clay", "🧸 صلصال (كلاي ميشن)"]] as readonly (readonly [string, string])[], dstyle, setDstyle)}<span className="text-[13px] text-subtle">{L("هذا شكل الرسمات اللي تنرسم فقط. الشخصية والخلفية لهم خيارهم لحاله.")}</span></div>}
       {look === "cartoon" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("كم يكون الكرتون؟")}</span>{chips([["full", "كرتون كامل (الشخصية بكل مشهد والكتابة فوقها)"], ["mixed", "مختلط (لقطات كرتون + لقطات شرح وجداول)"]] as readonly (readonly [string, string])[], mix, (v) => setMix(v as "full" | "mixed"))}</div>}
       <More label={L("المزيد من الخيارات (الخلفية، ستايل الرسومات، الموسيقى، ملاحظات)")}>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("مكان النص")}</span>{chips([["", "تحت الرسمة"], ["top", "فوق الرسمة"]] as const, tpos, setTpos)}</div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("حجم النص")}</span>{chips([[0.8, "أصغر"], [1, "عادي"], [1.2, "أكبر"], [1.4, "كبير جداً"]] as const, tscale, setTscale)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل اللوحة")}</span>{chips(panels, panel, setPanel)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("خلفية اللوحة")}</span>{chips(boards, board, setBoard)}</div>
       <label className={look !== "images" ? "hidden" : "flex items-center gap-3"}><input type="checkbox" checked={drawings} onChange={(e) => setDrawings(e.target.checked)} className="h-5 w-5" /><span>{L("🎨 مشاهد مرسومة بالذكاء الاصطناعي (قصص وأمثلة وشخصيات)")}</span></label>
