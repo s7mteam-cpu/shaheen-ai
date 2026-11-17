@@ -48,6 +48,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   const [instruction, setInstruction] = useState("");
   const [musicPrompt, setMusicPrompt] = useState("");
   const [sent, setSent] = useState(false);
+  const [perScene, setPerScene] = useState(false);
   const [render, setRender] = useState<{ status: string; progress: number; url?: string }>({ status: "queued", progress: 0 });
   const player = useRef<PlayerRef>(null);
 
@@ -394,6 +395,20 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             <div className="flex flex-wrap gap-2">{([[0.8, "أصغر"], [1, "عادي"], [1.2, "أكبر"], [1.4, "كبير جداً"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={(spec.tscale ?? 1) === v} onClick={() => setSpec({ ...spec, tscale: v === 1 ? undefined : v })} className="chip">{L(l)}</button>)}</div>
           </div>
           <p className="text-[13px] leading-6 text-subtle">{L("المشاهد تطلع مع كلامك بالضبط. تقدر تكتب لشاهين تحت مثلاً: «لما أقول دقيقة حط ساعة فوق»، أو تضيفها بنفسك عند اللحظة اللي واقف عليها بالفيديو.")}</p>
+          {(spec.graphics ?? []).some((g) => g.kind === "scene" && (g.text || g.sub)) && (() => {
+            const sc = (spec.graphics ?? []).filter((g) => g.kind === "scene" && (g.text || g.sub));
+            const first = sc[0];
+            const all = (patch: Partial<typeof first>) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x) => (x.kind === "scene" && (x.text || x.sub) ? { ...x, ...patch } : x)) });
+            return (
+              <div className="flex flex-col gap-3 rounded-2xl border border-line bg-tint/50 p-3 text-[13px]">
+                <span className="font-semibold text-navy-800">{L("نص كل المشاهد (يتغيّر بكل المشاهد مرة وحدة)")}</span>
+                <label className="flex items-center gap-3">{L("مكان النص")}<input type="range" min={5} max={95} value={Math.round((first.ty ?? 0.12) * 100)} onChange={(e) => all({ ty: Number(e.target.value) / 100 })} className="w-40" /></label>
+                <label className="flex items-center gap-3">{L("الحجم")}<input type="range" min={50} max={160} value={Math.round((first.ts ?? 1) * 100)} onChange={(e) => all({ ts: Number(e.target.value) / 100 })} className="w-40" /></label>
+                <label className="flex items-center gap-2"><input type="checkbox" checked={first.shade !== false} onChange={(e) => all({ shade: e.target.checked })} />{L("ظل غامق خلف النص")}</label>
+                <button type="button" onClick={() => setPerScene(!perScene)} className="chip self-start">{perScene ? L("إخفاء تعديل كل مشهد لحاله") : L("تعديل كل مشهد لحاله (اختياري)")}</button>
+              </div>
+            );
+          })()}
           <Sub>{L("المشاهد المتحركة")}</Sub>
           <div className="flex flex-col gap-2">
             {(spec.graphics ?? []).length === 0 && <p className="text-[13px] text-subtle">{L("ما فيه مشاهد للحين.")}</p>}
@@ -436,7 +451,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                   </select>
                 )}
                 <button type="button" onClick={() => setSpec({ ...spec, graphics: (spec.graphics ?? []).filter((_, j) => j !== i) })} className="shrink-0 rounded-lg px-2 py-1 text-red-700 hover:bg-red-50">{L("حذف")}</button>
-                {g.kind === "scene" && (g.text || g.sub) && (
+                {perScene && g.kind === "scene" && (g.text || g.sub) && (
                   <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-2 text-[12px]">
                     <label className="flex items-center gap-2">{L("مكان النص")}<input type="range" min={5} max={95} value={Math.round((g.ty ?? 0.12) * 100)} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, ty: Number(e.target.value) / 100 } : x)) })} className="w-28" /></label>
                     <label className="flex items-center gap-2">{L("الحجم")}<input type="range" min={50} max={160} value={Math.round((g.ts ?? 1) * 100)} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, ts: Number(e.target.value) / 100 } : x)) })} className="w-24" /></label>
