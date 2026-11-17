@@ -84,13 +84,16 @@ export async function tagPlanJob(jobId: string, plan: { week: number; day: strin
 }
 
 /** The customer's own switch: «جهّز منشوراتي تلقائياً كل سبت». Turning it on again also lets a finished plan notify once more. */
-export async function savePlanPrefs(p: { carouselBg: "shapes" | "ai" }) {
+async function mergePrefs(patch: Record<string, unknown>) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false };
-  const { error } = await supabase.from("brand_kits").update({ plan_prefs: { carouselBg: p.carouselBg === "ai" ? "ai" : "shapes" } }).eq("user_id", user.id);
+  const { data: old } = await supabase.from("brand_kits").select("plan_prefs").eq("user_id", user.id).maybeSingle();
+  const { error } = await supabase.from("brand_kits").update({ plan_prefs: { ...((old?.plan_prefs as object) ?? {}), ...patch } }).eq("user_id", user.id);
   return { ok: !error };
 }
+export async function savePlanPrefs(p: { carouselBg: "shapes" | "ai" }) { return mergePrefs({ carouselBg: p.carouselBg === "ai" ? "ai" : "shapes" }); }
+export async function markPlanIntro() { return mergePrefs({ introSeen: true }); }
 
 export async function setAutoWeekly(on: boolean) {
   const supabase = await createClient();

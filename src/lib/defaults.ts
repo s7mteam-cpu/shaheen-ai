@@ -40,6 +40,7 @@ export type SiteContent = {
   hero: { badge: string; title: string; highlight: string; subtitle: string; cta_primary: string; cta_secondary: string; points: string[]; image: string };
   steps: { title: string; subtitle: string; items: { title: string; body: string }[] };
   tools_section: { eyebrow: string; title: string };
+  plan_intro: { title: string; subtitle: string; points: string[]; button: string };
   gallery: { title: string; subtitle: string; button: string; templates_button: string; like_enabled: boolean };
   pricing: { title: string; subtitle: string };
   faq: { items: { q: string; a: string }[] };
@@ -115,6 +116,18 @@ export const defaultContent: SiteContent = {
   },
 
   ai: { copy_provider: "claude", copy_model: "claude-haiku-5-5", chat_provider: "claude", chat_model: "claude-haiku-5-5" },
+  plan_intro: {
+    title: "خطة المحتوى",
+    subtitle: "خلّ شاهين يخطط لك النشر ويجهّز منشوراتك لحاله.",
+    points: [
+      "شاهين يحلل نشاطك ويكتب لك خطة نشر جاهزة: سبت واثنين وأربعاء، بوست وريلز وكاروسيل.",
+      "تحت كل منشور تلقى الموضوع والافتتاحية والكابشن ووقت النشر المناسب (ظهراً أو عصراً أو 11 بالليل).",
+      "اختر خطة هذا الأسبوع أو خطة الشهر كامل.",
+      "اضغط «جهّز» وشاهين ينشئ المنشورات لحاله، وتلقاها جاهزة بأعمالي تراجعها وتعدلها وتنشرها.",
+      "تبي كل سبت تنجهز لك لحالها؟ فعّل التجهيز التلقائي (للخطة الشهرية).",
+    ],
+    button: "ابدأ",
+  },
   managed_service: {
     enabled: true,
     title: "باقة الإدارة الكاملة للسوشال ميديا",
