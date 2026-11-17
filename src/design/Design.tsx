@@ -632,6 +632,44 @@ function Minimal(c: Ctx) {
   );
 }
 
+
+// ----- finish: "foil" paints the accent as a metallic gradient (gold, rose gold, copper...) like hot-foil printing -----
+const foilOn = (c: Ctx) => c.spec.finish === "foil";
+const foilGrad = (a: string) => `linear-gradient(135deg, ${mix(a, "#FFFFFF", 0.55)} 0%, ${a} 28%, ${mix(a, "#000000", 0.28)} 52%, ${mix(a, "#FFFFFF", 0.4)} 76%, ${a} 100%)`;
+/** accent as a background (flat or foil) */
+const ac = (c: Ctx) => (foilOn(c) ? foilGrad(c.accent) : c.accent);
+/** accent as text colour (flat or foil) */
+const fx = (c: Ctx): React.CSSProperties => (foilOn(c) ? { backgroundImage: foilGrad(c.accent), WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 2px 1.5px rgba(0,0,0,0.22))" } : { color: c.accent });
+/** accent as a border of w px (flat or foil) */
+const bd = (c: Ctx, w: number): React.CSSProperties => (foilOn(c) ? { borderStyle: "solid", borderWidth: w, borderImage: `${foilGrad(c.accent)} 1` } : { border: `${w}px solid ${c.accent}` });
+/** Arabesque corner flourish (drawn for the top-left, rotate for the others) */
+const Flourish = ({ c, size = 150, rot = 0 }: { c: Ctx; size?: number; rot?: number }) => {
+  const col = foilOn(c) ? "url(#flg)" : c.accent;
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" stroke={col} strokeWidth="1.8" style={{ transform: `rotate(${rot}deg)` }}>
+      <defs><linearGradient id="flg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={mix(c.accent, "#FFFFFF", 0.5)} /><stop offset="0.55" stopColor={c.accent} /><stop offset="1" stopColor={mix(c.accent, "#000000", 0.3)} /></linearGradient></defs>
+      <path d="M4 4 H64 M4 4 V64" strokeWidth="2.6" />
+      <path d="M4 100 A96 96 0 0 1 100 4" />
+      <path d="M14 70 A60 60 0 0 1 70 14" />
+      <circle cx="26" cy="26" r="7" fill={col} />
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <ellipse key={a} cx="26" cy="12" rx="3.2" ry="8" fill="none" transform={`rotate(${a} 26 26)`} />)}
+      {[[56, 26, 20], [76, 40, 50], [90, 58, 70], [26, 56, -20], [40, 76, -50], [58, 90, -70]].map(([x, y, r], i) => <path key={i} d="M0 0 C6 -8 14 -8 18 0 C14 8 6 8 0 0Z" fill={col} fillOpacity="0.85" transform={`translate(${x} ${y}) rotate(${r}) scale(0.7)`} />)}
+      <circle cx="104" cy="4" r="2.4" fill={col} /><circle cx="4" cy="104" r="2.4" fill={col} />
+    </svg>
+  );
+};
+const Corners = ({ c, inset, size = 150 }: { c: Ctx; inset: number; size?: number }) => (
+  <>
+    {[[0, 0, 0], [1, 0, 90], [1, 1, 180], [0, 1, 270]].map(([x, y, r]) => <div key={`${x}${y}`} style={{ position: "absolute", [x ? "right" : "left"]: inset, [y ? "bottom" : "top"]: inset }}><Flourish c={c} size={size} rot={r} /></div>)}
+  </>
+);
+/** paper grain over the whole card / invitation */
+const Grain = () => (
+  <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", mixBlendMode: "multiply", opacity: 0.22 }}>
+    <filter id="pgr"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" /><feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.4  0 0 0 0 0.35  0 0 0 0.55 0" /></filter>
+    <rect width="100%" height="100%" filter="url(#pgr)" />
+  </svg>
+);
 // ---------------- business cards (1050 x 600, text in Arabic, front + back) ----------------
 
 /** Contact lines (phone, mail, site, address) with icons: one column, or two. */
@@ -651,18 +689,18 @@ function CardMeta({ c, size = 25, cols = 1, color, icon }: { c: Ctx; size?: numb
 const CardName = ({ c, base, color, hcolor, align }: { c: Ctx; base: number; color?: string; hcolor?: string; align?: "center" | "right" | "left" }) =>
   gone(c, "title") ? null : (
     <h1 {...da("title")} style={{ ...tf(c), margin: 0, fontSize: fit(c.s.title, base, 12, 0.55), lineHeight: 1.12, fontWeight: 800, color: color ?? c.ink, textAlign: align, ...eo(c, "title") }}>
-      {rich(c.s.title)}{c.s.highlight && <span style={{ color: hcolor ?? c.accent }}> {rich(c.s.highlight)}</span>}
+      {rich(c.s.title)}{c.s.highlight && <span style={hcolor ? { color: hcolor } : fx(c)}> {rich(c.s.highlight)}</span>}
     </h1>
   );
 const CardRole = ({ c, size = 28, color, align }: { c: Ctx; size?: number; color?: string; align?: "center" | "right" | "left" }) =>
-  !c.s.kicker || gone(c, "kicker") ? null : <div {...da("kicker")} style={{ fontSize: size, fontWeight: 700, color: color ?? c.accent, textAlign: align, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>;
+  !c.s.kicker || gone(c, "kicker") ? null : <div {...da("kicker")} style={{ fontSize: size, fontWeight: 700, ...(color ? { color } : fx(c)), textAlign: align, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>;
 const CardBody = ({ c, size = 22, color, align, max }: { c: Ctx; size?: number; color?: string; align?: "center" | "right" | "left"; max?: number }) =>
   !c.s.body || gone(c, "body") ? null : <div {...da("body")} style={{ fontSize: size, lineHeight: 1.5, fontWeight: 500, color: color ?? c.muted, textAlign: align, maxWidth: max, ...eo(c, "body") }}>{rich(c.s.body)}</div>;
 
 function CardA(c: Ctx) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 56, background: c.accent }} />
+      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 56, background: ac(c) }} />
       <div style={{ position: "absolute", top: 50, bottom: 50, right: 56 + 54, left: 60, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         <BrandRow c={c} />
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -682,7 +720,7 @@ function CardB(c: Ctx) {
       <BrandRow c={c} />
       <CardName c={c} base={58} align="center" />
       <CardRole c={c} size={26} align="center" />
-      <div style={{ width: 130, height: 4, background: c.accent, borderRadius: 2, margin: "6px 0" }} />
+      <div style={{ width: 130, height: 4, background: ac(c), borderRadius: 2, margin: "6px 0" }} />
       <CardBody c={c} size={21} align="center" max={700} />
       {!gone(c, "meta") && c.s.meta?.length ? (
         <div {...da("meta")} style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px 34px", fontSize: 22, fontWeight: 700, color: c.ink, marginTop: 8, ...eo(c, "meta") }}>
@@ -698,7 +736,7 @@ function CardC(c: Ctx) {
   const hasImg = b.showLogo && !!b.logo?.url && !b.box;
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 380, background: c.accent, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, color: c.onAccent }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 380, background: ac(c), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, color: c.onAccent }}>
         {hasImg ? <Img src={b.logo!.url} style={{ width: 230, height: 230, objectFit: "contain" }} /> : <div style={{ width: 170, height: 170, borderRadius: "50%", border: `5px solid ${c.onAccent}`, display: "grid", placeItems: "center", fontSize: 92, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
         {!hasImg && b.name && <div style={{ fontSize: 28, fontWeight: 800, textAlign: "center", padding: "0 24px" }}>{b.name}</div>}
       </div>
@@ -706,7 +744,7 @@ function CardC(c: Ctx) {
         <CardName c={c} base={60} />
         <CardRole c={c} />
         <CardBody c={c} size={21} />
-        <div style={{ height: 3, width: 90, background: c.accent, margin: "10px 0" }} />
+        <div style={{ height: 3, width: 90, background: ac(c), margin: "10px 0" }} />
         <CardMeta c={c} size={23} />
       </div>
     </div>
@@ -717,13 +755,13 @@ function CardD(c: Ctx) {
   const bg = c.ink, fg = c.bg;
   return (
     <div style={{ position: "absolute", inset: 0, background: bg, overflow: "hidden" }}>
-      <div style={{ position: "absolute", width: 520, height: 520, borderRadius: "50%", background: c.accent, opacity: 0.9, left: -190, top: -250 }} />
+      <div style={{ position: "absolute", width: 520, height: 520, borderRadius: "50%", background: ac(c), opacity: 0.9, left: -190, top: -250 }} />
       <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", border: `3px solid ${c.accent}`, right: -200, bottom: -210, opacity: 0.8 }} />
       <div style={{ position: "absolute", top: 48, bottom: 48, right: 64, left: 64, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         <div style={{ display: "flex", justifyContent: "flex-start" }}><BrandRow c={{ ...c, ink: fg, bg: c.ink }} color={fg} /></div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <CardName c={c} base={68} color={fg} hcolor={c.accent} />
-          <CardRole c={c} color={c.accent} />
+          <CardName c={c} base={68} color={fg} />
+          <CardRole c={c} />
           <CardBody c={c} size={21} color={mix(fg, bg, 0.35)} max={640} />
         </div>
         <CardMeta c={c} cols={2} size={23} color={fg} />
@@ -738,7 +776,7 @@ function CardE(c: Ctx) {
       <div style={{ position: "absolute", top: 56, bottom: 56, right: 70, left: 70, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `3px solid ${c.ink}`, paddingBottom: 18 }}>
           <BrandRow c={c} />
-          <span style={{ width: 22, height: 22, background: c.accent }} />
+          <span style={{ width: 22, height: 22, background: ac(c) }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <CardName c={c} base={70} />
@@ -751,12 +789,74 @@ function CardE(c: Ctx) {
   );
 }
 
+function CardF(c: Ctx) {
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 200, background: ac(c), display: "flex", alignItems: "center", padding: "0 64px" }}>
+        <BrandRow c={{ ...c, ink: c.onAccent, bg: c.accent }} color={c.onAccent} />
+      </div>
+      <div style={{ position: "absolute", top: 200 + 34, bottom: 44, right: 64, left: 64, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <CardName c={c} base={58} />
+          <CardRole c={c} />
+          <CardBody c={c} size={21} max={700} />
+        </div>
+        <CardMeta c={c} cols={2} size={22} />
+      </div>
+    </div>
+  );
+}
+
+function CardG(c: Ctx) {
+  const b = c.spec.brand;
+  const hasImg = b.showLogo && !!b.logo?.url && !b.box;
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", inset: 26, ...bd(c, 2) }} />
+      <div style={{ position: "absolute", top: 26, bottom: 26, left: 26, width: 340, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
+        <div style={{ width: 230, height: 230, borderRadius: "50%", border: `3px solid ${c.accent}`, display: "grid", placeItems: "center", boxShadow: `0 0 0 10px ${c.bg}, 0 0 0 12px ${c.accent}` }}>
+          {hasImg ? <Img src={b.logo!.url} style={{ width: 150, height: 150, objectFit: "contain" }} /> : <span style={{ ...tf(c), fontSize: 120, fontWeight: 800, color: c.accent, lineHeight: 1 }}>{initial(b.name ?? c.s.title)}</span>}
+        </div>
+        {b.name && <div style={{ fontSize: 24, fontWeight: 700, color: c.ink, textAlign: "center", marginTop: 14 }}>{b.name}</div>}
+      </div>
+      <div style={{ position: "absolute", top: 70, bottom: 70, right: 80, left: 400, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
+        <CardName c={c} base={58} />
+        <CardRole c={c} />
+        <CardBody c={c} size={21} />
+        <div style={{ height: 2, width: 120, background: ac(c), margin: "10px 0" }} />
+        <CardMeta c={c} size={22} />
+      </div>
+    </div>
+  );
+}
+
+function CardH(c: Ctx) {
+  const b = c.spec.brand;
+  const hasImg = b.showLogo && !!b.logo?.url && !b.box;
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", inset: 0, background: ac(c), clipPath: "polygon(0 0, 44% 0, 26% 100%, 0 100%)" }} />
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 40, width: 230, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, color: c.onAccent }}>
+        {hasImg ? <Img src={b.logo!.url} style={{ width: 190, height: 190, objectFit: "contain" }} /> : <div style={{ width: 150, height: 150, borderRadius: "50%", border: `5px solid ${c.onAccent}`, display: "grid", placeItems: "center", fontSize: 80, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
+        {!hasImg && b.name && <div style={{ fontSize: 24, fontWeight: 800, textAlign: "center" }}>{b.name}</div>}
+      </div>
+      <div style={{ position: "absolute", top: 54, bottom: 54, right: 64, left: 470, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
+        <CardName c={c} base={58} />
+        <CardRole c={c} />
+        <CardBody c={c} size={21} />
+        <div style={{ height: 3, width: 90, background: ac(c), margin: "10px 0" }} />
+        <CardMeta c={c} size={22} />
+      </div>
+    </div>
+  );
+}
+
 function CardBack(c: Ctx) {
   const b = c.spec.brand;
   const hasImg = b.showLogo && !!b.logo?.url && !b.box;
   const fg = c.onAccent;
   return (
-    <div style={{ position: "absolute", inset: 0, background: c.accent, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, color: fg, textAlign: "center", padding: "40px 80px" }}>
+    <div style={{ position: "absolute", inset: 0, background: ac(c), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, color: fg, textAlign: "center", padding: "40px 80px" }}>
       {hasImg ? <Img src={b.logo!.url} style={{ maxWidth: 420, maxHeight: 220, objectFit: "contain" }} /> : <div style={{ width: 150, height: 150, borderRadius: "50%", border: `5px solid ${fg}`, display: "grid", placeItems: "center", fontSize: 80, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
       <CardName c={c} base={52} color={fg} hcolor={fg} align="center" />
       <CardBody c={c} size={24} color={fg} align="center" max={720} />
@@ -767,12 +867,12 @@ function CardBack(c: Ctx) {
 function CardBackB(c: Ctx) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 24, background: c.accent }} />
+      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 24, background: ac(c) }} />
       <div style={{ position: "absolute", top: 56, bottom: 56, right: 24 + 56, left: 64, display: "flex", flexDirection: "column", justifyContent: "center", gap: 18 }}>
         {c.s.kicker && !gone(c, "kicker") && <div {...da("kicker")} style={{ fontSize: 26, fontWeight: 700, color: c.accent, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>}
         <CardName c={c} base={54} />
         <CardBody c={c} size={23} max={720} />
-        <div style={{ height: 3, width: 90, background: c.accent }} />
+        <div style={{ height: 3, width: 90, background: ac(c) }} />
         <CardMeta c={c} size={25} />
       </div>
     </div>
@@ -785,11 +885,11 @@ const tf = (c: Ctx): React.CSSProperties => (c.spec.titleFont ? { fontFamily: `"
 const InvNames = ({ c, base, color, hcolor }: { c: Ctx; base: number; color?: string; hcolor?: string }) =>
   gone(c, "title") ? null : (
     <h1 {...da("title")} style={{ ...tf(c), margin: 0, fontSize: fit(c.s.title, base, 9, 0.5), lineHeight: 1.15, fontWeight: 800, color: color ?? c.ink, textAlign: "center", ...eo(c, "title") }}>
-      {rich(c.s.title)}{c.s.highlight && <><br /><span style={{ color: hcolor ?? c.accent }}>{rich(c.s.highlight)}</span></>}
+      {rich(c.s.title)}{c.s.highlight && <><br /><span style={hcolor ? { color: hcolor } : fx(c)}>{rich(c.s.highlight)}</span></>}
     </h1>
   );
 const InvKicker = ({ c, color, size = 34 }: { c: Ctx; color?: string; size?: number }) =>
-  !c.s.kicker || gone(c, "kicker") ? null : <div {...da("kicker")} style={{ ...tf(c), fontSize: c.spec.titleFont ? size * 1.2 : size, fontWeight: 700, color: color ?? c.accent, textAlign: "center", letterSpacing: 1, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>;
+  !c.s.kicker || gone(c, "kicker") ? null : <div {...da("kicker")} style={{ ...tf(c), fontSize: c.spec.titleFont ? size * 1.2 : size, fontWeight: 700, ...(color ? { color } : fx(c)), textAlign: "center", letterSpacing: 1, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>;
 const InvBody = ({ c, color, size = 33, max = 700 }: { c: Ctx; color?: string; size?: number; max?: number }) =>
   !c.s.body || gone(c, "body") ? null : <p {...da("body")} style={{ margin: 0, fontSize: fit(c.s.body, size, 90, 0.75), lineHeight: 1.75, fontWeight: 500, color: color ?? c.muted, textAlign: "center", maxWidth: max, ...eo(c, "body") }}>{rich(c.s.body)}</p>;
 /** weekday | big day | month, between thin lines */
@@ -800,7 +900,7 @@ function InvDate({ c, color, line, size = 120 }: { c: Ctx; color?: string; line?
   return (
     <div {...da("date")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 34, color: col, ...eo(c, "date") }}>
       <div style={{ textAlign: "center", fontSize: size * 0.3, fontWeight: 700, borderTop: `3px solid ${ln}`, borderBottom: `3px solid ${ln}`, padding: "10px 22px" }}>{d.weekday ?? ""}</div>
-      <div style={{ ...tf(c), fontSize: size, fontWeight: 800, lineHeight: 1, color: c.accent }}>{d.day}</div>
+      <div style={{ ...tf(c), fontSize: size, fontWeight: 800, lineHeight: 1.35, padding: "0 6px", ...fx(c) }}>{d.day}</div>
       <div style={{ textAlign: "center", fontSize: size * 0.3, fontWeight: 700, borderTop: `3px solid ${ln}`, borderBottom: `3px solid ${ln}`, padding: "10px 22px" }}>{d.month}</div>
     </div>
   );
@@ -814,17 +914,24 @@ function InvMeta({ c, color, size = 31, icon }: { c: Ctx; color?: string; size?:
     </div>
   );
 }
-const Orn = ({ color, w = 300 }: { color: string; w?: number }) => (
-  <svg width={w} height={26} viewBox="0 0 300 26" fill="none" stroke={color} strokeWidth="2"><path d="M0 13H120M180 13H300" /><path d="M150 2 L162 13 L150 24 L138 13 Z" fill={color} /><circle cx="126" cy="13" r="3" fill={color} /><circle cx="174" cy="13" r="3" fill={color} /></svg>
-);
+const Orn = ({ c, w = 300 }: { c: Ctx; w?: number }) => {
+  const color = foilOn(c) ? "url(#orng)" : c.accent;
+  return (
+    <svg width={w} height={30} viewBox="0 0 300 30" fill="none" stroke={color} strokeWidth="2">
+      <defs><linearGradient id="orng" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={mix(c.accent, "#FFFFFF", 0.5)} /><stop offset="0.5" stopColor={c.accent} /><stop offset="1" stopColor={mix(c.accent, "#000000", 0.3)} /></linearGradient></defs>
+      <path d="M0 15H108M192 15H300" /><path d="M150 3 L163 15 L150 27 L137 15 Z" fill={color} /><path d="M118 15 q10 -10 20 0 q-10 10 -20 0 M182 15 q-10 -10 -20 0 q10 10 20 0" /><circle cx="112" cy="15" r="3" fill={color} /><circle cx="188" cy="15" r="3" fill={color} />
+    </svg>
+  );
+};
 
 function InvA(c: Ctx) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <div style={{ position: "absolute", inset: 44, border: `4px solid ${c.accent}` }} />
-      <div style={{ position: "absolute", inset: 64, border: `1.5px solid ${c.accent}` }} />
+      <div style={{ position: "absolute", inset: 44, ...bd(c, 4) }} />
+      <div style={{ position: "absolute", inset: 64, ...bd(c, 1.5) }} />
+      <Corners c={c} inset={70} size={170} />
       <div style={{ position: "absolute", inset: "130px 120px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}><InvKicker c={c} /><Orn color={c.accent} /></div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}><InvKicker c={c} /><Orn c={c} /></div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28 }}><InvBody c={c} size={34} /><InvNames c={c} base={150} /></div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 36 }}><InvDate c={c} /><InvMeta c={c} /></div>
       </div>
@@ -852,10 +959,10 @@ function InvC(c: Ctx) {
       <div style={{ position: "absolute", inset: "100px 96px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         <div style={{ borderBottom: `3px solid ${c.ink}`, paddingBottom: 22, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           {!gone(c, "kicker") && <div {...da("kicker")} style={{ fontSize: 32, fontWeight: 700, color: c.ink, ...eo(c, "kicker") }}>{rich(c.s.kicker ?? "")}</div>}
-          <span style={{ width: 24, height: 24, background: c.accent }} />
+          <span style={{ width: 24, height: 24, background: ac(c) }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 30 }}>
-          {!gone(c, "title") && <h1 {...da("title")} style={{ ...tf(c), margin: 0, fontSize: fit(c.s.title, 190, 8, 0.4), lineHeight: 1.0, fontWeight: 800, color: c.ink, letterSpacing: -3, ...eo(c, "title") }}>{rich(c.s.title)}{c.s.highlight && <><br /><span style={{ color: c.accent }}>{rich(c.s.highlight)}</span></>}</h1>}
+          {!gone(c, "title") && <h1 {...da("title")} style={{ ...tf(c), margin: 0, fontSize: fit(c.s.title, 190, 8, 0.4), lineHeight: 1.0, fontWeight: 800, color: c.ink, letterSpacing: -3, ...eo(c, "title") }}>{rich(c.s.title)}{c.s.highlight && <><br /><span style={fx(c)}>{rich(c.s.highlight)}</span></>}</h1>}
           {!gone(c, "body") && c.s.body && <p {...da("body")} style={{ margin: 0, fontSize: 34, lineHeight: 1.7, fontWeight: 500, color: c.muted, maxWidth: 680, ...eo(c, "body") }}>{rich(c.s.body)}</p>}
         </div>
         <div style={{ borderTop: `3px solid ${c.ink}`, paddingTop: 34, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 30 }}>
@@ -873,12 +980,12 @@ function InvD(c: Ctx) {
   const bg = c.ink, fg = c.bg;
   return (
     <div style={{ position: "absolute", inset: 0, background: bg }}>
-      <div style={{ position: "absolute", inset: 48, border: `3px solid ${c.accent}` }} />
-      <div style={{ position: "absolute", inset: 66, border: `1px solid ${c.accent}`, opacity: 0.7 }} />
+      <div style={{ position: "absolute", inset: 48, ...bd(c, 3) }} />
+      <div style={{ position: "absolute", inset: 66, ...bd(c, 1), opacity: 0.7 }} />
       {[[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => <div key={`${x}${y}`} style={{ position: "absolute", width: 90, height: 90, [x ? "right" : "left"]: 48, [y ? "bottom" : "top"]: 48, borderTop: y ? "none" : `10px solid ${c.accent}`, borderBottom: y ? `10px solid ${c.accent}` : "none", [x ? "borderRight" : "borderLeft"]: `10px solid ${c.accent}` }} />)}
       <div style={{ position: "absolute", inset: "140px 130px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}><InvKicker c={c} /><Orn color={c.accent} /></div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 30 }}><InvBody c={c} color={mix(fg, bg, 0.3)} size={33} /><InvNames c={c} base={150} color={fg} hcolor={c.accent} /></div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}><InvKicker c={c} /><Orn c={c} /></div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 30 }}><InvBody c={c} color={mix(fg, bg, 0.3)} size={33} /><InvNames c={c} base={150} color={fg} /></div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 36 }}><InvDate c={c} color={fg} /><InvMeta c={c} color={fg} /></div>
       </div>
     </div>
@@ -889,7 +996,7 @@ function InvE(c: Ctx) {
   const d = c.s.date;
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 640, background: c.accent, color: c.onAccent, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 640, background: ac(c), color: c.onAccent, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
         {c.s.kicker && !gone(c, "kicker") && <div {...da("kicker")} style={{ fontSize: 36, fontWeight: 700, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>}
         {d && !gone(c, "date") && <div {...da("date")} style={{ textAlign: "center", ...eo(c, "date") }}><div style={{ fontSize: 330, fontWeight: 800, lineHeight: 0.95 }}>{d.day}</div><div style={{ fontSize: 56, fontWeight: 800 }}>{d.month} · {d.weekday}</div></div>}
       </div>
@@ -902,14 +1009,73 @@ function InvE(c: Ctx) {
   );
 }
 
+function InvF(c: Ctx) {
+  return (
+    <div style={{ position: "absolute", inset: 0, background: c.soft }}>
+      <div style={{ position: "absolute", inset: 76, background: c.bg, borderRadius: 40, border: `1.5px solid ${mix(c.accent, c.bg, 0.45)}`, boxShadow: `0 24px 60px ${rgba(c.ink, 0.12)}` }} />
+      {[[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => <span key={`${x}${y}`} style={{ position: "absolute", width: 16, height: 16, borderRadius: "50%", background: ac(c), [x ? "right" : "left"]: 112, [y ? "bottom" : "top"]: 112 }} />)}
+      <div style={{ position: "absolute", inset: "170px 150px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}><InvKicker c={c} /><Orn c={c} w={220} /></div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28 }}><InvBody c={c} size={32} max={640} /><InvNames c={c} base={140} /></div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 34 }}><InvDate c={c} size={108} /><InvMeta c={c} size={29} /></div>
+      </div>
+    </div>
+  );
+}
+
+function InvG(c: Ctx) {
+  const d = c.s.date;
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 270, background: ac(c), color: c.onAccent, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18 }}>
+        {d && !gone(c, "date") ? <div {...da("date")} style={{ textAlign: "center", ...eo(c, "date") }}>
+          <div style={{ fontSize: 34, fontWeight: 700 }}>{d.weekday}</div>
+          <div style={{ ...tf(c), fontSize: 190, fontWeight: 800, lineHeight: 1, margin: "10px 0" }}>{d.day}</div>
+          <div style={{ fontSize: 44, fontWeight: 800 }}>{d.month}</div>
+        </div> : null}
+      </div>
+      <div style={{ position: "absolute", top: 130, bottom: 130, right: 270 + 80, left: 90, display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "flex-start", textAlign: "right" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, alignItems: "flex-start" }}>
+          {c.s.kicker && !gone(c, "kicker") && <div {...da("kicker")} style={{ ...tf(c), fontSize: 36, fontWeight: 700, color: c.accent, ...eo(c, "kicker") }}>{rich(c.s.kicker)}</div>}
+          <div style={{ width: 90, height: 4, background: ac(c) }} />
+        </div>
+        {!gone(c, "title") && <h1 {...da("title")} style={{ ...tf(c), margin: 0, fontSize: fit(c.s.title, 130, 9, 0.5), lineHeight: 1.12, fontWeight: 800, color: c.ink, ...eo(c, "title") }}>{rich(c.s.title)}{c.s.highlight && <><br /><span style={fx(c)}>{rich(c.s.highlight)}</span></>}</h1>}
+        {!gone(c, "body") && c.s.body && <p {...da("body")} style={{ margin: 0, fontSize: 31, lineHeight: 1.75, fontWeight: 500, color: c.muted, ...eo(c, "body") }}>{rich(c.s.body)}</p>}
+        <div {...da("meta")} style={{ display: "flex", flexDirection: "column", gap: 16, fontSize: 29, fontWeight: 700, color: c.ink }}>
+          {(c.s.meta ?? []).map((m, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 14 }}><DIcon name={m.icon ?? "map-pin"} size={32} color={c.accent} />{rich(m.text)}</div>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InvH(c: Ctx) {
+  const bg = c.ink, fg = c.bg;
+  return (
+    <div style={{ position: "absolute", inset: 0, background: bg }}>
+      <div style={{ position: "absolute", inset: 52, border: `1.5px solid ${c.accent}`, opacity: 0.8, borderRadius: 24 }} />
+      <svg style={{ position: "absolute", top: 110, left: "50%", marginLeft: -170 }} width={340} height={260} viewBox="0 0 100 78" fill="none">
+        <defs><mask id="crsc"><rect width="100" height="78" fill="white" /><circle cx="60" cy="30" r="25" fill="black" /></mask></defs>
+        <circle cx="44" cy="40" r="30" fill={c.accent} mask="url(#crsc)" />
+        {[[78, 18, 5], [88, 38, 3.2], [70, 52, 3.6], [20, 12, 2.6], [92, 62, 2.4]].map(([x, y, r], i) => <path key={i} d={`M${x} ${y - r} L${x + r * 0.3} ${y - r * 0.3} L${x + r} ${y} L${x + r * 0.3} ${y + r * 0.3} L${x} ${y + r} L${x - r * 0.3} ${y + r * 0.3} L${x - r} ${y} L${x - r * 0.3} ${y - r * 0.3} Z`} fill={c.accent} />)}
+      </svg>
+      <div style={{ position: "absolute", top: 420, bottom: 130, left: 120, right: 120, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}><InvKicker c={c} /><InvBody c={c} color={mix(fg, bg, 0.3)} size={31} max={640} /></div>
+        <InvNames c={c} base={140} color={fg} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 30 }}><InvDate c={c} color={fg} size={100} /><InvMeta c={c} color={fg} size={28} /></div>
+      </div>
+    </div>
+  );
+}
+
 function InvBack(c: Ctx) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <div style={{ position: "absolute", inset: 48, border: `3px solid ${c.accent}` }} />
+      <div style={{ position: "absolute", inset: 48, ...bd(c, 3) }} />
       <div style={{ position: "absolute", inset: "150px 130px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 44 }}>
         <InvKicker c={c} />
         <InvNames c={c} base={110} />
-        <Orn color={c.accent} />
+        <Orn c={c} />
         <InvBody c={c} size={34} />
         <InvDate c={c} size={96} />
         <InvMeta c={c} size={33} />
@@ -918,7 +1084,7 @@ function InvBack(c: Ctx) {
   );
 }
 
-const RENDER = { bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout, cardA: CardA, cardB: CardB, cardC: CardC, cardD: CardD, cardE: CardE, cardBack: CardBack, cardBackB: CardBackB, invA: InvA, invB: InvB, invC: InvC, invD: InvD, invE: InvE, invBack: InvBack };
+const RENDER = { bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout, cardA: CardA, cardB: CardB, cardC: CardC, cardD: CardD, cardE: CardE, cardF: CardF, cardG: CardG, cardH: CardH, cardBack: CardBack, cardBackB: CardBackB, invA: InvA, invB: InvB, invC: InvC, invD: InvD, invE: InvE, invF: InvF, invG: InvG, invH: InvH, invBack: InvBack };
 
 export function DesignSlide({ spec, index, edit }: DesignProps) {
   const s = spec.slides[index] ?? spec.slides[0];
@@ -940,8 +1106,9 @@ export function DesignSlide({ spec, index, edit }: DesignProps) {
           <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, ${rgba(bg, 0.62)} 0%, ${rgba(bg, 0.78)} 55%, ${rgba(bg, 0.86)} 100%)` }} />
         </>
       )}
-      {!s.bg?.url && !["cta", "photo", "split", "bento", "cardC", "cardD", "cardBack", "invB", "invD", "invE"].includes(s.layout) && <Deco c={c} />}
+      {!s.bg?.url && !["cta", "photo", "split", "bento", "cardC", "cardD", "cardH", "cardBack", "invB", "invD", "invE", "invF", "invG", "invH"].includes(s.layout) && <Deco c={c} />}
       <div style={{ position: "absolute", inset: 0 }}>{L(cc)}</div>
+      {(spec.kind === "bcard" || spec.kind === "invite") && spec.finish !== "flat" && <Grain />}
       <Ribbon c={c} />
       <FrameLayer c={c} />
       <NoteBox c={c} />

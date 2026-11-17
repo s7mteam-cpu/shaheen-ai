@@ -8,8 +8,8 @@ export type DItem = { icon?: string; text: string };
 export type DColors = { bg: string; ink: string; accent: string; soft: string };
 
 export type LayoutId = "classic" | "bold" | "bento" | "minimal" | "split" | "photo" | "offer" | "quote" | "cover" | "point" | "cta"
-  | "cardA" | "cardB" | "cardC" | "cardD" | "cardE" | "cardBack" | "cardBackB"
-  | "invA" | "invB" | "invC" | "invD" | "invE" | "invBack";
+  | "cardA" | "cardB" | "cardC" | "cardD" | "cardE" | "cardF" | "cardG" | "cardH" | "cardBack" | "cardBackB"
+  | "invA" | "invB" | "invC" | "invD" | "invE" | "invF" | "invG" | "invH" | "invBack";
 
 export type Slide = {
   layout: LayoutId;
@@ -54,6 +54,8 @@ export type DesignSpec = {
   font: string;
   /** a decorative face for names / titles / the date (invitations); the body text keeps `font` */
   titleFont?: string;
+  /** "foil" paints the accent colour as a metallic foil gradient (invitations and cards); "flat" is plain ink */
+  finish?: "flat" | "foil";
   colors: DColors;
   brand: { name?: string; handle?: string; logo?: DImg | null; showLogo: boolean; box?: { x: number; y: number; w: number } | null };
   slides: Slide[];
@@ -124,6 +126,9 @@ export const LAYOUTS: Record<LayoutId, { label: string; hint: string; uses: (key
   cardC: { label: "نصفين", hint: "بطاقة عمل: نصف ملوّن فيه الشعار والنصف الثاني فيه الاسم والتفاصيل", uses: ["kicker", "title", "highlight", "body", "meta"] },
   cardD: { label: "عصري داكن", hint: "بطاقة عمل: خلفية داكنة، اسم كبير، تفاصيل بعمودين", uses: ["kicker", "title", "highlight", "body", "meta"] },
   cardE: { label: "طباعي بسيط", hint: "بطاقة عمل: خطوط فاصلة وخط واضح بدون زخرفة، للأطباء والمحامين والاستشاريين", uses: ["kicker", "title", "highlight", "body", "meta"] },
+  cardF: { label: "شريط علوي", hint: "بطاقة عمل: شريط لون عريض فوق فيه الشعار، والاسم والمسمى تحته، والتواصل بعمودين", uses: ["kicker", "title", "highlight", "body", "meta"] },
+  cardG: { label: "إطار وختم", hint: "بطاقة عمل: إطار رفيع، حلقة كبيرة فيها الشعار أو الحرف الأول، والنص بجانبها. فخم وهادئ", uses: ["kicker", "title", "highlight", "body", "meta"] },
+  cardH: { label: "قطري", hint: "بطاقة عمل: قص قطري بلون الهوية وفيه الشعار، والنص بالجهة الثانية. حديث وجريء", uses: ["kicker", "title", "highlight", "body", "meta"] },
   cardBack: { label: "خلفية: الشعار", hint: "ظهر البطاقة: لون الهوية كامل والشعار بالوسط مع العبارة التعريفية", uses: ["title", "body"] },
   cardBackB: { label: "خلفية: تفاصيل", hint: "ظهر البطاقة: العنوان وساعات العمل وحسابات التواصل", uses: ["kicker", "title", "body", "meta"] },
   invA: { label: "كلاسيكي ذهبي", hint: "دعوة: إطار مزدوج، الأسماء بالوسط، التاريخ بثلاثة أقسام. للزفاف والخطوبة الفخمة", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
@@ -131,10 +136,13 @@ export const LAYOUTS: Record<LayoutId, { label: string; hint: string; uses: (key
   invC: { label: "طباعي عصري", hint: "دعوة: أسماء ضخمة بأسلوب مجلات وخطوط رفيعة وتاريخ بارز. للأسلوب الحديث البسيط", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
   invD: { label: "ملكي داكن", hint: "دعوة: خلفية داكنة وإطار ذهبي. للحفلات الفخمة والمناسبات الرسمية", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
   invE: { label: "تاريخ بارز", hint: "دعوة: نصف علوي ملوّن فيه التاريخ ضخم، والأسماء والتفاصيل تحت. للمواليد والتخرج والأعياد", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
+  invF: { label: "ورقة وبطاقة", hint: "دعوة: ورقة بيضاء مدورة فوق خلفية ناعمة، نقاط بالزوايا، الأسماء بالوسط. ناعم ونظيف", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
+  invG: { label: "شريط التاريخ", hint: "دعوة: شريط عمودي بلون كامل فيه التاريخ بخط ضخم، والأسماء والتفاصيل بجانبه. عصري وواضح", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
+  invH: { label: "هلال ونجوم", hint: "دعوة: خلفية داكنة وهلال ونجوم بالأعلى. للعيد ورمضان والقرقيعان والمناسبات الإسلامية، ويصلح للزفاف الليلي", uses: ["kicker", "title", "highlight", "body", "date", "meta"] },
   invBack: { label: "صفحة التفاصيل", hint: "ظهر الدعوة: عنوان، ملاحظات (الزي، الاستقبال)، الوقت والمكان والتأكيد", uses: ["kicker", "title", "body", "date", "meta"] },
 };
-export const CARD_LAYOUTS: LayoutId[] = ["cardA", "cardB", "cardC", "cardD", "cardE", "cardBack", "cardBackB"];
-export const INVITE_LAYOUTS: LayoutId[] = ["invA", "invB", "invC", "invD", "invE", "invBack"];
+export const CARD_LAYOUTS: LayoutId[] = ["cardA", "cardB", "cardC", "cardD", "cardE", "cardF", "cardG", "cardH", "cardBack", "cardBackB"];
+export const INVITE_LAYOUTS: LayoutId[] = ["invA", "invB", "invC", "invD", "invE", "invF", "invG", "invH", "invBack"];
 /** Layouts a kind of design offers (posts never get a business-card or invitation layout, and the reverse). */
 export const layoutsFor = (kind: DKind): LayoutId[] => (Object.keys(LAYOUTS) as LayoutId[]).filter((id) => {
   const set = CARD_LAYOUTS.includes(id) ? "bcard" : INVITE_LAYOUTS.includes(id) ? "invite" : "post";
@@ -255,6 +263,7 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
     aspect: (Object.keys(DSIZE) as DAspect[]).includes(raw.aspect as DAspect) ? (raw.aspect as DAspect) : base.aspect,
     font: ALL_FONT_IDS.includes(String(raw.font)) ? (raw.font as string) : "Cairo",
     titleFont: ALL_FONT_IDS.includes(String(raw.titleFont)) ? (raw.titleFont as string) : undefined,
+    finish: raw.finish === "foil" ? "foil" : raw.finish === "flat" ? "flat" : undefined,
     colors: { bg: hex(c.bg, "#F3ECE2"), ink: hex(c.ink, "#1E1B18"), accent: hex(c.accent, "#B4532F"), soft: hex(c.soft, "#FBF7F1") },
     brand: { name: opt(b?.name, 50), handle: opt(b?.handle, 60), logo: img(b?.logo), showLogo: b?.showLogo !== false, box: box(b?.box) },
     slides: slides.length ? slides : [normaliseSlide({ title: "عنوانك هنا" })],
