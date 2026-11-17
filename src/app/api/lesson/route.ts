@@ -1,4 +1,5 @@
 import { CHAR_GENDER } from "@/remotion/characters";
+import { resolveTerrain } from "@/lib/server/maptiler";
 import { voiceGender } from "@/lib/voiceGender";
 import { loadLike, likeText } from "@/lib/server/like";
 import { loadTemplate, templateText } from "@/lib/server/templates";
@@ -210,6 +211,7 @@ export async function POST(req: Request) {
       vo,
       videoVolume: 0, sfx: true, progress: !motion, quality: "1080",
     };
+    await resolveTerrain(spec);
     await admin.from("jobs").update({ status: "draft", progress: 100, title: String(plan.title || topic).slice(0, 80), input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null, first: snapshot(spec as unknown as Record<string, unknown>), spec } }).eq("id", job.id);
     return NextResponse.json({ jobId: job.id });
   } catch (e) {

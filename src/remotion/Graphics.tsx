@@ -1276,6 +1276,41 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
       );
       break;
     }
+    case "terrain": {
+      // a REAL map (MapTiler tiles through our proxy): satellite photo or relief, slowly zooming in, with a tilt for depth
+      const W = Math.min(w * 0.92, 900 * s), H = W * 0.82, T = 300 * s;
+      const mode = g.mapmode ?? "sat", z = Math.max(3, Math.min(15, g.zoom ?? 10));
+      const base = m.mapBase ?? "/api/map/tile";
+      const has = g.lat !== undefined && g.lon !== undefined;
+      const n = 2 ** z, la = ((g.lat ?? 0) * Math.PI) / 180;
+      const tx = has ? (((g.lon as number) + 180) / 360) * n : 0, ty = has ? ((1 - Math.log(Math.tan(la) + 1 / Math.cos(la)) / Math.PI) / 2) * n : 0;
+      const k = interpolate(f, [0, len], [1, 1.5], { ...cl, easing: Easing.inOut(Easing.quad) });
+      const reveal = interpolate(f, [0, 10], [0, 1], { ...cl, easing: ease });
+      const tilt = interpolate(f, [0, len], [18, 6], cl);
+      const ripple = ((f - 12) % 34) / 34;
+      const cells: React.ReactNode[] = [];
+      if (has) for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        const X = Math.floor(tx) + dx, Y = Math.floor(ty) + dy;
+        if (Y < 0 || Y >= n) continue;
+        const XX = ((X % n) + n) % n;
+        cells.push(<Img key={`${dx}_${dy}`} src={`${base}/${mode}/${z}/${XX}/${Y}`} style={{ position: "absolute", left: W / 2 + (X - tx) * T, top: H / 2 + (Y - ty) * T, width: T + 1, height: T + 1 }} />);
+      }
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 * s }}>
+          {g.text && !g.place && <Words text={g.text} hl={g.hl} f={f} size={big * 0.66} th={th} />}
+          <div style={{ perspective: 1400 * s }}>
+            <div style={{ position: "relative", width: W, height: H, borderRadius: 34 * s, overflow: "hidden", background: light ? "#CFE3EE" : "#14293A", boxShadow: `0 ${24 * s}px ${70 * s}px rgba(0,0,0,.38)`, border: `${3 * s}px solid ${light ? "rgba(0,0,0,.08)" : "rgba(255,255,255,.12)"}`, opacity: reveal, transform: `rotateX(${tilt}deg) scale(${0.94 + 0.06 * reveal})` }}>
+              <div style={{ position: "absolute", inset: 0, transform: `scale(${k})`, transformOrigin: "50% 50%" }}>{cells}</div>
+              <div style={{ position: "absolute", inset: 0, background: "radial-gradient(120% 100% at 50% 50%, transparent 55%, rgba(0,0,0,.45) 100%)" }} />
+              {has && f > 10 && <div style={{ position: "absolute", left: W / 2 - 60 * s, top: H / 2 - 60 * s, width: 120 * s, height: 120 * s, borderRadius: "50%", border: `${5 * s}px solid ${th.accent}`, opacity: 1 - ripple, transform: `scale(${0.3 + ripple})` }} />}
+              {has && <div style={{ position: "absolute", left: W / 2 - 17 * s, top: H / 2 - 17 * s, width: 34 * s, height: 34 * s, borderRadius: "50%", background: th.accent, border: `${6 * s}px solid #fff`, boxShadow: "0 4px 14px rgba(0,0,0,.4)", transform: `scale(${Math.min(1.1, pop(f, 8, 9))})` }} />}
+            </div>
+          </div>
+          {(g.place || g.text) && <div style={{ transform: `scale(${Math.min(1, pop(f, 12, 11))})`, padding: `${10 * s}px ${30 * s}px`, borderRadius: 999, background: th.accent, color: "#fff", fontWeight: 800, fontSize: 54 * s * Math.max(0.6, Math.min(1.6, m.tscale ?? 1)), boxShadow: `0 ${8 * s}px ${24 * s}px rgba(0,0,0,.25)` }}>{g.place ?? g.text}</div>}
+        </div>
+      );
+      break;
+    }
     case "map":
     case "route": {
       // stylised city map (not a real map): streets, a park, the sea; a pin drops (map) or a route draws itself (route)

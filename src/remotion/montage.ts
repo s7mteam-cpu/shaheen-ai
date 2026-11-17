@@ -68,6 +68,7 @@ export type MontageSpec = {
   quality?: "1080" | "4k";                                         // export size
   domain?: string;                                                // field from the playbook (education, restaurant…)
   illus?: string;                                                 // default illustration style for AI-drawn scenes
+  mapBase?: string;                                               // base URL of the map tile proxy (set by the server)
   borrowed?: string[];                                            // scenes the AI borrowed from other fields' packs (for the library report)
 };
 
@@ -84,7 +85,7 @@ export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare"
   | "scene" | "cube" | "globe" | "text3d" | "plot" | "geometry" | "burst" | "confetti" | "dotgrid" | "sketchbars"
   | "price" | "offer" | "menu" | "rating" | "testimonial" | "contact" | "specs" | "appointment" | "beforeafter" | "countdown" | "delivery" | "hours"
   | "doodle" | "character"
-  | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring" | "map" | "route";
+  | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring" | "map" | "route" | "terrain";
 export type Graphic = {
   kind: GraphicKind;
   at: number; dur: number;                 // output seconds (video part)
@@ -98,6 +99,9 @@ export type Graphic = {
   items?: { label: string; icon?: IconName; value?: number; doodle?: string }[]; // steps, flow, checklist, bars (doodle row: one drawing per item)
   char2?: CharName; // second character that listens (two-person dialogue)
   char?: CharName; mood?: Mood; pose?: Pose; side?: "l" | "r"; tpos?: "top"; // character: who talks, how they feel, the gesture, which side
+  place?: string;                          // terrain: place name (resolved to lat/lon on the server)
+  lat?: number; lon?: number; zoom?: number; // terrain: centre and zoom of the real map
+  mapmode?: "sat" | "relief";              // terrain: satellite photo or relief map
   doodle?: string;                         // doodle: name of the hand-drawn picture (doodles.ts)
   values?: number[];                       // line chart
   fx?: "marker" | "circle" | "underline" | "typewriter"; // headline effect on the hl word
@@ -124,7 +128,7 @@ export const GRAPHIC_KINDS: [GraphicKind, string][] = [
   ["specs", "مواصفات بأيقونات"], ["appointment", "حجز موعد"], ["beforeafter", "قبل وبعد"], ["countdown", "العرض ينتهي بعد"], ["delivery", "توصيل"], ["hours", "ساعات العمل"],
   ["dish", "طبق ساخن بالبخار"], ["shine", "لمعة وبريق"], ["mist", "عطر ورذاذ"], ["ecg", "نبض القلب"], ["flight", "رحلة طيران"], ["scales", "ميزان العدالة"],
   ["shutter", "فلاش الكاميرا"], ["giftbox", "هدية تنفتح"], ["house", "بيت ينرسم ومفتاح"], ["ring", "حلقة تقدّم"],
-  ["map", "خريطة ودبوس الموقع"], ["route", "طريق على الخريطة"],
+  ["map", "خريطة ودبوس الموقع"], ["route", "طريق على الخريطة"], ["terrain", "خريطة حقيقية: أقمار صناعية / تضاريس"],
 ];
 /** Board backgrounds — each lesson can look different. */
 export type BoardStyle = "neon" | "soft" | "paper" | "grid" | "dots" | "notebook" | "chalk" | "blueprint" | "night" | "pastel" | "sunrise" | "sketch";
@@ -146,6 +150,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       kind, at: +c(Number(x?.at) || 0, 0, Math.max(0, len - 0.5)).toFixed(2), dur: +c(Number(x?.dur) || 2.5, 1, 8).toFixed(2),
       text: str(x?.text, 70), hl: str(x?.hl, 30), sub: str(x?.sub, 40),
       value: Number.isFinite(Number(x?.value)) && x?.value !== undefined && x?.value !== null && x?.value !== "" ? c(Number(x.value), 0, 1e9) : undefined,
+      place: str(x?.place, 60), lat: Number.isFinite(Number(x?.lat)) && x?.lat !== undefined && x?.lat !== null && x?.lat !== "" ? c(Number(x.lat), -85, 85) : undefined, lon: Number.isFinite(Number(x?.lon)) && x?.lon !== undefined && x?.lon !== null && x?.lon !== "" ? c(Number(x.lon), -180, 180) : undefined, zoom: Number.isFinite(Number(x?.zoom)) && x?.zoom ? c(Math.round(Number(x.zoom)), 3, 15) : undefined, mapmode: x?.mapmode === "relief" ? "relief" : x?.mapmode === "sat" ? "sat" : undefined,
       doodle: doodleName(x?.doodle), char: (Object.keys(CHARS) as CharName[]).find((k) => k === x?.char), char2: (Object.keys(CHARS) as CharName[]).find((k) => k === x?.char2), mood: MOODS.find((k) => k === x?.mood), pose: POSES.find((k) => k === x?.pose), side: x?.side === "l" ? "l" : x?.side === "r" ? "r" : undefined, tpos: x?.tpos === "top" ? "top" : undefined, suffix: str(x?.suffix, 12), icon: icon(x?.icon), emoji: str(x?.emoji, 4), items,
       bad: str(x?.bad, 50), good: str(x?.good, 50),
       values: Array.isArray(x?.values) ? (x.values as unknown[]).slice(0, 12).map(Number).filter(Number.isFinite) : undefined,
@@ -159,7 +164,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["doodle", "character", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.kind === "scene" ? !!(g.img || g.prompt) : ["doodle", "character", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || (g.kind === "terrain" && !!(g.place || g.lat !== undefined)) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];

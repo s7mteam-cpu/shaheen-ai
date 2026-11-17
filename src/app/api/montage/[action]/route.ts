@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveTerrain } from "@/lib/server/maptiler";
 import { guardContent } from "@/lib/server/moderation";
 import { box } from "@/design/spec";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -156,6 +157,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         `${packById(current.domain) && industryById(current.domain) ? `${packBrief(packById(current.domain)!, industryById(current.domain)!.label)}\n\n` : ""}مدة الفيديو: ${videoSeconds(current).toFixed(1)} ثانية.\nالكلام بالتوقيت:\n${said}\n\nالخطة الحالية:\n${JSON.stringify({ font: current.font, colors: current.colors, captions: current.captions, drift: current.drift, vignette: current.vignette, titles: current.titles, zooms: current.zooms, intro: current.intro, outro: current.outro, transition: current.transition, emojis: current.emojis, sfx: current.sfx, progress: current.progress, grade: current.grade, videoVolume: current.videoVolume, domain: current.domain ?? "", layout: current.layout ?? "full", quality: current.quality ?? "1080", panel: current.panel ?? "light", board: current.board ?? "soft", illus: current.illus ?? "", graphics: (current.graphics ?? []).map(({ url: _u, ...g }) => g), logo: current.logo ? { on: current.logo.on, pos: current.logo.pos } : null })}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي.`,
         6000, via);
       const spec = sanitize(current, { ...raw, broll: current.broll, subs2: current.subs2 }, user.id);
+      await resolveTerrain(spec);
       // new AI-drawn scenes the customer asked for (max 3 per edit)
       if ((spec.graphics ?? []).some((g) => g.kind === "scene" && !g.img)) {
         spec.graphics = await illustrateScenes(user.id, job.id, spec.graphics ?? [], spec.illus, spec.aspect, 3);
@@ -336,6 +338,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (action === "export") {
     if (!body.spec) return NextResponse.json({ error: "ما فيه فيديو." }, { status: 400 });
     const spec = sanitize(base, body.spec, user.id);
+    await resolveTerrain(spec);
     const own = (u?: string) => !!u && /\/storage\/v1\/object\/sign\/results\//.test(u) && u.includes(`/${user.id}/`);
     const lib = await admin.from("site_content").select("value").eq("key", "motion_music").maybeSingle();
     const tracks = ((lib.data?.value as { items?: { url: string }[] })?.items ?? []).map((t) => t.url);

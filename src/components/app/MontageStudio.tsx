@@ -127,6 +127,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       : kind === "steps" ? { ...base, text: L("الخطوات"), items: [{ label: L("الخطوة الأولى") }, { label: L("الخطوة الثانية") }, { label: L("الخطوة الثالثة") }] }
       : kind === "checklist" ? { ...base, text: L("تحتاج"), items: [{ label: L("فكرة واضحة") }, { label: L("أداة مناسبة") }] }
       : kind === "compare" ? { ...base, bad: L("الطريقة القديمة"), good: L("الطريقة الصح") }
+      : kind === "terrain" ? { ...base, dur: 5, place: L("الكويت"), lat: 29.3759, lon: 47.9774, zoom: 10, mapmode: "sat" as const }
       : kind === "icon" ? { ...base, icon: "bulb" as const, text: L("فكرة ذكية") }
       : kind === "bars" ? { ...base, text: L("المبيعات"), items: [{ label: L("قبل"), value: 40 }, { label: L("بعد"), value: 95 }] }
       : kind === "donut" ? { ...base, value: 75, text: L("من العملاء راضين") }
@@ -442,6 +443,18 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                     </select>
                     <select value={g.side ?? "r"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, side: e.target.value as "l" | "r" } : x)) })} aria-label={L("مكانه")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
                       <option value="r">{L("يمين")}</option><option value="l">{L("يسار")}</option>
+                    </select>
+                  </>
+                )}
+                {g.kind === "terrain" && (
+                  <>
+                    <input defaultValue={g.place ?? ""} placeholder={L("اسم المكان")} aria-label={L("اسم المكان")} onBlur={async (e) => {
+                      const q = e.target.value.trim(); if (!q || q === g.place) return;
+                      try { const r = await fetch(`/api/map/geocode?q=${encodeURIComponent(q)}`); const res = await r.json(); if (!r.ok) { alert(res.error || "ما لقيت المكان."); return; }
+                        setSpec((sp) => ({ ...sp, graphics: (sp.graphics ?? []).map((x, j) => (j === i ? { ...x, place: q, lat: res.lat, lon: res.lon, zoom: res.zoom } : x)) })); } catch { /* ignore */ }
+                    }} className="w-32 shrink-0 rounded-lg border border-line bg-white px-2 py-1" />
+                    <select value={g.mapmode ?? "sat"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, mapmode: e.target.value as "sat" | "relief" } : x)) })} aria-label={L("نوع الخريطة")} className="shrink-0 rounded-lg border border-line bg-white px-2 py-1">
+                      <option value="sat">{L("أقمار صناعية")}</option><option value="relief">{L("تضاريس")}</option>
                     </select>
                   </>
                 )}
