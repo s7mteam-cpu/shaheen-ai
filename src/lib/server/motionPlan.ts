@@ -27,10 +27,10 @@ fx (تأثير على كلمة hl): marker | circle | underline | typewriter.
 - ${drawHint}
 - كن مبدع وخلّ كل فيديو مختلف: نوّع بين أكثر من 6 أنواع مشاهد بالفيديو الواحد، ولا تمشي على نفس الترتيب كل مرة.
 - نوّع المشاهد ولا تكرر نفس النوع مرتين ورا بعض. نصوص المشاهد قصيرة جداً (كلمة إلى 5 كلمات) لأن الصوت يشرح.
-- آخر جملة خلاصة أو سؤال للمشاهد أو دعوة (arrow أو checklist للخلاصة).
+- آخر جملة خلاصة أو سؤال للمشاهد أو دعوة. نوّع الخاتمة حسب الموضوع ولا تكررها: headline كبيرة، burst، confetti، checklist، quote، icon، contact، أو شخصية تقول الخاتمة. لا تستخدم arrow إلا نادراً جداً.
 - معلومات صحيحة ودقيقة فقط، وإذا ما تعرف رقم دقيق لا تخترعه.
 - الجمل "say" مكتوبة جاهزة للنطق باللهجة المطلوبة: بدون رموز أو أقواس أو إيموجي، والأرقام تنكتب كلمات إذا صعبة.
-${guide ? `حزمة المجال (التزم فيها):\n${guide}` : `دليل المجالات (اختر الأقرب لنبرة وألوان الدرس):\n${playbookText(PLAYBOOK.filter((d) => ["education", "kids", "coach", "tech", "finance", "clinic", "nutrition", "religion", "cooking", "news", "law", "story"].includes(d.id)))}`}${motion ? `\nللإعلانات: ابدأ بخطّاف قوي، واستخدم المشاهد التجارية (price, offer, menu, rating, testimonial, contact, specs, appointment, beforeafter, countdown, delivery, hours) حسب الحزمة، واختم بدعوة واضحة (contact أو arrow). لا تخترع أرقام تواصل أو أسعار ما ذكرها العميل — إذا ما ذكرها لا تستخدم price أو contact بأرقام.` : ""}`;
+${guide ? `حزمة المجال (التزم فيها):\n${guide}` : `دليل المجالات (اختر الأقرب لنبرة وألوان الدرس):\n${playbookText(PLAYBOOK.filter((d) => ["education", "kids", "coach", "tech", "finance", "clinic", "nutrition", "religion", "cooking", "news", "law", "story"].includes(d.id)))}`}${motion ? `\nللإعلانات: ابدأ بخطّاف قوي، واستخدم المشاهد التجارية (price, offer, menu, rating, testimonial, contact, specs, appointment, beforeafter, countdown, delivery, hours) حسب الحزمة، واختم بدعوة واضحة بشكل مختلف كل مرة (contact أو headline كبيرة أو burst أو offer أو delivery) وتجنّب arrow. لا تخترع أرقام تواصل أو أسعار ما ذكرها العميل — إذا ما ذكرها لا تستخدم price أو contact بأرقام.` : ""}`;
 
 export type Line = { say?: string; dur?: number; scene?: Record<string, unknown> };
 export type Plan = { illus?: string; board?: string; title?: string; domain?: string; colors?: { accent?: string; bg?: string }; font?: string; music_prompt?: string; lines?: Line[] };
