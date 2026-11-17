@@ -1,4 +1,5 @@
 "use client";
+import { DOODLES } from "@/remotion/doodles";
 import { L, LT } from "@/lib/i18n/ui";
 import "@fontsource/tajawal/arabic-500.css";
 import "@fontsource/tajawal/arabic-800.css";
@@ -142,6 +143,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       : kind === "cycle" ? { ...base, text: L("الدورة"), items: [{ label: L("مرحلة ١") }, { label: L("مرحلة ٢") }, { label: L("مرحلة ٣") }, { label: L("مرحلة ٤") }] }
       : kind === "mindmap" ? { ...base, text: L("الموضوع"), items: [{ label: L("فرع ١") }, { label: L("فرع ٢") }, { label: L("فرع ٣") }, { label: L("فرع ٤") }] }
       : kind === "proscons" ? { ...base, items: [{ label: L("ميزة"), value: 1 }, { label: L("ميزة ثانية"), value: 1 }, { label: L("عيب"), value: 0 }] }
+      : kind === "doodle" ? { ...base, dur: 4, doodle: "bulb", text: L("فكرة ذكية") }
       : kind === "equation" ? { ...base, text: "2 + 3 = 5" }
       : kind === "fraction" ? { ...base, values: [3, 4], text: L("ثلاثة أرباع") }
       : kind === "vocab" ? { ...base, text: "Knowledge", hl: "ˈnɒlɪdʒ", sub: L("المعرفة"), good: "Knowledge is power." }
@@ -387,6 +389,11 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                 {(g.kind === "headline" || g.kind === "quote" || g.kind === "arrow") && (
                   <select value={g.fx ?? ""} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, fx: (e.target.value || undefined) as typeof x.fx, hl: x.hl || x.text?.split(/\s+/).slice(-1)[0] } : x)) })} aria-label={L("تأثير الكلمة")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
                     <option value="">{L("بدون تأثير")}</option><option value="marker">{L("تظليل")}</option><option value="circle">{L("دائرة")}</option><option value="underline">{L("خط تحت")}</option><option value="typewriter">{L("آلة كاتبة")}</option>
+                  </select>
+                )}
+                {g.kind === "doodle" && !g.items?.length && (
+                  <select value={g.doodle ?? "bulb"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, doodle: e.target.value } : x)) })} aria-label={L("الرسمة")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
+                    {Object.entries(DOODLES).map(([k, d]) => <option key={k} value={k}>{L(d.label)}</option>)}
                   </select>
                 )}
                 <button type="button" onClick={() => setSpec({ ...spec, graphics: (spec.graphics ?? []).filter((_, j) => j !== i) })} className="shrink-0 rounded-lg px-2 py-1 text-red-700 hover:bg-red-50">{L("حذف")}</button>

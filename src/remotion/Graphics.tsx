@@ -17,6 +17,7 @@ function SceneImg({ src, style }: { src: string; style: React.CSSProperties; rea
   return <Img src={src} style={style} />;
 }
 import { DARK_BOARDS, MFPS, type Graphic, type MontageSpec } from "./montage";
+import { DOODLES } from "./doodles";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 const cl = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -104,6 +105,54 @@ function Tile({ children, s, th, light, q }: { children: React.ReactNode; s: num
 }
 
 /** One graphic. f = frames since it started, len = its length in frames, w/h = box size. */
+
+/** A hand-drawn doodle: a pen draws it stroke by stroke, then it fills with colour and stays gently alive. */
+function DoodleDraw({ name, f, start, dur, size, ink, fill, skin }: { name: string; f: number; start: number; dur: number; size: number; ink: string; fill: string; skin: string }) {
+  const d = DOODLES[name] ?? DOODLES.star;
+  const refs = React.useRef<(SVGPathElement | null)[]>([]);
+  const [lens, setLens] = React.useState<number[]>([]);
+  const [pen, setPen] = React.useState<{ x: number; y: number } | null>(null);
+  React.useLayoutEffect(() => { setLens(d.p.map((_, i) => refs.current[i]?.getTotalLength() ?? 1)); }, [name]); // eslint-disable-line react-hooks/exhaustive-deps
+  const total = lens.reduce((a, x) => a + x, 0) || 1;
+  const p = interpolate(f, [start, start + dur], [0, 1], { ...cl, easing: Easing.inOut(Easing.quad) });
+  const done = f >= start + dur;
+  // which stroke is the pen on, and how far along it
+  let acc = 0, cur = d.p.length - 1, curFrac = 1;
+  const fracs = d.p.map((_, i) => {
+    const l = lens[i] ?? total / d.p.length, a = acc / total, b = (acc + l) / total; acc += l;
+    const k = Math.max(0, Math.min(1, (p - a) / Math.max(1e-6, b - a)));
+    if (p >= a && p < b) { cur = i; curFrac = k; }
+    return k;
+  });
+  React.useLayoutEffect(() => {
+    const el = refs.current[cur];
+    if (!el || done || p <= 0) { setPen(null); return; }
+    const pt = el.getPointAtLength(curFrac * (lens[cur] ?? el.getTotalLength()));
+    setPen({ x: pt.x, y: pt.y });
+  }, [f, cur, curFrac, done, p, lens]);
+  const fillK = interpolate(f, [start + dur, start + dur + 10], [0, 1], cl);
+  const pop = interpolate(f, [start, start + 8], [0.92, 1], { ...cl, easing: ease });
+  const t = Math.max(0, f - (start + dur));
+  const idle = done ? { y: Math.sin(t / 9) * 0.02 * size, r: Math.sin(t / 15) * 1.6, s: 1 + Math.sin(t / 11) * 0.015 } : { y: 0, r: 0, s: 1 };
+  const sw = Math.max(2, size * 0.032);
+  const penOut = interpolate(f, [start + dur - 2, start + dur + 6], [1, 0], cl);
+  return (
+    <div style={{ position: "relative", width: size, height: size, transform: `translateY(${idle.y}px) rotate(${idle.r}deg) scale(${pop * idle.s})` }}>
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ overflow: "visible", direction: "ltr", filter: "url(#rough)" }}>
+        {d.p.map((dd, i) => (d.f ?? []).includes(i) ? <path key={`f${i}`} d={dd} fill={fill} opacity={fillK * 0.9} stroke="none" /> : null)}
+        {d.p.map((dd, i) => <path key={i} ref={(el) => { refs.current[i] = el; }} d={dd} fill="none" stroke={ink} strokeWidth={sw * 100 / size} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - fracs[i]} style={{ opacity: fracs[i] > 0 ? 1 : 0 }} />)}
+      </svg>
+      {pen && (
+        <svg width={size * 0.8} height={size * 0.8} viewBox="-10 -70 100 100" style={{ position: "absolute", left: pen.x * size / 100 - 10 * size * 0.008, top: pen.y * size / 100 - 70 * size * 0.008, overflow: "visible", opacity: penOut, pointerEvents: "none", filter: "drop-shadow(0 3px 4px rgba(0,0,0,.25))" }}>
+          <path d="M30 -34 C40 -52 62 -56 74 -44 C84 -34 80 -18 66 -14 L40 -10 Z" fill={skin} stroke={ink} strokeWidth={2.5} strokeLinejoin="round" />
+          <path d="M0 0 L8 -14 L34 -40 L46 -30 L18 -4 Z" fill={fill} stroke={ink} strokeWidth={2.5} strokeLinejoin="round" />
+          <path d="M0 0 L8 -14 L18 -4 Z" fill={ink} />
+        </svg>
+      )}
+    </div>
+  );
+}
+
 export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graphic; m: MontageSpec; f: number; len: number; w: number; h: number; light: boolean; boost?: number }) {
   const th = themeFor(m, light);
   const s = Math.min(w / 1080, h / 760) * boost;
@@ -1085,6 +1134,34 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
           </div>
           {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * 0.75} th={th} delay={16} fx={g.fx} />}
           {g.sub && <Badge text={g.sub} f={f} delay={22} s={s} th={th} light={light} />}
+        </div>
+      );
+      break;
+    }
+    case "doodle": {
+      const row = (g.items ?? []).filter((i) => i.doodle).slice(0, 4);
+      const ink = light ? "#1B2A4A" : "#F1EEE6";
+      const skin = light ? "#F2C9A0" : "#E9B98C";
+      const list = row.length ? row : [{ label: "", doodle: g.doodle ?? "star" }];
+      const n = list.length;
+      const size = (n === 1 ? 400 : n === 2 ? 290 : n === 3 ? 230 : 190) * s;
+      const each = Math.min(44, Math.max(16, (len * 0.7 - 6) / n));
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 * s }}>
+          {g.text && n > 1 && <Words text={g.text} hl={g.hl} f={f} size={big * 0.62} th={th} />}
+          <div style={{ display: "flex", gap: 36 * s, direction: "rtl", alignItems: "flex-start" }}>
+            {list.map((it, i) => {
+              const st = 3 + i * (each + 4);
+              return (
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 * s, maxWidth: size * 1.25 }}>
+                  <DoodleDraw name={it.doodle!} f={f} start={st} dur={each} size={size} ink={ink} fill={th.accent} skin={skin} />
+                  {it.label && <div style={{ fontSize: Math.min(54, 46 * (n > 2 ? 0.8 : 1)) * s, fontWeight: 800, color: th.text, textAlign: "center", lineHeight: 1.2, opacity: interpolate(f, [st + each, st + each + 8], [0, 1], cl) }}>{it.label}</div>}
+                </div>
+              );
+            })}
+          </div>
+          {g.text && n === 1 && <Words text={g.text} hl={g.hl} f={f} size={big * 0.72} th={th} delay={Math.round(each * 0.6)} fx={g.fx} />}
+          {g.sub && <Badge text={g.sub} f={f} delay={Math.round(each) + 6} s={s} th={th} light={light} />}
         </div>
       );
       break;

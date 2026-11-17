@@ -25,6 +25,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   const [voiceover, setVoiceover] = useState(false);
   const [voice, setVoice] = useState(voices[0]?.id ?? "");
   const [drawings, setDrawings] = useState(true);
+  const [look, setLook] = useState<"images" | "doodle">("images");
   const [level, setLevel] = useState<"few" | "half" | "all">(template ? "all" : "few");
   const [illus, setIllus] = useState(template?.style ?? "auto");
   const [panel, setPanel] = useState("auto");
@@ -44,7 +45,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ drawLevel: level, templateId: template?.id, likeWork: likeId, mode: "motion", topic: idea, brand: name, industry, seconds, aspect, dialect, voiceover, voice, drawings, illus: illus === "auto" ? undefined : illus, panel }) });
+      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ look, drawLevel: level, templateId: template?.id, likeWork: likeId, mode: "motion", topic: idea, brand: name, industry, seconds, aspect, dialect, voiceover, voice, drawings, illus: illus === "auto" ? undefined : illus, panel }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -71,9 +72,10 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("الخلفية")}</span>{chips([["auto", "حسب مجالي"], ["light", "فاتحة"], ["dark", "داكنة"]] as const, panel, setPanel)}</div>
       <label className="flex items-center gap-3"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} className="h-5 w-5" /><span>{L("🎙 تعليق صوتي بصوت خليجي")}</span></label>
       {voiceover && voices.length > 0 && <select value={voice} onChange={(e) => setVoice(e.target.value)} className="field">{voices.map((v) => <option key={v.id} value={v.id}>{v.name}{v.note ? ` — ${v.note}` : ""}</option>)}</select>}
-      <label className="flex items-center gap-3"><input type="checkbox" checked={drawings} onChange={(e) => setDrawings(e.target.checked)} className="h-5 w-5" /><span>{L("🎨 مشاهد مرسومة بالذكاء الاصطناعي")}</span></label>
-      {drawings && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسومات")}</span>{chips([["auto", "شاهين يختار"], ...ILLUS_STYLES.map(([v, l]) => [v, l] as const)] as readonly (readonly [string, string])[], illus, setIllus)}</div>}
-      {drawings && <div className="flex flex-col gap-2"><span className="font-semibold">{L("كم رسمة بالفيديو؟")}</span>{chips([["few", "قليلة (2-4 مشاهد)"], ["half", "متوسطة (نص المشاهد)"], ["all", "كل المشاهد"]] as readonly (readonly [string, string])[], level, (v) => setLevel(v as "few" | "half" | "all"))}<span className="text-[13px] text-subtle">{L("كل رسمة تنرسم بالذكاء الاصطناعي وتحتاج وقت أكثر. «كل المشاهد» يعطي فيديو كله بالستايل.")}</span></div>}
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("شكل الفيديو")}</span>{chips([["images", "🖼️ مونتاج صور ومشاهد"], ["doodle", "✏️ رسوم متحركة تنرسم باليد"]] as readonly (readonly [string, string])[], look, (v) => setLook(v as "images" | "doodle"))}<span className="text-[13px] text-subtle">{look === "doodle" ? L("رسمات بسيطة تنرسم قدامك بقلم وتتحرك، فيديو متحرك حقيقي بدون صور.") : L("مشاهد ورسومات بالذكاء الاصطناعي مركّبة مع بعض.")}</span></div>
+      <label className={look === "doodle" ? "hidden" : "flex items-center gap-3"}><input type="checkbox" checked={drawings} onChange={(e) => setDrawings(e.target.checked)} className="h-5 w-5" /><span>{L("🎨 مشاهد مرسومة بالذكاء الاصطناعي")}</span></label>
+      {drawings && look === "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسومات")}</span>{chips([["auto", "شاهين يختار"], ...ILLUS_STYLES.map(([v, l]) => [v, l] as const)] as readonly (readonly [string, string])[], illus, setIllus)}</div>}
+      {drawings && look === "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("كم رسمة بالفيديو؟")}</span>{chips([["few", "قليلة (2-4 مشاهد)"], ["half", "متوسطة (نص المشاهد)"], ["all", "كل المشاهد"]] as readonly (readonly [string, string])[], level, (v) => setLevel(v as "few" | "half" | "all"))}<span className="text-[13px] text-subtle">{L("كل رسمة تنرسم بالذكاء الاصطناعي وتحتاج وقت أكثر. «كل المشاهد» يعطي فيديو كله بالستايل.")}</span></div>}
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
       {busy ? <Progress value={pct} label={L("جاري إنشاء الفيديو…")} /> : (
         <button disabled={idea.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">✨ {L("أنشئ الفيديو")} ({cost} {L("ريشة")})</button>
