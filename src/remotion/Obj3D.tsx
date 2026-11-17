@@ -5,25 +5,39 @@ import { ThreeCanvas } from "@remotion/three";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { DOODLES } from "./doodles";
 
 export type Mat3D = "glass" | "clay";
 const cache = new Map<string, THREE.BufferGeometry>();
 
-/** The doodle's closed (filled) paths, extruded into a solid with rounded edges; centred and scaled to ~2 units. */
+/** The whole drawing in 3D: filled paths become solid extrusions with rounded edges, the open line paths become round tubes. Centred and scaled to ~2.7 units. */
 function shapeFor(name: string): THREE.BufferGeometry {
   const hit = cache.get(name);
   if (hit) return hit;
   const d = DOODLES[name] ?? DOODLES.star;
-  const idx = d.f && d.f.length ? d.f : [0];
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${idx.map((i) => `<path d="${d.p[i]}"/>`).join("")}</svg>`;
-  const data = new SVGLoader().parse(svg);
-  const shapes = data.paths.flatMap((p) => SVGLoader.createShapes(p));
+  const fill = d.f ?? [];
+  const parts: THREE.BufferGeometry[] = [];
+  const parse = (i: number) => new SVGLoader().parse(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="${d.p[i]}"/></svg>`).paths;
+  const shapes = fill.flatMap((i) => parse(i).flatMap((p) => SVGLoader.createShapes(p)));
+  if (shapes.length) parts.push(new THREE.ExtrudeGeometry(shapes, { depth: 14, bevelEnabled: true, bevelThickness: 5, bevelSize: 4.5, bevelSegments: 8, curveSegments: 28 }));
+  const mid = shapes.length ? 7 : 0;
+  d.p.forEach((_, i) => {
+    if (fill.includes(i)) return;
+    for (const sp of parse(i).flatMap((p) => p.subPaths)) {
+      const raw = sp.getPoints(28);
+      const pts: THREE.Vector3[] = [];
+      for (const q of raw) { const v = new THREE.Vector3(q.x, q.y, mid); if (!pts.length || pts[pts.length - 1].distanceTo(v) > 0.4) pts.push(v); }
+      if (pts.length < 2) continue;
+      const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
+      parts.push(new THREE.TubeGeometry(curve, Math.min(220, pts.length * 3), 2.3, 10, false).toNonIndexed());
+    }
+  });
   let geo: THREE.BufferGeometry;
-  if (!shapes.length) geo = new THREE.TorusKnotGeometry(0.7, 0.26, 160, 24);
+  if (!parts.length) geo = new THREE.TorusKnotGeometry(0.7, 0.26, 160, 24);
   else {
-    geo = new THREE.ExtrudeGeometry(shapes, { depth: 14, bevelEnabled: true, bevelThickness: 5, bevelSize: 4.5, bevelSegments: 8, curveSegments: 28 });
+    geo = parts.length === 1 ? parts[0] : mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)), false) ?? parts[0];
     geo.scale(1, -1, 1); // svg y goes down
     geo.computeBoundingBox();
     const bb = geo.boundingBox!;
