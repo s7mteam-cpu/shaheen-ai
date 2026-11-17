@@ -52,19 +52,18 @@ async function pixabayCands(q: string, key: string): Promise<Cand[]> {
   });
 }
 
-/** An art director looks at the candidates' pictures and keeps only a clip that really fits the scene (0 = none is good enough). */
+/** An art director looks at the candidates' pictures and picks the best fit. Returns its 1-based number, or 0 when even the best is not good enough. */
 async function review(cands: Cand[], q: string, text: string, ctx: Ctx): Promise<number> {
+  const list = cands.slice(0, 6);
+  if (list.length < 2) return list.length;
   try {
-    const ok: Cand[] = [];
-    await Promise.all(cands.map(async (c) => { try { const h = await fetch(c.thumb, { method: "HEAD" }); if (h.ok) ok.push(c); } catch { /* skip */ } }));
-    const list = cands.filter((c) => ok.includes(c)).slice(0, 6);
-    if (list.length < 2) return list.length ? 1 : 0;
-    const r = await claudeVisionJson<{ pick?: number }>(
-      `أنت مدير فني صارم لإعلانات خليجية احترافية. ترى صور معاينة لقطات فيديو جاهزة مرقمة. اختر رقم اللقطة الأنسب للمشهد، أو 0 إذا ما فيه واحدة مناسبة فعلاً. ارفض أي لقطة: غير مرتبطة بمعنى المشهد، مبنى مهجور أو متهدم أو متسخ، مكان فوضوي أو قديم أو مظلم، جودة سيئة، وجوه قريبة لأشخاص، كتابة أو شعارات ظاهرة، أو شكلها غير فاخر وغير مناسب لإعلان تجاري. فضّل اللقطات النظيفة والمرتبة والمضيئة والمستقرة. أعد JSON: {"pick": رقم}`,
+    const r = await claudeVisionJson<{ pick?: number; score?: number }>(
+      `أنت مدير فني لإعلانات خليجية احترافية. ترى صور معاينة لقطات فيديو جاهزة مرقمة. اختر أنسب لقطة للمشهد وأعطها درجة من 0 إلى 10. ليس مطلوباً مكان بعينه، المطلوب لقطة تناسب معنى الجملة وتبان نظيفة ومرتبة ومضيئة. أنزل الدرجة جداً (أقل من 4) لأي لقطة: لا علاقة لها بالمعنى، أو مبنى مهجور أو متهدم أو متسخ، أو مكان فوضوي أو مظلم، أو جودة سيئة، أو وجه قريب لشخص، أو كتابة وشعارات ظاهرة. أعد JSON: {"pick": رقم اللقطة, "score": الدرجة}`,
       `فكرة الفيديو: ${ctx.topic.slice(0, 300)}\n${ctx.industry ? `المجال: ${ctx.industry}\n` : ""}نص المشهد: ${text || "-"}\nبحثنا عن: ${q}`,
       list.map((c, i) => ({ url: c.thumb, label: `لقطة ${i + 1}` })), 200, "claude-haiku-5-5");
-    const n = Math.round(Number(r.pick) || 0);
-    return n >= 1 && n <= list.length ? cands.indexOf(list[n - 1]) + 1 : 0;
+    const n = Math.round(Number(r.pick) || 0), score = Number(r.score);
+    if (n < 1 || n > list.length) return 1;
+    return Number.isFinite(score) && score < 4 ? 0 : n;
   } catch (e) { console.error("clip review", e); return 1; } // reviewer unavailable: take the first (already sorted)
 }
 
@@ -72,14 +71,17 @@ async function review(cands: Cand[], q: string, text: string, ctx: Ctx): Promise
 export async function findClip(q: string, text: string, minSec: number, aspect: string, userId: string, jobId: string, used: Set<number>, ctx: Ctx): Promise<Clip | null> {
   if (!q.trim()) return null;
   const px = process.env.PEXELS_API_KEY, pb = process.env.PIXABAY_API_KEY;
-  let cands = px ? await pexelsCands(q, aspect, px) : pb ? await pixabayCands(q, pb) : [];
-  cands = cands.filter((c) => !used.has(c.id));
   const wantPortrait = aspect === "9:16" || aspect === "4:5";
-  // long enough for the scene first; then the shape of the video (a tall clip is not cropped, so a shaky hand is not magnified)
-  cands.sort((a, b) => Number(b.duration >= minSec) - Number(a.duration >= minSec) || Number(b.portrait === wantPortrait) - Number(a.portrait === wantPortrait));
-  const n = await review(cands, q, text, ctx);
-  if (!n) return null;
-  const pick = cands[n - 1] ?? cands[0];
+  const tryOnce = async (query: string) => {
+    const cands = (px ? await pexelsCands(query, aspect, px) : pb ? await pixabayCands(query, pb) : []).filter((c) => !used.has(c.id));
+    // long enough for the scene first; then the shape of the video (a tall clip is not cropped, so a shaky hand is not magnified)
+    cands.sort((x, y) => Number(y.duration >= minSec) - Number(x.duration >= minSec) || Number(y.portrait === wantPortrait) - Number(x.portrait === wantPortrait));
+    const n = await review(cands, query, text, ctx);
+    return n ? cands[n - 1] : null;
+  };
+  const words = q.trim().split(/\s+/);
+  const pick = (await tryOnce(q)) ?? (words.length > 2 ? await tryOnce(words.slice(0, 2).join(" ")) : null);
+  if (!pick) return null;
   const f = pick.file();
   if (!f) return null;
   const res = await fetch(f.url);

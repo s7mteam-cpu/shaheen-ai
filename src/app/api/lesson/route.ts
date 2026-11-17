@@ -189,7 +189,12 @@ export async function POST(req: Request) {
     // 3b) AI-drawn scenes, all at once
     if (drawings) graphics = await illustrateScenes(user.id, job.id, graphics, style, aspect, level === "all" ? 10 : level === "half" ? 8 : 6);
     else graphics = graphics.filter((g) => g.kind !== "scene");
-    if (look === "footage" && clipScenes.length) graphics = [...graphics, ...(await fillClips(clipScenes, aspect, user.id, job.id, { topic, industry: ind?.label }))].sort((a, b) => a.at - b.at);
+    if (look === "footage" && clipScenes.length) {
+      const filled = await fillClips(clipScenes, aspect, user.id, job.id, { topic, industry: ind?.label });
+      // no real clip at all means this is not what the customer asked for: refund instead of handing over a different kind of video
+      if (!filled.some((g) => g.kind === "clip")) throw new Error("no clips found");
+      graphics = [...graphics, ...filled].sort((a, b) => a.at - b.at);
+    }
     if (photoScenes.length) graphics = [...graphics, ...photoScenes].sort((a, b) => a.at - b.at);
     await admin.from("jobs").update({ progress: 80 }).eq("id", job.id);
 
@@ -249,6 +254,6 @@ export async function POST(req: Request) {
     console.error("lesson", e);
     await admin.from("jobs").update({ status: "failed", error: `lesson: ${e instanceof Error ? e.message : String(e)}`.slice(0, 500) }).eq("id", job.id);
     await admin.rpc("refund_job", { p_job: job.id });
-    return NextResponse.json({ error: motion ? "ما قدرنا نسوي الفيديو الحين، ورجّعنا لك الريش. حاول مرة ثانية." : "ما قدرنا نسوي الدرس الحين، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
+    return NextResponse.json({ error: motion ? (real ? "ما لقينا لقطات تناسب النص الحين، ورجّعنا لك الريش. جرّب تعدّل النص أو تحاول مرة ثانية." : "ما قدرنا نسوي الفيديو الحين، ورجّعنا لك الريش. حاول مرة ثانية.") : "ما قدرنا نسوي الدرس الحين، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
   }
 }
