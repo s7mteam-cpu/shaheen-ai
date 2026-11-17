@@ -10,6 +10,7 @@ import { requireUser } from "@/lib/server/auth";
 import { aiJson } from "@/lib/providers/text";
 import { music, speakable, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveResult } from "@/lib/providers/storage";
+import { cleanPhotos, importPhotos } from "@/lib/server/photos";
 import { brandHint } from "@/lib/tools/run";
 import { illustrateScenes } from "@/lib/server/illustrate";
 import { ILLUS_STYLES } from "@/remotion/styles";
@@ -102,7 +103,11 @@ export async function POST(req: Request) {
     // 1) script + scenes
     const words = Math.round(seconds * 2.2);
     const like = await loadLike(b.likeWork);
-    const ask = (tpl ? `${templateText(tpl, drawings ? level : "none")}\n\n` : "") + (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\n${voiceOn ? `نبرة التعليق: ${TONE_HINT[tone]}\n` : ""}المدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, "motion")}`;
+    // the customer's own photos (product, dish, property…): brought in first, the writer places each one in a scene
+    const photoIn = cleanPhotos(b.photos, user.id);
+    const photoOut = (await importPhotos(user.id, job.id, photoIn, aspect)).map((p, i) => (p ? { ...p, n: i + 1 } : null)).filter((p): p is { img: string; label: string; n: number } => !!p);
+    const photoAsk = photoOut.length ? `\nصور العميل نفسه (${photoOut.length}): ${photoOut.map((p) => `${p.n}) ${p.label || "صورة"}`).join(" · ")}.\nلازم تستخدم كل صورة مرة وحدة على الأقل، بمشهد من نوع scene بحقل photo برقم الصورة (بدون prompt)، بالوقت اللي يتكلم فيه الصوت عنها، ويطلع فوقها نص قصير (text وhl وsub مثل الاسم أو السعر أو العرض). لا ترسم بدالها. هذي الصور مستثناة من أي منع لمشاهد scene.\n` : "";
+    const ask = (tpl ? `${templateText(tpl, drawings ? level : "none")}\n\n` : "") + (like ? `${likeText(like)}\n\n` : "") + `${motion ? "فكرة الفيديو" : "الدرس / الفكرة"}:\n${topic}\n\n${brand ? `اسم النشاط: ${brand}\n` : ""}${motion ? "" : `الجمهور: ${AUDIENCE[audience]}\n`}اللغة: ${DIALECT[dialect]}\n${voiceOn ? `نبرة التعليق: ${TONE_HINT[tone]}\n` : ""}المدة: ${seconds} ثانية تقريباً (${voiceOn ? `حوالي ${words} كلمة بالمجموع، ${Math.round(words / 11)} جملة تقريباً` : `${Math.max(3, Math.round(seconds / 3.5))} مشاهد تقريباً، بدون صوت`}).\n${b.notes ? `ملاحظات العميل: ${String(b.notes).slice(0, 500)}\n` : ""}${await brandHint(user.id)}\n${await trendsFor(ind?.id, "motion")}${photoAsk}`;
     let plan: Plan;
     try { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask, 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
     catch { plan = await aiJson<Plan>(SYSTEM(drawHint, motion, guide, voiceOn), ask + "\nمهم: أعد JSON صالح ومكتمل فقط.", 9000, { provider: "claude", model: "claude-sonnet-5-5" }); }
@@ -161,7 +166,11 @@ export async function POST(req: Request) {
     }
     await admin.from("jobs").update({ progress: 65 }).eq("id", job.id);
     const style = illus ?? (ILLUS_STYLES.some((x) => x[0] === plan.illus) ? plan.illus : pack?.illus[0] ?? "gulf-cartoon");
-    const kept = enforcePack(cleanGraphics(timed.filter((l) => l.scene).map((l, i, all) => ({ ...l.scene, at: Math.max(0, l.s - 0.1), dur: Math.max(1.6, ((all[i + 1]?.s ?? total) - l.s) - 0.05) })), total), pack);
+    const cleaned = cleanGraphics(timed.filter((l) => l.scene).map((l, i, all) => ({ ...l.scene, at: Math.max(0, l.s - 0.1), dur: Math.max(1.6, ((all[i + 1]?.s ?? total) - l.s) - 0.05) })), total);
+    // scenes made from the customer's own photos are kept apart: the pack rules and the cartoon switch must not remove them
+    const photoScenes = cleaned.filter((g) => g.kind === "scene" && g.photo && photoOut.some((p) => p.n === g.photo))
+      .map((g) => { const p = photoOut.find((x) => x.n === g.photo)!; const { photo: _p, prompt: _q, ...rest } = g; void _p; void _q; return { ...rest, img: p.img }; });
+    const kept = enforcePack(cleaned.filter((g) => !(g.kind === "scene" && g.photo)), pack);
     let graphics = kept.graphics;
     if (look === "cartoon" && full) { // cartoon in every scene: turn any other scene into the main character with its text on top
       const count: Record<string, number> = {};
@@ -173,6 +182,7 @@ export async function POST(req: Request) {
     // 3b) AI-drawn scenes, all at once
     if (drawings) graphics = await illustrateScenes(user.id, job.id, graphics, style, aspect, level === "all" ? 10 : level === "half" ? 8 : 6);
     else graphics = graphics.filter((g) => g.kind !== "scene");
+    if (photoScenes.length) graphics = [...graphics, ...photoScenes].sort((a, b) => a.at - b.at);
     await admin.from("jobs").update({ progress: 80 }).eq("id", job.id);
 
     // 4) background music (optional, never for religious content)

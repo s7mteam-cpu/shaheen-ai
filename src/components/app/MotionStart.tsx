@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { LikeNote } from "@/components/app/LikeNote";
 import { Progress } from "@/components/app/Progress";
 import { IndustryPicker } from "@/components/app/IndustryPicker";
+import { PhotoPicker, type Photo } from "@/components/app/PhotoPicker";
+import { industryById } from "@/design/industries";
 import { More } from "@/components/app/Collapse";
 import { focusFor } from "@/lib/videoFocus";
 import { TONES, VOICE_AGES } from "@/lib/voiceMatch";
@@ -15,6 +17,11 @@ const adLengths = [[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيق�
 const eduLengths = [[30, "30 ثانية"], [60, "دقيقة"], [90, "دقيقة ونص"], [120, "دقيقتين"]] as const;
 const aspects = [["9:16", "ريلز / تيك توك 9:16"], ["1:1", "مربع 1:1"], ["16:9", "يوتيوب عريض 16:9"]] as const;
 const audiences = [["kids", "أطفال"], ["students", "طلاب"], ["adults", "عامة الناس"], ["pros", "متخصصين"]] as const;
+const PHOTO_TITLE: Record<string, string> = {
+  "أكل وشرب": "صور الأطباق والمنتجات", "تعليم وتدريب": "صور الشرح أو المادة أو المكان", "بناء وعقار": "صور العقار أو المشروع",
+  "جمال وأزياء": "صور المنتج أو قبل وبعد", "سيارات وخدمات": "صور السيارة أو الخدمة", "صحة ورياضة": "صور الخدمة أو النتيجة",
+  "متاجر وتقنية": "صور المنتج", "خدمات": "صور الخدمة أو العمل",
+};
 const dialects: (readonly [string, string])[] = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const), ["en", "English"]];
 const panels = [["auto", "حسب مجالي"], ["light", "فاتحة"], ["dark", "داكنة"]] as const;
 const boards = [["auto", "تلقائي (مختلف كل مرة)"], ["soft", "ناعم"], ["paper", "ورق"], ["grid", "مربعات"], ["dots", "نقاط"], ["notebook", "دفتر مسطّر"], ["chalk", "سبورة طباشير"], ["blueprint", "مخطط أزرق"], ["night", "ليلي"], ["neon", "نيون داكن"], ["pastel", "باستيل للأطفال"], ["sunrise", "شروق دافئ"]] as const;
@@ -34,6 +41,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   const [dialect, setDialect] = useState<string>("kuwaiti");
   useEffect(() => { setDialect(myDialect()); }, []);
   const [industry, setIndustry] = useState(savedIndustry ?? "");
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [voiceover, setVoiceover] = useState(true);
   const [voice, setVoice] = useState(""); // "" = Shaheen picks the best match
   const [vgender, setVgender] = useState("");
@@ -64,6 +72,8 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
     return () => clearInterval(t);
   }, [busy]);
 
+  const photoTitle = PHOTO_TITLE[industryById(industry)?.group ?? ""] ?? "صور منتجك أو نشاطك";
+  const photosBody = photos.map((p) => ({ path: p.path, bucket: p.bucket, label: p.label }));
   const focuses = focusFor(industry);
   const focusNote = focuses.find((f) => f.id === focus)?.note ?? "";
   function pickGoal(g: "ad" | "edu") {
@@ -88,7 +98,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
         mode: edu ? "lesson" : "motion", topic: idea, notes: [focusNote, notes].filter(Boolean).join("\n"), brand: edu ? undefined : name, industry, audience, seconds, aspect, dialect, panel: panel === "auto" ? undefined : panel, board,
         voiceover: edu ? true : voiceover, voice, vgender, vage, tone, music: withMusic, look, dstyle, cstyle, cartoonMix: mix, drawLevel: level, drawings, illus: illus === "auto" ? undefined : illus,
-        tpos, tscale, templateId: template?.id, likeWork: likeId }) });
+        tpos, tscale, templateId: template?.id, likeWork: likeId, photos: photosBody }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -100,7 +110,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ auto: true, topic: idea, brand: name, likeWork: likeId }) });
+      const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ auto: true, topic: idea, brand: name, industry, likeWork: likeId, photos: photosBody }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -115,15 +125,17 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
 
   if (auto) return (
     <form onSubmit={goAuto} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
+      <IndustryPicker value={industry} onChange={setIndustry} title={false} optional hint="شو مجالك؟ (اختياري) شاهين يعرف منه النبرة والمشاهد والألوان المناسبة. إذا تخطيته يخمّنه من كلامك." />
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("اكتب اللي تبيه، وشاهين يسوي الباقي")}</span>
         <textarea required minLength={5} maxLength={8000} rows={6} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
           placeholder={L("مثال: إعلان لمطعم فريد الصويلح بالكويت، خصم 20٪ على الوجبات العائلية هالأسبوع، ريلز مع تعليق صوتي. أو: اشرح للطلاب الفرق بين الكسور العشرية والاعتيادية.")} /></label>
-      <p className="text-[13px] text-subtle">{L("شاهين يختار لحاله: المجال، إعلان أو شرح، المدة، المقاس، الستايل. اكتب اللي تبيه بكلامك (مدة، مقاس، «بدون صوت»…) ويلتزم فيه. والفيديو يطلع بتعليق صوتي خليجي إلا إذا طلبت غير ذلك.")}</p>
+      <PhotoPicker photos={photos} onChange={setPhotos} title={photoTitle} hint="ارفع صورك الحقيقية وتطلع بالفيديو بدل الرسم." />
+      <p className="text-[13px] text-subtle">{L("شاهين يختار لحاله: إعلان أو شرح، المدة، المقاس، الستايل. اكتب اللي تبيه بكلامك (مدة، مقاس، «بدون صوت»…) ويلتزم فيه. والفيديو يطلع بتعليق صوتي خليجي إلا إذا طلبت غير ذلك.")}</p>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
       {busy ? <Progress value={pct} label={L("شاهين يكتب ويرسم ويجهّز الفيديو…")} /> : (
         <button disabled={idea.trim().length < 5 || balance < costPer15} className="btn btn-gold py-3.5 text-[16px]">✨ {L("أنشئ الفيديو")}</button>
       )}
-      {!busy && <button type="button" onClick={() => setAuto(false)} className="btn btn-primary py-3.5 text-[16px]">⚙️ {L("أبي أختار بنفسي")}</button>}
+      {!busy && <button type="button" onClick={() => { setAuto(false); if (industry && !focus) pickField(industry); }} className="btn btn-primary py-3.5 text-[16px]">⚙️ {L("أبي أختار بنفسي")}</button>}
       {!busy && <p className="text-center text-[13px] text-subtle">{L("اختار بنفسك: المجال، الستايل، المدة، الصوت، الخلفية…")}</p>}
       {!busy && <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة: من")} {costPer15} {L("ريشة (15 ثانية)، وفيديو 30 ثانية")} {costPer15 * 2} {L("ريشة.")}</p>}
       {balance < costPer15 && <p className="text-center text-[14px] text-red-700">{L("رصيدك ما يكفي.")} <a href="/app/subscribe" className="underline">{L("زوّد رصيدك")}</a></p>}
@@ -140,6 +152,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       <label className="flex flex-col gap-2"><span className="font-semibold">{edu ? L("الدرس أو الفكرة") : L("فكرة الفيديو")}</span>
         <textarea required minLength={5} maxLength={8000} rows={edu ? 6 : 4} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
           placeholder={edu ? L("مثال: اشرح للطلاب الفرق بين الكسور العشرية والاعتيادية مع مثال من الحياة اليومية. أو الصق نص الدرس كامل.") : L("مثال: فيديو توعوي عن خرافات الكربوهيدرات لعيادة تغذية، ينتهي بدعوة لحجز استشارة")} /></label>
+      <PhotoPicker photos={photos} onChange={setPhotos} title={photoTitle} hint="ارفع صورك الحقيقية وتطلع بالفيديو بدل الرسم." />
       {edu
         ? <div className="flex flex-col gap-2"><span className="font-semibold">{L("لمين الفيديو؟")}</span>{chips(audiences, audience, setAudience)}</div>
         : <label className="flex flex-col gap-2"><span className="font-semibold">{L("اسم نشاطك")} <span className="font-normal text-subtle">{L("(اختياري)")}</span></span>
