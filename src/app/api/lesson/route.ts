@@ -11,7 +11,7 @@ import { aiJson } from "@/lib/providers/text";
 import { music, speakable, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveResult } from "@/lib/providers/storage";
 import { cleanPhotos, importPhotos } from "@/lib/server/photos";
-import { fillClips, footageReady } from "@/lib/server/footage";
+import { fillClips, footageReady, footageError } from "@/lib/server/footage";
 import { brandHint } from "@/lib/tools/run";
 import { illustrateScenes } from "@/lib/server/illustrate";
 import { ILLUS_STYLES } from "@/remotion/styles";
@@ -192,7 +192,7 @@ export async function POST(req: Request) {
     if (look === "footage" && clipScenes.length) {
       const filled = await fillClips(clipScenes, aspect, user.id, job.id, { topic, industry: ind?.label });
       // no real clip at all means this is not what the customer asked for: refund instead of handing over a different kind of video
-      if (!filled.some((g) => g.kind === "clip")) throw new Error("no clips found");
+      if (!filled.some((g) => g.kind === "clip")) throw new Error(`no clips found: ${footageError() || "search returned nothing"} | q=${clipScenes.map((g) => g.q).join(" ; ").slice(0, 200)}`);
       graphics = [...graphics, ...filled].sort((a, b) => a.at - b.at);
     }
     if (photoScenes.length) graphics = [...graphics, ...photoScenes].sort((a, b) => a.at - b.at);

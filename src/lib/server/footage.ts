@@ -29,7 +29,7 @@ type Ctx = { topic: string; industry?: string };
 async function pexelsCands(q: string, aspect: string, key: string): Promise<Cand[]> {
   const need = NEED[aspect] ?? NEED["9:16"];
   const r = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&orientation=${need.orient}&size=medium&per_page=10`, { headers: { Authorization: key } });
-  if (!r.ok) return [];
+  if (!r.ok) { lastErr = `Pexels ${r.status}`; console.error("pexels", lastErr); return []; }
   const d = (await r.json()) as { videos?: (PVideo & { image?: string; width?: number; height?: number })[] };
   return (d.videos ?? []).flatMap((v) => {
     const f = bestFile(v, aspect);
@@ -42,15 +42,20 @@ type XVideo = { id: number; duration: number; user?: string; picture_id?: string
 
 /** Pixabay (free for commercial use, no attribution needed): used when there is no Pexels key. */
 async function pixabayCands(q: string, key: string): Promise<Cand[]> {
-  const r = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&video_type=film&safesearch=true&per_page=16`);
-  if (!r.ok) return [];
+  const r = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q.slice(0, 100))}&safesearch=true&per_page=20`);
+  if (!r.ok) { const t = await r.text().catch(() => ""); lastErr = `Pixabay ${r.status} ${t.slice(0, 80)}`; console.error("pixabay", lastErr); return []; }
   const d = (await r.json()) as { hits?: XVideo[] };
   return (d.hits ?? []).flatMap((v) => {
-    const f = (v.videos.large?.url && (!v.videos.large.size || v.videos.large.size < 40e6) ? v.videos.large : v.videos.medium) ?? v.videos.large;
-    if (!f?.url || !v.picture_id) return [];
-    return [{ id: v.id, duration: v.duration, thumb: `https://i.vimeocdn.com/video/${v.picture_id}_640x360.jpg`, credit: `${v.user ? `${v.user} · ` : ""}Pixabay`, portrait: (f.height ?? 0) >= (f.width ?? 1), file: () => ({ url: f.url }) }];
+    const vf = v.videos as Record<string, (XFile & { thumbnail?: string }) | undefined>;
+    const f = (vf.large?.url && (!vf.large.size || vf.large.size < 40e6) ? vf.large : vf.medium) ?? vf.large ?? vf.small;
+    if (!f?.url) return [];
+    const thumb = vf.medium?.thumbnail || vf.large?.thumbnail || vf.small?.thumbnail || (v.picture_id ? `https://i.vimeocdn.com/video/${v.picture_id}_640x360.jpg` : "");
+    return [{ id: v.id, duration: v.duration, thumb, credit: `${v.user ? `${v.user} · ` : ""}Pixabay`, portrait: (f.height ?? 0) >= (f.width ?? 1), file: () => ({ url: f.url }) }];
   });
 }
+
+let lastErr = "";
+export const footageError = () => lastErr;
 
 /** An art director looks at the candidates' pictures and picks the best fit. Returns its 1-based number, or 0 when even the best is not good enough. */
 async function review(cands: Cand[], q: string, text: string, ctx: Ctx): Promise<number> {
@@ -73,14 +78,21 @@ export async function findClip(q: string, text: string, minSec: number, aspect: 
   const px = process.env.PEXELS_API_KEY, pb = process.env.PIXABAY_API_KEY;
   const wantPortrait = aspect === "9:16" || aspect === "4:5";
   const tryOnce = async (query: string) => {
-    const cands = (px ? await pexelsCands(query, aspect, px) : pb ? await pixabayCands(query, pb) : []).filter((c) => !used.has(c.id));
+    let all = px ? await pexelsCands(query, aspect, px) : [];
+    if (!all.length && pb) all = await pixabayCands(query, pb);
+    const cands = all.filter((c) => !used.has(c.id));
     // long enough for the scene first; then the shape of the video (a tall clip is not cropped, so a shaky hand is not magnified)
     cands.sort((x, y) => Number(y.duration >= minSec) - Number(x.duration >= minSec) || Number(y.portrait === wantPortrait) - Number(x.portrait === wantPortrait));
     const n = await review(cands, query, text, ctx);
     return n ? cands[n - 1] : null;
   };
   const words = q.trim().split(/\s+/);
-  const pick = (await tryOnce(q)) ?? (words.length > 2 ? await tryOnce(words.slice(0, 2).join(" ")) : null);
+  let pick: Cand | null = null;
+  for (const n of [words.length, 3, 2, 1]) {
+    if (n > words.length || (n === words.length && pick)) continue;
+    pick = await tryOnce(words.slice(0, n).join(" "));
+    if (pick) break;
+  }
   if (!pick) return null;
   const f = pick.file();
   if (!f) return null;
