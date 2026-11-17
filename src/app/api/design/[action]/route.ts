@@ -4,6 +4,7 @@ import { safeFetch } from "@/lib/server/safeFetch";
 import { guardContent } from "@/lib/server/moderation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
+import { RULES_DESIGN_2026 } from "@/lib/server/rules2026";
 import { claudeVisionJson } from "@/lib/providers/text";
 import { geminiImage } from "@/lib/providers/google";
 import { falImages, falRun } from "@/lib/providers/fal";
@@ -52,7 +53,7 @@ note (صندوق مميّز بخلفية وإطار، للشهادات والض�
 - "scene:N" مع imagePrompt إنجليزي: صورة إعلانية احترافية لمنتج العميل رقم N نفسه (عباية، علبة، عطر، جهاز...) بمشهد يناسب المجال، والمنتج يبقى مثل ما هو بالضبط. استخدمها لما صورة العميل منتج مصوّر بشكل عادي وتحتاج لمسة احترافية.
 - "ai" مع imagePrompt إنجليزي تفصيلي لصورة فوتوغرافية احترافية بدون أي نص أو كتابة، تناسب الموضوع والتخطيط.
 - إذا العميل رفع صورة منتج، اكتب وصف المنتج ومزاياه بشكل تسويقي (body وitems) من المعلومات والصورة، بدون اختراع مواصفات ما تبين.
-- null إذا التصميم أقوى بدون صورة.`;
+- null إذا التصميم أقوى بدون صورة.` + "\n\n" + RULES_DESIGN_2026;
 
 type Body = {
   tool?: string; info?: string; count?: number; aspect?: DAspect; dialect?: string; photos?: string[]; person?: string;

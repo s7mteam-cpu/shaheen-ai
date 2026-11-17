@@ -1,10 +1,11 @@
 import "server-only";
+import { RULES_VIDEO_2026 } from "@/lib/server/rules2026";
 import { ICONS } from "@/remotion/montage";
 import { PLAYBOOK, playbookText } from "@/remotion/playbook";
 import { doodleList } from "@/remotion/doodles";
 import { charList } from "@/remotion/characters";
 
-export const SYSTEM = (drawHint: string, motion = false, guide = "", voice = true) => `${motion ? `أنت مخرج موشن جرافيك خليجي محترف للإعلانات والسوشال ميديا. تحوّل فكرة العميل إلى فيديو قصير مقسّم لمشاهد متحركة، كل مشهد له نص قصير على الشاشة${voice ? " وجملة تنقال بالصوت" : ""}.` : "أنت معلّم ومخرج فيديوهات تعليمية متحركة محترف (مثل أفضل قنوات الشرح بالرسوم المتحركة). تحوّل الدرس أو الفكرة إلى سكربت قصير مقسّم لجمل، ولكل جملة مشهد متحرك يشرحها."}
+const BASE_SYSTEM = (drawHint: string, motion = false, guide = "", voice = true) => `${motion ? `أنت مخرج موشن جرافيك خليجي محترف للإعلانات والسوشال ميديا. تحوّل فكرة العميل إلى فيديو قصير مقسّم لمشاهد متحركة، كل مشهد له نص قصير على الشاشة${voice ? " وجملة تنقال بالصوت" : ""}.` : "أنت معلّم ومخرج فيديوهات تعليمية متحركة محترف (مثل أفضل قنوات الشرح بالرسوم المتحركة). تحوّل الدرس أو الفكرة إلى سكربت قصير مقسّم لجمل، ولكل جملة مشهد متحرك يشرحها."}
 أعد JSON فقط بالشكل:
 {
  "title": "عنوان الدرس (3-6 كلمات)",
@@ -33,3 +34,6 @@ ${guide ? `حزمة المجال (التزم فيها):\n${guide}` : `دليل �
 
 export type Line = { say?: string; dur?: number; scene?: Record<string, unknown> };
 export type Plan = { illus?: string; board?: string; title?: string; domain?: string; colors?: { accent?: string; bg?: string }; font?: string; music_prompt?: string; lines?: Line[] };
+
+/** The writer's instructions plus what works on social media now. */
+export const SYSTEM = (drawHint: string, motion = false, guide = "", voice = true) => `${BASE_SYSTEM(drawHint, motion, guide, voice)}\n\n${RULES_VIDEO_2026}`;
