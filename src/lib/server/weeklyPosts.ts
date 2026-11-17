@@ -24,12 +24,12 @@ async function notify(userId: string, title: string, body: string, link = "/app/
 }
 
 /** Makes one slot exactly like the customer's own button does (same routes, same price, same refund on failure), then tags it «جاهز للنشر». */
-async function prepareItem(userId: string, x: PlanItem): Promise<string | null> {
+async function prepareItem(userId: string, x: PlanItem, bg: "shapes" | "ai" = "shapes"): Promise<string | null> {
   const mk = (url: string, body: unknown) => new Request(`http://internal${url}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   try {
     const res = await runAsUser(userId, () => x.format === "reel"
       ? lessonPOST(mk("/api/lesson", { mode: "motion", topic: x.prompt, seconds: 30, aspect: "9:16", dialect: "kuwaiti", voiceover: false, drawings: true, drawLevel: "few" }))
-      : designPOST(mk("/api/design/start", { tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? CAROUSEL_SLIDES : 1, aspect: "4:5", dialect: "kuwaiti", photos: [], useBrand: true, aiImages: true }), { params: Promise.resolve({ action: "start" }) }));
+      : designPOST(mk("/api/design/start", { tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? CAROUSEL_SLIDES : 1, bgMode: x.format === "carousel" ? bg : undefined, aspect: "4:5", dialect: "kuwaiti", photos: [], useBrand: true, aiImages: true }), { params: Promise.resolve({ action: "start" }) }));
     const d = (await res.json().catch(() => ({}))) as { jobId?: string };
     if (!res.ok || !d.jobId) return null;
     const admin = createAdminClient();
@@ -46,7 +46,7 @@ export async function runWeekly(budgetMs = 240_000) {
   const { data: tl } = await admin.from("tools").select("id,credit_cost").in("id", ["post", "carousel", "motion-video"]);
   const price = (id: string) => tl?.find((t) => t.id === id)?.credit_cost ?? 1;
   const cost = (x: PlanItem) => (x.format === "post" ? price("post") : x.format === "carousel" ? price("carousel") * CAROUSEL_SLIDES : price("motion-video") * 2);
-  const { data: kits } = await admin.from("brand_kits").select("user_id,content_plan,auto_state").eq("auto_weekly", true);
+  const { data: kits } = await admin.from("brand_kits").select("user_id,content_plan,auto_state,plan_prefs").eq("auto_weekly", true);
   const out = { users: kits?.length ?? 0, prepared: 0, skipped: 0 };
 
   for (const k of kits ?? []) {
@@ -55,7 +55,7 @@ export async function runWeekly(budgetMs = 240_000) {
     const state = ((k.auto_state ?? {}) as State);
     const setState = (p: Partial<State>) => admin.from("brand_kits").update({ auto_state: { ...state, ...p } }).eq("user_id", k.user_id).then(() => null, () => null);
     const start = plan?.items?.length ? startOf(plan) : null;
-    if (!plan || !start) { out.skipped++; continue; }
+    if (!plan || !start || plan.scope === "week") { out.skipped++; continue; }
     const w = planWeekOf(start);
     if (w < 0) { out.skipped++; continue; }
     if (w > 3) { if (!state.ended) { await notify(k.user_id, "📅 خطتك الشهرية خلصت", "اكتب خطة الشهر الجاي عشان نكمل نجهز لك منشورات كل أسبوع.", "/app/brand/plan"); await setState({ ended: true }); } out.skipped++; continue; }
@@ -71,7 +71,7 @@ export async function runWeekly(budgetMs = 240_000) {
     }
 
     state.lock = Date.now(); await setState({ lock: state.lock });
-    const ids = await Promise.all(todo.map(([x]) => prepareItem(k.user_id, x)));
+    const ids = await Promise.all(todo.map(([x]) => prepareItem(k.user_id, x, (k.plan_prefs as { carouselBg?: string } | null)?.carouselBg === "ai" ? "ai" : "shapes")));
     // merge into the LATEST plan (the customer may have edited prompts meanwhile)
     const { data: cur } = await admin.from("brand_kits").select("content_plan").eq("user_id", k.user_id).maybeSingle();
     const latest = (cur?.content_plan ?? plan) as Plan;

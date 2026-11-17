@@ -10,9 +10,12 @@ export type DesignProps = { spec: DesignSpec; index: number };
 type Ctx = {
   s: Slide; spec: DesignSpec; index: number; total: number; W: number; H: number; k: number;
   bg: string; ink: string; accent: string; soft: string; muted: string; line: string; onAccent: string; font: string;
+  /** an AI background is behind this slide: layouts must not paint their own opaque backdrop */
+  clear?: boolean;
 };
 
 const PAD = 80;
+const rgba = (hex: string, a: number) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`; };
 // First real letter of a name ("أكاديمية مدار" → "م" would be odd; skip "ال" only).
 const initial = (name: string) => name.trim().replace(/^ال/, "").charAt(0);
 
@@ -319,7 +322,7 @@ function PhotoLayout(c: Ctx) {
   const { s } = c;
   const ph = c.H * (c.H > 1600 ? 0.58 : c.H > 1200 ? 0.54 : 0.48);
   return (
-    <div style={{ position: "absolute", inset: 0, background: c.bg }}>
+    <div style={{ position: "absolute", inset: 0, background: c.clear ? "transparent" : c.bg }}>
       <Photo img={s.photo} c={c} style={{ position: "absolute", top: 0, left: 0, right: 0, height: ph, width: "100%" }} />
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 220, background: "linear-gradient(rgba(0,0,0,.35), transparent)" }} />
       <div style={{ position: "absolute", top: 56, right: PAD, left: PAD, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -464,7 +467,7 @@ function Point(c: Ctx) {
 function CtaLayout(c: Ctx) {
   const { s } = c;
   return (
-    <div style={{ position: "absolute", inset: 0, background: c.ink, color: c.bg, overflow: "hidden" }}>
+    <div style={{ position: "absolute", inset: 0, background: c.clear ? "transparent" : c.ink, color: c.bg, overflow: "hidden" }}>
       <div style={{ position: "absolute", width: 900, height: 900, borderRadius: "50%", border: `3px solid ${mix(c.bg, c.ink, 0.8)}`, left: "50%", top: "50%", transform: "translate(-50%,-50%)" }} />
       <div style={{ position: "absolute", width: 620, height: 620, borderRadius: "50%", border: `3px solid ${mix(c.bg, c.ink, 0.86)}`, left: "50%", top: "50%", transform: "translate(-50%,-50%)" }} />
       <div style={{ position: "absolute", inset: `${PAD * c.k}px ${PAD}px`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 34 * c.k }}>
@@ -485,7 +488,7 @@ function Bento(c: Ctx) {
   const list = (s.items ?? []).slice(0, 4);
   const tile = (bg: string, extra?: React.CSSProperties): React.CSSProperties => ({ background: bg, borderRadius: 36, padding: 34 * c.k, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", ...extra });
   return (
-    <div style={{ position: "absolute", inset: 0, background: c.bg, padding: 44, display: "grid", gap: 20, gridTemplateColumns: "1fr 1fr", gridTemplateRows: `auto 1fr ${s.price || s.cta ? "auto" : ""}` }}>
+    <div style={{ position: "absolute", inset: 0, background: c.clear ? "transparent" : c.bg, padding: 44, display: "grid", gap: 20, gridTemplateColumns: "1fr 1fr", gridTemplateRows: `auto 1fr ${s.price || s.cta ? "auto" : ""}` }}>
       <div style={tile(c.soft, { gridColumn: "1 / 3", gap: 22 * c.k, padding: `${44 * c.k}px 44px` })}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><BrandRow c={c} /><Badge c={c} /></div>
         <Kicker c={c} />
@@ -521,7 +524,7 @@ function Split(c: Ctx) {
   const { s } = c;
   const wide = c.H > 1500;
   return (
-    <div style={{ position: "absolute", inset: 0, background: c.bg, display: "flex", flexDirection: wide ? "column" : "row" }}>
+    <div style={{ position: "absolute", inset: 0, background: c.clear ? "transparent" : c.bg, display: "flex", flexDirection: wide ? "column" : "row" }}>
       <div style={{ flex: "0 0 46%", position: "relative", overflow: "hidden" }}>
         <Photo img={s.photo} c={c} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
         {s.badge && <div style={{ position: "absolute", top: 50, right: 40 }}><Badge c={c} /></div>}
@@ -574,7 +577,7 @@ export function DesignSlide({ spec, index }: DesignProps) {
   const { bg, ink, accent, soft } = spec.colors;
   const c: Ctx = {
     s, spec, index, total: spec.slides.length, W, H, k: H <= 1080 ? 0.86 : 1,
-    bg, ink, accent, soft, muted: mix(ink, bg, 0.38), line: mix(ink, bg, 0.84), onAccent: onColor(accent), font: spec.font,
+    bg, ink, accent, soft, muted: mix(ink, bg, 0.38), line: mix(ink, bg, 0.84), onAccent: onColor(accent), font: spec.font, clear: !!s.bg?.url,
   };
   const L = RENDER[s.layout] ?? Classic;
   // a carousel closes in the same colours as the other slides (the dark inverted closing slide made the set look like 3 different designs)
@@ -582,7 +585,13 @@ export function DesignSlide({ spec, index }: DesignProps) {
   return (
     <IconStyleContext.Provider value={{ style: spec.icons ?? "line", images: Object.fromEntries(Object.entries(spec.icon3d ?? {}).filter(([, v]) => v?.url).map(([k, v]) => [k, v.url])) }}>
     <div dir="rtl" lang="ar" style={{ position: "relative", width: W, height: H, overflow: "hidden", fontFamily: `"${spec.font}", "Cairo", sans-serif`, background: bg }}>
-      {!["cta", "photo", "split", "bento"].includes(s.layout) && <Deco c={c} />}
+      {s.bg?.url && (
+        <>
+          <Img src={s.bg.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, ${rgba(bg, 0.62)} 0%, ${rgba(bg, 0.78)} 55%, ${rgba(bg, 0.86)} 100%)` }} />
+        </>
+      )}
+      {!s.bg?.url && !["cta", "photo", "split", "bento"].includes(s.layout) && <Deco c={c} />}
       <div style={{ position: "absolute", inset: 0 }}>{L(cc)}</div>
       <Ribbon c={c} />
       <FrameLayer c={c} />

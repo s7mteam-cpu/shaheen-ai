@@ -56,14 +56,15 @@ export async function chooseIdentity(conceptId: string) {
 }
 
 /** The customer edits the prompts/captions of the plan: saved as typed (trimmed, limited). */
-export async function savePlan(items: { week: number; day: string; date: string; format: string; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string }[], month: string) {
+export async function savePlan(items: { week: number; day: string; date: string; time?: string; format: string; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string }[], month: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false };
-  const clean = items.slice(0, 12).map((x) => ({ week: Number(x.week) || 1, day: String(x.day).slice(0, 12), date: String(x.date).slice(0, 8), format: ["post", "reel", "carousel"].includes(x.format) ? x.format : "post", job: x.job && /^[0-9a-f-]{36}$/.test(x.job) ? x.job : undefined, pillar: String(x.pillar).slice(0, 40), topic: String(x.topic).slice(0, 160), hook: String(x.hook).slice(0, 200), goal: String(x.goal).slice(0, 120), prompt: String(x.prompt).slice(0, 1100), caption: String(x.caption).slice(0, 900) }));
+  const clean = items.slice(0, 12).map((x) => ({ week: Number(x.week) || 1, day: String(x.day).slice(0, 12), date: String(x.date).slice(0, 8), time: x.time ? String(x.time).slice(0, 20) : undefined, format: ["post", "reel", "carousel"].includes(x.format) ? x.format : "post", job: x.job && /^[0-9a-f-]{36}$/.test(x.job) ? x.job : undefined, pillar: String(x.pillar).slice(0, 40), topic: String(x.topic).slice(0, 160), hook: String(x.hook).slice(0, 200), goal: String(x.goal).slice(0, 120), prompt: String(x.prompt).slice(0, 1100), caption: String(x.caption).slice(0, 900) }));
   const { data: old } = await supabase.from("brand_kits").select("content_plan").eq("user_id", user.id).maybeSingle();
   const start = (old?.content_plan as { start?: string } | null)?.start;
-  const { error } = await supabase.from("brand_kits").update({ content_plan: { month: String(month).slice(0, 30), ...(start ? { start } : {}), items: clean } }).eq("user_id", user.id);
+  const scope = (old?.content_plan as { scope?: string } | null)?.scope === "week" ? "week" : undefined;
+  const { error } = await supabase.from("brand_kits").update({ content_plan: { month: String(month).slice(0, 30), ...(start ? { start } : {}), ...(scope ? { scope } : {}), items: clean } }).eq("user_id", user.id);
   revalidatePath("/app/brand/plan");
   return { ok: !error };
 }
@@ -83,6 +84,14 @@ export async function tagPlanJob(jobId: string, plan: { week: number; day: strin
 }
 
 /** The customer's own switch: «جهّز منشوراتي تلقائياً كل سبت». Turning it on again also lets a finished plan notify once more. */
+export async function savePlanPrefs(p: { carouselBg: "shapes" | "ai" }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  const { error } = await supabase.from("brand_kits").update({ plan_prefs: { carouselBg: p.carouselBg === "ai" ? "ai" : "shapes" } }).eq("user_id", user.id);
+  return { ok: !error };
+}
+
 export async function setAutoWeekly(on: boolean) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

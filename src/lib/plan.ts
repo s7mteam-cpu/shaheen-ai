@@ -1,6 +1,11 @@
-export type PlanItem = { week: number; day: "السبت" | "الاثنين" | "الأربعاء"; date: string; format: "post" | "reel" | "carousel"; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string };
+export type PlanItem = { week: number; day: "السبت" | "الاثنين" | "الأربعاء"; date: string; time?: string; format: "post" | "reel" | "carousel"; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string };
 export type Analysis = { positioning: string; audience: string; voice: string; strengths: string[]; gaps: string[]; opportunities: string[]; differentiators: string[]; competitors: string };
-export type Plan = { month: string; start?: string; items: PlanItem[] };
+export type Plan = { month: string; start?: string; scope?: "week" | "month"; items: PlanItem[] };
+export type Slot = { day: PlanItem["day"]; date: string; format: PlanItem["format"] };
+export type PlanPrefs = { carouselBg?: "shapes" | "ai" };
+/** best posting times in the Gulf */
+export const TIMES = ["12:30 ظهراً", "4:30 عصراً", "11:00 مساءً"] as const;
+const DEFAULT_TIME: Record<string, string> = { post: TIMES[0], carousel: TIMES[1], reel: TIMES[2] };
 
 export const FORMAT_LABEL: Record<string, string> = { post: "بوست", reel: "ريلز", carousel: "كاروسيل" };
 export const FORMAT_TOOL: Record<string, string> = { post: "post", carousel: "carousel", reel: "motion-video" };
@@ -16,11 +21,13 @@ export function normaliseAnalysis(r: unknown): Analysis | null {
   const a: Analysis = { positioning: str(o.positioning, 500), audience: str(o.audience, 400), voice: str(o.voice, 300), strengths: arr(o.strengths, 4, 160), gaps: arr(o.gaps, 4, 160), opportunities: arr(o.opportunities, 4, 160), differentiators: arr(o.differentiators, 4, 160), competitors: str(o.competitors, 400) };
   return a.positioning ? a : null;
 }
-export function normaliseWeek(raw: unknown, week: number, dates: string[]): PlanItem[] {
+export function normaliseWeek(raw: unknown, week: number, slots: Slot[]): PlanItem[] {
   const list = Array.isArray((raw as { items?: unknown })?.items) ? ((raw as { items: unknown[] }).items) : [];
-  return DAYS.map((day, i) => {
+  return slots.map((sl, i) => {
     const o = (list[i] ?? {}) as Record<string, unknown>;
-    return { week, day, date: dates[i], format: ROTATION[week - 1][i], pillar: str(o.pillar, 40), job: undefined, topic: str(o.topic, 160), hook: str(o.hook, 200), goal: str(o.goal, 120), prompt: str(o.prompt, 1100), caption: str(o.caption, 900) };
+    const t = str(o.time, 30);
+    const time = TIMES.find((x) => t && (x === t || t.includes(x.slice(0, 4)) || (t.includes("ظهر") && x.includes("ظهر")) || (t.includes("عصر") && x.includes("عصر")) || (t.includes("مساء") && x.includes("مساء")) || (t.includes("11") && x.startsWith("11")))) ?? DEFAULT_TIME[sl.format];
+    return { week, day: sl.day, date: sl.date, time, format: sl.format, pillar: str(o.pillar, 40), job: undefined, topic: str(o.topic, 160), hook: str(o.hook, 200), goal: str(o.goal, 120), prompt: str(o.prompt, 1100), caption: str(o.caption, 900) };
   }).filter((x) => x.topic && x.prompt);
 }
 /** ISO date (yyyy-mm-dd) of the first Saturday of the plan. */
@@ -33,4 +40,21 @@ export function planDates(from = new Date()) {
   d.setUTCDate(d.getUTCDate() + ((6 - d.getUTCDay() + 7) % 7));
   const fmt = (x: Date) => `${x.getUTCDate()}/${x.getUTCMonth() + 1}`;
   return [0, 1, 2, 3].map((w) => [0, 2, 4].map((k) => { const x = new Date(d); x.setUTCDate(d.getUTCDate() + w * 7 + k); return fmt(x); }));
+}
+
+const DAY_BY_DOW: Record<number, PlanItem["day"]> = { 6: "السبت", 1: "الاثنين", 3: "الأربعاء" };
+/** The posting slots of a plan. «month»: 4 weeks (Sat, Mon, Wed) from the first Saturday. «week»: the next three Sat/Mon/Wed days from today (today included). Monday is always the reel. */
+export function planSlots(scope: "week" | "month", from = new Date()): { weeks: Slot[][]; start: string } {
+  const fmt = (x: Date) => `${x.getUTCDate()}/${x.getUTCMonth() + 1}`;
+  if (scope === "month") {
+    const dates = planDates(from);
+    return { start: planStartISO(from), weeks: dates.map((d, w) => DAYS.map((day, i) => ({ day, date: d[i], format: ROTATION[w][i] }))) };
+  }
+  const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
+  const slots: Slot[] = [];
+  for (let k = 0; slots.length < 3 && k < 14; k++, d.setUTCDate(d.getUTCDate() + 1)) {
+    const day = DAY_BY_DOW[d.getUTCDay()];
+    if (day) slots.push({ day, date: fmt(d), format: day === "الاثنين" ? "reel" : day === "السبت" ? "carousel" : "post" });
+  }
+  return { start: planStartISO(from), weeks: [slots] };
 }

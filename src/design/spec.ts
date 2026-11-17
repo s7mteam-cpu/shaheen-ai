@@ -25,6 +25,8 @@ export type Slide = {
   person?: { name: string; role?: string; photo?: DImg | null } | null;
   sticker?: Sticker | null;
   photo?: DImg | null;
+  /** AI-made background (carousel «خلفيات بالذكاء الاصطناعي»): full-bleed behind the slide, softened with the brand colour so text stays readable. */
+  bg?: DImg | null;
   imagePrompt?: string;
   caption?: string;
 };
@@ -158,6 +160,7 @@ export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fa
     person: per && str(per.name, 40) ? { name: str(per.name, 40), role: opt(per.role, 40), photo: img(per.photo) } : null,
     sticker: (() => { const k = (raw.sticker as Sticker | null)?.kind; return k && (STICKER_IDS as readonly string[]).includes(k) ? { kind: k, text: str((raw.sticker as Sticker).text, 24) } : null; })(),
     photo: img(raw.photo),
+    bg: img(raw.bg),
     imagePrompt: opt(raw.imagePrompt, 600),
     caption: typeof raw.caption === "string" ? raw.caption.trim().slice(0, 2200) || undefined : undefined,
   };
@@ -189,7 +192,7 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
 export function designImages(s: DesignSpec): DImg[] {
   const out: DImg[] = Object.values(s.icon3d ?? {});
   if (s.brand.logo) out.push(s.brand.logo);
-  for (const sl of s.slides) { if (sl.photo) out.push(sl.photo); if (sl.person?.photo) out.push(sl.person.photo); }
+  for (const sl of s.slides) { if (sl.photo) out.push(sl.photo); if (sl.bg) out.push(sl.bg); if (sl.person?.photo) out.push(sl.person.photo); }
   return out;
 }
 
@@ -197,7 +200,7 @@ export function designImages(s: DesignSpec): DImg[] {
 export function withUrls(s: DesignSpec, urls: Record<string, string>): DesignSpec {
   const u = (i?: DImg | null) => (i ? { ...i, url: urls[`${i.bucket}:${i.path}`] ?? i.url } : i ?? null);
   const icon3d = Object.fromEntries(Object.entries(s.icon3d ?? {}).map(([k, v]) => [k, u(v)!]));
-  return { ...s, icon3d, brand: { ...s.brand, logo: u(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, photo: u(sl.photo), person: sl.person ? { ...sl.person, photo: u(sl.person.photo) } : sl.person })) };
+  return { ...s, icon3d, brand: { ...s.brand, logo: u(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, photo: u(sl.photo), bg: u(sl.bg), person: sl.person ? { ...sl.person, photo: u(sl.person.photo) } : sl.person })) };
 }
 
 export const DESIGN_TOOLS: Record<string, DKind> = { post: "post", carousel: "carousel", "ad-design": "ads" };

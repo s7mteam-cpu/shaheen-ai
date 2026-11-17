@@ -38,7 +38,7 @@ export default async function ReadyPage() {
               const work = byId.get(x.job!);
               return (
                 <div key={x.job} className="card flex flex-col gap-3 p-3">
-                  <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-navy-800 px-3 py-1 text-[13px] font-bold text-white">{x.day} {x.date}</span><span className="rounded-full bg-gold-100 px-3 py-1 text-[13px] font-bold">{L(FORMAT_LABEL[x.format])}</span></div>
+                  <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-navy-800 px-3 py-1 text-[13px] font-bold text-white">{x.day} {x.date}{x.time ? ` · ${x.time}` : ""}</span><span className="rounded-full bg-gold-100 px-3 py-1 text-[13px] font-bold">{L(FORMAT_LABEL[x.format])}</span></div>
                   {work ? <WorkCard w={work} /> : <Link href={`/app/tools/${FORMAT_TOOL[x.format]}?job=${x.job}`} className="btn btn-primary py-3 text-center font-bold">{L("افتح وراجع")}</Link>}
                   <p className="line-clamp-2 text-[14px] font-semibold">{x.topic}</p>
                   {x.caption && <CopyBtn text={x.caption} label={L("نسخ الكابشن")} done={L("تم النسخ ✓")} />}

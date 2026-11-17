@@ -38,6 +38,7 @@ export function DesignStart({ idea, toolId, cost, balance, industry: savedIndust
   const [pickOpen, setPickOpen] = useState(!savedIndustry);
   const ind = industryById(industry);
   const [count, setCount] = useState(toolId === "carousel" ? 5 : 2);
+  const [bgMode, setBgMode] = useState<"shapes" | "ai">("shapes");
   const [aspect, setAspect] = useState("4:5");
   const [dialect, setDialect] = useState<string>("kuwaiti");
   useEffect(() => { setDialect(myDialect()); }, []);
@@ -74,7 +75,7 @@ export function DesignStart({ idea, toolId, cost, balance, industry: savedIndust
     setBusy(true); setError(null);
     try {
       const r = await fetch("/api/design/start", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tool: toolId, info, count, aspect, dialect, likeWork: like?.id, photos: photos.map((p) => p.path), person: person?.path, useBrand, aiImages, industry }) });
+        body: JSON.stringify({ tool: toolId, info, count, aspect, dialect, likeWork: like?.id, bgMode, photos: photos.map((p) => p.path), person: person?.path, useBrand, aiImages, industry }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -128,6 +129,7 @@ export function DesignStart({ idea, toolId, cost, balance, industry: savedIndust
         <span className="text-[13px] text-subtle">{L("اكتب كل شي عندك، حتى لو كثير. شاهين يختار المهم للتصميم، والباقي يحطه بالكابشن.")}</span></label>
 
       {toolId === "carousel" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("عدد الشرائح")}</span>{chips([[3, "3"], [4, "4"], [5, "5"], [6, "6"], [7, "7"], [8, "8"], [10, "10"]] as const, count as never, setCount as never)}</div>}
+      {toolId === "carousel" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("خلفيات الشرائح")}</span>{chips([["shapes", "زخارف مصمّمة"], ["ai", "خلفيات بالذكاء الاصطناعي ✨"]] as [string, string][], bgMode, (v) => setBgMode(v as "shapes" | "ai"))}{bgMode === "ai" && <span className="text-[13px] text-subtle">{L("كل شريحة بخلفية مرسومة، وكلها تكمل بعض كأنها صورة وحدة طويلة. أبطأ شوي من الزخارف.")}</span>}</div>}
       {toolId === "ad-design" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("عدد التصاميم")}</span>{chips([[1, "1"], [2, "2"], [3, "3"], [4, "4"]] as const, count as never, setCount as never)}</div>}
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(aspects, aspect, setAspect)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("لهجة النصوص")}</span>{chips(dialects, dialect, setDialect)}</div>

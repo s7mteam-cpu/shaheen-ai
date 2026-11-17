@@ -55,7 +55,7 @@ kicker (سطر صغير فوق العنوان)، sticker، title، highlight، b
 
 type Body = {
   tool?: string; info?: string; count?: number; aspect?: DAspect; dialect?: string; photos?: string[]; person?: string;
-  useBrand?: boolean; aiImages?: boolean; industry?: string; ref?: DImg | null; likeWork?: string; jobId?: string; spec?: DesignSpec; instruction?: string; index?: number; prompt?: string;
+  useBrand?: boolean; bgMode?: "shapes" | "ai"; aiImages?: boolean; industry?: string; ref?: DImg | null; likeWork?: string; jobId?: string; spec?: DesignSpec; instruction?: string; index?: number; prompt?: string;
 };
 type Raw = Partial<DesignSpec> & Record<string, unknown> & { slides?: (Record<string, unknown> & { photo?: unknown; person?: Record<string, unknown> | null })[] };
 
@@ -183,6 +183,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const ind = industryById(body.industry) ?? industryById(await guessIndustry(info));
       const dpack = designPack(ind?.id);
       const dpick = dpack && ind ? designBrief(dpack, ind.label) : null;
+      const bgAi = body.bgMode === "ai" && kind === "carousel" && body.aiImages !== false;
       const raw = await claudeVisionJson<Raw>(SYSTEM,
         `${want}\nالمقاس: ${aspect}\nلهجة النصوص: ${DIALECT[String(body.dialect)] ?? DIALECT.gulf}\n` +
         `الصور المولّدة بالذكاء الاصطناعي: ${body.aiImages === false ? "ممنوعة (استخدم صور العميل أو بدون صورة)" : "مسموحة إذا تفيد التصميم"}\n` +
@@ -191,7 +192,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         (ind ? `${industryBrief(ind)}\n${dpick?.text ?? ""}\n` : "") +
         `${await trendsFor(ind?.id, kind === "ads" ? "ads" : kind === "carousel" ? "carousel" : "post")}\n` +
         `\nمعلومات العميل:\n${info}\n\n` +
-        `أعد JSON: { "font", "deco", "frame", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "caption", "slides": [ {layout, ...الحقول, "sticker", "photo", "imagePrompt", "caption"} ] }`,
+        `أعد JSON: { "font", "deco", "frame", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "caption", ${bgAi ? '"bgStyle": "English, حتى 40 كلمة: أسلوب خلفية واحد موحّد لكل الشرائح (أجواء تجريدية راقية بألوان هوية العميل ومناسبة لمجاله، بدون نص أو أشخاص)", ' : ""}"slides": [ {layout, ...الحقول, "sticker", "photo", "imagePrompt", "caption"} ] }`,
         images, 9000);
 
       // photos: customer uploads by index, AI photos generated in parallel (max 4)
@@ -220,6 +221,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         return aiPhoto(toolId, job.id, `Professional advertising photo of the exact same product from the reference image (keep its shape, label, logo, colors and details unchanged). Scene: ${p}`, aspect, [await sign("uploads", ref)]);
       }));
       gen.forEach((g, n) => { if (g.status === "fulfilled") spec.slides[aiWanted[n].i].photo = g.value; else console.error("design ai photo", g.reason); });
+      // «خلفيات بالذكاء الاصطناعي»: one background per slide; the first sets the scene, the rest continue it (same reference) so the slides read as one picture
+      if (bgAi) {
+        const style = String((raw as { bgStyle?: unknown }).bgStyle ?? "").slice(0, 320) || `Soft atmospheric abstract background in the colours ${spec.colors.bg} and ${spec.colors.accent}`;
+        const n = spec.slides.length;
+        const mkBg = (i: number, ref?: string) => aiPhoto(toolId, job.id, `${style}. A full-bleed ${aspect} background for slide ${i + 1} of ${n} of an Instagram carousel. Abstract and atmospheric, no text, no people, no logos, soft and low-contrast, with a calm empty area in the centre for text.${ref ? " Continue the exact same scene, colours, lighting and style as the reference image, as if the camera moved on to the next part of one long panoramic picture." : ""}`, aspect, ref ? [ref] : []);
+        let ref: string | undefined;
+        try { const first = await mkBg(0); spec.slides[0].bg = first; ref = await sign("results", first.path); } catch (e) { console.error("design ai bg 0", e); }
+        const rest = spec.slides.map((_, i) => i).slice(1);
+        for (let k = 0; k < rest.length; k += 3) {
+          const part = await Promise.allSettled(rest.slice(k, k + 3).map((i) => mkBg(i, ref)));
+          part.forEach((g, m) => { if (g.status === "fulfilled") spec.slides[rest[k + m]].bg = g.value; else console.error("design ai bg", g.reason); });
+        }
+      }
       if (industryById(body.industry)) {
         const { data: has } = await admin.from("brand_kits").select("user_id").eq("user_id", user.id).maybeSingle();
         if (has) await admin.from("brand_kits").update({ industry: body.industry }).eq("user_id", user.id);

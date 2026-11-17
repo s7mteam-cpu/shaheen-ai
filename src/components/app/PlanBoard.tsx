@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { L, LT } from "@/lib/i18n/ui";
-import { savePlan, setAutoWeekly, tagPlanJob } from "@/app/app/brand/actions";
+import { savePlan, savePlanPrefs, setAutoWeekly, tagPlanJob } from "@/app/app/brand/actions";
 import { FORMAT_LABEL, FORMAT_TOOL, type Analysis, type Plan, type PlanItem } from "@/lib/plan";
 
 const FORMAT_ICON: Record<string, string> = { post: "🖼️", reel: "🎬", carousel: "🗂️" };
 
-export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit, auto: auto0 }: { identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number } }) {
+export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCostPrice, bg: bg0, unit, auto: auto0 }: { weekCostPrice: number; bg: "shapes" | "ai"; identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number } }) {
   const [plan, setPlan] = useState<Plan | null>(p0);
   const [analysis, setAnalysis] = useState<Analysis | null>(a0);
   const [busy, setBusy] = useState(false);
@@ -17,6 +17,9 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit, au
   const [state, setState] = useState<Record<number, string>>({});
   const [auto, setAuto] = useState(auto0);
   const CAROUSEL_SLIDES = 6;
+  const [bg, setBg] = useState<"shapes" | "ai">(bg0);
+  const isWeek = plan?.scope === "week";
+  async function pickBg(v: "shapes" | "ai") { setBg(v); await savePlanPrefs({ carouselBg: v }); }
   const itemCost = (x: PlanItem) => (x.format === "post" ? unit.post : x.format === "carousel" ? unit.carousel * CAROUSEL_SLIDES : unit.reel * 2);
   const weekTodo = plan ? plan.items.map((x, i) => [x, i] as const).filter(([x]) => x.week === week && !x.job) : [];
   const weekCost = weekTodo.reduce((n, [x]) => n + itemCost(x), 0);
@@ -28,7 +31,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit, au
     try {
       const r = x.format === "reel"
         ? await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "motion", topic: x.prompt, seconds: 30, aspect: "9:16", dialect: "kuwaiti", voiceover: false, drawings: true, drawLevel: "few" }) })
-        : await fetch("/api/design/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? CAROUSEL_SLIDES : 1, aspect: "4:5", dialect: "kuwaiti", photos: [], useBrand: true, aiImages: true }) });
+        : await fetch("/api/design/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? CAROUSEL_SLIDES : 1, bgMode: x.format === "carousel" ? bg : undefined, aspect: "4:5", dialect: "kuwaiti", photos: [], useBrand: true, aiImages: true }) });
       const d = await r.json();
       if (!r.ok || !d.jobId) { setState((m) => ({ ...m, [i]: d.error || "تعذّر التجهيز." })); return base; }
       await tagPlanJob(d.jobId, { week: x.week, day: x.day, date: x.date, format: x.format });
@@ -49,10 +52,10 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit, au
     for (const [, i] of weekTodo) cur = await prepare(i, cur);
   }
 
-  async function generate() {
+  async function generate(scope: "week" | "month") {
     setBusy(true); setMsg("");
     try {
-      const r = await fetch("/api/brand/plan", { method: "POST" });
+      const r = await fetch("/api/brand/plan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope }) });
       const d = await r.json();
       if (!r.ok) { setMsg((d.error ?? "تعذّر إنشاء الخطة.") + (d.detail ? ` [${d.detail}]` : "")); return; }
       setPlan(d.plan); setAnalysis(d.analysis); setWeek(1); setDirty(false);
@@ -78,8 +81,11 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit, au
       {!plan && (
         <div className="card flex max-w-2xl flex-col gap-3 p-6">
           <p className="leading-7">{L("هويتك المعتمدة")}: <b>{identityName}</b>. {L("شاهين يحلل نشاطك ويكتب لك خطة شهر كاملة مع برومبتات جاهزة.")}</p>
-          <button type="button" onClick={generate} disabled={busy} className="btn btn-gold w-fit px-7 py-3.5 text-[16px] font-bold disabled:opacity-50">{busy ? L("شاهين يكتب خطتك... (دقيقة أو دقيقتين)") : `✨ ${L("اكتب خطة الشهر")}`}</button>
-          <span className="text-[13px] text-subtle">{LT(`التكلفة: ${cost} ريشة`, `Cost: ${cost} feathers`)}</span>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={() => generate("week")} disabled={busy} className="btn btn-gold px-7 py-3.5 text-[16px] font-bold disabled:opacity-50">{busy ? L("شاهين يكتب خطتك...") : `📆 ${L("خطة هذا الأسبوع")} (${LT(`${weekCostPrice} ريشة`, `${weekCostPrice} feathers`)})`}</button>
+            <button type="button" onClick={() => generate("month")} disabled={busy} className="btn btn-primary px-7 py-3.5 text-[16px] font-bold disabled:opacity-50">{busy ? L("دقيقة أو دقيقتين...") : `🗓️ ${L("خطة الشهر كامل")} (${LT(`${cost} ريشة`, `${cost} feathers`)})`}</button>
+          </div>
+          <span className="text-[13px] text-subtle">{L("الأسبوعية: أقرب 3 منشورات من اليوم (سبت/اثنين/أربعاء). الشهرية: 4 أسابيع.")}</span>
         </div>
       )}
       {msg && <p role="status" className="rounded-xl bg-gold-100 p-3 text-sm font-semibold text-navy-900">{L(msg)}</p>}
@@ -100,15 +106,19 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit, au
       {plan && (
         <section className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            {[1, 2, 3, 4].map((w) => <button key={w} type="button" aria-pressed={week === w} onClick={() => setWeek(w)} className={chip(week === w)}>{L("الأسبوع")} {w}</button>)}
+            {(isWeek ? [1] : [1, 2, 3, 4]).map((w) => <button key={w} type="button" aria-pressed={week === w} onClick={() => setWeek(w)} className={chip(week === w)}>{L("الأسبوع")} {w}</button>)}
             <span className="ms-auto text-[13px] text-subtle">{plan.month}</span>
-            <button type="button" onClick={generate} disabled={busy} className="text-sm font-semibold text-navy-700 underline">{busy ? L("جاري الكتابة...") : `↻ ${L("خطة جديدة")} (${LT(`${cost} ريشة`, `${cost} feathers`)})`}</button>
+            <button type="button" onClick={() => generate("week")} disabled={busy} className="text-sm font-semibold text-navy-700 underline">{busy ? L("جاري الكتابة...") : `↻ ${L("خطة أسبوع جديدة")} (${LT(`${weekCostPrice} ريشة`, `${weekCostPrice} feathers`)})`}</button>
+            <button type="button" onClick={() => generate("month")} disabled={busy} className="text-sm font-semibold text-navy-700 underline">{busy ? "" : `↻ ${L("خطة شهر جديدة")} (${LT(`${cost} ريشة`, `${cost} feathers`)})`}</button>
           </div>
           <label className="card flex cursor-pointer items-start gap-3 p-4">
             <input type="checkbox" checked={auto} onChange={(e) => toggleAuto(e.target.checked)} className="mt-1.5 h-5 w-5" />
             <span className="flex flex-col gap-1"><b className="text-navy-900">{L("جهّز منشوراتي تلقائياً كل أسبوع")}</b>
               <span className="text-[13.5px] leading-6 text-muted">{L("كل سبت الساعة 9 الصبح (بتوقيت الكويت) نجهّز لك منشورات الأسبوع الثلاثة ويوصلك إشعار، وتلقاها بقسم «منشوراتك جاهزة للنشر». ننسحب الريش وقت التجهيز بس، وإذا رصيدك ما يكفي نوقف ونرسل لك إشعار.")} {LT(`التكلفة التقريبية للأسبوع: ${plan.items.filter((x) => x.week === 1).reduce((n, x) => n + itemCost(x), 0)} ريشة`, `About ${plan.items.filter((x) => x.week === 1).reduce((n, x) => n + itemCost(x), 0)} feathers per week`)}</span></span>
           </label>
+          <div className="flex flex-wrap items-center gap-2 text-[14px]"><span className="font-semibold">{L("خلفيات الكاروسيل")}:</span>
+            <button type="button" aria-pressed={bg === "shapes"} onClick={() => pickBg("shapes")} className={chip(bg === "shapes")}>{L("زخارف مصمّمة")}</button>
+            <button type="button" aria-pressed={bg === "ai"} onClick={() => pickBg("ai")} className={chip(bg === "ai")}>{L("بالذكاء الاصطناعي ✨")}</button></div>
           <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 p-4 text-white">
             <div className="flex-1 text-[14px] leading-7">{weekTodo.length > 0 ? L("جهّز منشورات هذا الأسبوع كلها دفعة وحدة. تلقاها بأعمالي ← «جاهز للنشر» وتراجعها قبل النشر.") : L("منشورات هذا الأسبوع كلها جاهزة ✓")}</div>
             {weekTodo.length > 0 && <button type="button" onClick={prepareWeek} disabled={Object.values(state).includes("جاري التجهيز...")} className="btn btn-gold px-6 py-3 font-bold disabled:opacity-50">⚡ {L("جهّز أسبوع")} {week} ({LT(`${weekCost} ريشة`, `${weekCost} feathers`)})</button>}
@@ -118,6 +128,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, unit, au
             <article key={i} className="card flex flex-col gap-3 p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-navy-800 px-3 py-1 text-[13px] font-bold text-white">{x.day} {x.date}</span>
+                {x.time && <span className="rounded-full bg-tint px-3 py-1 text-[13px] font-bold text-navy-900">🕒 {L("النشر")}: {x.time}</span>}
                 <span className="rounded-full bg-gold-100 px-3 py-1 text-[13px] font-bold text-navy-900">{FORMAT_ICON[x.format]} {L(FORMAT_LABEL[x.format])}</span>
                 {x.pillar && <span className="rounded-full bg-tint px-3 py-1 text-[13px]">{x.pillar}</span>}
                 {x.goal && <span className="text-[13px] text-subtle">{L("الهدف")}: {x.goal}</span>}
