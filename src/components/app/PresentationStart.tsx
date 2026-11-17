@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Progress } from "@/components/app/Progress";
 
-const counts = [[6, "قصير · 6 شرائح"], [10, "متوسط · 10 شرائح"], [15, "مفصّل · 15 شريحة"], [20, "موسّع · 20 شريحة"]] as const;
 const IMG_COST = 8; // same as the server
 
 /** «عروض PowerPoint»: an idea, a full text or a file in; a finished, editable .pptx out. */
@@ -13,6 +12,7 @@ export function PresentationStart({ cost: base, balance, hasKit }: { cost: numbe
   const [topic, setTopic] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [slides, setSlides] = useState(10);
+  const [auto, setAuto] = useState(true);
   const [lang, setLang] = useState("ar");
   const [audience, setAudience] = useState("");
   const [images, setImages] = useState(false);
@@ -20,7 +20,8 @@ export function PresentationStart({ cost: base, balance, hasKit }: { cost: numbe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pct, setPct] = useState(0);
-  const cost = base * Math.ceil(slides / 10) + (images ? IMG_COST : 0);
+  const count = Math.min(200, Math.max(3, Math.round(slides) || 10));
+  const cost = base * (auto ? 2 : Math.ceil(count / 10)) + (images ? IMG_COST : 0);
   useEffect(() => {
     if (!busy) return;
     setPct(2);
@@ -28,7 +29,7 @@ export function PresentationStart({ cost: base, balance, hasKit }: { cost: numbe
     return () => clearInterval(t);
   }, [busy]);
 
-  const chips = <T extends string | number>(list: readonly (readonly [T, string])[], value: T, set: (v: T) => void) => (
+  const chips = <T extends string | number | boolean>(list: readonly (readonly [T, string])[], value: T, set: (v: T) => void) => (
     <div className="flex flex-wrap gap-2">{list.map(([v, l]) => <button key={String(v)} type="button" aria-pressed={value === v} onClick={() => set(v)} className="chip">{L(l)}</button>)}</div>
   );
 
@@ -37,7 +38,7 @@ export function PresentationStart({ cost: base, balance, hasKit }: { cost: numbe
     setBusy(true); setError(null);
     try {
       const f = new FormData();
-      f.set("topic", topic); f.set("slides", String(slides)); f.set("lang", lang); f.set("audience", audience);
+      f.set("topic", topic); f.set("slides", auto ? "auto" : String(count)); f.set("lang", lang); f.set("audience", audience);
       f.set("images", images ? "1" : "0"); f.set("kit", kit ? "1" : "0");
       if (file) f.set("file", file);
       const r = await fetch("/api/presentation", { method: "POST", body: f });
@@ -57,7 +58,10 @@ export function PresentationStart({ cost: base, balance, hasKit }: { cost: numbe
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("أو ارفع ملفك (اختياري)")}</span>
         <input type="file" accept=".docx,.pdf,.txt,.md,.pptx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="field" />
         <span className="text-[13px] text-subtle">{L("Word أو PDF أو نص أو عرض قديم تبي تحسّنه. الحد 3.5 ميغابايت.")}</span></div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("حجم العرض")}</span>{chips(counts, slides, setSlides)}</div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("عدد الشرائح")}</span>
+        {chips([[true, "شاهين يقرر حسب المادة"], [false, "أنا أحدد العدد"]] as readonly (readonly [boolean, string])[], auto, setAuto)}
+        {!auto && <div className="flex items-center gap-2"><input type="number" min={3} max={200} value={slides} onChange={(e) => setSlides(Number(e.target.value))} className="field w-28" /><span className="text-[13px] text-subtle">{L("من 3 إلى 200 شريحة. العروض الطويلة تاخذ وقت (عدة دقائق).")}</span></div>}
+        {auto && <span className="text-[13px] text-subtle">{L("شاهين يختار من 8 إلى 20 شريحة حسب موضوعك.")}</span>}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("لغة العرض")}</span>{chips([["ar", "العربية"], ["en", "English"]] as const, lang, setLang)}</div>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("لمن العرض؟ (اختياري)")}</span>
         <input maxLength={200} value={audience} onChange={(e) => setAudience(e.target.value)} className="field" placeholder={L("مثال: مستثمرين، عملاء، طلاب جامعة، إدارة الشركة")} /></label>

@@ -95,7 +95,6 @@ function Viewer({ g, label, signedIn, like, onClose }: { g: ShowcaseItem; label:
           <span className="w-fit rounded-full bg-gold-100 px-2.5 py-0.5 text-[12px] font-bold text-navy-900">{label}{list.length > 1 ? ` · ${i + 1}/${list.length}` : ""}</span>
           <b className="text-navy-900">{g.title}</b>
           {g.description && <p className="text-sm leading-6 text-muted">{g.description}</p>}
-          {g.media_type === "deck" && <a href={g.media_url} download className="btn btn-primary mt-1 w-fit px-5 py-2 text-[14px]">⬇ {T("حمّل العرض (PowerPoint)", "Download (PowerPoint)")}</a>}
           {like && g.like_on && LIKE_TOOL[g.category] && <MakeLike id={g.id} tool={LIKE_TOOL[g.category]} signedIn={signedIn} />}
         </div>
       </div>
