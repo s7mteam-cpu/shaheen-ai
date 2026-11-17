@@ -1159,8 +1159,15 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
           <div style={{ display: "flex", flexDirection: left ? "row" : "row-reverse", alignItems: "center", justifyContent: "center", gap: 30 * s, direction: "ltr" }}>
             {charEl}{prop}
           </div>
-          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * (tall ? 0.6 : 0.66)} th={th} delay={6} fx={g.fx} />}
-          {g.sub && <Badge text={g.sub} f={f} delay={16} s={s} th={th} light={light} />}
+          {g.text && g.tpos !== "top" && <Words text={g.text} hl={g.hl} f={f} size={big * (tall ? 0.6 : 0.66)} th={th} delay={6} fx={g.fx} />}
+          {g.sub && g.tpos !== "top" && <Badge text={g.sub} f={f} delay={16} s={s} th={th} light={light} />}
+        </div>
+      );
+      if (g.tpos === "top") body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 * s }}>
+          {g.text && <Words text={g.text} hl={g.hl} f={f} size={big * (tall ? 0.66 : 0.72)} th={th} delay={4} fx={g.fx} />}
+          {g.sub && <Badge text={g.sub} f={f} delay={12} s={s} th={th} light={light} />}
+          {body}
         </div>
       );
       break;

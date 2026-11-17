@@ -50,6 +50,7 @@ export async function POST(req: Request) {
   const dialect = DIALECT[String(b.dialect)] ? String(b.dialect) : "kuwaiti";
   const panel = b.panel === "dark" ? "dark" : "light";
   const withMusic = b.music !== false;
+  const full = b.cartoonMix === "full"; // cartoon in every scene, writing on top
   const look = b.look === "doodle" ? "doodle" : b.look === "cartoon" ? "cartoon" : "images"; // images = montage with AI pictures · doodle = real hand-drawn animation
   const drawings = look === "images" ? b.drawings !== false : false;
   const tpl = motion ? await loadTemplate(b.templateId) : null; // a library template: its style, structure and look
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
     : level === "half" ? "اجعل حوالي نصف مشاهد الفيديو من نوع scene (رسمة بالذكاء الاصطناعي) موزعة بالتساوي، والباقي مشاهد عادية (عناوين، خطوات، أرقام…)"
     : "استخدم مشهد scene (رسمة بالذكاء الاصطناعي) من 2 إلى 5 مرات بالفيديو للقصص والأمثلة والأماكن والشخصيات";
   const drawHint = look === "cartoon"
-    ? "الفيديو بأسلوب كرتون خليجي: شخصية كرتون تتكلم وتتحرك بكل مشهد تقريباً. اختر شخصية رئيسية وحدة (char) تتكرر بأغلب المشاهد بحسب موضوع الفيديو وجنس الصوت (رجّال man أو جدّ elder أو حرمة woman أو ولد boy أو بنت girl)، ويمكن شخصية ثانية لبعض المشاهد للتنويع. غيّر mood وpose حسب الجملة (point لما تشرح شي بجانبها، wave للترحيب والختام). وكثير من المشاهد ضيف doodle رسمة تنرسم بجانب الشخصية لتوضّح الفكرة وبدّل side بين l وr. وبين الحين والثاني مشهد عادي (رقم، خطوات، عنوان) للتنويع. لا تستخدم scene أبداً. واختر board من: paper, notebook, soft, pastel."
+    ? "الفيديو بأسلوب كرتون خليجي: شخصية كرتون تتكلم وتتحرك بكل مشهد تقريباً. اختر شخصية رئيسية وحدة (char) تتكرر بأغلب المشاهد بحسب موضوع الفيديو وجنس الصوت (رجّال man أو جدّ elder أو حرمة woman أو ولد boy أو بنت girl)، ويمكن شخصية ثانية لبعض المشاهد للتنويع. غيّر mood وpose حسب الجملة (point لما تشرح شي بجانبها، wave للترحيب والختام). وكثير من المشاهد ضيف doodle رسمة تنرسم بجانب الشخصية لتوضّح الفكرة وبدّل side بين l وr. "+(full ? "كل المشاهد بدون استثناء من نوع character، والنص (text وhl وsub) يكتب فوق الشخصية، وكل مشهد معه doodle يوضّح الفكرة. لا تستخدم أي نوع مشهد غير character." : "وبين الحين والثاني مشهد شرح عادي (رقم، خطوات، جدول، مقارنة، عنوان) للتنويع بين الكرتون والشرح.")+" لا تستخدم scene أبداً. واختر board من: paper, notebook, soft, pastel."
     : look === "doodle"
     ? "الفيديو بأسلوب رسوم متحركة حقيقية: استخدم مشهد doodle في أغلب المشاهد (60% أو أكثر) لأن الرسمة تنرسم باليد وتتحرك. اختر اسم الرسمة doodle من القائمة بما يناسب معنى الجملة، ولما تكون الجملة فيها عدة أفكار (2-4) استخدم doodle بصف items [{doodle,label}]. والمشاهد الباقية تكون عنوان أو خطوات أو رقم. لا تستخدم مشهد scene أبداً. واختر board من: paper, notebook, soft, dots."
     : drawings
@@ -138,6 +139,12 @@ export async function POST(req: Request) {
     const style = illus ?? (ILLUS_STYLES.some((x) => x[0] === plan.illus) ? plan.illus : pack?.illus[0] ?? "gulf-cartoon");
     const kept = enforcePack(cleanGraphics(timed.filter((l) => l.scene).map((l, i, all) => ({ ...l.scene, at: Math.max(0, l.s - 0.1), dur: Math.max(1.6, ((all[i + 1]?.s ?? total) - l.s) - 0.05) })), total), pack);
     let graphics = kept.graphics;
+    if (look === "cartoon" && full) { // cartoon in every scene: turn any other scene into the main character with its text on top
+      const count: Record<string, number> = {};
+      for (const g of graphics) if (g.kind === "character" && g.char) count[g.char] = (count[g.char] ?? 0) + 1;
+      const main = (Object.entries(count).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "man") as NonNullable<typeof graphics[number]["char"]>;
+      graphics = graphics.map((g, i) => ({ ...(g.kind === "character" ? g : { kind: "character" as const, at: g.at, dur: g.dur, char: main, mood: "happy" as const, pose: "point" as const, text: g.text ?? g.sub ?? g.good, hl: g.hl, doodle: g.doodle, side: i % 2 ? "l" as const : "r" as const }), tpos: "top" as const }));
+    }
 
     // 3b) AI-drawn scenes, all at once
     if (drawings) graphics = await illustrateScenes(user.id, job.id, graphics, style, aspect, level === "all" ? 10 : level === "half" ? 8 : 6);

@@ -404,6 +404,9 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                     <select value={g.pose ?? "idle"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, pose: e.target.value as typeof x.pose } : x)) })} aria-label={L("الحركة")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
                       {POSES.map((k) => <option key={k} value={k}>{L({ idle: "واقف", point: "يأشّر", wave: "يلوّح" }[k])}</option>)}
                     </select>
+                    <select value={g.tpos ?? ""} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, tpos: (e.target.value || undefined) as "top" | undefined } : x)) })} aria-label={L("مكان الكتابة")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
+                      <option value="">{L("الكتابة تحت")}</option><option value="top">{L("الكتابة فوق")}</option>
+                    </select>
                     <select value={g.side ?? "r"} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, side: e.target.value as "l" | "r" } : x)) })} aria-label={L("مكانه")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">
                       <option value="r">{L("يمين")}</option><option value="l">{L("يسار")}</option>
                     </select>

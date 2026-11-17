@@ -86,7 +86,7 @@ export type Graphic = {
   icon?: IconName;                         // icon / emoji graphic
   emoji?: string;
   items?: { label: string; icon?: IconName; value?: number; doodle?: string }[]; // steps, flow, checklist, bars (doodle row: one drawing per item)
-  char?: CharName; mood?: Mood; pose?: Pose; side?: "l" | "r"; // character: who talks, how they feel, the gesture, which side
+  char?: CharName; mood?: Mood; pose?: Pose; side?: "l" | "r"; tpos?: "top"; // character: who talks, how they feel, the gesture, which side
   doodle?: string;                         // doodle: name of the hand-drawn picture (doodles.ts)
   values?: number[];                       // line chart
   fx?: "marker" | "circle" | "underline" | "typewriter"; // headline effect on the hl word
@@ -135,7 +135,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       kind, at: +c(Number(x?.at) || 0, 0, Math.max(0, len - 0.5)).toFixed(2), dur: +c(Number(x?.dur) || 2.5, 1, 8).toFixed(2),
       text: str(x?.text, 70), hl: str(x?.hl, 30), sub: str(x?.sub, 40),
       value: Number.isFinite(Number(x?.value)) && x?.value !== undefined && x?.value !== null && x?.value !== "" ? c(Number(x.value), 0, 1e9) : undefined,
-      doodle: doodleName(x?.doodle), char: (Object.keys(CHARS) as CharName[]).find((k) => k === x?.char), mood: MOODS.find((k) => k === x?.mood), pose: POSES.find((k) => k === x?.pose), side: x?.side === "l" ? "l" : x?.side === "r" ? "r" : undefined, suffix: str(x?.suffix, 12), icon: icon(x?.icon), emoji: str(x?.emoji, 4), items,
+      doodle: doodleName(x?.doodle), char: (Object.keys(CHARS) as CharName[]).find((k) => k === x?.char), mood: MOODS.find((k) => k === x?.mood), pose: POSES.find((k) => k === x?.pose), side: x?.side === "l" ? "l" : x?.side === "r" ? "r" : undefined, tpos: x?.tpos === "top" ? "top" : undefined, suffix: str(x?.suffix, 12), icon: icon(x?.icon), emoji: str(x?.emoji, 4), items,
       bad: str(x?.bad, 50), good: str(x?.good, 50),
       values: Array.isArray(x?.values) ? (x.values as unknown[]).slice(0, 12).map(Number).filter(Number.isFinite) : undefined,
       fx: (["marker", "circle", "underline", "typewriter"] as const).find((f) => f === x?.fx),
