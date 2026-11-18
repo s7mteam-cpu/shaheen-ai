@@ -15,6 +15,7 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false); // signed in: the conversation is kept on the server for 30 days
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
@@ -108,9 +109,16 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
 
   useEffect(() => {
     try { const s = sessionStorage.getItem(KEY); if (s) setMsgs(JSON.parse(s)); } catch {}
+    // signed-in customers get their saved conversation (last 30 days) back, on any device
+    fetch("/api/assistant").then((r) => r.json()).then((d: { signedIn?: boolean; messages?: Msg[] }) => {
+      if (!d.signedIn) return;
+      setSaved(true);
+      if (d.messages?.length) setMsgs(d.messages);
+      else setMsgs([]);
+    }).catch(() => null);
   }, []);
   useEffect(() => {
-    try { sessionStorage.setItem(KEY, JSON.stringify(msgs.slice(-30))); } catch {}
+    if (!saved) { try { sessionStorage.setItem(KEY, JSON.stringify(msgs.slice(-30))); } catch {} } else { try { sessionStorage.removeItem(KEY); } catch {} }
     // Scroll only inside the chat box (never the page), and only while it is open.
     if (open && list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [msgs, open]);
@@ -148,7 +156,7 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
               <span className="flex flex-col leading-tight"><span className="font-bold text-gold-500">{T("كلّم شاهين", "Ask Shaheen")}</span><span className="text-xs text-white/70">{T("مساعدك الذكي — متاح دائماً", "Your AI assistant — always available")}</span></span>
             </span>
             <div className="flex items-center gap-1">
-              {msgs.length > 0 && <button type="button" onClick={() => setMsgs([])} className="rounded-lg px-2 py-1 text-xs text-white/70 hover:bg-white/10">{T("محادثة جديدة", "New chat")}</button>}
+              {msgs.length > 0 && <button type="button" onClick={() => { setMsgs([]); if (saved) fetch("/api/assistant", { method: "DELETE" }).catch(() => null); }} className="rounded-lg px-2 py-1 text-xs text-white/70 hover:bg-white/10">{T("محادثة جديدة", "New chat")}</button>}
               <button type="button" aria-label={T("إغلاق", "Close")} onClick={() => setOpen(false)} className="rounded-lg px-2 text-2xl leading-none hover:bg-white/10">×</button>
             </div>
           </header>
@@ -156,6 +164,7 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
             <div className="max-w-[85%] self-start rounded-2xl rounded-tr-sm bg-white p-3 text-[15px] leading-7 shadow-sm">
               {lang === "en" ? `Hi${name ? ` ${name}` : ""} 👋 I'm Shaheen. I can help you use the tools, write better descriptions with you, or solve any issue with your account.` : `هلا${name ? ` ${name}` : ""} 👋 أنا شاهين. أقدر أساعدك تستخدم الأدوات، أكتب معك وصف أفضل، أو أحل أي مشكلة في حسابك.`}
             </div>
+            {saved && msgs.length > 0 && <p className="self-center text-[12px] text-subtle">{T("محادثتك تنحفظ 30 يوم. «محادثة جديدة» تمسحها.", "Your chat is kept for 30 days. “New chat” deletes it.")}</p>}
             {msgs.length === 0 && (
               <div className="flex flex-wrap gap-2">{starters.map((s) => <button key={s} type="button" onClick={() => setText(s)} className="rounded-full border border-field bg-white px-3 py-1.5 text-[13px] hover:border-navy-700">{s}</button>)}</div>
             )}

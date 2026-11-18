@@ -3,6 +3,42 @@ import { createClient } from "@/lib/supabase/server";
 import { dbReady, getContent, getPlans, getTools } from "@/lib/data";
 import { aiChat } from "@/lib/providers/text";
 import { trialSettings, trialStatus } from "@/lib/server/trial";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+const KEEP_DAYS = 30;
+const DAY = 86_400_000;
+type Saved = Msg & { at: number };
+let lastPurge = 0;
+
+/** Chats older than 30 days are deleted. Runs from here (at most once an hour) so it does not depend on a cron. */
+async function purgeOld() {
+  if (Date.now() - lastPurge < 3_600_000) return;
+  lastPurge = Date.now();
+  await createAdminClient().from("assistant_chats").delete().lt("updated_at", new Date(Date.now() - KEEP_DAYS * DAY).toISOString());
+}
+async function loadChat(userId: string): Promise<Saved[]> {
+  const { data } = await createAdminClient().from("assistant_chats").select("messages").eq("user_id", userId).maybeSingle();
+  const list = Array.isArray(data?.messages) ? (data!.messages as Saved[]) : [];
+  return list.filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && Date.now() - Number(m.at || 0) < KEEP_DAYS * DAY);
+}
+
+/** The signed-in customer's saved conversation (last 30 days). */
+export async function GET() {
+  if (!dbReady()) return NextResponse.json({ signedIn: false, messages: [] });
+  const { data: { user } } = await (await createClient()).auth.getUser();
+  if (!user) return NextResponse.json({ signedIn: false, messages: [] });
+  purgeOld().catch(() => null);
+  const saved = await loadChat(user.id).catch(() => []);
+  return NextResponse.json({ signedIn: true, messages: saved.map(({ role, content }) => ({ role, content })) });
+}
+
+/** «محادثة جديدة»: deletes the saved conversation. */
+export async function DELETE() {
+  if (!dbReady()) return NextResponse.json({ ok: true });
+  const { data: { user } } = await (await createClient()).auth.getUser();
+  if (user) await createAdminClient().from("assistant_chats").delete().eq("user_id", user.id);
+  return NextResponse.json({ ok: true });
+}
 
 type Msg = { role: "user" | "assistant"; content: string };
 const hits = new Map<string, number[]>();
@@ -24,12 +60,14 @@ export async function POST(req: Request) {
   const [content, plans, tools, trial] = await Promise.all([getContent(), getPlans(), getTools(), trialSettings().catch(() => null)]);
   let userBlock = "الزائر غير مسجل دخول.";
   let key = req.headers.get("x-forwarded-for") ?? "anon";
+  let uid: string | null = null;
 
   if (dbReady()) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       key = user.id;
+      uid = user.id;
       const [{ data: p }, { data: jobs }, { data: sub }] = await Promise.all([
         supabase.from("profiles").select("full_name,credits,plan_id,is_suspended").eq("id", user.id).single(),
         supabase.from("jobs").select("tool_id,title,status,error,credits_charged,refunded,created_at").order("created_at", { ascending: false }).limit(8),
@@ -72,6 +110,16 @@ ${userBlock}
 
   try {
     const reply = await aiChat("chat", system, messages, 700);
+    if (uid) {
+      // keep the whole thread (not just the 16 messages Claude sees), each message with its own date
+      try {
+        const old = await loadChat(uid);
+        const all = [...(body.messages ?? []).filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-40).map((m) => ({ role: m.role, content: m.content.slice(0, 2000) })), { role: "assistant" as const, content: reply }];
+        const pool = [...old];
+        const stamped: Saved[] = all.map((m) => { const k = pool.findIndex((o) => o.role === m.role && o.content === m.content); return { ...m, at: k >= 0 ? pool.splice(k, 1)[0].at : Date.now() }; });
+        await createAdminClient().from("assistant_chats").upsert({ user_id: uid, messages: stamped, updated_at: new Date().toISOString() });
+      } catch (e) { console.error("assistant save", e instanceof Error ? e.message : e); }
+    }
     return NextResponse.json({ reply });
   } catch (e) {
     console.error("assistant:", e instanceof Error ? e.message : e);   // shows in Vercel → Logs
