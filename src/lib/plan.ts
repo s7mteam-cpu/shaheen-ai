@@ -2,7 +2,32 @@ export type PlanItem = { week: number; day: "السبت" | "الاثنين" | "�
 export type Analysis = { positioning: string; audience: string; voice: string; strengths: string[]; gaps: string[]; opportunities: string[]; differentiators: string[]; competitors: string };
 export type Plan = { month: string; start?: string; scope?: "week" | "month"; items: PlanItem[] };
 export type Slot = { day: PlanItem["day"]; date: string; format: PlanItem["format"] };
-export type PlanPrefs = { carouselBg?: "shapes" | "ai" };
+export type PlanColors = { bg: string; ink: string; accent: string; soft: string };
+/** The customer's choices for everything the plan prepares (the same for the manual buttons and the weekly automatic run). */
+export type PlanPrefs = {
+  carouselBg?: "shapes" | "ai";
+  postColors?: PlanColors | null;   // null/undefined = the brand's own colours
+  dialect?: string;                 // language/dialect of posts' text and of the reel's voice
+  voiceover?: boolean;              // reels come with a voice-over (default yes)
+  vgender?: "m" | "f" | "";
+  vage?: "young" | "adult" | "senior" | "";
+  tone?: string;
+};
+const HEX = /^#[0-9a-f]{6}$/i;
+export const cleanColors = (c: unknown): PlanColors | null => {
+  const o = (c ?? {}) as Record<string, unknown>;
+  return ["bg", "ink", "accent", "soft"].every((k) => typeof o[k] === "string" && HEX.test(o[k] as string)) ? { bg: o.bg as string, ink: o.ink as string, accent: o.accent as string, soft: o.soft as string } : null;
+};
+/** The request that prepares one slot with the normal tools. */
+export function itemRequest(x: PlanItem, prefs: PlanPrefs | null | undefined, slides: number): { url: string; body: Record<string, unknown> } {
+  const dialect = prefs?.dialect || "kuwaiti";
+  if (x.format === "reel") {
+    const voiceover = prefs?.voiceover !== false;
+    return { url: "/api/lesson", body: { mode: "motion", topic: x.prompt, seconds: 30, aspect: "9:16", dialect, voiceover, drawings: true, drawLevel: "few", ...(prefs?.vgender ? { vgender: prefs.vgender } : {}), ...(prefs?.vage ? { vage: prefs.vage } : {}), ...(prefs?.tone ? { tone: prefs.tone } : {}) } };
+  }
+  const colors = cleanColors(prefs?.postColors);
+  return { url: "/api/design/start", body: { tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? slides : 1, bgMode: x.format === "carousel" ? (prefs?.carouselBg ?? "shapes") : undefined, aspect: "4:5", dialect, photos: [], useBrand: true, aiImages: true, ...(colors ? { colors } : {}) } };
+}
 /** best posting times in the Gulf */
 export const TIMES = ["12:30 ظهراً", "4:30 عصراً", "11:00 مساءً"] as const;
 const DEFAULT_TIME: Record<string, string> = { post: TIMES[0], carousel: TIMES[1], reel: TIMES[2] };

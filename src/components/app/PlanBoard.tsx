@@ -3,11 +3,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { L, LT } from "@/lib/i18n/ui";
 import { savePlan, savePlanPrefs, setAutoWeekly, tagPlanJob } from "@/app/app/brand/actions";
-import { FORMAT_LABEL, FORMAT_TOOL, type Analysis, type Plan, type PlanItem } from "@/lib/plan";
+import { FORMAT_LABEL, FORMAT_TOOL, itemRequest, type Analysis, type Plan, type PlanColors, type PlanItem, type PlanPrefs } from "@/lib/plan";
+import { PALETTES, lum, onColor } from "@/design/spec";
+import { ARAB_DIALECTS } from "@/lib/countries";
+import { TONES, VOICE_TYPES, typeToGA } from "@/lib/voiceMatch";
 
 const FORMAT_ICON: Record<string, string> = { post: "🖼️", reel: "🎬", carousel: "🗂️" };
 
-export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCostPrice, bg: bg0, unit, auto: auto0 }: { weekCostPrice: number; bg: "shapes" | "ai"; identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number } }) {
+export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCostPrice, prefs: prefs0, dialects: availD, unit, auto: auto0 }: { weekCostPrice: number; prefs: PlanPrefs; dialects: string[] | null; identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number } }) {
   const [plan, setPlan] = useState<Plan | null>(p0);
   const [analysis, setAnalysis] = useState<Analysis | null>(a0);
   const [busy, setBusy] = useState(false);
@@ -17,9 +20,24 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
   const [state, setState] = useState<Record<number, string>>({});
   const [auto, setAuto] = useState(auto0);
   const CAROUSEL_SLIDES = 6;
-  const [bg, setBg] = useState<"shapes" | "ai">(bg0);
+  const [prefs, setPrefs] = useState<PlanPrefs>(prefs0);
+  const bg = prefs.carouselBg ?? "shapes";
+  const voiceover = prefs.voiceover !== false;
+  const availSet = availD ? new Set(availD) : null;
+  const dialectList: [string, string][] = ([...ARAB_DIALECTS.map(([v, ar]) => [v, ar] as [string, string]), ["en", "English"] as [string, string]]).filter(([v]) => !availSet || availSet.has(v) || v === "en");
+  const dialect = dialectList.some(([v]) => v === prefs.dialect) ? (prefs.dialect as string) : dialectList[0]?.[0] ?? "kuwaiti";
+  const typeNow = VOICE_TYPES.find(([id]) => { const g = typeToGA(id); return (g.gender || "") === (prefs.vgender ?? "") && (g.age || "") === (prefs.vage ?? ""); })?.[0] ?? "auto";
+  const [custom, setCustom] = useState<PlanColors>(prefs0.postColors ?? { bg: "#F3ECE2", ink: "#1E1B18", accent: "#B4532F", soft: "#FBF7F1" });
+  async function setPref(patch: Partial<PlanPrefs>) { setPrefs((p) => ({ ...p, ...patch })); await savePlanPrefs(patch); }
+  const mixHex = (a: string, b: string, t: number) => "#" + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, "0")).join("");
+  /** Own background + accent: the text colour and card colour follow so it always stays readable. */
+  function pickCustom(bgc: string, accent: string) {
+    const c: PlanColors = { bg: bgc, ink: onColor(bgc), accent, soft: lum(bgc) > 0.5 ? mixHex(bgc, "#FFFFFF", 0.5) : mixHex(bgc, "#FFFFFF", 0.08) };
+    setCustom(c); void setPref({ postColors: c });
+  }
+  const sameColors = (a?: PlanColors | null, b?: PlanColors) => !!a && !!b && a.bg === b.bg && a.accent === b.accent && a.ink === b.ink;
   const isWeek = plan?.scope === "week";
-  async function pickBg(v: "shapes" | "ai") { setBg(v); await savePlanPrefs({ carouselBg: v }); }
+  async function pickBg(v: "shapes" | "ai") { await setPref({ carouselBg: v }); }
   const itemCost = (x: PlanItem) => (x.format === "post" ? unit.post : x.format === "carousel" ? unit.carousel * CAROUSEL_SLIDES : unit.reel * 2);
   const weekTodo = plan ? plan.items.map((x, i) => [x, i] as const).filter(([x]) => x.week === week && !x.job) : [];
   const weekCost = weekTodo.reduce((n, [x]) => n + itemCost(x), 0);
@@ -29,9 +47,8 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
     const x = base.items[i];
     setState((m) => ({ ...m, [i]: "جاري التجهيز..." }));
     try {
-      const r = x.format === "reel"
-        ? await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "motion", topic: x.prompt, seconds: 30, aspect: "9:16", dialect: "kuwaiti", voiceover: false, drawings: true, drawLevel: "few" }) })
-        : await fetch("/api/design/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? CAROUSEL_SLIDES : 1, bgMode: x.format === "carousel" ? bg : undefined, aspect: "4:5", dialect: "kuwaiti", photos: [], useBrand: true, aiImages: true }) });
+      const rq = itemRequest(x, { ...prefs, dialect }, CAROUSEL_SLIDES);
+      const r = await fetch(rq.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(rq.body) });
       const d = await r.json();
       if (!r.ok || !d.jobId) { setState((m) => ({ ...m, [i]: d.error || "تعذّر التجهيز." })); return base; }
       await tagPlanJob(d.jobId, { week: x.week, day: x.day, date: x.date, format: x.format });
@@ -119,6 +136,33 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
           <div className="flex flex-wrap items-center gap-2 text-[14px]"><span className="font-semibold">{L("خلفيات الكاروسيل")}:</span>
             <button type="button" aria-pressed={bg === "shapes"} onClick={() => pickBg("shapes")} className={chip(bg === "shapes")}>{L("زخارف مصمّمة")}</button>
             <button type="button" aria-pressed={bg === "ai"} onClick={() => pickBg("ai")} className={chip(bg === "ai")}>{L("بالذكاء الاصطناعي ✨")}</button></div>
+          <div className="card flex flex-col gap-3 p-4">
+            <b className="text-navy-900">🎨 {L("ألوان البوستات والكاروسيل")}</b>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" aria-pressed={!prefs.postColors} onClick={() => setPref({ postColors: null })} className={chip(!prefs.postColors)}>{L("ألوان هويتي (تلقائي)")}</button>
+              {PALETTES.map((p) => (
+                <button key={p.name} type="button" aria-pressed={sameColors(prefs.postColors, p.colors)} onClick={() => { setCustom(p.colors); void setPref({ postColors: p.colors }); }} className={`flex items-center gap-1.5 ${chip(sameColors(prefs.postColors, p.colors))}`}>
+                  <span className="flex overflow-hidden rounded-full">{[p.colors.bg, p.colors.accent, p.colors.ink].map((c) => <span key={c} className="h-5 w-3.5" style={{ background: c }} />)}</span>{L(p.name)}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-[14px]">
+              <span className="font-semibold">{L("أو اختر لونك:")}</span>
+              <label className="flex items-center gap-2">{L("الخلفية")}<input type="color" value={custom.bg} onChange={(e) => pickCustom(e.target.value, custom.accent)} className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0" /></label>
+              <label className="flex items-center gap-2">{L("اللون المميز")}<input type="color" value={custom.accent} onChange={(e) => pickCustom(custom.bg, e.target.value)} className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0" /></label>
+            </div>
+            <span className="text-[13px] text-subtle">{L("يطبَّق على المنشورات اللي تجهّزها من هنا (وعلى التجهيز التلقائي). وتقدر تغيّر أي لون بعدها داخل استوديو التصميم.")}</span>
+          </div>
+          <div className="card flex flex-col gap-3 p-4">
+            <b className="text-navy-900">🎙️ {L("اللهجة والتعليق الصوتي")}</b>
+            <div className="flex flex-wrap gap-2">{dialectList.map(([v, l]) => <button key={v} type="button" aria-pressed={dialect === v} onClick={() => setPref({ dialect: v })} className={chip(dialect === v)}>{L(l)}</button>)}</div>
+            <label className="flex items-center gap-3 text-[14.5px]"><input type="checkbox" checked={voiceover} onChange={(e) => setPref({ voiceover: e.target.checked })} className="h-5 w-5" />{L("الريلز تجي مع تعليق صوتي (نص وصوت)")}</label>
+            {voiceover && <>
+              <div className="flex flex-wrap gap-2">{VOICE_TYPES.map(([id, l, g, a]) => <button key={id} type="button" aria-pressed={typeNow === id} onClick={() => setPref({ vgender: (g ?? "") as "m" | "f" | "", vage: (a ?? "") as "young" | "adult" | "senior" | "" })} className={chip(typeNow === id)}>{L(l)}</button>)}</div>
+              <div className="flex flex-wrap gap-2">{TONES.map(([v, l]) => <button key={v} type="button" aria-pressed={(prefs.tone || "auto") === v} onClick={() => setPref({ tone: v === "auto" ? "" : v })} className={chip((prefs.tone || "auto") === v)}>{L(l)}</button>)}</div>
+            </>}
+            <span className="text-[13px] text-subtle">{L("اللهجة تنطبق على نص الريلز وصوتها، وعلى نصوص البوستات.")}</span>
+          </div>
           <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 p-4 text-white">
             <div className="flex-1 text-[14px] leading-7">{weekTodo.length > 0 ? L("جهّز منشورات هذا الأسبوع كلها دفعة وحدة. تلقاها بأعمالي ← «جاهز للنشر» وتراجعها قبل النشر.") : L("منشورات هذا الأسبوع كلها جاهزة ✓")}</div>
             {weekTodo.length > 0 && <button type="button" onClick={prepareWeek} disabled={Object.values(state).includes("جاري التجهيز...")} className="btn btn-gold px-6 py-3 font-bold disabled:opacity-50">⚡ {L("جهّز أسبوع")} {week} ({LT(`${weekCost} ريشة`, `${weekCost} feathers`)})</button>}

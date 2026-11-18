@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runAsUser } from "@/lib/server/auth";
-import { FORMAT_LABEL, FORMAT_TOOL, planWeekOf, type Plan, type PlanItem } from "@/lib/plan";
+import { FORMAT_LABEL, itemRequest, planWeekOf, type Plan, type PlanItem, type PlanPrefs } from "@/lib/plan";
 import { POST as designPOST } from "@/app/api/design/[action]/route";
 import { POST as lessonPOST } from "@/app/api/lesson/route";
 
@@ -24,12 +24,13 @@ async function notify(userId: string, title: string, body: string, link = "/app/
 }
 
 /** Makes one slot exactly like the customer's own button does (same routes, same price, same refund on failure), then tags it «جاهز للنشر». */
-async function prepareItem(userId: string, x: PlanItem, bg: "shapes" | "ai" = "shapes"): Promise<string | null> {
+async function prepareItem(userId: string, x: PlanItem, prefs: PlanPrefs | null): Promise<string | null> {
   const mk = (url: string, body: unknown) => new Request(`http://internal${url}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   try {
+    const rq = itemRequest(x, prefs, CAROUSEL_SLIDES);
     const res = await runAsUser(userId, () => x.format === "reel"
-      ? lessonPOST(mk("/api/lesson", { mode: "motion", topic: x.prompt, seconds: 30, aspect: "9:16", dialect: "kuwaiti", voiceover: false, drawings: true, drawLevel: "few" }))
-      : designPOST(mk("/api/design/start", { tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? CAROUSEL_SLIDES : 1, bgMode: x.format === "carousel" ? bg : undefined, aspect: "4:5", dialect: "kuwaiti", photos: [], useBrand: true, aiImages: true }), { params: Promise.resolve({ action: "start" }) }));
+      ? lessonPOST(mk(rq.url, rq.body))
+      : designPOST(mk(rq.url, rq.body), { params: Promise.resolve({ action: "start" }) }));
     const d = (await res.json().catch(() => ({}))) as { jobId?: string };
     if (!res.ok || !d.jobId) return null;
     const admin = createAdminClient();
@@ -71,7 +72,7 @@ export async function runWeekly(budgetMs = 240_000) {
     }
 
     state.lock = Date.now(); await setState({ lock: state.lock });
-    const ids = await Promise.all(todo.map(([x]) => prepareItem(k.user_id, x, (k.plan_prefs as { carouselBg?: string } | null)?.carouselBg === "ai" ? "ai" : "shapes")));
+    const ids = await Promise.all(todo.map(([x]) => prepareItem(k.user_id, x, (k.plan_prefs as PlanPrefs | null) ?? null)));
     // merge into the LATEST plan (the customer may have edited prompts meanwhile)
     const { data: cur } = await admin.from("brand_kits").select("content_plan").eq("user_id", k.user_id).maybeSingle();
     const latest = (cur?.content_plan ?? plan) as Plan;

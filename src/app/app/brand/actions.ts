@@ -1,4 +1,5 @@
 "use server";
+import { cleanColors, type PlanPrefs } from "@/lib/plan";
 import { logEvent } from "@/lib/server/events";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -92,7 +93,17 @@ async function mergePrefs(patch: Record<string, unknown>) {
   const { error } = await supabase.from("brand_kits").update({ plan_prefs: { ...((old?.plan_prefs as object) ?? {}), ...patch } }).eq("user_id", user.id);
   return { ok: !error };
 }
-export async function savePlanPrefs(p: { carouselBg: "shapes" | "ai" }) { return mergePrefs({ carouselBg: p.carouselBg === "ai" ? "ai" : "shapes" }); }
+export async function savePlanPrefs(p: Partial<PlanPrefs>) {
+  const patch: Record<string, unknown> = {};
+  if (p.carouselBg) patch.carouselBg = p.carouselBg === "ai" ? "ai" : "shapes";
+  if ("postColors" in p) patch.postColors = cleanColors(p.postColors); // null = the brand's own colours
+  if (typeof p.dialect === "string" && /^[a-z]{2,12}$/.test(p.dialect)) patch.dialect = p.dialect;
+  if (typeof p.voiceover === "boolean") patch.voiceover = p.voiceover;
+  if (p.vgender === "m" || p.vgender === "f" || p.vgender === "") patch.vgender = p.vgender;
+  if (p.vage === "young" || p.vage === "adult" || p.vage === "senior" || p.vage === "") patch.vage = p.vage;
+  if (typeof p.tone === "string" && /^[a-z]{0,12}$/.test(p.tone)) patch.tone = p.tone;
+  return mergePrefs(patch);
+}
 export async function markPlanIntro() { return mergePrefs({ introSeen: true }); }
 
 export async function setAutoWeekly(on: boolean) {

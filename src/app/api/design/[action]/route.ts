@@ -1,4 +1,5 @@
 import { loadLike, likeText } from "@/lib/server/like";
+import { cleanColors } from "@/lib/plan";
 import { NextResponse } from "next/server";
 import { safeFetch } from "@/lib/server/safeFetch";
 import { guardContent } from "@/lib/server/moderation";
@@ -81,7 +82,7 @@ note (صندوق مميّز بخلفية وإطار، للشهادات والض�
 
 type Body = {
   tool?: string; info?: string; count?: number; aspect?: DAspect; dialect?: string; photos?: string[]; person?: string;
-  useBrand?: boolean; bgMode?: "shapes" | "ai"; aiImages?: boolean; industry?: string; ref?: DImg | null; likeWork?: string; jobId?: string; spec?: DesignSpec; instruction?: string; index?: number; prompt?: string;
+  useBrand?: boolean; colors?: { bg: string; ink: string; accent: string; soft: string }; bgMode?: "shapes" | "ai"; aiImages?: boolean; industry?: string; ref?: DImg | null; likeWork?: string; jobId?: string; spec?: DesignSpec; instruction?: string; index?: number; prompt?: string;
 };
 type Raw = Partial<DesignSpec> & Record<string, unknown> & { slides?: (Record<string, unknown> & { photo?: unknown; person?: Record<string, unknown> | null })[] };
 
@@ -242,7 +243,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       });
       if (kind === "post" && !raw.slides.length) throw new Error("no slides");
       const brand = { name: (raw.brand as { name?: string })?.name || kit?.business_name || undefined, handle: kit?.handle || kit?.instagram || (raw.brand as { handle?: string })?.handle || undefined, logo: kit?.logo_url ? { path: kit.logo_url, bucket: "uploads" as const, url: "" } : null, showLogo: true };
-      let spec = safeColors(normaliseDesign({ ...raw, brand, aspect, deco: raw.deco ?? dpick?.pick.deco, frame: ((raw as { frame?: string }).frame ?? dpick?.pick.frame) as DesignSpec["frame"], industry: ind?.id }, { kind, aspect }));
+      let spec = safeColors(normaliseDesign({ ...raw, ...(cleanColors(body.colors) ? { colors: cleanColors(body.colors) as NonNullable<ReturnType<typeof cleanColors>> } : {}), brand, aspect, deco: raw.deco ?? dpick?.pick.deco, frame: ((raw as { frame?: string }).frame ?? dpick?.pick.frame) as DesignSpec["frame"], industry: ind?.id }, { kind, aspect }));
       await admin.from("jobs").update({ progress: 60 }).eq("id", job.id);
 
       const gen = await Promise.allSettled(aiWanted.map(async ({ i, ref }) => {
