@@ -216,6 +216,24 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
   const [zipErr, setZipErr] = useState(false);
   const max = spec.kind === "carousel" ? 10 : spec.kind === "ads" ? 4 : spec.kind === "bcard" || spec.kind === "invite" ? 2 : 1;
 
+  async function downloadEach() {
+    setZipping(true); setZipErr(false);
+    try {
+      const files = render.files;
+      for (let i = 0; i < files.length; i++) {
+        const r = await fetch(files[i].url);
+        if (!r.ok) throw new Error("fetch");
+        const b = await r.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(b); a.download = `shaheen-${String(i + 1).padStart(2, "0")}.${b.type.includes("jpeg") ? "jpg" : "png"}`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        await new Promise((ok) => setTimeout(ok, 450));
+      }
+    } catch { setZipErr(true); }
+    setZipping(false);
+  }
+
   async function downloadAll() {
     setZipping(true); setZipErr(false);
     try {
@@ -251,7 +269,12 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
                 </a>
               ))}
             </div>
-            {render.files.length > 1 && <button type="button" onClick={downloadAll} disabled={zipping} className="btn btn-primary px-6 py-3 disabled:opacity-60">{zipping ? L("جاري التجهيز…") : L("⬇️ تحميل كل الصور (ملف واحد)")}</button>}
+            {render.files.length > 1 && (
+              <div className="flex flex-wrap justify-center gap-2">
+                <button type="button" onClick={downloadEach} disabled={zipping} className="btn btn-primary px-6 py-3 disabled:opacity-60">{zipping ? L("جاري التنزيل…") : L("⬇️ تنزيل كل الصور")}</button>
+                <button type="button" onClick={downloadAll} disabled={zipping} className="btn btn-outline px-5 py-3 disabled:opacity-60">{L("ملف واحد (ZIP)")}</button>
+              </div>
+            )}
             {zipErr && <p className="text-[13px] text-red-800">{L("ما قدرنا نجمعها بملف واحد. اضغط على كل صورة لتحميلها.")}</p>}
             <p className="text-[14px] text-emerald-900/80">{L("اضغط على أي صورة لتحميلها. وتلقاها أيضاً في «أعمالي».")}</p>
           </>
