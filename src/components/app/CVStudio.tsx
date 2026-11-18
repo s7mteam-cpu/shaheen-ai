@@ -109,9 +109,9 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   const secName = (k: SecKey) => spec.titles[k] || TITLES[spec.lang][k];
   const card = "card flex flex-col gap-3 p-4";
   return (
-    <div className="flex flex-col gap-4 lg:flex-row-reverse lg:items-start">
+    <div className="flex flex-col gap-4 lg:h-[calc(100vh-8rem)] lg:min-h-[480px] lg:flex-row-reverse lg:items-stretch">
       {zoomView}
-      <div ref={box} className="flex w-full flex-col items-center gap-2 lg:sticky lg:top-3 lg:w-auto">
+      <div ref={box} className="flex w-full flex-col items-center gap-2 lg:h-full lg:w-auto lg:overflow-y-auto lg:pb-4">
         <div dir="ltr" style={{ width: PW * SCALE_MAIN, height: PH * SCALE_MAIN }} className="overflow-hidden rounded-lg bg-white shadow-lg">
           <div style={{ width: PW, height: PH, transform: `scale(${SCALE_MAIN})`, transformOrigin: "top left" }}><CVPage spec={spec} page={page} onPages={setPages} /></div>
         </div>
@@ -124,7 +124,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
         {pages > 2 && <p className="max-w-[560px] text-center text-[13px] text-amber-800">{L("السيرة طويلة (أكثر من صفحتين). الأفضل تختصرها: الشركات تقرأ أول صفحتين فقط.")}</p>}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-4 lg:h-full lg:overflow-y-auto lg:pe-2">
         <div className={card}>
           <b>{L("الستايل")} <span className="text-[13px] font-normal text-subtle">({CV_STYLES.length})</span></b>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -210,7 +210,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
         </div>
 
         {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
-        <div className="sticky bottom-3 z-30 flex flex-col gap-2">
+        <div className="sticky bottom-0 z-30 flex flex-col gap-2 bg-gradient-to-t from-[var(--bg,#0b1b33)] to-transparent pt-3">
           <button type="button" disabled={!!busy} onClick={async () => { const d = await call<{ ok: boolean }>("export", { spec, pages }, "export"); if (d) { setSent(true); setRender({ status: "queued", progress: 0, files: [] }); } }} className="btn btn-gold py-4 text-[17px] shadow-lg">{busy === "export" ? L("جاري الإرسال…") : `⬇️ ${L("صدّر PDF (مجاناً)")}`}</button>
           <button type="button" disabled={!!busy} onClick={async () => { const d = await call<{ url: string }>("docx", { spec }, "docx"); if (d?.url) window.location.href = d.url; }} className="btn btn-outline bg-white py-3">{busy === "docx" ? L("لحظات…") : L("تحميل Word قابل للتعديل (مجاناً)")}</button>
         </div>
