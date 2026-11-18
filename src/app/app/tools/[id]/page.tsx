@@ -14,6 +14,7 @@ import { RealScenesStart } from "@/components/app/RealScenesStart";
 import { QuranStudio } from "@/components/app/QuranStudio";
 import { MotionStudio } from "@/components/app/MotionStudio";
 import { MontageStudio } from "@/components/app/MontageStudio";
+import { CaptionBox } from "@/components/app/CaptionBox";
 import { DesignStart } from "@/components/app/DesignStart";
 import { DesignStudio } from "@/components/app/DesignStudio";
 import { ReopenCard } from "@/components/app/ReopenCard";
@@ -156,7 +157,9 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
   const graphics = (spec.graphics ?? []).map((g) => (g.img ? { ...g, url: picUrls[pics.indexOf(g.img)]?.signedUrl ?? "" } : g));
   const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name").maybeSingle();
   const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null } : null;
-  return <MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed?.signedUrl ?? "", logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo, graphics }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />;
+  const caption = (data.input as { caption?: string } | null)?.caption;
+  return <><MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed?.signedUrl ?? "", logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo, graphics }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />
+    {caption ? <CaptionBox text={caption} /> : null}</>;
 }
 
 /** Posts, carousels and ads: the info form, or the live design studio for one of the user's designs. */

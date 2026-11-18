@@ -23,7 +23,7 @@ export function itemRequest(x: PlanItem, prefs: PlanPrefs | null | undefined, sl
   const dialect = prefs?.dialect || "kuwaiti";
   if (x.format === "reel") {
     const voiceover = prefs?.voiceover !== false;
-    return { url: "/api/lesson", body: { mode: "motion", topic: x.prompt, seconds: 30, aspect: "9:16", dialect, voiceover, drawings: true, drawLevel: "few", ...(prefs?.vgender ? { vgender: prefs.vgender } : {}), ...(prefs?.vage ? { vage: prefs.vage } : {}), ...(prefs?.tone ? { tone: prefs.tone } : {}) } };
+    return { url: "/api/lesson", body: { mode: "motion", topic: x.prompt, caption: x.caption, seconds: 30, aspect: "9:16", dialect, voiceover, drawings: true, drawLevel: "few", ...(prefs?.vgender ? { vgender: prefs.vgender } : {}), ...(prefs?.vage ? { vage: prefs.vage } : {}), ...(prefs?.tone ? { tone: prefs.tone } : {}) } };
   }
   const colors = cleanColors(prefs?.postColors);
   return { url: "/api/design/start", body: { tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? slides : 1, bgMode: x.format === "carousel" ? (prefs?.carouselBg ?? "shapes") : undefined, aspect: "4:5", dialect, photos: [], useBrand: true, aiImages: true, ...(colors ? { colors } : {}) } };

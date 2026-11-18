@@ -57,6 +57,7 @@ export async function POST(req: Request) {
   const brand = String(b.brand ?? "").slice(0, 60);
   const toolId = real ? "real-scenes" : "motion-video"; // one tool for ads and educational videos (b.mode: "motion" = ad, otherwise educational)
   const topic = String(b.topic ?? "").trim().slice(0, 8000);
+  const caption = String(b.caption ?? "").trim().slice(0, 900); // post caption written in the content plan, shown next to the finished reel
   if (topic.length < 5) return NextResponse.json({ error: motion ? "اكتب فكرة الفيديو." : "اكتب الدرس أو الفكرة." }, { status: 400 });
   { const bad = await guardContent(user.id, b, toolId); if (bad) return bad; }
   const seconds = motion ? ([15, 30, 60].includes(Number(b.seconds)) ? Number(b.seconds) : 30) : LENGTHS.includes(Number(b.seconds)) ? Number(b.seconds) : 60;
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
   const cost = Math.max(1, Math.round(seconds / 15)) * tool.credit_cost * (ai ? 2 : 1); // AI clips cost the customer double (the price of a 15-second step is the tool's)
 
   const { data: job, error } = await admin.from("jobs")
-    .insert({ user_id: user.id, tool_id: toolId, title: topic.slice(0, 80), status: "running", progress: 5, input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null } })
+    .insert({ user_id: user.id, tool_id: toolId, title: topic.slice(0, 80), status: "running", progress: 5, input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null, ...(caption ? { caption } : {}) } })
     .select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
@@ -255,7 +256,7 @@ export async function POST(req: Request) {
       videoVolume: 0, sfx: true, progress: !motion, quality: "1080",
     };
     await resolveTerrain(spec);
-    await admin.from("jobs").update({ status: "draft", progress: 100, title: String(plan.title || topic).slice(0, 80), input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null, first: snapshot(spec as unknown as Record<string, unknown>), spec } }).eq("id", job.id);
+    await admin.from("jobs").update({ status: "draft", progress: 100, title: String(plan.title || topic).slice(0, 80), input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null, ...(caption ? { caption } : {}), first: snapshot(spec as unknown as Record<string, unknown>), spec } }).eq("id", job.id);
     return NextResponse.json({ jobId: job.id });
   } catch (e) {
     console.error("lesson", e);
