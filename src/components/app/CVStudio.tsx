@@ -7,14 +7,14 @@ import { uploadImage } from "@/components/app/DesignStart";
 import { CVPage, PW, PH } from "@/cv/CV";
 import { CV_STYLES, CV_ACCENTS, CV_FONTS, SEC_KEYS, TITLES, applyCVStyle, type CVSpec, type SecKey } from "@/cv/spec";
 
-const SCALE_MAIN = 0.78;
+const SCALE_MAIN = 0.64;
 type Pg = { status: string; progress: number; files: { url: string }[] };
 
 function Thumb({ spec, active, onPick, label }: { spec: CVSpec; active: boolean; onPick: () => void; label: string }) {
   const s = 0.2;
   return (
     <button type="button" onClick={onPick} aria-pressed={active} className={`overflow-hidden rounded-lg border-2 text-center ${active ? "border-gold-500" : "border-transparent"} bg-white shadow-sm`}>
-      <div style={{ width: PW * s, height: PH * s, overflow: "hidden", margin: "0 auto" }}><div style={{ width: PW, height: PH, transform: `scale(${s})`, transformOrigin: "top left", pointerEvents: "none" }}><CVPage spec={spec} page={0} /></div></div>
+      <div dir="ltr" style={{ width: PW * s, height: PH * s, overflow: "hidden", margin: "0 auto" }}><div style={{ width: PW, height: PH, transform: `scale(${s})`, transformOrigin: "top left", pointerEvents: "none" }}><CVPage spec={spec} page={0} /></div></div>
       <div className="px-1 py-1 text-[11px] leading-tight text-ink">{label}</div>
     </button>
   );
@@ -86,7 +86,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   return (
     <div className="flex flex-col gap-4 lg:flex-row-reverse lg:items-start">
       <div className="flex flex-col items-center gap-2 lg:sticky lg:top-3">
-        <div style={{ width: PW * SCALE_MAIN, height: PH * SCALE_MAIN }} className="overflow-hidden rounded-lg bg-white shadow-lg">
+        <div dir="ltr" style={{ width: PW * SCALE_MAIN, height: PH * SCALE_MAIN }} className="overflow-hidden rounded-lg bg-white shadow-lg">
           <div style={{ width: PW, height: PH, transform: `scale(${SCALE_MAIN})`, transformOrigin: "top left" }}><CVPage spec={spec} page={page} onPages={setPages} /></div>
         </div>
         <div className="flex items-center gap-3">
