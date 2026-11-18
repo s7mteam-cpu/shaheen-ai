@@ -5,6 +5,7 @@ import { aiChat } from "@/lib/providers/text";
 import { trialSettings, trialStatus } from "@/lib/server/trial";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clean, customerContext } from "@/lib/server/assistantContext";
+import { toolSpecs } from "@/lib/tools/specs";
 import { itemRequest, FORMAT_TOOL, type PlanItem, type PlanPrefs } from "@/lib/plan";
 
 const KEEP_DAYS = 30;
@@ -53,7 +54,7 @@ function limited(key: string) {
 }
 
 type Act =
-  | { kind: "make"; format: "post" | "carousel" | "reel" | "scenes"; label: string; cost: number; enough: boolean; url: string; body: Record<string, unknown>; open: string }
+  | { kind: "make"; format: string; label: string; cost: number; enough: boolean; url: string; body?: Record<string, unknown>; form?: Record<string, string>; open: string }
   | { kind: "open"; label: string; href: string };
 const SLIDES = 6;
 /** The model may only SUGGEST an action in its own reply. Only a whitelisted, validated kind survives; the customer still has to press «أكّد». */
@@ -92,6 +93,29 @@ function extractAction(raw: string, c: { signedIn: boolean; credits: number; pre
     const dialect = c.prefs.dialect || "kuwaiti";
     const body = { tool: "real-scenes", source: ai ? "ai" : "stock", topic: brief, seconds, aspect: "9:16", dialect, voiceover: true, music: true, photos: [] };
     return { text, action: { kind: "make", format: "scenes", label: `مشاهد واقعية ${ai ? "بالذكاء الاصطناعي" : "بلقطات جاهزة"} ${seconds} ثانية`, cost, enough: c.credits >= cost, url: "/api/lesson", body, open: "/app/tools/real-scenes?job=" } };
+  }
+  if (base === "voice") {
+    const [, dRaw, vRaw, tRaw] = kind.split(":");
+    const opts = (name: string) => ((toolSpecs.voice.fields.find((f) => f.type === "choice" && f.name === name) as { options?: { value: string }[] } | undefined)?.options ?? []).map((o) => o.value);
+    const pick = (raw: string | undefined, name: string, def: string) => (raw && opts(name).includes(raw) ? raw : def);
+    const text2 = brief.slice(0, 2500);
+    if (text2.length < 2) return { text, action: null };
+    const cost = Math.max(1, Math.ceil(text2.length / 500)) * price("voice");
+    const body = { tool: "voice", input: { text: text2, dialect: pick(dRaw, "dialect", "same"), vtype: pick(vRaw, "vtype", "auto"), tone: pick(tRaw, "tone", "plain"), voice: "auto", polish: false, clone: false } };
+    return { text, action: { kind: "make", format: "voice", label: `صوت (${text2.length} حرف)`, cost, enough: c.credits >= cost, url: "/api/jobs", body, open: "/app/tools/voice?job=" } };
+  }
+  if (base === "cv") {
+    if (brief.length < 20) return { text, action: null };
+    const cost = price("cv");
+    return { text, action: { kind: "make", format: "cv", label: "سيرة ذاتية", cost, enough: c.credits >= cost, url: "/api/cv/start", form: { info: brief.slice(0, 12000), target: "", lang: kind.split(":")[1] === "en" ? "en" : "ar" }, open: "/app/tools/cv?job=" } };
+  }
+  if (base === "deck") {
+    const parts = kind.split(":").slice(1);
+    const auto = parts.includes("auto");
+    const n = auto ? 20 : Math.min(30, Math.max(5, Math.round(Number(parts.find((x) => /^\d+$/.test(x)))) || 10));
+    const img = parts.includes("img");
+    const cost = price("presentations") * (auto ? 2 : Math.ceil(n / 10)) + (img ? 8 : 0); // same formula as /api/presentation
+    return { text, action: { kind: "make", format: "deck", label: `عرض تقديمي ${auto ? "(شاهين يقرر عدد الشرائح)" : `${n} شريحة`}${img ? " مع صور" : ""}`, cost, enough: c.credits >= cost, url: "/api/presentation", form: { topic: brief.slice(0, 12000), slides: auto ? "auto" : String(n), lang: parts.includes("en") ? "en" : "ar", images: img ? "1" : "0", kit: "1" }, open: "/app/tools/presentations?job=" } };
   }
   if (kind.startsWith("open:")) {
     const t = c.tools.find((x) => x.id === kind.slice(5));
@@ -142,6 +166,7 @@ export async function POST(req: Request) {
   const legalBlock = /شروط|خصوصي|استرجاع|استرداد|سياسة|حقوق|محتوى مخالف|قانون|privacy|terms|refund|policy/i.test(lastQ)
     ? `\n<نصوص_الموقع>\nالشروط: ${clean(content.legal.terms, 5000)}\nالخصوصية: ${clean(content.legal.privacy, 5000)}\nالاسترجاع: ${clean(content.legal.refund, 3000)}\nالمحتوى: ${clean(content.legal.content, 3000)}\n</نصوص_الموقع>\n`
     : "";
+  const voiceDialectKeys = ((toolSpecs.voice.fields.find((f) => f.type === "choice" && f.name === "dialect") as { options?: { value: string }[] } | undefined)?.options ?? []).map((o) => o.value).filter((v) => v !== "same" && v !== "en").join(" ");
   const wa = content.footer.whatsapp;
   const system = `أنت «شاهين»، المساعد الذكي داخل منصة شاهين (S7M) لصناعة المحتوى بالذكاء الاصطناعي. تكلّم باللهجة الكويتية البيضاء الودودة والمختصرة (بدون كلمات شامية أو مصرية مثل شو، هيك، بدك، لسا، كمان، مش)، وإذا كتب لك العميل بالفصحى فرد بالفصحى، وإذا كتب بالإنجليزي فرد بالإنجليزي، وجاوب على قد السؤال.
 
@@ -180,6 +205,9 @@ ${legalBlock}
   فيديو إعلاني أو ريلز أو موشن جرافيك: [[ACTION reel:المدة | ...]] والمدة بالثواني: 15 أو 30 أو 60 (إذا ما حدد العميل مدة اكتب 30). مثال: [[ACTION reel:15 | ...]]
   فيديو تعليمي أو شرح درس (مثل جدول الضرب): [[ACTION lesson:المدة | ...]] والمدة 30 أو 60 أو 90 أو 120، أقل مدة 30 حتى لو طلب أقل، وقل له ذلك بصراحة قبل التأكيد. مثال: [[ACTION lesson:30 | ...]]
   مشاهد واقعية (فيديو بلقطات واقعية بصوت وتعليق من نص العميل، بدون ما العميل يرفع شي): [[ACTION scenes:stock:المدة | ...]] للقطات جاهزة (أرخص وأسرع) أو [[ACTION scenes:ai:المدة | ...]] للقطات تتولّد بالذكاء الاصطناعي من كل جملة (جودة أعلى، سعرها ضعف، وتاخذ دقائق). المدة 15 أو 30 أو 60. مثال: [[ACTION scenes:ai:30 | ...]]. إذا ما حدد العميل النوع اسأله بسطر: جاهزة (أرخص) أو بالذكاء الاصطناعي (أغلى)؟ وانتبه تقول له إن السعر ظاهر بالكرت قبل التأكيد.
+  صوت (تحويل نص لصوت): [[ACTION voice:اللهجة:نوع_الصوت:الإحساس | النص بالحرف]]. اللهجة same أو en أو وحدة من: ${voiceDialectKeys} (إذا ما حددها اكتب same)، ونوع الصوت auto أو man أو woman أو young_m أو young_f، والإحساس plain أو calm أو energetic أو happy أو confident أو formal. النص الأقصى 2500 حرف، والسعر حسب الطول. مثال: [[ACTION voice:kuwaiti:woman:calm | هلا بكم في محلنا...]]. إذا ما عرفت اللهجة أو الصوت اكتب same وauto ولا تسأل كثير.
+  سيرة ذاتية: [[ACTION cv:ar | كل المعلومات]] أو cv:en بالإنجليزي. قبل الكرت لازم تجمع من العميل: الاسم، الوظيفة المستهدفة، الخبرات (الشركة والمدة والمهام)، التعليم، المهارات، ووسيلة التواصل. اسأله عن الناقص بأسئلة قصيرة، وبعدين اكتب كل شي بالوصف. لا تخترع له معلومات أبداً.
+  عرض تقديمي (باوربوينت): [[ACTION deck:عدد_الشرائح | الموضوع والجمهور والنقاط]]. العدد بين 5 و30، أو deck:auto (شاهين يقرر). أضف :img لصور بالذكاء الاصطناعي (يزيد 8 ريشة)، و:en للإنجليزي. مثال: [[ACTION deck:10:img | عرض عن ...]]. إذا ما حدد العميل العدد اكتب 10.
   التزم بالمدة اللي طلبها العميل، ولا تغيّرها بدون ما تقول له. لا تحوّل طلب الفيديو لرابط أداة، نفّذه بهالأسطر مباشرة.
   الوصف يكون بالعربي ويشمل كل تفاصيل العميل (المنتج، السعر، العرض، الجمهور، النبرة).
 - إذا التفاصيل ناقصة، اسأله سؤال واحد قصير قبل ما تكتب السطر.

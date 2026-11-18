@@ -6,7 +6,7 @@ import { Icon } from "@/components/Icon";
 import { tr, type Lang } from "@/lib/i18n";
 
 type Act =
-  | { kind: "make"; format: string; label: string; cost: number; enough: boolean; url: string; body: Record<string, unknown>; open: string }
+  | { kind: "make"; format: string; label: string; cost: number; enough: boolean; url: string; body?: Record<string, unknown>; form?: Record<string, string>; open: string }
   | { kind: "open"; label: string; href: string };
 type Msg = { role: "user" | "assistant"; content: string; action?: Act };
 type ActState = { st: "idle" | "working" | "done" | "error"; msg?: string; job?: string };
@@ -147,9 +147,11 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
     if (acts[i]?.st === "working" || acts[i]?.st === "done") return; // one press = one charge
     setActs((m) => ({ ...m, [i]: { st: "working" } }));
     try {
-      const r = await fetch(a.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(a.body) });
+      const fd = a.form ? Object.entries(a.form).reduce((f, [k, v]) => (f.append(k, v), f), new FormData()) : null;
+      const r = await fetch(a.url, fd ? { method: "POST", body: fd } : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(a.body) });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok || !d.jobId) { setActs((m) => ({ ...m, [i]: { st: "error", msg: String(d.error || T("تعذّر التجهيز.", "Could not prepare it.")) } })); return; }
+      d.jobId = d.jobId ?? d.id;
+      if (!r.ok || !d.jobId || d.status === "failed") { setActs((m) => ({ ...m, [i]: { st: "error", msg: String(d.error || T("تعذّر التجهيز.", "Could not prepare it.")) } })); return; }
       setActs((m) => ({ ...m, [i]: { st: "done", job: String(d.jobId) } }));
     } catch { setActs((m) => ({ ...m, [i]: { st: "error", msg: T("تعذّر الاتصال.", "Connection failed.") } })); }
   }
