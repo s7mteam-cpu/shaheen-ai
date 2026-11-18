@@ -1,3 +1,4 @@
+import { DIALECT_NAME, pickVoice, type VoiceItem } from "@/lib/voiceMatch";
 import { NextResponse } from "next/server";
 import { resolveTerrain } from "@/lib/server/maptiler";
 import { guardContent } from "@/lib/server/moderation";
@@ -25,7 +26,7 @@ const hex = (v: unknown, d: string) => (typeof v === "string" && /^#[0-9a-f]{6}$
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 
-type Body = { jobId?: string; spec?: MontageSpec; instruction?: string; prompt?: string; style?: string; seconds?: number; text?: string; voice?: string; dialect?: string };
+type Body = { jobId?: string; spec?: MontageSpec; instruction?: string; prompt?: string; style?: string; seconds?: number; text?: string; voice?: string; dialect?: string; vgender?: string };
 
 
 /** Only the parts the customer may change; cuts, words and the source stay as the worker planned them. */
@@ -223,11 +224,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (denied) return denied;
     try {
       // 1) ready for speech: clear "white Gulf" spelling and smooth pauses
-      const say = await speechReady(text);
+      const dName = DIALECT_NAME[String(body.dialect ?? "")];
+      const say = await speechReady(text, dName);
       // 2) record it with word timings
       const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
       const voices = ((vc?.value as { items?: { id: string; model?: string; settings?: VoiceSettings }[] })?.items ?? []);
-      const voiceId = voices.some((v) => v.id === body.voice) ? String(body.voice) : voices[0]?.id ?? "pNInz6obpgDQGcFmaJgB";
+      const voiceId = voices.some((v) => v.id === body.voice) ? String(body.voice) : pickVoice(voices as VoiceItem[], { dialect: dName ? String(body.dialect) : undefined, gender: String(body.vgender ?? "") })?.id ?? voices[0]?.id ?? "pNInz6obpgDQGcFmaJgB";
       const vInfo = voices.find((x) => x.id === voiceId);
       const v = await ttsTimed(say, voiceId, vInfo?.model || undefined, vInfo?.settings);
       if (!v.words.length) throw new Error("no words");

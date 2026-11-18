@@ -172,6 +172,9 @@ export const toolSpecs: Record<string, ToolSpec> = {
   voice: {
     fields: [
       { type: "text", name: "text", label: "النص", required: true, max: 2500, rows: 6 },
+      { type: "choice", name: "dialect", label: "اللهجة", default: "same", options: [{ value: "same", label: "مثل ما كتبت" }, ...dialects, { value: "en", label: "English" }] },
+      { type: "choice", name: "vgender", label: "نوع الصوت", default: "auto", options: [{ value: "auto", label: "تلقائي" }, { value: "m", label: "رجالي" }, { value: "f", label: "نسائي" }] },
+      { type: "choice", name: "vage", label: "عمر الصوت", default: "any", options: [{ value: "any", label: "أي عمر" }, { value: "young", label: "شاب / شابة" }, { value: "adult", label: "عمر متوسط" }, { value: "senior", label: "كبير بالعمر" }] },
       { type: "voice", name: "voice", label: "الصوت" },
       { type: "toggle", name: "polish", label: "جهّز النص للنطق (خليجي أبيض واضح)", default: true, hint: "شاهين يعدّل الإملاء والوقفات عشان الصوت يطلع طبيعي، بنفس المعنى." },
       { type: "toggle", name: "clone", label: "استخدم صوتي (استنساخ)", default: false, hint: "ارفع تسجيل لصوتك من 30 ثانية إلى دقيقتين." },

@@ -56,11 +56,15 @@ export const SPEECH_PROMPT = `أنت محرر نصوص للتعليق الصوت
 - الأرقام بالحروف. شكّل فقط الكلمات اللي ممكن تنقرأ غلط (مثل: تميّزك).
 أعد النص فقط بدون أي شرح.`;
 
-export async function speechReady(text: string) {
+/** `dialect` (a name like «لهجة مصرية بيضاء واضحة») rewrites the text into that dialect; leave it out to keep the writer's own. */
+export async function speechReady(text: string, dialect?: string) {
   const t = text.trim();
   if (!t) return t;
+  const sys = dialect
+    ? `${SPEECH_PROMPT}\n- مهم جداً: أعد كتابة النص كاملاً بـ«${dialect}» (كلمات وتراكيب أهل هذه اللهجة، مو فقط الإملاء)، بنفس المعنى بالضبط، حتى لو كان النص الأصلي بلهجة ثانية.`
+    : SPEECH_PROMPT;
   try {
-    const out = await aiChat({ provider: "claude", model: "claude-haiku-5-5" }, SPEECH_PROMPT, [{ role: "user", content: t }], 1500);
+    const out = await aiChat({ provider: "claude", model: "claude-haiku-5-5" }, sys, [{ role: "user", content: t }], 1500);
     return out.trim().slice(0, 2500) || t;
   } catch (e) { console.error("speechReady", e); return t; }
 }

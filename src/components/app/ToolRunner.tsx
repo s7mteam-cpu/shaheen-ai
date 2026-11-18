@@ -33,7 +33,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
     const like = params.get("like");
     if (like && /^[0-9a-f-]{36}$/i.test(like)) v.likeWork = like;
     if (p) for (const k of ["prompt", "text", "script"]) if (k in v) { v[k] = p; break; }
-    if ("voice" in v && voices[0]) v.voice = voices[0].id;
+    if ("voice" in v) v.voice = tool.id === "voice" ? "auto" : voices[0]?.id ?? v.voice;
     if ("vo_voice" in v && voices[0]) v.vo_voice = voices[0].id;
     return v;
   });
@@ -239,6 +239,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
 
                 {f.type === "voice" && (
                   <select id={`f-${f.name}`} value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)} className="field">
+                    {tool.id === "voice" && f.name === "voice" && <option value="auto">{L("تلقائي (حسب اللهجة والنوع والعمر)")}</option>}
                     {voices.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                   </select>
                 )}

@@ -8,6 +8,8 @@ import { cloneVoice, deleteVoice, music, tts, type VoiceSettings } from "@/lib/p
 import { saveFromUrl, saveResult, signedUploadUrls } from "@/lib/providers/storage";
 import type { Values } from "@/lib/tools/specs";
 import { loadLike } from "@/lib/server/like";
+import { DIALECT_NAME, pickVoice, type VoiceItem } from "@/lib/voiceMatch";
+
 
 export type Job = { id: string; user_id: string; tool_id: string; input: Values };
 export type OutFile = { path: string; type: string; caption?: string };
@@ -224,7 +226,15 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
       return null;
 
     case "voice": {
-      const voice = await voiceById(String(v.voice));
+      const dKey = String(v.dialect ?? "same");
+      const dName = DIALECT_NAME[dKey];
+      let chosen = String(v.voice);
+      if (chosen === "auto" || !chosen) {
+        const { data: vc } = await createAdminClient().from("site_content").select("value").eq("key", "voices").maybeSingle();
+        const list = ((vc?.value as { items?: VoiceItem[] })?.items) ?? [];
+        chosen = pickVoice(list, { dialect: dName ? dKey : undefined, gender: String(v.vgender ?? ""), age: String(v.vage ?? "") })?.id ?? list[0]?.id ?? "";
+      }
+      const voice = await voiceById(chosen);
       const { provider, model: vm } = await config("voice");
       if (provider === "google" && !v.clone) {
         const wav = await geminiSpeech(vm, String(v.text), voice.google);
@@ -240,7 +250,7 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
       }
       try {
         const vv = await voiceById(voiceId);
-        const say = v.polish === false ? String(v.text) : await speechReady(String(v.text));
+        const say = v.polish === false && !dName ? String(v.text) : await speechReady(String(v.text), dName);
         const audio = await tts(say, voiceId, vv.model || (provider === "elevenlabs" && vm && vm !== "music" ? vm : undefined), vv.settings);
         return [{ path: await saveResult(job.user_id, job.id, audio, "audio/mpeg", "mp3"), type: "audio/mpeg", caption: say !== String(v.text) ? `النص اللي انقرأ: ${say}` : undefined }];
       } finally {
