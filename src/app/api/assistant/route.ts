@@ -53,7 +53,7 @@ function limited(key: string) {
 }
 
 type Act =
-  | { kind: "make"; format: "post" | "carousel" | "reel"; label: string; cost: number; enough: boolean; url: string; body: Record<string, unknown>; open: string }
+  | { kind: "make"; format: "post" | "carousel" | "reel" | "scenes"; label: string; cost: number; enough: boolean; url: string; body: Record<string, unknown>; open: string }
   | { kind: "open"; label: string; href: string };
 const SLIDES = 6;
 /** The model may only SUGGEST an action in its own reply. Only a whitelisted, validated kind survives; the customer still has to press «أكّد». */
@@ -82,6 +82,16 @@ function extractAction(raw: string, c: { signedIn: boolean; credits: number; pre
     const rq = itemRequest({ week: 1, day: "السبت", date: "", format: "reel", pillar: "", topic: brief.slice(0, 160), hook: "", goal: "", prompt: brief, caption: "" } as PlanItem, c.prefs, SLIDES);
     const body = { ...rq.body, seconds, ...(base === "lesson" ? { mode: "lesson", audience: "students" } : {}) };
     return { text, action: { kind: "make", format: "reel", label: `${base === "lesson" ? "فيديو تعليمي" : "ريلز"} ${seconds} ثانية`, cost, enough: c.credits >= cost, url: rq.url, body, open: "/app/tools/motion-video?job=" } };
+  }
+  if (base === "scenes") {
+    const [, srcRaw, secRaw2] = kind.split(":");
+    const ai = srcRaw === "ai";
+    const asked2 = Number(secRaw2);
+    const seconds = [15, 30, 60].includes(asked2) ? asked2 : 30;
+    const cost = Math.max(1, Math.round(seconds / 15)) * price("real-scenes") * (ai ? 2 : 1);
+    const dialect = c.prefs.dialect || "kuwaiti";
+    const body = { tool: "real-scenes", source: ai ? "ai" : "stock", topic: brief, seconds, aspect: "9:16", dialect, voiceover: true, music: true, photos: [] };
+    return { text, action: { kind: "make", format: "scenes", label: `مشاهد واقعية ${ai ? "بالذكاء الاصطناعي" : "بلقطات جاهزة"} ${seconds} ثانية`, cost, enough: c.credits >= cost, url: "/api/lesson", body, open: "/app/tools/real-scenes?job=" } };
   }
   if (kind.startsWith("open:")) {
     const t = c.tools.find((x) => x.id === kind.slice(5));
@@ -169,6 +179,7 @@ ${legalBlock}
   [[ACTION post | وصف كامل للمطلوب بالتفصيل]]   أو  [[ACTION carousel | ...]]  أو  [[ACTION reel | ...]]
   فيديو إعلاني أو ريلز أو موشن جرافيك: [[ACTION reel:المدة | ...]] والمدة بالثواني: 15 أو 30 أو 60 (إذا ما حدد العميل مدة اكتب 30). مثال: [[ACTION reel:15 | ...]]
   فيديو تعليمي أو شرح درس (مثل جدول الضرب): [[ACTION lesson:المدة | ...]] والمدة 30 أو 60 أو 90 أو 120، أقل مدة 30 حتى لو طلب أقل، وقل له ذلك بصراحة قبل التأكيد. مثال: [[ACTION lesson:30 | ...]]
+  مشاهد واقعية (فيديو بلقطات واقعية بصوت وتعليق من نص العميل، بدون ما العميل يرفع شي): [[ACTION scenes:stock:المدة | ...]] للقطات جاهزة (أرخص وأسرع) أو [[ACTION scenes:ai:المدة | ...]] للقطات تتولّد بالذكاء الاصطناعي من كل جملة (جودة أعلى، سعرها ضعف، وتاخذ دقائق). المدة 15 أو 30 أو 60. مثال: [[ACTION scenes:ai:30 | ...]]. إذا ما حدد العميل النوع اسأله بسطر: جاهزة (أرخص) أو بالذكاء الاصطناعي (أغلى)؟ وانتبه تقول له إن السعر ظاهر بالكرت قبل التأكيد.
   التزم بالمدة اللي طلبها العميل، ولا تغيّرها بدون ما تقول له. لا تحوّل طلب الفيديو لرابط أداة، نفّذه بهالأسطر مباشرة.
   الوصف يكون بالعربي ويشمل كل تفاصيل العميل (المنتج، السعر، العرض، الجمهور، النبرة).
 - إذا التفاصيل ناقصة، اسأله سؤال واحد قصير قبل ما تكتب السطر.
