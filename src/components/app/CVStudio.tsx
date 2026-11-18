@@ -2,19 +2,33 @@
 import { L } from "@/lib/i18n/ui";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+
+/** Width of an element, kept up to date (so previews scale to any screen, phones included). */
+function useWidth<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const ro = new ResizeObserver(() => setW(el.clientWidth));
+    ro.observe(el); setW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
 import { Progress } from "@/components/app/Progress";
 import { uploadImage } from "@/components/app/DesignStart";
 import { CVPage, PW, PH } from "@/cv/CV";
 import { CV_STYLES, CV_ACCENTS, CV_FONTS, SEC_KEYS, TITLES, applyCVStyle, type CVSpec, type SecKey } from "@/cv/spec";
 
-const SCALE_MAIN = 0.64;
+const SCALE_MAX = 0.64;
 type Pg = { status: string; progress: number; files: { url: string }[] };
 
 function Thumb({ spec, active, onPick, label }: { spec: CVSpec; active: boolean; onPick: () => void; label: string }) {
-  const s = 0.2;
+  const [ref, w] = useWidth<HTMLDivElement>();
+  const s = w ? w / PW : 0.2;
   return (
     <button type="button" onClick={onPick} aria-pressed={active} className={`overflow-hidden rounded-lg border-2 text-center ${active ? "border-gold-500" : "border-transparent"} bg-white shadow-sm`}>
-      <div dir="ltr" style={{ width: PW * s, height: PH * s, overflow: "hidden", margin: "0 auto" }}><div style={{ width: PW, height: PH, transform: `scale(${s})`, transformOrigin: "top left", pointerEvents: "none" }}><CVPage spec={spec} page={0} /></div></div>
+      <div ref={ref} dir="ltr" style={{ width: "100%", aspectRatio: `${PW} / ${PH}`, overflow: "hidden", position: "relative" }}><div style={{ width: PW, height: PH, transform: `scale(${s})`, transformOrigin: "top left", pointerEvents: "none", position: "absolute", top: 0, left: 0 }}><CVPage spec={spec} page={0} /></div></div>
       <div className="px-1 py-1 text-[11px] leading-tight text-ink">{label}</div>
     </button>
   );
@@ -30,6 +44,9 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   const [sent, setSent] = useState(false);
   const [render, setRender] = useState<Pg>({ status: done?.length ? "done" : "draft", progress: 0, files: done ?? [] });
   const first = useRef(true);
+  const [box, bw] = useWidth<HTMLDivElement>();
+  const [zoom, setZoom] = useState(false);
+  const SCALE_MAIN = bw ? Math.min(SCALE_MAX, bw / PW) : SCALE_MAX;
   const ar = spec.lang === "ar";
   const set = (p: Partial<CVSpec>) => setSpec((s) => ({ ...s, ...p }));
 
@@ -81,11 +98,20 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   );
 
   const field = "field";
+  const zoomView = zoom && (
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/80">
+      <button type="button" onClick={() => setZoom(false)} className="btn btn-gold m-3 py-2.5">✕ {L("إغلاق")}</button>
+      <div dir="ltr" className="flex-1 overflow-auto px-2 pb-4">
+        <div style={{ width: PW * 0.9, height: PH * 0.9 }} className="mx-auto bg-white"><div style={{ width: PW, height: PH, transform: "scale(0.9)", transformOrigin: "top left" }}><CVPage spec={spec} page={page} /></div></div>
+      </div>
+    </div>
+  );
   const secName = (k: SecKey) => spec.titles[k] || TITLES[spec.lang][k];
   const card = "card flex flex-col gap-3 p-4";
   return (
     <div className="flex flex-col gap-4 lg:flex-row-reverse lg:items-start">
-      <div className="flex flex-col items-center gap-2 lg:sticky lg:top-3">
+      {zoomView}
+      <div ref={box} className="flex w-full flex-col items-center gap-2 lg:sticky lg:top-3 lg:w-auto">
         <div dir="ltr" style={{ width: PW * SCALE_MAIN, height: PH * SCALE_MAIN }} className="overflow-hidden rounded-lg bg-white shadow-lg">
           <div style={{ width: PW, height: PH, transform: `scale(${SCALE_MAIN})`, transformOrigin: "top left" }}><CVPage spec={spec} page={page} onPages={setPages} /></div>
         </div>
@@ -94,13 +120,14 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
           <span className="text-[14px]">{page + 1} / {pages}</span>
           <button type="button" disabled={page >= pages - 1} onClick={() => setPage(page + 1)} className="btn btn-outline px-4 py-1.5">›</button>
         </div>
+        <button type="button" onClick={() => setZoom(true)} className="chip lg:hidden">🔍 {L("تكبير المعاينة")}</button>
         {pages > 2 && <p className="max-w-[560px] text-center text-[13px] text-amber-800">{L("السيرة طويلة (أكثر من صفحتين). الأفضل تختصرها: الشركات تقرأ أول صفحتين فقط.")}</p>}
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div className={card}>
           <b>{L("الستايل")} <span className="text-[13px] font-normal text-subtle">({CV_STYLES.length})</span></b>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {CV_STYLES.slice(0, n).map((st) => <Thumb key={st.id} spec={applyCVStyle(spec, st)} active={spec.template === st.template && spec.accent === st.accent && spec.font === st.font} onPick={() => set({ template: st.template, accent: st.accent, font: st.font, tone: st.tone })} label={st.name} />)}
           </div>
           {n < CV_STYLES.length && <button type="button" onClick={() => setN(CV_STYLES.length)} className="btn btn-outline py-2">{L("اعرض كل الـ50 ستايل")}</button>}
