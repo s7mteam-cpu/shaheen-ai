@@ -39,7 +39,8 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   const [page, setPage] = useState(0);
   const [pages, setPages] = useState(1);
   const [vh, setVh] = useState(900);
-  useEffect(() => { const f = () => setVh(window.innerHeight); f(); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
+  const [vw, setVw] = useState(1200);
+  useEffect(() => { const f = () => { setVh(window.innerHeight); setVw(window.innerWidth); }; f(); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -99,14 +100,21 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   );
 
   const field = "field";
+  const zs = Math.min(1, (vw - 24) / PW);
   const zoomView = zoom && (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/80">
-      <button type="button" onClick={() => setZoom(false)} className="btn btn-gold m-3 py-2.5">✕ {L("إغلاق")}</button>
-      <div dir="ltr" className="flex-1 overflow-auto px-2 pb-4">
-        <div style={{ width: PW * 0.9, height: PH * 0.9 }} className="mx-auto bg-white"><div style={{ width: PW, height: PH, transform: "scale(0.9)", transformOrigin: "top left" }}><CVPage spec={spec} page={page} /></div></div>
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/85" onClick={() => setZoom(false)}>
+      <div className="flex items-center justify-center gap-3 p-3" onClick={(e) => e.stopPropagation()}>
+        <button type="button" disabled={page === 0} onClick={() => setPage(page - 1)} className="btn btn-outline bg-white px-4 py-2">‹</button>
+        <span className="text-white">{page + 1} / {pages}</span>
+        <button type="button" disabled={page >= pages - 1} onClick={() => setPage(page + 1)} className="btn btn-outline bg-white px-4 py-2">›</button>
+        <button type="button" onClick={() => setZoom(false)} className="btn btn-gold px-5 py-2">✕ {L("إغلاق")}</button>
+      </div>
+      <div dir="ltr" className="flex-1 overflow-auto px-3 pb-6">
+        <div onClick={(e) => e.stopPropagation()} style={{ width: PW * zs, height: PH * zs }} className="mx-auto bg-white shadow-2xl"><div style={{ width: PW, height: PH, transform: `scale(${zs})`, transformOrigin: "top left" }}><CVPage spec={spec} page={page} /></div></div>
       </div>
     </div>
   );
+
   const secName = (k: SecKey) => spec.titles[k] || TITLES[spec.lang][k];
   const card = "card flex flex-col gap-3 p-4";
   return (
@@ -120,8 +128,9 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
           <button type="button" disabled={page === 0} onClick={() => setPage(page - 1)} className="btn btn-outline px-4 py-1.5">‹</button>
           <span className="text-[14px]">{page + 1} / {pages}</span>
           <button type="button" disabled={page >= pages - 1} onClick={() => setPage(page + 1)} className="btn btn-outline px-4 py-1.5">›</button>
+          <button type="button" onClick={() => setZoom(true)} aria-label={L("تكبير المعاينة")} title={L("تكبير المعاينة")} className="btn btn-outline px-3 py-1.5">⤢</button>
         </div>
-        <button type="button" onClick={() => setZoom(true)} className="chip lg:hidden">🔍 {L("تكبير المعاينة")}</button>
+        
         {pages > 2 && <p className="max-w-[560px] text-center text-[13px] text-amber-800">{L("السيرة طويلة (أكثر من صفحتين). الأفضل تختصرها: الشركات تقرأ أول صفحتين فقط.")}</p>}
       </div>
 
