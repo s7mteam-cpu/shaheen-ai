@@ -38,7 +38,8 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   const [spec, setSpec] = useState<CVSpec>(initial);
   const [page, setPage] = useState(0);
   const [pages, setPages] = useState(1);
-  const [n, setN] = useState(15);
+  const [vh, setVh] = useState(900);
+  useEffect(() => { const f = () => setVh(window.innerHeight); f(); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -46,7 +47,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   const first = useRef(true);
   const [box, bw] = useWidth<HTMLDivElement>();
   const [zoom, setZoom] = useState(false);
-  const SCALE_MAIN = bw ? Math.min(SCALE_MAX, bw / PW) : SCALE_MAX;
+  const SCALE_MAIN = Math.max(0.3, Math.min(SCALE_MAX, bw ? bw / PW : SCALE_MAX, (vh - 150) / PH));
   const ar = spec.lang === "ar";
   const set = (p: Partial<CVSpec>) => setSpec((s) => ({ ...s, ...p }));
 
@@ -109,9 +110,9 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   const secName = (k: SecKey) => spec.titles[k] || TITLES[spec.lang][k];
   const card = "card flex flex-col gap-3 p-4";
   return (
-    <div className="flex flex-col gap-4 lg:h-[calc(100vh-8rem)] lg:min-h-[480px] lg:flex-row-reverse lg:items-stretch">
+    <div className="flex flex-col gap-4 lg:flex-row-reverse lg:items-start">
       {zoomView}
-      <div ref={box} className="flex w-full flex-col items-center gap-2 lg:h-full lg:w-auto lg:overflow-y-auto lg:pb-4">
+      <div ref={box} className="flex w-full flex-col items-center gap-2 lg:sticky lg:top-3 lg:w-auto">
         <div dir="ltr" style={{ width: PW * SCALE_MAIN, height: PH * SCALE_MAIN }} className="overflow-hidden rounded-lg bg-white shadow-lg">
           <div style={{ width: PW, height: PH, transform: `scale(${SCALE_MAIN})`, transformOrigin: "top left" }}><CVPage spec={spec} page={page} onPages={setPages} /></div>
         </div>
@@ -124,13 +125,12 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
         {pages > 2 && <p className="max-w-[560px] text-center text-[13px] text-amber-800">{L("السيرة طويلة (أكثر من صفحتين). الأفضل تختصرها: الشركات تقرأ أول صفحتين فقط.")}</p>}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-4 lg:h-full lg:overflow-y-auto lg:pe-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div className={card}>
           <b>{L("الستايل")} <span className="text-[13px] font-normal text-subtle">({CV_STYLES.length})</span></b>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {CV_STYLES.slice(0, n).map((st) => <Thumb key={st.id} spec={applyCVStyle(spec, st)} active={spec.template === st.template && spec.accent === st.accent && spec.font === st.font} onPick={() => set({ template: st.template, accent: st.accent, font: st.font, tone: st.tone })} label={st.name} />)}
+          <div className="grid max-h-[62vh] grid-cols-2 gap-2 overflow-y-auto pe-1 sm:grid-cols-4">
+            {CV_STYLES.map((st) => <Thumb key={st.id} spec={applyCVStyle(spec, st)} active={spec.template === st.template && spec.accent === st.accent && spec.font === st.font} onPick={() => set({ template: st.template, accent: st.accent, font: st.font, tone: st.tone })} label={st.name} />)}
           </div>
-          {n < CV_STYLES.length && <button type="button" onClick={() => setN(CV_STYLES.length)} className="btn btn-outline py-2">{L("اعرض كل الـ50 ستايل")}</button>}
         </div>
 
         <div className={card}>
@@ -210,7 +210,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
         </div>
 
         {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
-        <div className="sticky bottom-0 z-30 flex flex-col gap-2 bg-gradient-to-t from-[var(--bg,#0b1b33)] to-transparent pt-3">
+        <div className="sticky bottom-3 z-30 flex flex-col gap-2">
           <button type="button" disabled={!!busy} onClick={async () => { const d = await call<{ ok: boolean }>("export", { spec, pages }, "export"); if (d) { setSent(true); setRender({ status: "queued", progress: 0, files: [] }); } }} className="btn btn-gold py-4 text-[17px] shadow-lg">{busy === "export" ? L("جاري الإرسال…") : `⬇️ ${L("صدّر PDF (مجاناً)")}`}</button>
           <button type="button" disabled={!!busy} onClick={async () => { const d = await call<{ url: string }>("docx", { spec }, "docx"); if (d?.url) window.location.href = d.url; }} className="btn btn-outline bg-white py-3">{busy === "docx" ? L("لحظات…") : L("تحميل Word قابل للتعديل (مجاناً)")}</button>
         </div>
