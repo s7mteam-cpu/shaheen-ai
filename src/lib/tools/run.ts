@@ -8,7 +8,7 @@ import { cloneVoice, deleteVoice, music, tts, type VoiceSettings } from "@/lib/p
 import { saveFromUrl, saveResult, signedUploadUrls } from "@/lib/providers/storage";
 import type { Values } from "@/lib/tools/specs";
 import { loadLike } from "@/lib/server/like";
-import { DIALECT_NAME, pickVoice, type VoiceItem } from "@/lib/voiceMatch";
+import { DIALECT_NAME, pickVoice, typeToGA, withTone, type VoiceItem } from "@/lib/voiceMatch";
 
 
 export type Job = { id: string; user_id: string; tool_id: string; input: Values };
@@ -232,7 +232,7 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
       if (chosen === "auto" || !chosen) {
         const { data: vc } = await createAdminClient().from("site_content").select("value").eq("key", "voices").maybeSingle();
         const list = ((vc?.value as { items?: VoiceItem[] })?.items) ?? [];
-        chosen = pickVoice(list, { dialect: dName ? dKey : undefined, gender: String(v.vgender ?? ""), age: String(v.vage ?? "") })?.id ?? list[0]?.id ?? "";
+        chosen = pickVoice(list, { dialect: dName ? dKey : undefined, ...typeToGA(String(v.vtype ?? "")) })?.id ?? list[0]?.id ?? "";
       }
       const voice = await voiceById(chosen);
       const { provider, model: vm } = await config("voice");
@@ -251,7 +251,8 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
       try {
         const vv = await voiceById(voiceId);
         const say = v.polish === false && !dName ? String(v.text) : await speechReady(String(v.text), dName);
-        const audio = await tts(say, voiceId, vv.model || (provider === "elevenlabs" && vm && vm !== "music" ? vm : undefined), vv.settings);
+        const tone = String(v.tone ?? "plain");
+        const audio = await tts(say, voiceId, vv.model || (provider === "elevenlabs" && vm && vm !== "music" ? vm : undefined), tone === "plain" ? vv.settings : withTone(vv.settings, tone));
         return [{ path: await saveResult(job.user_id, job.id, audio, "audio/mpeg", "mp3"), type: "audio/mpeg", caption: say !== String(v.text) ? `النص اللي انقرأ: ${say}` : undefined }];
       } finally {
         if (cloned) await deleteVoice(cloned); // we don't keep customers' voices

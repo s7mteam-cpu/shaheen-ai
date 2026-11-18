@@ -26,6 +26,7 @@ import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag"
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { createClient } from "@/lib/supabase/client";
 import { ARAB_DIALECTS } from "@/lib/countries";
+import { VOICE_TYPES, TONES } from "@/lib/voiceMatch";
 
 type Track = { name: string; mood?: string; url: string };
 
@@ -74,7 +75,8 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   const [voText, setVoText] = useState(initial.vo?.text ?? "");
   const [voVoice, setVoVoice] = useState(initial.vo?.voice || "auto");
   const [voDialect, setVoDialect] = useState("same");
-  const [voGender, setVoGender] = useState("auto");
+  const [voType, setVoType] = useState("auto");
+  const [voTone, setVoTone] = useState("plain");
   const voAudio = useRef<HTMLAudioElement | null>(null);
   const [voPlaying, setVoPlaying] = useState(false);
   const voName = voices.find((v) => v.id === spec.vo?.voice)?.name ?? L("تعليق صوتي");
@@ -605,7 +607,9 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                   <Sub>{L("اللهجة")}</Sub>
                   <div className="flex flex-wrap gap-2">{([["same", "مثل ما كتبت"], ...ARAB_DIALECTS.map(([v, ar]) => [v, ar] as const), ["en", "English"]] as (readonly [string, string])[]).map(([v, l]) => <button key={v} type="button" aria-pressed={voDialect === v} onClick={() => setVoDialect(v)} className="chip">{L(l)}</button>)}</div>
                   <Sub>{L("نوع الصوت")}</Sub>
-                  <div className="flex flex-wrap gap-2">{([["auto", "تلقائي"], ["m", "رجالي"], ["f", "نسائي"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={voGender === v} onClick={() => setVoGender(v)} className="chip">{L(l)}</button>)}</div>
+                  <div className="flex flex-wrap gap-2">{VOICE_TYPES.map(([v, l]) => <button key={v} type="button" aria-pressed={voType === v} onClick={() => setVoType(v)} className="chip">{L(l)}</button>)}</div>
+                  <Sub>{L("إحساس الصوت")}</Sub>
+                  <div className="flex flex-wrap gap-2">{[["plain", "عادي"], ...TONES.filter(([v]) => v !== "auto")].map(([v, l]) => <button key={v} type="button" aria-pressed={voTone === v} onClick={() => setVoTone(v)} className="chip">{L(l)}</button>)}</div>
                   <Sub>{L("اختر الصوت")}</Sub>
                   <button type="button" aria-pressed={voVoice === "auto"} onClick={() => setVoVoice("auto")} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-start ${voVoice === "auto" ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white"}`}><span aria-hidden>✨</span><span className="flex-1 font-semibold">{L("تلقائي (حسب اللهجة والنوع)")}</span>{voVoice === "auto" && <span aria-hidden>✓</span>}</button>
                   {voices.map((v) => (
@@ -618,7 +622,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               )}
               <button type="button" disabled={!voText.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
                 onClick={async () => {
-                  const d = await call<{ spec: MontageSpec; url: string; text: string }>("voice", { spec: { ...spec, src: "", words: [], face: [] }, text: voText, voice: voVoice, dialect: voDialect, vgender: voGender });
+                  const d = await call<{ spec: MontageSpec; url: string; text: string }>("voice", { spec: { ...spec, src: "", words: [], face: [] }, text: voText, voice: voVoice, dialect: voDialect, vtype: voType, tone: voTone });
                   if (d) { setSpec((sp) => ({ ...sp, segments: d.spec.segments, videoVolume: d.spec.videoVolume, vo: { ...d.spec.vo!, url: d.url } })); setVoText(d.text); }
                 }}>
                 {busy === "voice" ? L("جاري التسجيل…") : LT(`🎙️ سجّل الصوت (${editCost} ريشة)`, `🎙️ Record voice (${editCost} credits)`)}
