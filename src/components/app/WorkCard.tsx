@@ -51,7 +51,7 @@ export function WorkCard({ w: initial, onDelete }: { w: Work; onDelete?: (id: st
         <span className="text-[13px] text-subtle">{w.toolName} · {new Date(w.created_at).toLocaleDateString(LT("ar-KW", "en-GB"))}{w.files.length > 1 ? LT(` · ${w.files.length} ملفات`, ` · ${w.files.length} files`) : ""}</span>
         <div className="mt-1.5 flex gap-1.5">
           {first && <a href={first.url} download className="btn btn-primary flex-1 py-2 text-[13px]"><Icon name="download" size={14} />{L("تحميل")}</a>}
-          <Link href={`/app/tools/${w.tool_id}?job=${w.id}`} className="btn btn-outline flex-1 py-2 text-[13px] font-semibold">{L("فتح")}</Link>
+          <Link href={`/app/tools/${w.tool_id}?job=${w.id}`} className="btn btn-outline flex-1 py-2 text-[13px] font-semibold">{L("فتح وتعديل")}</Link>
           {onDelete && <button type="button" aria-label={L("حذف")} onClick={() => onDelete(w.id)} className="btn btn-outline px-2.5 py-2 text-red-700"><Icon name="trash" size={14} /></button>}
         </div>
       </div>

@@ -5,7 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { tr, type Lang } from "@/lib/i18n";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Act =
+  | { kind: "make"; format: string; label: string; cost: number; enough: boolean; url: string; body: Record<string, unknown>; open: string }
+  | { kind: "open"; label: string; href: string };
+type Msg = { role: "user" | "assistant"; content: string; action?: Act };
+type ActState = { st: "idle" | "working" | "done" | "error"; msg?: string; job?: string };
 const KEY = "shaheen-chat";
 
 /** Side panel assistant. Non-modal: the page stays usable while it's open. */
@@ -15,6 +19,7 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [acts, setActs] = useState<Record<number, ActState>>({});
   const [saved, setSaved] = useState(false); // signed in: the conversation is kept on the server for 30 days
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -130,12 +135,23 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
     const next = [...msgs, { role: "user" as const, content: t }];
     setMsgs(next); setText(""); setBusy(true);
     try {
-      const r = await fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: next }) });
+      const r = await fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: next.map(({ role, content }) => ({ role, content })) }) });
       const d = await r.json();
-      setMsgs([...next, { role: "assistant", content: d.reply ?? d.error ?? T("صار خطأ.", "Something went wrong.") }]);
+      setMsgs([...next, { role: "assistant", content: d.reply ?? d.error ?? T("صار خطأ.", "Something went wrong."), ...(d.action ? { action: d.action as Act } : {}) }]);
     } catch {
       setMsgs([...next, { role: "assistant", content: T("تعذّر الاتصال، حاول مرة ثانية.", "Connection failed. Please try again.") }]);
     } finally { setBusy(false); }
+  }
+
+  async function confirmAct(i: number, a: Extract<Act, { kind: "make" }>) {
+    if (acts[i]?.st === "working" || acts[i]?.st === "done") return; // one press = one charge
+    setActs((m) => ({ ...m, [i]: { st: "working" } }));
+    try {
+      const r = await fetch(a.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(a.body) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.jobId) { setActs((m) => ({ ...m, [i]: { st: "error", msg: String(d.error || T("تعذّر التجهيز.", "Could not prepare it.")) } })); return; }
+      setActs((m) => ({ ...m, [i]: { st: "done", job: String(d.jobId) } }));
+    } catch { setActs((m) => ({ ...m, [i]: { st: "error", msg: T("تعذّر الاتصال.", "Connection failed.") } })); }
   }
 
   const starters = lang === "en" ? ["How do I use product photography?", "How many credits do I have left?", "Why did my last job fail?"] : ["كيف أستخدم تصوير المنتجات؟", "كم باقي من رصيدي؟", "ليش فشل طلبي الأخير؟"];
@@ -156,7 +172,7 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
               <span className="flex flex-col leading-tight"><span className="font-bold text-gold-500">{T("كلّم شاهين", "Ask Shaheen")}</span><span className="text-xs text-white/70">{T("مساعدك الذكي — متاح دائماً", "Your AI assistant — always available")}</span></span>
             </span>
             <div className="flex items-center gap-1">
-              {msgs.length > 0 && <button type="button" onClick={() => { setMsgs([]); if (saved) fetch("/api/assistant", { method: "DELETE" }).catch(() => null); }} className="rounded-lg px-2 py-1 text-xs text-white/70 hover:bg-white/10">{T("محادثة جديدة", "New chat")}</button>}
+              {msgs.length > 0 && <button type="button" onClick={() => { setMsgs([]); setActs({}); if (saved) fetch("/api/assistant", { method: "DELETE" }).catch(() => null); }} className="rounded-lg px-2 py-1 text-xs text-white/70 hover:bg-white/10">{T("محادثة جديدة", "New chat")}</button>}
               <button type="button" aria-label={T("إغلاق", "Close")} onClick={() => setOpen(false)} className="rounded-lg px-2 text-2xl leading-none hover:bg-white/10">×</button>
             </div>
           </header>
@@ -169,7 +185,19 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
               <div className="flex flex-wrap gap-2">{starters.map((s) => <button key={s} type="button" onClick={() => setText(s)} className="rounded-full border border-field bg-white px-3 py-1.5 text-[13px] hover:border-navy-700">{s}</button>)}</div>
             )}
             {msgs.map((m, i) => (
-              <div key={i} className={`max-w-[85%] whitespace-pre-line rounded-2xl p-3 text-[15px] leading-7 ${m.role === "user" ? "self-end rounded-tl-sm bg-navy-800 text-white" : "self-start rounded-tr-sm bg-white shadow-sm"}`}>{m.content}</div>
+              <div key={i} className="flex max-w-[85%] flex-col gap-2 self-stretch" style={{ alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
+                <div className={`w-fit max-w-full whitespace-pre-line rounded-2xl p-3 text-[15px] leading-7 ${m.role === "user" ? "rounded-tl-sm bg-navy-800 text-white" : "rounded-tr-sm bg-white shadow-sm"}`}>{m.content}</div>
+                {m.action?.kind === "make" && (() => { const a = m.action as Extract<Act, { kind: "make" }>; const st = acts[i]?.st ?? "idle"; return (
+                  <div className="w-full rounded-2xl border border-gold-500 bg-white p-3 text-[14px] shadow-sm">
+                    <p className="font-bold text-navy-900">{T(`جاهز أسوي لك ${a.label}`, `Ready to make your ${a.label}`)} · {a.cost} {T("ريشة", "credits")}</p>
+                    {st === "done" ? <a href={`${a.open}${acts[i]?.job}`} className="btn btn-primary mt-2 w-full px-4 py-2 text-[14px]">{T("✓ انسوّى، افتحه وراجعه", "✓ Done — open it")}</a>
+                      : !a.enough ? <p className="mt-2 text-red-700">{T("رصيدك ما يكفي لهذا الطلب.", "Not enough credits.")} <a href="/app/account" className="font-semibold underline">{T("اشحن رصيدك", "Add credits")}</a></p>
+                      : <button type="button" disabled={st === "working"} onClick={() => confirmAct(i, a)} className="btn btn-gold mt-2 w-full px-4 py-2 text-[14px] font-bold disabled:opacity-50">{st === "working" ? T("جاري التجهيز…", "Preparing…") : T(`أكّد وجهّزه (${a.cost} ريشة)`, `Confirm (${a.cost} credits)`)}</button>}
+                    {st === "error" && <p role="alert" className="mt-2 text-red-700">{acts[i]?.msg}</p>}
+                  </div>
+                ); })()}
+                {m.action?.kind === "open" && <a href={m.action.href} className="btn btn-outline w-full px-4 py-2 text-[14px]">{T(`افتح أداة «${m.action.label}»`, `Open “${m.action.label}”`)}</a>}
+              </div>
             ))}
             {busy && <div className="self-start rounded-2xl bg-white px-4 py-3 text-sm text-subtle shadow-sm">{T("شاهين يكتب…", "Shaheen is typing…")}</div>}
           </div>
