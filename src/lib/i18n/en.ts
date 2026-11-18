@@ -690,6 +690,7 @@ export const EN: Record<string, string> = {
   "شهر بشهر": "Month to month",
   "شوف الفيديو المرفوع": "View uploaded video",
   "صار خطأ بتحويل الصوت. جرّب مرة ثانية أو اكتب سؤالك.": "Something went wrong converting your voice. Try again or type your question.",
+  "خدمة الصوت مشغولة الحين. جرّب بعد دقيقة أو اكتب سؤالك.": "The voice service is busy right now. Try again in a minute or type your question.",
   "صار خطأ.": "Something went wrong.",
   "صار خطأ، حاول مرة ثانية.": "Something went wrong, please try again.",
   "صار عنده صلاحية كاملة.": "They now have full access.",

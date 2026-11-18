@@ -24,11 +24,21 @@ export async function POST(req: Request) {
 
   try {
     const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
-    const text = await transcribe(audio, `voice.${ext}`);
+    // ElevenLabs sometimes answers 429 «system_busy» (their side is overloaded, not our balance): wait a moment and try again, up to 3 times.
+    let text = "";
+    for (let n = 0; ; n++) {
+      try { text = await transcribe(audio, `voice.${ext}`); break; }
+      catch (err) {
+        const busy = /429|system_busy|rate_limit|50[023]/i.test(String(err));
+        if (!busy || n >= 2) throw err;
+        await new Promise((r) => setTimeout(r, 1500 * (n + 1)));
+      }
+    }
     if (!text) return NextResponse.json({ error: "ما قدرنا نسمع كلام واضح. جرّب مرة ثانية بمكان هادي." });
     return NextResponse.json({ text });
   } catch (e) {
     console.error("voice", e);
-    return NextResponse.json({ error: "صار خطأ بتحويل الصوت. جرّب مرة ثانية أو اكتب سؤالك." }, { status: 502 });
+    const busy = /429|system_busy|rate_limit/i.test(String(e));
+    return NextResponse.json({ error: busy ? "خدمة الصوت مشغولة الحين. جرّب بعد دقيقة أو اكتب سؤالك." : "صار خطأ بتحويل الصوت. جرّب مرة ثانية أو اكتب سؤالك." }, { status: 502 });
   }
 }

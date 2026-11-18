@@ -66,11 +66,22 @@ function extractAction(raw: string, c: { signedIn: boolean; credits: number; pre
   const brief = m[2].replace(/\s+/g, " ").trim();
   if (kind === "open:motion-video" || kind === "open:lesson-video") kind = "reel"; // same tool: make it directly instead of linking
   const price = (id: string) => c.tools.find((t) => t.id === id)?.credit_cost ?? 1;
-  if (kind === "post" || kind === "carousel" || kind === "reel") {
-    const item = { week: 1, day: "السبت", date: "", format: kind, pillar: "", topic: brief.slice(0, 160), hook: "", goal: "", prompt: brief, caption: "" } as PlanItem;
+  const [base, secRaw] = kind.split(":");
+  if (base === "post" || base === "carousel") {
+    const item = { week: 1, day: "السبت", date: "", format: base, pillar: "", topic: brief.slice(0, 160), hook: "", goal: "", prompt: brief, caption: "" } as PlanItem;
     const rq = itemRequest(item, c.prefs, SLIDES);
-    const cost = kind === "post" ? price("post") : kind === "carousel" ? price("carousel") * SLIDES : price("motion-video") * 2;
-    return { text, action: { kind: "make", format: kind, label: { post: "بوست", carousel: "كاروسيل", reel: "ريلز" }[kind], cost, enough: c.credits >= cost, url: rq.url, body: rq.body, open: `/app/tools/${FORMAT_TOOL[kind]}?job=` } };
+    const cost = base === "post" ? price("post") : price("carousel") * SLIDES;
+    return { text, action: { kind: "make", format: base, label: base === "post" ? "بوست" : "كاروسيل", cost, enough: c.credits >= cost, url: rq.url, body: rq.body, open: `/app/tools/${FORMAT_TOOL[base]}?job=` } };
+  }
+  if (base === "reel" || base === "lesson") {
+    // ad / reel: 15, 30 or 60 s · educational video: 30, 60, 90 or 120 s. Cost = 15-second steps × the tool's price (same as /api/lesson charges).
+    const allowed = base === "reel" ? [15, 30, 60] : [30, 60, 90, 120];
+    const asked = Number(secRaw);
+    const seconds = allowed.includes(asked) ? asked : base === "reel" ? 30 : 60;
+    const cost = Math.max(1, Math.round(seconds / 15)) * price("motion-video");
+    const rq = itemRequest({ week: 1, day: "السبت", date: "", format: "reel", pillar: "", topic: brief.slice(0, 160), hook: "", goal: "", prompt: brief, caption: "" } as PlanItem, c.prefs, SLIDES);
+    const body = { ...rq.body, seconds, ...(base === "lesson" ? { mode: "lesson", audience: "students" } : {}) };
+    return { text, action: { kind: "make", format: "reel", label: `${base === "lesson" ? "فيديو تعليمي" : "ريلز"} ${seconds} ثانية`, cost, enough: c.credits >= cost, url: rq.url, body, open: "/app/tools/motion-video?job=" } };
   }
   if (kind.startsWith("open:")) {
     const t = c.tools.find((x) => x.id === kind.slice(5));
@@ -156,7 +167,9 @@ ${legalBlock}
 التنفيذ (فقط للعميل المسجّل دخول):
 - إذا طلب العميل صراحة يسوي بوست أو كاروسيل أو ريلز، وعطاك تفاصيل كافية (الموضوع والعرض أو الفكرة)، اكتب له سطرين تأكيد قصيرين، ثم أضف بآخر ردّك سطراً واحداً بهالصيغة بالضبط:
   [[ACTION post | وصف كامل للمطلوب بالتفصيل]]   أو  [[ACTION carousel | ...]]  أو  [[ACTION reel | ...]]
-  ملاحظة: «ريلز» و«موشن جرافيك» و«فيديو موشن» و«فيديو إعلاني قصير» كلها نفس الشي، تنفّذ بـ [[ACTION reel | ...]] مباشرة، لا تحوّله لرابط أداة.
+  فيديو إعلاني أو ريلز أو موشن جرافيك: [[ACTION reel:المدة | ...]] والمدة بالثواني: 15 أو 30 أو 60 (إذا ما حدد العميل مدة اكتب 30). مثال: [[ACTION reel:15 | ...]]
+  فيديو تعليمي أو شرح درس (مثل جدول الضرب): [[ACTION lesson:المدة | ...]] والمدة 30 أو 60 أو 90 أو 120، أقل مدة 30 حتى لو طلب أقل، وقل له ذلك بصراحة قبل التأكيد. مثال: [[ACTION lesson:30 | ...]]
+  التزم بالمدة اللي طلبها العميل، ولا تغيّرها بدون ما تقول له. لا تحوّل طلب الفيديو لرابط أداة، نفّذه بهالأسطر مباشرة.
   الوصف يكون بالعربي ويشمل كل تفاصيل العميل (المنتج، السعر، العرض، الجمهور، النبرة).
 - إذا التفاصيل ناقصة، اسأله سؤال واحد قصير قبل ما تكتب السطر.
 - أي أداة ثانية غير هذي (فيديو مونتاج، سيرة ذاتية، صوت، تصوير منتجات، عروض…): اقترح عليه فتحها بسطر [[ACTION open:معرّف_الأداة | الفكرة]] وأنت تعرف المعرّفات من قائمة الأدوات.
