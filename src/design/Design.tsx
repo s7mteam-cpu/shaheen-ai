@@ -63,6 +63,7 @@ function Photo({ img, style, c }: { img?: DImg | null; style?: React.CSSProperti
 
 function Logo({ c, size = 64, dark = false }: { c: Ctx; size?: number; dark?: boolean }) {
   const b = c.spec.brand;
+  if (b.showLogo && b.logo?.url && b.box) return null; // the logo is placed freely: no monogram in the layout's own slot
   if (b.showLogo && b.logo?.url && !b.box) return <Img src={b.logo.url} style={{ height: size, maxWidth: size * 3.2, objectFit: "contain", display: "block" }} />;
   if (!b.name) return null;
   return (
@@ -75,7 +76,7 @@ function Logo({ c, size = 64, dark = false }: { c: Ctx; size?: number; dark?: bo
 function BrandRow({ c, color }: { c: Ctx; color?: string }) {
   const b = c.spec.brand;
   const hasImg = b.showLogo && !!b.logo?.url && !b.box;
-  if ((!b.name && !hasImg) || gone(c, "brand")) return <div />;
+  if ((!b.name && !hasImg) || gone(c, "brand") || (b.showLogo && b.logo?.url && b.box)) return <div />;
   return (
     <div {...da("brand")} style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 30 * c.k, fontWeight: 800, color: color ?? c.ink, ...eo(c, "brand") }}>
       <Logo c={c} size={hasImg ? 70 * c.k : 58 * c.k} />
@@ -734,11 +735,12 @@ function CardB(c: Ctx) {
 function CardC(c: Ctx) {
   const b = c.spec.brand;
   const hasImg = b.showLogo && !!b.logo?.url && !b.box;
+  const moved = b.showLogo && !!b.logo?.url && !!b.box;
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 380, background: ac(c), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, color: c.onAccent }}>
-        {hasImg ? <Img src={b.logo!.url} style={{ width: 230, height: 230, objectFit: "contain" }} /> : <div style={{ width: 170, height: 170, borderRadius: "50%", border: `5px solid ${c.onAccent}`, display: "grid", placeItems: "center", fontSize: 92, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
-        {!hasImg && b.name && <div style={{ fontSize: 28, fontWeight: 800, textAlign: "center", padding: "0 24px" }}>{b.name}</div>}
+        {moved ? null : hasImg ? <Img src={b.logo!.url} style={{ width: 230, height: 230, objectFit: "contain" }} /> : <div style={{ width: 170, height: 170, borderRadius: "50%", border: `5px solid ${c.onAccent}`, display: "grid", placeItems: "center", fontSize: 92, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
+        {!hasImg && !moved && b.name && <div style={{ fontSize: 28, fontWeight: 800, textAlign: "center", padding: "0 24px" }}>{b.name}</div>}
       </div>
       <div style={{ position: "absolute", top: 46, bottom: 46, right: 64, left: 380 + 56, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
         <CardName c={c} base={60} />
@@ -810,12 +812,13 @@ function CardF(c: Ctx) {
 function CardG(c: Ctx) {
   const b = c.spec.brand;
   const hasImg = b.showLogo && !!b.logo?.url && !b.box;
+  const moved = b.showLogo && !!b.logo?.url && !!b.box;
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <div style={{ position: "absolute", inset: 26, ...bd(c, 2) }} />
       <div style={{ position: "absolute", top: 26, bottom: 26, left: 26, width: 340, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
         <div style={{ width: 230, height: 230, borderRadius: "50%", border: `3px solid ${c.accent}`, display: "grid", placeItems: "center", boxShadow: `0 0 0 10px ${c.bg}, 0 0 0 12px ${c.accent}` }}>
-          {hasImg ? <Img src={b.logo!.url} style={{ width: 150, height: 150, objectFit: "contain" }} /> : <span style={{ ...tf(c), fontSize: 120, fontWeight: 800, color: c.accent, lineHeight: 1 }}>{initial(b.name ?? c.s.title)}</span>}
+          {moved ? null : hasImg ? <Img src={b.logo!.url} style={{ width: 150, height: 150, objectFit: "contain" }} /> : <span style={{ ...tf(c), fontSize: 120, fontWeight: 800, color: c.accent, lineHeight: 1 }}>{initial(b.name ?? c.s.title)}</span>}
         </div>
         {b.name && <div style={{ fontSize: 24, fontWeight: 700, color: c.ink, textAlign: "center", marginTop: 14 }}>{b.name}</div>}
       </div>
@@ -833,12 +836,13 @@ function CardG(c: Ctx) {
 function CardH(c: Ctx) {
   const b = c.spec.brand;
   const hasImg = b.showLogo && !!b.logo?.url && !b.box;
+  const moved = b.showLogo && !!b.logo?.url && !!b.box;
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <div style={{ position: "absolute", inset: 0, background: ac(c), clipPath: "polygon(0 0, 44% 0, 26% 100%, 0 100%)" }} />
       <div style={{ position: "absolute", top: 0, bottom: 0, left: 40, width: 230, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, color: c.onAccent }}>
-        {hasImg ? <Img src={b.logo!.url} style={{ width: 190, height: 190, objectFit: "contain" }} /> : <div style={{ width: 150, height: 150, borderRadius: "50%", border: `5px solid ${c.onAccent}`, display: "grid", placeItems: "center", fontSize: 80, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
-        {!hasImg && b.name && <div style={{ fontSize: 24, fontWeight: 800, textAlign: "center" }}>{b.name}</div>}
+        {moved ? null : hasImg ? <Img src={b.logo!.url} style={{ width: 190, height: 190, objectFit: "contain" }} /> : <div style={{ width: 150, height: 150, borderRadius: "50%", border: `5px solid ${c.onAccent}`, display: "grid", placeItems: "center", fontSize: 80, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
+        {!hasImg && !moved && b.name && <div style={{ fontSize: 24, fontWeight: 800, textAlign: "center" }}>{b.name}</div>}
       </div>
       <div style={{ position: "absolute", top: 54, bottom: 54, right: 64, left: 470, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
         <CardName c={c} base={58} />
@@ -854,10 +858,11 @@ function CardH(c: Ctx) {
 function CardBack(c: Ctx) {
   const b = c.spec.brand;
   const hasImg = b.showLogo && !!b.logo?.url && !b.box;
+  const moved = b.showLogo && !!b.logo?.url && !!b.box;
   const fg = c.onAccent;
   return (
     <div style={{ position: "absolute", inset: 0, background: ac(c), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, color: fg, textAlign: "center", padding: "40px 80px" }}>
-      {hasImg ? <Img src={b.logo!.url} style={{ maxWidth: 420, maxHeight: 220, objectFit: "contain" }} /> : <div style={{ width: 150, height: 150, borderRadius: "50%", border: `5px solid ${fg}`, display: "grid", placeItems: "center", fontSize: 80, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
+      {moved ? null : hasImg ? <Img src={b.logo!.url} style={{ maxWidth: 420, maxHeight: 220, objectFit: "contain" }} /> : <div style={{ width: 150, height: 150, borderRadius: "50%", border: `5px solid ${fg}`, display: "grid", placeItems: "center", fontSize: 80, fontWeight: 800 }}>{initial(b.name ?? c.s.title)}</div>}
       <CardName c={c} base={52} color={fg} hcolor={fg} align="center" />
       <CardBody c={c} size={24} color={fg} align="center" max={720} />
     </div>
