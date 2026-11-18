@@ -39,7 +39,7 @@ const videoAspect: Field = {
   ],
 };
 const dialects: Option[] = [
-  { value: "kuwaiti", label: "كويتي" }, { value: "levantine", label: "شامي (سوري، أردني…)" }, { value: "saudi", label: "سعودي" }, { value: "egyptian", label: "مصري" },
+  { value: "kuwaiti", label: "كويتي" }, { value: "syrian", label: "سوري" }, { value: "jordanian", label: "أردني" }, { value: "levantine", label: "شامي عام (لبناني، فلسطيني…)" }, { value: "saudi", label: "سعودي" }, { value: "egyptian", label: "مصري" },
   { value: "emirati", label: "إماراتي" }, { value: "qatari", label: "قطري" }, { value: "bahraini", label: "بحريني" }, { value: "omani", label: "عماني" },
   { value: "iraqi", label: "عراقي" }, { value: "maghrebi", label: "مغاربي" }, { value: "sudanese", label: "سوداني" },
   { value: "yemeni", label: "يمني" }, { value: "libyan", label: "ليبي" }, { value: "msa", label: "فصحى" },
@@ -175,7 +175,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
       { type: "choice", name: "vtype", label: "نوع الصوت", default: "auto", options: [{ value: "auto", label: "تلقائي" }, { value: "man", label: "رجل" }, { value: "woman", label: "امرأة" }, { value: "young_m", label: "شاب" }, { value: "young_f", label: "شابة" }, { value: "senior_m", label: "رجل كبير بالسن" }, { value: "senior_f", label: "امرأة كبيرة بالسن" }] },
       { type: "choice", name: "tone", label: "إحساس الصوت", default: "plain", options: [{ value: "plain", label: "عادي" }, { value: "calm", label: "هادي" }, { value: "energetic", label: "متحمس" }, { value: "happy", label: "مبسوط" }, { value: "confident", label: "واثق" }, { value: "formal", label: "رسمي" }, { value: "warm", label: "ودود" }] },
       { type: "voice", name: "voice", label: "الصوت" },
-      { type: "toggle", name: "polish", label: "جهّز النص للنطق (خليجي أبيض واضح)", default: true, hint: "شاهين يعدّل الإملاء والوقفات عشان الصوت يطلع طبيعي، بنفس المعنى." },
+      { type: "toggle", name: "polish", label: "جهّز النص للنطق", default: true, hint: "شاهين يعدّل الإملاء والوقفات عشان الصوت يطلع طبيعي، بنفس المعنى وبنفس اللهجة اللي اخترتها." },
       { type: "toggle", name: "clone", label: "استخدم صوتي (استنساخ)", default: false, hint: "ارفع تسجيل لصوتك من 30 ثانية إلى دقيقتين." },
       { type: "files", name: "sample", label: "عينة صوتك", accept: "audio", max: 1 },
       { type: "consent", name: "consent", label: "أقرّ إن هذا صوتي أو عندي إذن مكتوب من صاحبه، وما راح أستخدمه لانتحال شخصية أو تضليل، وأوافق على سياسة المحتوى.", showIf: { field: "clone", truthy: true } },

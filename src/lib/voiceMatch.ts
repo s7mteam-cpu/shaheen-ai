@@ -16,7 +16,7 @@ export const VOICE_TYPES: [string, string, string?, string?][] = [["auto", "تل
 export const typeToGA = (t?: string) => { const r = VOICE_TYPES.find((x) => x[0] === t); return { gender: r?.[2] ?? "", age: r?.[3] ?? "" }; };
 
 const ageOf = (v: VoiceItem) => (["young", "adult", "senior"].includes(v.age ?? "") ? v.age : /(شاب|شابة|young)/i.test(`${v.name} ${v.note}`) ? "young" : /(كبير|مسن|senior|old)/i.test(`${v.name} ${v.note}`) ? "senior" : undefined);
-const speaks = (v: VoiceItem, d: string) => !v.dialects?.length ? undefined : v.dialects.includes(d) ? "yes" : v.dialects.includes("any") || (v.dialects.includes("gulf") && ["kuwaiti", "saudi", "emirati", "qatari", "bahraini", "omani"].includes(d)) ? "ok" : "no";
+const speaks = (v: VoiceItem, d: string) => !v.dialects?.length ? undefined : v.dialects.includes(d) ? "yes" : v.dialects.includes("any") || (v.dialects.includes("levantine") && ["syrian", "jordanian", "levantine"].includes(d)) || (d === "levantine" && v.dialects.some((x) => x === "syrian" || x === "jordanian")) || (v.dialects.includes("gulf") && ["kuwaiti", "saudi", "emirati", "qatari", "bahraini", "omani"].includes(d)) ? "ok" : "no";
 
 /** Best voice for what the customer asked: dialect first, then gender, then age. Returns undefined when nothing was registered. */
 export function pickVoice(voices: VoiceItem[], want: { dialect?: string; gender?: string; age?: string }): VoiceItem | undefined {
@@ -60,7 +60,7 @@ const TONE_SET: Record<string, VoiceSettings> = {
 export const withTone = (base: VoiceSettings | undefined, tone: string): VoiceSettings => ({ ...(base ?? {}), ...TONE_SET[tone] });
 
 /** Names the text writer / speech editor understands, per dialect id. */
-export const DIALECT_NAME: Record<string, string> = { kuwaiti: "لهجة كويتية بيضاء واضحة", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة)", msa: "عربية فصحى مبسطة", en: "English (simple, clear, natural spoken)" };
+export const DIALECT_NAME: Record<string, string> = { kuwaiti: "لهجة كويتية بيضاء واضحة", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", syrian: "لهجة سورية بيضاء واضحة", jordanian: "لهجة أردنية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة)", msa: "عربية فصحى مبسطة", en: "English (simple, clear, natural spoken)" };
 
 const GULF_IDS = ["kuwaiti", "saudi", "emirati", "qatari", "bahraini", "omani", "gulf"];
 /** Dialects that at least one registered voice speaks. null = no voice has dialect tags yet (then show everything). English is always allowed. */
@@ -70,7 +70,7 @@ export function voiceDialects(voices: { dialects?: string[] }[]): Set<string> | 
   for (const v of voices) {
     if (!v.dialects?.length) continue;
     tagged = true;
-    for (const d of v.dialects) { if (d === "any") return null; set.add(d); if (d === "gulf") GULF_IDS.forEach((g) => set.add(g)); }
+    for (const d of v.dialects) { if (d === "any") return null; set.add(d); if (d === "gulf") GULF_IDS.forEach((g) => set.add(g)); if (d === "levantine") { set.add("syrian"); set.add("jordanian"); } if (d === "syrian" || d === "jordanian") set.add("levantine"); }
   }
   if (!tagged) return null;
   set.add("en");

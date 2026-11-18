@@ -220,8 +220,9 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number,
 
 /** A finished studio video: watch / download, or reopen it for more edits (costs one edit). */
 async function reopen(jobId: string, toolId: string, tool: ToolRow) {
-  const { data } = await (await createClient()).from("jobs").select("output").eq("id", jobId).single();
+  const { data } = await (await createClient()).from("jobs").select("output,input").eq("id", jobId).single();
   const path = (data?.output as { files?: { path: string }[] } | null)?.files?.[0]?.path;
   const [url] = path ? await signedResultUrls([path]) : [];
-  return <ReopenCard jobId={jobId} url={url} cost={tool.edit_cost ?? 3} toolId={toolId} />;
+  const caption = (data?.input as { caption?: string } | null)?.caption;
+  return <><ReopenCard jobId={jobId} url={url} cost={tool.edit_cost ?? 3} toolId={toolId} />{caption ? <CaptionBox text={caption} /> : null}</>;
 }

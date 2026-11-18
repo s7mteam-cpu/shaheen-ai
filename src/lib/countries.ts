@@ -19,7 +19,7 @@ export const COUNTRIES: Country[] = [
   { code: "QA", ar: "قطر", en: "Qatar", flag: "🇶🇦", dial: "+974", currency: "QAR", dialect: "qatari", digits: [8], sample: "33000000" },
   { code: "BH", ar: "البحرين", en: "Bahrain", flag: "🇧🇭", dial: "+973", currency: "BHD", dialect: "bahraini", digits: [8], sample: "33000000" },
   { code: "OM", ar: "عُمان", en: "Oman", flag: "🇴🇲", dial: "+968", currency: "OMR", dialect: "omani", digits: [8], sample: "90000000" },
-  { code: "JO", ar: "الأردن", en: "Jordan", flag: "🇯🇴", dial: "+962", currency: "JOD", dialect: "levantine", digits: [9], sample: "790000000" },
+  { code: "JO", ar: "الأردن", en: "Jordan", flag: "🇯🇴", dial: "+962", currency: "JOD", dialect: "jordanian", digits: [9], sample: "790000000" },
   { code: "DZ", ar: "الجزائر", en: "Algeria", flag: "🇩🇿", dial: "+213", currency: "DZD", dialect: "maghrebi", digits: [9], sample: "550000000" },
   { code: "SD", ar: "السودان", en: "Sudan", flag: "🇸🇩", dial: "+249", currency: "SDG", dialect: "sudanese", digits: [9], sample: "910000000" },
   { code: "SO", ar: "الصومال", en: "Somalia", flag: "🇸🇴", dial: "+252", currency: "SOS", dialect: "msa", digits: [8, 9], sample: "610000000" },
@@ -29,7 +29,7 @@ export const COUNTRIES: Country[] = [
   { code: "TN", ar: "تونس", en: "Tunisia", flag: "🇹🇳", dial: "+216", currency: "TND", dialect: "maghrebi", digits: [8], sample: "20000000" },
   { code: "KM", ar: "جزر القمر", en: "Comoros", flag: "🇰🇲", dial: "+269", currency: "KMF", dialect: "msa", digits: [7], sample: "3200000" },
   { code: "DJ", ar: "جيبوتي", en: "Djibouti", flag: "🇩🇯", dial: "+253", currency: "DJF", dialect: "msa", digits: [8], sample: "77000000" },
-  { code: "SY", ar: "سوريا", en: "Syria", flag: "🇸🇾", dial: "+963", currency: "SYP", dialect: "levantine", digits: [9], sample: "930000000" },
+  { code: "SY", ar: "سوريا", en: "Syria", flag: "🇸🇾", dial: "+963", currency: "SYP", dialect: "syrian", digits: [9], sample: "930000000" },
   { code: "PS", ar: "فلسطين", en: "Palestine", flag: "🇵🇸", dial: "+970", currency: "JOD", dialect: "levantine", digits: [9], sample: "590000000" },
   { code: "LB", ar: "لبنان", en: "Lebanon", flag: "🇱🇧", dial: "+961", currency: "LBP", dialect: "levantine", digits: [7, 8], sample: "70000000" },
   { code: "LY", ar: "ليبيا", en: "Libya", flag: "🇱🇾", dial: "+218", currency: "LYD", dialect: "libyan", digits: [9], sample: "910000000" },
@@ -117,7 +117,7 @@ export function normalizePhoneFor(raw: string, country?: string | null): string 
 
 /** Dialects offered in the design, motion and lesson tools (the same list as the post/ad tools). */
 export const ARAB_DIALECTS: [string, string, string][] = [
-  ["kuwaiti", "كويتية", "Kuwaiti"], ["levantine", "شامية (سورية، أردنية…)", "Levantine"], ["saudi", "سعودية", "Saudi"], ["egyptian", "مصرية", "Egyptian"],
+  ["kuwaiti", "كويتية", "Kuwaiti"], ["syrian", "سورية", "Syrian"], ["jordanian", "أردنية", "Jordanian"], ["levantine", "شامية عامة (لبنانية، فلسطينية…)", "Levantine"], ["saudi", "سعودية", "Saudi"], ["egyptian", "مصرية", "Egyptian"],
   ["emirati", "إماراتية", "Emirati"], ["qatari", "قطرية", "Qatari"], ["bahraini", "بحرينية", "Bahraini"], ["omani", "عُمانية", "Omani"], ["gulf", "خليجية بيضاء", "White Gulf"],
   ["iraqi", "عراقية", "Iraqi"], ["maghrebi", "مغاربية", "Maghrebi"], ["sudanese", "سودانية", "Sudanese"],
   ["yemeni", "يمنية", "Yemeni"], ["libyan", "ليبية", "Libyan"], ["msa", "فصحى", "Standard Arabic"],

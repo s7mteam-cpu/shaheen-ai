@@ -32,7 +32,7 @@ export const maxDuration = 300;
 const LENGTHS = [30, 60, 90, 120];
 const ASPECTS: Aspect[] = ["9:16", "1:1", "16:9", "4:5"];
 const AUDIENCE: Record<string, string> = { kids: "أطفال (٥-١٠ سنوات): كلمات بسيطة جداً وجمل قصيرة ومرحة", students: "طلاب مدارس: واضح ومرتّب مع أمثلة", adults: "كبار وعامة الناس: عملي ومباشر", pros: "متخصصين: دقيق ومركّز" };
-const DIALECT: Record<string, string> = { kuwaiti: "لهجة كويتية بيضاء واضحة", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة",  gulf: "لهجة خليجية بيضاء", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة قريبة من الفصحى)", msa: "عربية فصحى مبسطة", en: "English (simple, clear)" };
+const DIALECT: Record<string, string> = { kuwaiti: "لهجة كويتية بيضاء واضحة", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة",  gulf: "لهجة خليجية بيضاء", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", syrian: "لهجة سورية بيضاء واضحة", jordanian: "لهجة أردنية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة قريبة من الفصحى)", msa: "عربية فصحى مبسطة", en: "English (simple, clear)" };
 const hex = (v: unknown, d: string) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
 
 
