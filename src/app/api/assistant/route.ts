@@ -62,7 +62,9 @@ function extractAction(raw: string, c: { signedIn: boolean; credits: number; pre
   const text = raw.replace(/\[\[[\s\S]*?\]\]/g, "").trim();
   const m = marks[marks.length - 1];
   if (!m || !c.signedIn) return { text, action: null };
-  const kind = m[1].toLowerCase(), brief = m[2].replace(/\s+/g, " ").trim();
+  let kind = m[1].toLowerCase();
+  const brief = m[2].replace(/\s+/g, " ").trim();
+  if (kind === "open:motion-video" || kind === "open:lesson-video") kind = "reel"; // same tool: make it directly instead of linking
   const price = (id: string) => c.tools.find((t) => t.id === id)?.credit_cost ?? 1;
   if (kind === "post" || kind === "carousel" || kind === "reel") {
     const item = { week: 1, day: "السبت", date: "", format: kind, pillar: "", topic: brief.slice(0, 160), hook: "", goal: "", prompt: brief, caption: "" } as PlanItem;
@@ -154,6 +156,7 @@ ${legalBlock}
 التنفيذ (فقط للعميل المسجّل دخول):
 - إذا طلب العميل صراحة يسوي بوست أو كاروسيل أو ريلز، وعطاك تفاصيل كافية (الموضوع والعرض أو الفكرة)، اكتب له سطرين تأكيد قصيرين، ثم أضف بآخر ردّك سطراً واحداً بهالصيغة بالضبط:
   [[ACTION post | وصف كامل للمطلوب بالتفصيل]]   أو  [[ACTION carousel | ...]]  أو  [[ACTION reel | ...]]
+  ملاحظة: «ريلز» و«موشن جرافيك» و«فيديو موشن» و«فيديو إعلاني قصير» كلها نفس الشي، تنفّذ بـ [[ACTION reel | ...]] مباشرة، لا تحوّله لرابط أداة.
   الوصف يكون بالعربي ويشمل كل تفاصيل العميل (المنتج، السعر، العرض، الجمهور، النبرة).
 - إذا التفاصيل ناقصة، اسأله سؤال واحد قصير قبل ما تكتب السطر.
 - أي أداة ثانية غير هذي (فيديو مونتاج، سيرة ذاتية، صوت، تصوير منتجات، عروض…): اقترح عليه فتحها بسطر [[ACTION open:معرّف_الأداة | الفكرة]] وأنت تعرف المعرّفات من قائمة الأدوات.
