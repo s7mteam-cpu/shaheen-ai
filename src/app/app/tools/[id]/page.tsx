@@ -116,7 +116,8 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
       const { data: kitRow } = await supabase.from("brand_kits").select("logo_url").maybeSingle();
       const kitLogo = kitRow?.logo_url ? { path: kitRow.logo_url as string, url: (await admin.storage.from("uploads").createSignedUrl(kitRow.logo_url, 60 * 60 * 6)).data?.signedUrl ?? "" } : null;
       const logo = spec.logo?.path ? { ...spec.logo, url: (await admin.storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" } : spec.logo ?? null;
-      return <MotionStudio jobId={data.id} initial={{ ...spec, logo }} editCost={tool.edit_cost ?? 3} tracks={tracks} voices={content.voices.items} kitLogo={kitLogo} />;
+      const cap = (data.input as { caption?: string } | null)?.caption;
+      return <><MotionStudio jobId={data.id} initial={{ ...spec, logo }} editCost={tool.edit_cost ?? 3} tracks={tracks} voices={content.voices.items} kitLogo={kitLogo} />{cap ? <CaptionBox text={cap} /> : null}</>;
     }
     if (data && data.status === "done" && spec) return await reopen(data.id, toolId, tool);
     if (data && data.status !== "draft") {
