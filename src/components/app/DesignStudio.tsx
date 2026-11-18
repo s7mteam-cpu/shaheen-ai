@@ -212,7 +212,30 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
     [slides[cur], slides[j]] = [slides[j], slides[cur]];
     setSpec({ ...spec, slides }); setCur(j);
   }
+  const [zipping, setZipping] = useState(false);
+  const [zipErr, setZipErr] = useState(false);
   const max = spec.kind === "carousel" ? 10 : spec.kind === "ads" ? 4 : spec.kind === "bcard" || spec.kind === "invite" ? 2 : 1;
+
+  async function downloadAll() {
+    setZipping(true); setZipErr(false);
+    try {
+      const JSZip = (await import("jszip")).default;
+      const z = new JSZip();
+      const files = render.files;
+      for (let i = 0; i < files.length; i++) {
+        const r = await fetch(files[i].url);
+        if (!r.ok) throw new Error("fetch");
+        const ext = (r.headers.get("content-type") ?? "").includes("jpeg") ? "jpg" : "png";
+        z.file(`${String(i + 1).padStart(2, "0")}.${ext}`, await r.blob());
+      }
+      const blob = await z.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = "shaheen-design.zip";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch { setZipErr(true); }
+    setZipping(false);
+  }
 
   if (sent) {
     return (
@@ -228,6 +251,8 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
                 </a>
               ))}
             </div>
+            {render.files.length > 1 && <button type="button" onClick={downloadAll} disabled={zipping} className="btn btn-primary px-6 py-3 disabled:opacity-60">{zipping ? L("جاري التجهيز…") : L("⬇️ تحميل كل الصور (ملف واحد)")}</button>}
+            {zipErr && <p className="text-[13px] text-red-800">{L("ما قدرنا نجمعها بملف واحد. اضغط على كل صورة لتحميلها.")}</p>}
             <p className="text-[14px] text-emerald-900/80">{L("اضغط على أي صورة لتحميلها. وتلقاها أيضاً في «أعمالي».")}</p>
           </>
         ) : render.status === "failed" ? (
@@ -274,6 +299,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
               <button type="button" onClick={() => setPos(sel, cp?.x ?? 0, cp?.y ?? 0, Math.max(0.3, +(sc - 0.1).toFixed(2)))} className="btn btn-outline px-3 py-1.5" aria-label={L("تصغير")}>−</button>
               <button type="button" onClick={() => setPos(sel, cp?.x ?? 0, cp?.y ?? 0, Math.min(3, +(sc + 0.1).toFixed(2)))} className="btn btn-outline px-3 py-1.5" aria-label={L("تكبير")}>+</button>
               {["title", "kicker", "body", "meta", "handle", "brand", "tagline", "statlabel"].includes(sel) && COLS.map((h) => <button key={h} type="button" onClick={() => setSpec((p) => ({ ...p, slides: p.slides.map((v, i) => (i === cur ? { ...v, col: { ...(v.col ?? {}), [sel]: h } } : v)) }))} aria-label={h} className="h-7 w-7 rounded-full border border-black/20" style={{ background: h }} />)}
+              {spec.slides.length > 1 && cp && <button type="button" onClick={() => setSpec((p) => ({ ...p, slides: p.slides.map((v) => ({ ...v, pos: { ...(v.pos ?? {}), [sel]: { ...cp } } })) }))} className="btn btn-outline px-3 py-1.5">{L("⇉ طبّق على كل الشرائح")}</button>}
               <button type="button" onClick={() => delEl(sel)} className="btn btn-outline px-3 py-1.5 text-red-700">{L("🗑 مسح")}</button>
             </>
           ); })()}
