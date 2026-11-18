@@ -4,6 +4,7 @@
 // 3) "video-editing" (queued + render: true) → render the edited montage → MP4.
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY (optional: smarter plans), RENDER_CONCURRENCY
 import { createClient } from "@supabase/supabase-js";
+import { PDFDocument } from "pdf-lib";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
@@ -626,7 +627,7 @@ async function renderMontage(job) {
 }
 
 // ---------- Design studio: one PNG per slide ----------
-const DESIGN_TOOLS = ["post", "carousel", "ad-design", "business-cards", "invitations"];
+const DESIGN_TOOLS = ["post", "carousel", "ad-design", "business-cards", "invitations", "cv"];
 async function renderDesign(job) {
   const dir = await mkdtemp(join(tmpdir(), "design-"));
   try {
@@ -667,6 +668,40 @@ async function renderDesign(job) {
   }
 }
 
+// CV: one PDF page per A4 still, merged into a single PDF (vector text, selectable, ATS-readable).
+async function renderCV(job) {
+  const dir = await mkdtemp(join(tmpdir(), "cv-"));
+  try {
+    const spec = structuredClone(job.input.spec);
+    if (spec.photo?.path && String(spec.photo.path).startsWith(`${job.user_id}/`)) {
+      const { data } = await db.storage.from("uploads").createSignedUrl(spec.photo.path, 60 * 60);
+      spec.photo = data?.signedUrl ? { ...spec.photo, url: data.signedUrl } : null;
+    } else spec.photo = null;
+    const pages = Math.min(6, Math.max(1, Number(job.input.pages) || 1));
+    const merged = await PDFDocument.create();
+    await setProgress(job.id, 5);
+    for (let page = 0; page < pages; page++) {
+      const props = { spec, page };
+      const composition = await selectComposition({ serveUrl, id: "CV", inputProps: props });
+      const out = join(dir, `${page}.pdf`);
+      await renderStill({ composition, serveUrl, output: out, inputProps: props, imageFormat: "pdf", chromiumOptions: { gl: "swangle" } });
+      const src = await PDFDocument.load(await readFile(out));
+      for (const p of await merged.copyPages(src, src.getPageIndices())) merged.addPage(p);
+      await setProgress(job.id, 5 + ((page + 1) / pages) * 90);
+    }
+    const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.pdf`;
+    const up = await db.storage.from("results").upload(dest, Buffer.from(await merged.save()), { contentType: "application/pdf" });
+    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    await db.from("jobs").update({ status: "done", progress: 100, output: { files: [{ path: dest, type: "application/pdf" }] }, updated_at: now() }).eq("id", job.id);
+    console.log("cv rendered", job.id, pages);
+  } catch (e) {
+    console.error("cv render", job.id, e?.message ?? e);
+    await db.from("jobs").update({ status: "draft", progress: 0, error: String(e?.message ?? e).slice(0, 500), updated_at: now() }).eq("id", job.id);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 console.log("Shaheen video worker started");
 
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
@@ -700,7 +735,8 @@ for (;;) {
   // claim it (only one worker wins)
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
   if (!claimed?.length) continue;
-  if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
+  if (job.tool_id === "cv") await renderCV(job);
+  else if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
   else if ((job.tool_id === "motion-video" || job.tool_id === "real-scenes") && job.input.spec?.segments) await renderMontage(job);
   else if (job.tool_id === "motion-video") {
     const spec = { ...job.input.spec };

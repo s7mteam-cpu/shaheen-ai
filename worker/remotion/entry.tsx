@@ -28,7 +28,24 @@ import "@fontsource/changa/arabic-700.css";
 import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
 import "@fontsource/amiri-quran/arabic-400.css";
+import "@fontsource/tajawal/arabic-400.css";
+import "@fontsource/tajawal/arabic-700.css";
+import "@fontsource/tajawal/latin-400.css";
+import "@fontsource/tajawal/latin-700.css";
+import "@fontsource/almarai/arabic-400.css";
+import "@fontsource/almarai/arabic-700.css";
+import "@fontsource/almarai/latin-400.css";
+import "@fontsource/almarai/latin-700.css";
+import "@fontsource/changa/arabic-400.css";
+import "@fontsource/changa/arabic-700.css";
+import "@fontsource/changa/latin-400.css";
+import "@fontsource/changa/latin-700.css";
+import "@fontsource/amiri/arabic-400.css";
+import "@fontsource/amiri/arabic-700.css";
+import "@fontsource/amiri/latin-400.css";
+import "@fontsource/amiri/latin-700.css";
 import { Composition, Still, registerRoot } from "remotion";
+import { CVStill } from "../../src/cv/CV";
 import { DesignStill } from "../../src/design/Design";
 import { DSIZE, type DesignSpec } from "../../src/design/spec";
 import { MotionVideo } from "../../src/remotion/MotionVideo";
@@ -89,6 +106,13 @@ function Root() {
         const p = props as unknown as { spec: DesignSpec };
         return DSIZE[p.spec?.aspect ?? "4:5"];
       }}
+    />
+    <Still
+      id="CV"
+      component={CVStill as unknown as React.FC<Record<string, unknown>>}
+      width={794}
+      height={1123}
+      defaultProps={{} as Record<string, unknown>}
     />
     </>
   );

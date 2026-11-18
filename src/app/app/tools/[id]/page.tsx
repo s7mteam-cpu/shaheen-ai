@@ -7,6 +7,9 @@ import { PresentationStart } from "@/components/app/PresentationStart";
 import { BCardStart } from "@/components/app/BCardStart";
 import { InviteStart } from "@/components/app/InviteStart";
 import { DocResult } from "@/components/app/DocResult";
+import { CVStart } from "@/components/app/CVStart";
+import { CVStudio } from "@/components/app/CVStudio";
+import { normaliseCV } from "@/cv/spec";
 import { RealScenesStart } from "@/components/app/RealScenesStart";
 import { QuranStudio } from "@/components/app/QuranStudio";
 import { MotionStudio } from "@/components/app/MotionStudio";
@@ -68,7 +71,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -157,6 +160,27 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
 }
 
 /** Posts, carousels and ads: the info form, or the live design studio for one of the user's designs. */
+async function cv(jobId: string | undefined, tool: ToolRow, balance: number) {
+  const L = await getL();
+  const supabase = await createClient();
+  if (jobId) {
+    const { data } = await supabase.from("jobs").select("id,status,input,output").eq("id", jobId).maybeSingle();
+    const raw = (data?.input as { spec?: unknown } | null)?.spec;
+    if (data && raw) {
+      if (data.status === "queued" || data.status === "running") return <p className="card p-6 text-center">{L("السيرة قيد التصدير، تلقاها بعد لحظات في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
+      const spec = normaliseCV(raw);
+      if (spec.photo?.path) {
+        const { data: sg } = await createAdminClient().storage.from("uploads").createSignedUrl(spec.photo.path, 60 * 60 * 6);
+        spec.photo = sg?.signedUrl ? { ...spec.photo, url: sg.signedUrl } : null;
+      }
+      const files = data.status === "done" ? ((data.output as { files?: { path: string }[] } | null)?.files ?? []) : [];
+      const done = files.length ? (await signedResultUrls(files.map((f) => f.path))).map((url) => ({ url })) : undefined;
+      return <CVStudio key={data.id} jobId={data.id} initial={spec} editCost={tool.edit_cost ?? 2} done={done} />;
+    }
+  }
+  return <CVStart cost={tool.credit_cost} balance={balance} />;
+}
+
 async function design(jobId: string | undefined, tool: ToolRow, balance: number, like?: { id: string; title: string; thumb: string | null; idea: string }, idea = "") {
   const L = await getL();
   const supabase = await createClient();

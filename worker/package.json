@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "pdf-lib": "^1.17.1",
     "remotion": "4.0.542",
     "@remotion/bundler": "4.0.542",
     "@remotion/renderer": "4.0.542",
