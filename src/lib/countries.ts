@@ -117,10 +117,10 @@ export function normalizePhoneFor(raw: string, country?: string | null): string 
 
 /** Dialects offered in the design, motion and lesson tools (the same list as the post/ad tools). */
 export const ARAB_DIALECTS: [string, string, string][] = [
-  ["kuwaiti", "كويتية", "Kuwaiti"], ["saudi", "سعودية", "Saudi"], ["emirati", "إماراتية", "Emirati"], ["qatari", "قطرية", "Qatari"],
-  ["bahraini", "بحرينية", "Bahraini"], ["omani", "عُمانية", "Omani"], ["gulf", "خليجية بيضاء", "White Gulf"],
-  ["iraqi", "عراقية", "Iraqi"], ["levantine", "شامية", "Levantine"], ["egyptian", "مصرية", "Egyptian"], ["sudanese", "سودانية", "Sudanese"],
-  ["yemeni", "يمنية", "Yemeni"], ["libyan", "ليبية", "Libyan"], ["maghrebi", "مغاربية", "Maghrebi"], ["msa", "فصحى", "Standard Arabic"],
+  ["kuwaiti", "كويتية", "Kuwaiti"], ["levantine", "شامية (سورية، أردنية…)", "Levantine"], ["saudi", "سعودية", "Saudi"], ["egyptian", "مصرية", "Egyptian"],
+  ["emirati", "إماراتية", "Emirati"], ["qatari", "قطرية", "Qatari"], ["bahraini", "بحرينية", "Bahraini"], ["omani", "عُمانية", "Omani"], ["gulf", "خليجية بيضاء", "White Gulf"],
+  ["iraqi", "عراقية", "Iraqi"], ["maghrebi", "مغاربية", "Maghrebi"], ["sudanese", "سودانية", "Sudanese"],
+  ["yemeni", "يمنية", "Yemeni"], ["libyan", "ليبية", "Libyan"], ["msa", "فصحى", "Standard Arabic"],
 ];
 /** @deprecated old name */
 export const GULF_DIALECTS = ARAB_DIALECTS;

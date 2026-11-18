@@ -10,7 +10,7 @@ import { PhotoPicker, type Photo } from "@/components/app/PhotoPicker";
 import { industryById } from "@/design/industries";
 import { More } from "@/components/app/Collapse";
 import { focusFor } from "@/lib/videoFocus";
-import { TONES, VOICE_AGES } from "@/lib/voiceMatch";
+import { TONES, VOICE_AGES, voiceDialects } from "@/lib/voiceMatch";
 import { ILLUS_STYLES } from "@/remotion/styles";
 
 const adLengths = [[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"]] as const;
@@ -39,6 +39,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   const [aspect, setAspect] = useState("9:16");
   const [audience, setAudience] = useState("students");
   const [dialect, setDialect] = useState<string>("kuwaiti");
+  const availD = voiceDialects(voices);
   useEffect(() => { setDialect(myDialect()); }, []);
   const [industry, setIndustry] = useState(savedIndustry ?? "");
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -62,6 +63,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const edu = goal === "edu";
+  useEffect(() => { if (availD && (edu || voiceover) && !availD.has(dialect)) setDialect(dialects.find(([v]) => availD.has(v))?.[0] ?? "kuwaiti"); }, [availD, edu, voiceover, dialect]);
   const cost = Math.max(1, Math.round(seconds / 15)) * costPer15;
   const [pct, setPct] = useState(0);
   // Writing takes ~10-30s: move smoothly towards 95%, the last 5% when it is done.
@@ -163,7 +165,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       {look === "cartoon" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("كم يكون الكرتون؟")}</span>{chips([["full", "كرتون كامل (الشخصية بكل مشهد والكتابة فوقها)"], ["mixed", "مختلط (لقطات كرتون + لقطات شرح وجداول)"]] as readonly (readonly [string, string])[], mix, (v) => setMix(v as "full" | "mixed"))}</div>}
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span>{chips(edu ? eduLengths : adLengths, seconds, setSeconds)}</div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(aspects, aspect, setAspect)}</div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("اللهجة")}</span>{chips(edu ? dialects : dialects.filter(([v]) => v !== "en"), dialect, setDialect)}</div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("اللهجة")}</span>{chips(((edu || voiceover) && availD ? dialects.filter(([v]) => availD.has(v)) : dialects).filter(([v]) => edu || v !== "en"), dialect, setDialect)}</div>
       {!edu && <label className="flex items-center gap-3"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} className="h-5 w-5" /><span>{L("🎙 تعليق صوتي بصوت خليجي")}</span></label>}
       {showVoice && (
         <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">

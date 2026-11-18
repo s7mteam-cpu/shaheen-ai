@@ -7,7 +7,7 @@ import { Progress } from "@/components/app/Progress";
 import { IndustryPicker } from "@/components/app/IndustryPicker";
 import { PhotoPicker, type Photo } from "@/components/app/PhotoPicker";
 import { More } from "@/components/app/Collapse";
-import { TONES, VOICE_AGES } from "@/lib/voiceMatch";
+import { TONES, VOICE_AGES, voiceDialects } from "@/lib/voiceMatch";
 
 const sizes = [["9:16", "📱 ريلز / تيك توك 9:16"], ["16:9", "▶️ يوتيوب 16:9"], ["1:1", "⬜ مربع 1:1"], ["4:5", "🖼️ طولي 4:5"]] as const;
 const lengths = [[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"]] as const;
@@ -27,6 +27,8 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
   const [industry, setIndustry] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [voiceover, setVoiceover] = useState(true);
+  const availD = voiceDialects(voices);
+  useEffect(() => { if (voiceover && availD && !availD.has(dialect)) setDialect(dialects.find(([v]) => availD.has(v))?.[0] ?? "kuwaiti"); }, [availD, voiceover, dialect]);
   const [vgender, setVgender] = useState("");
   const [vage, setVage] = useState("");
   const [tone, setTone] = useState("auto");
@@ -79,7 +81,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("مقاس الفيديو")}</span>{chips(sizes, aspect, setAspect)}
         <span className="text-[13px] text-subtle">{L("شاهين يقص اللقطات ويظبطها على المقاس اللي تختاره.")}</span></div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span>{chips(lengths, seconds, setSeconds)}</div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("اللهجة")}</span>{chips(dialects, dialect, setDialect)}</div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("اللهجة")}</span>{chips(voiceover && availD ? dialects.filter(([v]) => availD.has(v)) : dialects, dialect, setDialect)}</div>
       <label className="flex items-center gap-3"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} className="h-5 w-5" /><span>{L("تعليق صوتي")}</span></label>
       {showVoice && (
         <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">

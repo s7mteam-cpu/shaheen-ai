@@ -26,7 +26,7 @@ import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag"
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { createClient } from "@/lib/supabase/client";
 import { ARAB_DIALECTS } from "@/lib/countries";
-import { VOICE_TYPES, TONES } from "@/lib/voiceMatch";
+import { VOICE_TYPES, TONES, voiceDialects } from "@/lib/voiceMatch";
 
 type Track = { name: string; mood?: string; url: string };
 
@@ -75,6 +75,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   const [voText, setVoText] = useState(initial.vo?.text ?? "");
   const [voVoice, setVoVoice] = useState(initial.vo?.voice || "auto");
   const [voDialect, setVoDialect] = useState("same");
+  const availD = voiceDialects(voices as { dialects?: string[] }[]);
   const [voType, setVoType] = useState("auto");
   const [voTone, setVoTone] = useState("plain");
   const voAudio = useRef<HTMLAudioElement | null>(null);
@@ -605,7 +606,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               {voices.length > 0 && (
                 <div className="flex flex-col gap-2">
                   <Sub>{L("اللهجة")}</Sub>
-                  <div className="flex flex-wrap gap-2">{([["same", "مثل ما كتبت"], ...ARAB_DIALECTS.map(([v, ar]) => [v, ar] as const), ["en", "English"]] as (readonly [string, string])[]).map(([v, l]) => <button key={v} type="button" aria-pressed={voDialect === v} onClick={() => setVoDialect(v)} className="chip">{L(l)}</button>)}</div>
+                  <div className="flex flex-wrap gap-2">{([["same", "مثل ما كتبت"], ...ARAB_DIALECTS.map(([v, ar]) => [v, ar] as const), ["en", "English"]] as (readonly [string, string])[]).filter(([v]) => v === "same" || !availD || availD.has(v)).map(([v, l]) => <button key={v} type="button" aria-pressed={voDialect === v} onClick={() => setVoDialect(v)} className="chip">{L(l)}</button>)}</div>
                   <Sub>{L("نوع الصوت")}</Sub>
                   <div className="flex flex-wrap gap-2">{VOICE_TYPES.map(([v, l]) => <button key={v} type="button" aria-pressed={voType === v} onClick={() => setVoType(v)} className="chip">{L(l)}</button>)}</div>
                   <Sub>{L("إحساس الصوت")}</Sub>

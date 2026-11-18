@@ -61,3 +61,18 @@ export const withTone = (base: VoiceSettings | undefined, tone: string): VoiceSe
 
 /** Names the text writer / speech editor understands, per dialect id. */
 export const DIALECT_NAME: Record<string, string> = { kuwaiti: "لهجة كويتية بيضاء واضحة", saudi: "لهجة سعودية بيضاء واضحة", emirati: "لهجة إماراتية بيضاء واضحة", qatari: "لهجة قطرية بيضاء واضحة", bahraini: "لهجة بحرينية بيضاء واضحة", omani: "لهجة عُمانية بيضاء واضحة", iraqi: "لهجة عراقية بيضاء واضحة", levantine: "لهجة شامية بيضاء واضحة", egyptian: "لهجة مصرية بيضاء واضحة", sudanese: "لهجة سودانية بيضاء واضحة", yemeni: "لهجة يمنية بيضاء واضحة", libyan: "لهجة ليبية بيضاء واضحة", maghrebi: "لهجة مغاربية مفهومة (دارجة مبسطة)", msa: "عربية فصحى مبسطة", en: "English (simple, clear, natural spoken)" };
+
+const GULF_IDS = ["kuwaiti", "saudi", "emirati", "qatari", "bahraini", "omani", "gulf"];
+/** Dialects that at least one registered voice speaks. null = no voice has dialect tags yet (then show everything). English is always allowed. */
+export function voiceDialects(voices: { dialects?: string[] }[]): Set<string> | null {
+  const set = new Set<string>();
+  let tagged = false;
+  for (const v of voices) {
+    if (!v.dialects?.length) continue;
+    tagged = true;
+    for (const d of v.dialects) { if (d === "any") return null; set.add(d); if (d === "gulf") GULF_IDS.forEach((g) => set.add(g)); }
+  }
+  if (!tagged) return null;
+  set.add("en");
+  return set;
+}

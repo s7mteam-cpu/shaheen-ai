@@ -1,4 +1,5 @@
 "use client";
+import { voiceDialects } from "@/lib/voiceMatch";
 import { myDialect } from "@/lib/countries";
 import { IndustryPicker } from "@/components/app/IndustryPicker";
 import { L, LT } from "@/lib/i18n/ui";
@@ -15,7 +16,7 @@ import { editHints } from "@/lib/tools/edit";
 type Props = {
   tool: { id: string; name: string; credit_cost: number; edit_cost: number; cost_unit: string };
   balance: number;
-  voices: { id: string; name: string }[];
+  voices: { id: string; name: string; dialects?: string[] }[];
   recent: Work[];
 };
 type Upload = { path: string; name: string; preview?: string };
@@ -24,6 +25,7 @@ type JobView = { id: string; status: string; error?: string | null; files: WorkF
 const accepts = { image: "image/png,image/jpeg,image/webp", video: "video/mp4,video/quicktime,video/webm", audio: "audio/*" };
 
 export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Props) {
+  const availDialects = voiceDialects(voices);
   const spec = toolSpecs[tool.id];
   const params = useSearchParams();
   const router = useRouter();
@@ -231,7 +233,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
 
                 {f.type === "choice" && (
                   <div id={`f-${f.name}`} role="group" className="flex flex-wrap gap-2">
-                    {f.options.map((o) => <button key={o.value} type="button" aria-pressed={values[f.name] === o.value} onClick={() => set(f.name, o.value)} className="chip">{L(o.label)}</button>)}
+                    {f.options.filter((o) => !(tool.id === "voice" && f.name === "dialect" && o.value !== "same" && availDialects && !availDialects.has(o.value))).map((o) => <button key={o.value} type="button" aria-pressed={values[f.name] === o.value} onClick={() => set(f.name, o.value)} className="chip">{L(o.label)}</button>)}
                   </div>
                 )}
 
