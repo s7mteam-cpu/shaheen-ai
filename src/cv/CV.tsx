@@ -175,7 +175,7 @@ export function CVPage({ spec, page = 0, onPages }: { spec: CVSpec; page?: numbe
     document.fonts?.ready.then(measure);
     const t = setTimeout(measure, 400);
     return () => clearTimeout(t);
-  });
+  }, [spec, W, onPages]);
   const left = spec.template === "side" && !ar ? g.sb + g.padX : g.padX;
   const bg = spec.tone === "warm" ? "#FBF7EF" : "#FFFFFF";
   return (

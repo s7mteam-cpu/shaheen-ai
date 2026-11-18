@@ -1,7 +1,7 @@
 "use client";
 import { L } from "@/lib/i18n/ui";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import React, { useDeferredValue, useEffect, useRef, useState } from "react";
 
 /** Width of an element, kept up to date (so previews scale to any screen, phones included). */
 function useWidth<T extends HTMLElement>() {
@@ -23,16 +23,26 @@ import { CV_STYLES, CV_ACCENTS, CV_FONTS, SEC_KEYS, TITLES, applyCVStyle, type C
 const SCALE_MAX = 0.64;
 type Pg = { status: string; progress: number; files: { url: string }[] };
 
-function Thumb({ spec, active, onPick, label }: { spec: CVSpec; active: boolean; onPick: () => void; label: string }) {
+/** A live thumbnail. It renders the CV only once it scrolls into view (50 full CVs at once made the page heavy), and never re-renders unless its own style/data changes. */
+const Thumb = React.memo(function Thumb({ spec, active, onPick, label }: { spec: CVSpec; active: boolean; onPick: () => void; label: string }) {
   const [ref, w] = useWidth<HTMLDivElement>();
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { setSeen(true); io.disconnect(); } }, { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref]);
   const s = w ? w / PW : 0.2;
   return (
     <button type="button" onClick={onPick} aria-pressed={active} className={`overflow-hidden rounded-lg border-2 text-center ${active ? "border-gold-500" : "border-transparent"} bg-white shadow-sm`}>
-      <div ref={ref} dir="ltr" style={{ width: "100%", aspectRatio: `${PW} / ${PH}`, overflow: "hidden", position: "relative" }}><div style={{ width: PW, height: PH, transform: `scale(${s})`, transformOrigin: "top left", pointerEvents: "none", position: "absolute", top: 0, left: 0 }}><CVPage spec={spec} page={0} /></div></div>
+      <div ref={ref} dir="ltr" style={{ width: "100%", aspectRatio: `${PW} / ${PH}`, overflow: "hidden", position: "relative", contain: "layout paint style" }}>
+        {seen && <div style={{ width: PW, height: PH, transform: `scale(${s})`, transformOrigin: "top left", pointerEvents: "none", position: "absolute", top: 0, left: 0 }}><CVPage spec={spec} page={0} /></div>}
+      </div>
       <div className="px-1 py-1 text-[11px] leading-tight text-ink">{label}</div>
     </button>
   );
-}
+});
 
 export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; initial: CVSpec; editCost: number; done?: { url: string }[] }) {
   const [spec, setSpec] = useState<CVSpec>(initial);
@@ -45,6 +55,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [render, setRender] = useState<Pg>({ status: done?.length ? "done" : "draft", progress: 0, files: done ?? [] });
+  const slow = useDeferredValue(spec);
   const first = useRef(true);
   const [box, bw] = useWidth<HTMLDivElement>();
   const [zoom, setZoom] = useState(false);
@@ -121,7 +132,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
     <div className="flex flex-col gap-4 lg:flex-row-reverse lg:items-start">
       {zoomView}
       <div ref={box} className="flex w-full flex-col items-center gap-2 lg:sticky lg:top-3 lg:w-auto">
-        <div dir="ltr" style={{ width: PW * SCALE_MAIN, height: PH * SCALE_MAIN }} className="overflow-hidden rounded-lg bg-white shadow-lg">
+        <div dir="ltr" style={{ width: PW * SCALE_MAIN, height: PH * SCALE_MAIN, contain: "layout paint style", willChange: "transform", transform: "translateZ(0)" }} className="overflow-hidden rounded-lg bg-white shadow-lg">
           <div style={{ width: PW, height: PH, transform: `scale(${SCALE_MAIN})`, transformOrigin: "top left" }}><CVPage spec={spec} page={page} onPages={setPages} /></div>
         </div>
         <div className="flex items-center gap-3">
@@ -138,7 +149,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
         <div className={card}>
           <b>{L("الستايل")} <span className="text-[13px] font-normal text-subtle">({CV_STYLES.length})</span></b>
           <div className="grid max-h-[62vh] grid-cols-2 gap-2 overflow-y-auto pe-1 sm:grid-cols-4">
-            {CV_STYLES.map((st) => <Thumb key={st.id} spec={applyCVStyle(spec, st)} active={spec.template === st.template && spec.accent === st.accent && spec.font === st.font} onPick={() => set({ template: st.template, accent: st.accent, font: st.font, tone: st.tone })} label={st.name} />)}
+            {CV_STYLES.map((st) => <Thumb key={st.id} spec={applyCVStyle(slow, st)} active={spec.template === st.template && spec.accent === st.accent && spec.font === st.font} onPick={() => set({ template: st.template, accent: st.accent, font: st.font, tone: st.tone })} label={st.name} />)}
           </div>
         </div>
 
@@ -147,6 +158,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
           <div className="flex flex-wrap gap-2">{CV_ACCENTS.map((c) => <button key={c} type="button" aria-label={c} aria-pressed={spec.accent === c} onClick={() => set({ accent: c })} className={`h-8 w-8 rounded-full border-2 ${spec.accent === c ? "border-gold-500 ring-2 ring-gold-300" : "border-white shadow"}`} style={{ background: c }} />)}</div>
           <div className="flex flex-wrap gap-2">{CV_FONTS.map(([id, label]) => <button key={id} type="button" aria-pressed={spec.font === id} onClick={() => set({ font: id })} className="chip" style={{ fontFamily: `"${id}"` }}>{label}</button>)}</div>
           <label className="flex items-center gap-2"><input type="checkbox" checked={spec.showPhoto && !!spec.photo} disabled={!spec.photo} onChange={(e) => set({ showPhoto: e.target.checked })} className="h-5 w-5" />{L("إظهار الصورة الشخصية")}</label>
+          {spec.photo && <div className="flex items-center gap-3">{/* eslint-disable-next-line @next/next/no-img-element */}{spec.photo.url && <img src={spec.photo.url} alt="" className="h-14 w-14 rounded-full object-cover" />}<button type="button" onClick={() => set({ photo: null, showPhoto: false })} className="chip">🗑 {L("حذف الصورة")}</button></div>}
           <input type="file" accept="image/*" className="field" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const u = await uploadImage(f); set({ photo: { path: u.path, bucket: "uploads", url: u.preview }, showPhoto: true }); } catch (er) { setError((er as Error).message); } }} />
         </div>
 
