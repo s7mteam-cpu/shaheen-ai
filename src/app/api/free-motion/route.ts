@@ -19,7 +19,8 @@ export async function POST(req: Request) {
   const blocked = await guardContent(user.id, idea, "free-motion");
   if (blocked) return blocked;
   const aspect = ASPECTS.includes(String(b.aspect)) ? String(b.aspect) : "9:16";
-  const seconds = [15, 30, 60, 120].includes(Number(b.seconds)) ? Number(b.seconds) : 15;
+  const sec = Number(b.seconds);
+  const seconds = Number.isInteger(sec) && sec >= 15 && sec <= 120 && sec % 15 === 0 ? sec : 15; // 15 s steps up to 2 minutes (the automatic length picks any step)
   const admin = createAdminClient();
   const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost,is_enabled").eq("id", "free-motion").maybeSingle();
   if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });

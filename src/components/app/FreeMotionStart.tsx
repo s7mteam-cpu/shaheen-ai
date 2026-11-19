@@ -27,6 +27,8 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
   const [useIdentity, setUseIdentity] = useState(true);
   const [aspect, setAspect] = useState("9:16");
   const [seconds, setSeconds] = useState(15);
+  const [auto, setAuto] = useState(false);
+  const [plan, setPlan] = useState<{ seconds: number; cost: number; condensed: boolean } | null>(null);
   const [colors, setColors] = useState<Colors>(() => {
     const c = kit?.colors ?? [];
     if (!c.length) return { bg: "#0B2A4A", accent: "#E8B44C", text: "#FFFFFF" };
@@ -83,9 +85,19 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
     router.refresh();
     return null;
   }
-  async function start(e: React.FormEvent) {
-    e.preventDefault(); setBusy(true); setError(null);
-    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds, brand, colors, useIdentity, font, contact, voiceover, dialect, vtype, music: withMusic }) });
+  async function start(e: { preventDefault(): void }, secs?: number) {
+    e.preventDefault(); setError(null);
+    if (auto && secs == null) { // automatic length: show the length and the price first; nothing is charged until the customer confirms
+      setBusy(true);
+      const r0 = await fetch("/api/free-motion/estimate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea }) });
+      const d0 = await r0.json().catch(() => ({}));
+      setBusy(false);
+      if (!r0.ok) { setError(d0.error ?? L("تعذّر البدء.")); return; }
+      setPlan({ seconds: d0.seconds, cost: d0.cost, condensed: !!d0.condensed });
+      return;
+    }
+    setBusy(true);
+    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds: secs ?? seconds, brand, colors, useIdentity, font, contact, voiceover, dialect, vtype, music: withMusic }) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setError(d.error ?? L("تعذّر البدء.")); return; }
@@ -136,7 +148,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
         <textarea required minLength={10} maxLength={1500} rows={5} value={idea} onChange={(e) => setIdea(e.target.value)} className="field" placeholder={L("مثال: إعلان لمطعم مندي بالكويت، افتتاح فرع جديد، خصم 20% أول أسبوع، أجواء فخمة بالذهبي…")} /></label>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("اسم النشاط (اختياري)")}</span><input value={brand} onChange={(e) => setBrand(e.target.value)} maxLength={60} className="field" /></label>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span><div className="flex flex-wrap gap-2">{sizes.map(([v, l]) => <button key={v} type="button" aria-pressed={aspect === v} onClick={() => setAspect(v)} className="chip">{L(l)}</button>)}</div></div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span><div className="flex gap-2">{([[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"], [120, "دقيقتين"]] as const).map(([s, l]) => <button key={s} type="button" aria-pressed={seconds === s} onClick={() => setSeconds(s)} className="chip">{L(l)}</button>)}</div></div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span><div className="flex flex-wrap gap-2">{([[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"], [120, "دقيقتين"]] as const).map(([s, l]) => <button key={s} type="button" aria-pressed={!auto && seconds === s} onClick={() => { setAuto(false); setPlan(null); setSeconds(s); }} className="chip">{L(l)}</button>)}<button type="button" aria-pressed={auto} onClick={() => { setAuto(true); setPlan(null); }} className="chip">✨ {L("تلقائي حسب فكرتي")}</button></div>{auto && <span className="text-[12px] text-subtle">{L("شاهين يقدّر المدة من فكرتك (حتى دقيقتين) ويعرض لك السعر قبل ما يخصم أي ريش.")}</span>}</div>
       <div className="flex flex-col gap-3 rounded-xl border p-4">
         <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} />{L("تعليق صوتي (والصورة تمشي مع الكلام)")}</label>
         {voiceover && (<>
@@ -150,8 +162,22 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
       <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("حسابات التواصل (اختياري)")}</span>{contactRow(contact, setContact)}</div>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
-      <button disabled={busy || idea.trim().length < 10 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">✨ {L("صمّم")} ({cost} {L("ريشة")})</button>
-      {balance < cost && <p className="text-center text-[13px] text-red-700">{L("رصيدك ما يكفي.")}</p>}
+      {auto && plan ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-gold-300 bg-amber-50 p-4">
+          <p className="text-[15px] font-semibold text-navy-900">{L("المدة المقترحة لفكرتك")}: {Math.floor(plan.seconds / 60) ? `${Math.floor(plan.seconds / 60)}:${String(plan.seconds % 60).padStart(2, "0")}` : `${plan.seconds} ${L("ثانية")}`} · {plan.cost} {L("ريشة")}</p>
+          {plan.condensed && <p className="text-[13px] text-amber-900">{L("فكرتك أطول من دقيقتين، فسيختصر شاهين كل مشهد ليتسع كله بدقيقتين بدون حذف أي مشهد.")}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={busy || balance < plan.cost} onClick={(e) => start(e, plan.seconds)} className="btn btn-gold px-5 py-3">✅ {L("تأكيد وابدأ")} ({plan.cost} {L("ريشة")})</button>
+            <button type="button" disabled={busy} onClick={() => setPlan(null)} className="btn btn-outline px-5 py-3">{L("رجوع")}</button>
+          </div>
+          {balance < plan.cost && <p className="text-[13px] text-red-700">{L("رصيدك ما يكفي.")}</p>}
+        </div>
+      ) : auto ? (
+        <button disabled={busy || idea.trim().length < 10} className="btn btn-gold py-3.5 text-[16px]">{busy ? L("لحظات…") : `✨ ${L("قدّر المدة والسعر")}`}</button>
+      ) : (<>
+        <button disabled={busy || idea.trim().length < 10 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">✨ {L("صمّم")} ({cost} {L("ريشة")})</button>
+        {balance < cost && <p className="text-center text-[13px] text-red-700">{L("رصيدك ما يكفي.")}</p>}
+      </>)}
     </form>
   );
 }
