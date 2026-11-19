@@ -51,8 +51,9 @@ export const Host = (p: any) => {
     {L.map((c, i) => {
       const F = FS[i];
       const t = N === 1 ? p.t : Object.fromEntries(Object.entries(p.t || {}).filter(([k]) => k.startsWith("c" + i + "_")).map(([k, v]) => [k.slice(("c" + i + "_").length), v]));
+      const assets = N === 1 ? p.assets : Object.fromEntries(Object.entries(p.assets || {}).filter(([k]) => k.startsWith("c" + i + "_")).map(([k, v]) => [k.slice(("c" + i + "_").length), v]));
       const beats = (p.beats || []).slice(B0[i], i < N - 1 ? B0[i + 1] : undefined).map((b: any) => ({ ...b, start: +(b.start - c.from / 30).toFixed(2), end: +(b.end - c.from / 30).toFixed(2) }));
-      return <Sequence key={i} from={c.from} durationInFrames={c.frames}><F {...p} t={t} beats={beats} seconds={c.frames / 30} /></Sequence>;
+      return <Sequence key={i} from={c.from} durationInFrames={c.frames}><F {...p} t={t} assets={assets || {}} beats={beats} seconds={c.frames / 30} /></Sequence>;
     })}
     {p.logoOn && p.logo ? <img src={p.logo} style={{ position: "absolute", left: (p.logoBox?.x ?? 0.85) * 100 + "%", top: (p.logoBox?.y ?? 0.09) * 100 + "%", width: (p.logoBox?.w ?? 0.18) * 100 + "%", transform: "translate(-50%, -50%)", objectFit: "contain" }} /> : null}
   </>);

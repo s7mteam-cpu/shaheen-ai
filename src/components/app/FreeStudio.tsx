@@ -20,7 +20,7 @@ export type StudioData = {
   status: "studio"; busy: { kind: "export" | "revoice"; progress: number } | null; title: string; aspect: string; cseconds: number; idea: string; brand: string;
   voiceover: boolean; narration: string[]; beats: { text: string; start: number; end: number }[]; dialect: string;
   fields: Field[]; colors: Colors; font: string; contact: Contact[]; musicOn: boolean; musicVol: number;
-  logoOn: boolean; logoBox: LogoBox; logoPath: string; logo: string; trim?: Trim | null; ownAudio?: Music | null;
+  logoOn: boolean; logoBox: LogoBox; logoPath: string; logo: string; trim?: Trim | null; ownAudio?: Music | null; assets?: Record<string, unknown>;
   previewUrl: string; voiceUrl: string; musicUrl: string; exportUrl: string; editError: string;
 };
 const OFFSET = 0.4;
@@ -80,8 +80,8 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   }, [data.previewUrl]);
 
   const props = useMemo(() => ({
-    t: Object.fromEntries(fields.map((f) => [f.key, f.value])), colors, font, contact: contact.filter((c) => c.handle.trim()), logo: logo.frameUrl ?? logo.url, logoOn: logo.on && !!logo.url, logoBox: logo.box, beats: data.beats, seconds: data.cseconds,
-  }), [fields, colors, font, contact, logo, data.beats, data.cseconds]);
+    assets: data.assets ?? {}, t: Object.fromEntries(fields.map((f) => [f.key, f.value])), colors, font, contact: contact.filter((c) => c.handle.trim()), logo: logo.frameUrl ?? logo.url, logoOn: logo.on && !!logo.url, logoBox: logo.box, beats: data.beats, seconds: data.cseconds,
+  }), [fields, colors, font, contact, logo, data.beats, data.cseconds, data.assets]);
   const send = useCallback((m: unknown) => { iframe.current?.contentWindow?.postMessage(m, "*"); }, []);
   useEffect(() => { if (ready) send({ type: "props", props }); }, [props, ready, send]);
 

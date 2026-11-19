@@ -6,3 +6,10 @@ export function Icon({ name, size = 64, color = "currentColor", stroke = 2, styl
   const nodes = D[name] ?? D["circle-question-mark"] ?? D["circle"];
   return React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: stroke, strokeLinecap: "round", strokeLinejoin: "round", style }, nodes.map(([t, a], i) => React.createElement(t, { key: i, ...a })));
 }
+
+/** An icon handed over by the server-side library (p.assets[key]). Single-colour ones are recoloured with `color`; coloured ones (emoji) keep their colours. Falls back to a built-in icon when the library had no match. */
+export function AssetIcon({ a, size = 64, color = "#fff", fallback = "circle", style }: { a?: { src: string; mono: boolean } | null; size?: number; color?: string; fallback?: string; style?: React.CSSProperties }) {
+  if (!a || !a.src) return React.createElement(Icon, { name: fallback, size, color, style });
+  if (a.mono) return React.createElement("span", { style: { display: "inline-block", width: size, height: size, backgroundColor: color, WebkitMaskImage: `url(${a.src})`, maskImage: `url(${a.src})`, WebkitMaskSize: "contain", maskSize: "contain", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat", WebkitMaskPosition: "center", maskPosition: "center", ...style } });
+  return React.createElement("img", { src: a.src, width: size, height: size, style: { objectFit: "contain", ...style } });
+}

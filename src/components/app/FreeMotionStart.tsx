@@ -17,17 +17,23 @@ const fonts = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 const social = Object.keys(BRANDS) as BrandId[];
 
 /** «تصميم مبتكر ✨»: the customer writes an idea; the AI writes a motion design as code and the worker renders it. Texts and colours can be edited afterwards. */
-export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null }) {
+export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: { costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null; kit?: { name: string; colors: string[]; font: string } | null }) {
   const router = useRouter();
   const sp = useSearchParams();
   const jobId = sp.get("job");
   const [idea, setIdea] = useState("");
-  const [brand, setBrand] = useState("");
+  const [brand, setBrand] = useState(kit?.name ?? "");
   const [useIdentity, setUseIdentity] = useState(true);
   const [aspect, setAspect] = useState("9:16");
   const [seconds, setSeconds] = useState(15);
-  const [colors, setColors] = useState<Colors>({ bg: "#0B2A4A", accent: "#E8B44C", text: "#FFFFFF" });
-  const [font, setFont] = useState("Cairo");
+  const [colors, setColors] = useState<Colors>(() => {
+    const c = kit?.colors ?? [];
+    if (!c.length) return { bg: "#0B2A4A", accent: "#E8B44C", text: "#FFFFFF" };
+    // from the customer's own brand kit: first colour = background, second = accent, text = white or black by what reads on the background
+    const lum = (h: string) => { const v = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+    return { bg: c[0], accent: c[1] ?? "#E8B44C", text: lum(c[0]) > 0.45 ? "#111111" : "#FFFFFF" };
+  });
+  const [font, setFont] = useState(kit?.font ?? "Cairo");
   const [contact, setContact] = useState<Contact[]>([]);
   const [voiceover, setVoiceover] = useState(true);
   const [dialect, setDialect] = useState("kuwaiti");

@@ -18,6 +18,7 @@ import { createRequire } from "node:module";
 import { captureSite } from "./site.mjs";
 import { prepareFree, checkFreeCode } from "./free.mjs";
 import { buildPreview } from "./freepreview.mjs";
+import { resolveAssets } from "./assets.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
@@ -817,7 +818,8 @@ async function freeJob(job) {
     const wantVo = inp.voiceover !== false && !!inp.voice?.id;
     const prepOpts = (chapters) => ({ chapters, width: W, height: H, seconds, workDir, brandFile, fontCss: FREE_FONTS, mediaOrigin });
     const logoBox = inp.logoBox && typeof inp.logoBox === "object" ? { x: Math.min(0.97, Math.max(0.03, +inp.logoBox.x || 0.85)), y: Math.min(0.97, Math.max(0.03, +inp.logoBox.y || 0.09)), w: Math.min(0.7, Math.max(0.06, +inp.logoBox.w || 0.18)) } : { x: 0.85, y: 0.09, w: 0.18 };
-    const propsOf = (fields) => ({ t: Object.fromEntries((fields ?? []).map((f) => [f.key, f.value])), colors, font, contact, logo, logoOn: !!logo && inp.logoOn !== false, logoBox, beats: vo?.beats ?? [], seconds });
+    let curAssets = null;
+    const propsOf = (fields) => ({ assets: curAssets ?? free?.assets ?? {}, t: Object.fromEntries((fields ?? []).map((f) => [f.key, f.value])), colors, font, contact, logo, logoOn: !!logo && inp.logoOn !== false, logoBox, beats: vo?.beats ?? [], seconds });
     const fit = () => { seconds = compSeconds(inp, vo); };
     /** music for the whole length (made once; regenerated only if the voice got longer) */
     const ensureMusic = async (promise) => {
@@ -938,7 +940,7 @@ async function freeJob(job) {
       for (let attempt = 0; attempt < 2; attempt++) {
         const g = await generateFree({ idea: ideaText, aspect: inp.aspect, seconds: secs(i), brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: localBeats(i), chapter: { i, n } });
         const why = g.fields.length >= 3 ? checkFreeCode(g.code) : "fields";
-        if (!why) return { ...g, b0: b0s[i] };
+        if (!why) return { ...g, b0: b0s[i], res: resolveAssets(g.assets) };
         last = g.cut ? "answer cut off (too long)" : why;
         prev = { code: g.cut ? "" : g.code, error: why === "size" || g.cut ? "your answer was CUT OFF because it was too long. Write a MUCH shorter and simpler design: under 9000 characters in total, at most 3 simple scenes, characters made of a few circles and rounded rectangles in ONE reusable component, no long SVG paths." : `static check: ${why}` };
       }
@@ -947,10 +949,10 @@ async function freeJob(job) {
     let parts;
     try { parts = await Promise.all(Array.from({ length: n }, (_, i) => writeChapter(i))); } finally { clearInterval(tick); }
     await setProgress(job.id, 58);
-    const merge = (ps) => ({ title: ps[0].title, chapters: ps.map((g) => ({ code: g.code, b0: g.b0 })), code: ps[0].code, fields: n === 1 ? ps[0].fields : ps.flatMap((g, i) => g.fields.map((f) => ({ ...f, key: `c${i}_${f.key}`, label: `الفصل ${i + 1}: ${f.label}` }))) });
+    const merge = (ps) => ({ assets: Object.fromEntries(ps.flatMap((g, i) => Object.entries(g.res || {}).map(([k, v]) => [n > 1 ? `c${i}_${k}` : k, v]))), title: ps[0].title, chapters: ps.map((g) => ({ code: g.code, b0: g.b0 })), code: ps[0].code, fields: n === 1 ? ps[0].fields : ps.flatMap((g, i) => g.fields.map((f) => ({ ...f, key: `c${i}_${f.key}`, label: `الفصل ${i + 1}: ${f.label}` }))) });
     // compile once, draw a frame from the middle of every chapter; a chapter whose code crashes is written again (with the error) and compiled again
     const checkAll = async (ps) => {
-      const bad = []; const f0 = merge(ps);
+      const bad = []; const f0 = merge(ps); curAssets = f0.assets;
       prep?.cleanup(); prep = await prepareFree(prepOpts(f0.chapters));
       for (let i = 0; i < n; i++) {
         try { await prep.still(propsOf(f0.fields), Math.round((n > 1 ? (t0(i) + t1(i)) / 2 : seconds / 2) * 30), join(workDir, `chk-${job.id}.png`)); }
@@ -984,7 +986,7 @@ async function freeJob(job) {
       }
     } catch (e) { console.error("free review skipped", e?.message ?? e); }
     const merged = merge(parts);
-    free = { title: merged.title, fields: merged.fields, chapters: merged.chapters, code: merged.code };
+    free = { title: merged.title, fields: merged.fields, chapters: merged.chapters, code: merged.code, assets: merged.assets };
     await setProgress(job.id, 75);
     const thumb = join(workDir, `th-${job.id}.png`);
     await prep.still(propsOf(free.fields), Math.round(seconds * 30 * (n > 1 ? 0.12 : 0.4)), thumb).catch(() => {});

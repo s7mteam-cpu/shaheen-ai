@@ -20,3 +20,12 @@ export async function brandKitLogo(): Promise<{ path: string; url: string } | nu
   const url = (await createAdminClient().storage.from("uploads").createSignedUrl(kitRow.logo_url as string, 60 * 60 * 6)).data?.signedUrl ?? "";
   return url ? { path: kitRow.logo_url as string, url } : null;
 }
+
+/** The customer's brand kit (name, colours, font) so the start form begins with HIS identity, not made-up defaults. */
+export async function brandKitInfo(): Promise<{ name: string; colors: string[]; font: string } | null> {
+  const supabase = await createClient();
+  const { data: k } = await supabase.from("brand_kits").select("business_name,colors,font").maybeSingle();
+  if (!k) return null;
+  const colors = ((k.colors ?? []) as unknown[]).map((c) => String(c ?? "")).filter((c) => /^#[0-9a-fA-F]{6}$/.test(c));
+  return { name: String(k.business_name ?? "").slice(0, 60), colors, font: FREE_FONTS.includes(String(k.font)) ? String(k.font) : "Cairo" };
+}
