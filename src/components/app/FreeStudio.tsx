@@ -37,7 +37,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   const [contact, setContact] = useState(data.contact);
   const [musicOn, setMusicOn] = useState(data.musicOn);
   const [musicVol, setMusicVol] = useState(data.musicVol);
-  const [logo, setLogo] = useState({ path: data.logoPath, url: data.logo, on: data.logoOn, box: data.logoBox ?? DEFAULT_LOGO_BOX });
+  const [logo, setLogo] = useState<{ path: string; url: string; on: boolean; box: LogoBox; frameUrl?: string }>({ path: data.logoPath, url: data.logo, on: data.logoOn, box: data.logoBox ?? DEFAULT_LOGO_BOX });
   const [narr, setNarr] = useState(data.narration);
   const [dialect, setDialect] = useState(data.dialect);
   const [vtype, setVtype] = useState("");
@@ -72,7 +72,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   }, [data.previewUrl]);
 
   const props = useMemo(() => ({
-    t: Object.fromEntries(fields.map((f) => [f.key, f.value])), colors, font, contact: contact.filter((c) => c.handle.trim()), logo: logo.url, logoOn: logo.on && !!logo.url, logoBox: logo.box, beats: data.beats, seconds: data.cseconds,
+    t: Object.fromEntries(fields.map((f) => [f.key, f.value])), colors, font, contact: contact.filter((c) => c.handle.trim()), logo: logo.frameUrl ?? logo.url, logoOn: logo.on && !!logo.url, logoBox: logo.box, beats: data.beats, seconds: data.cseconds,
   }), [fields, colors, font, contact, logo, data.beats, data.cseconds]);
   const send = useCallback((m: unknown) => { iframe.current?.contentWindow?.postMessage(m, "*"); }, []);
   useEffect(() => { if (ready) send({ type: "props", props }); }, [props, ready, send]);
@@ -137,7 +137,11 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   }
   async function uploadLogo(f: File) {
     setUpBusy(true); setErr(null);
-    try { const u = await uploadImage(f); setLogo((p) => ({ path: u.path, url: u.preview, on: true, box: p.box })); }
+    try {
+      // a blob: link made in this page cannot be opened inside the sandboxed preview, so the preview gets the picture itself (data:)
+      const frameUrl = await new Promise<string>((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => no(r.error); r.readAsDataURL(f); });
+      const u = await uploadImage(f); setLogo((p) => ({ path: u.path, url: u.preview, on: true, box: p.box, frameUrl }));
+    }
     catch { setErr(L("صار خطأ، حاول مرة ثانية.")); }
     setUpBusy(false);
   }

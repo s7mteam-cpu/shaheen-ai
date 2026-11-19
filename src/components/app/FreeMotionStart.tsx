@@ -39,6 +39,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { cos
   const [studio, setStudio] = useState<StudioData | null>(null);
   const [busyNow, setBusyNow] = useState<StudioData["busy"]>(null);
   const stopped = useRef(false);
+  const waitBusy = useRef(0); // after revoice/export: ignore "not busy" answers for a moment, the worker may not have picked the job up yet
   const cost = Math.max(1, Math.round(seconds / 15)) * costPer15;
 
   const poll = useCallback(async () => {
@@ -48,6 +49,8 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { cos
     const d = (await r.json().catch(() => null)) as State | null;
     if (!d || !("status" in d)) return;
     if (d.status === "studio") {
+      if (d.busy) waitBusy.current = 0;
+      else if (waitBusy.current && Date.now() < waitBusy.current) return;
       setBusyNow(d.busy);
       setStudio((p) => (!p || !d.busy ? d : p)); // while something is being recorded/exported the studio keeps its links (they change on every request)
       stopped.current = !d.busy;
@@ -98,7 +101,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { cos
     </div>
   );
 
-  if (jobId && studio) return <FreeStudio key={jobId} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={() => { stopped.current = false; setBusyNow({ kind: "export", progress: 3 }); poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
+  if (jobId && studio) return <FreeStudio key={jobId} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={() => { stopped.current = false; waitBusy.current = Date.now() + 30000; setBusyNow({ kind: "export", progress: 3 }); poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
   if (jobId && state?.status === "failed") {
     return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p>{state.reason && <p dir="ltr" className="mt-3 rounded-lg bg-neutral-100 p-3 text-start text-[12px] text-neutral-600">{state.reason}</p>}<button onClick={() => router.replace("/app/tools/free-motion")} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
   }
