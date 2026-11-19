@@ -24,7 +24,7 @@ export default async function TemplatesAdmin({ searchParams }: { searchParams: P
       {converting && <meta httpEquiv="refresh" content="20" />}
       <div>
         <h1 className="text-[26px] font-bold text-navy-900">{L("مكتبة الأساليب")}</h1>
-        <p className="mt-1 text-sm text-subtle">{L("ارفع كود تصميم موشن. إذا كان كود Remotion جاهز بصيغة شاهين (من جيميناي بالرسالة الثابتة) يدخل مباشرة: شاهين ينظّف الأخطاء الصغيرة تلقائيًا ثم يفحصه فحصًا حقيقيًا ويسوّي صورة، وهذا بدون أي تكلفة. وإذا كان غير كذا (صفحة HTML مثلًا) يحوّله Claude ويكلّف سنتات للقالب. بعد الفحص تشوف صورة منه وتعتمده. المكتبة داخلية ولا تظهر للعملاء.")}</p>
+        <p className="mt-1 text-sm text-subtle">{L("الصق كود HTML الأصلي من جيميناي: نحتفظ به كما هو بالضبط (نفس الشكل والحركة والقوة) ونعرضه ونسجّله فيديو بدون Claude وبدون تكلفة. كود Remotion الجاهز يدخل بالرفع المباشر. زر «حوّل بClaude» فقط لمن يبي يتحوّل لصيغة قابلة للتعديل الكامل.")}</p>
       </div>
       <form action={createTemplate} className="card grid gap-3 p-5 md:grid-cols-2">
         <div className="flex flex-col gap-1.5"><label className="label">{L("اسم القالب")}</label><input name="name" required maxLength={60} className="field" placeholder={L("مثال: شرح طبي بخمس نقاط")} /></div>

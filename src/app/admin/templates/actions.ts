@@ -12,11 +12,14 @@ const refresh = () => revalidatePath("/admin/templates");
 const clean = (x: unknown, n: number) => String(x ?? "").replace(/[<>"]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
 
 /** The tool job that makes the conversion (the video worker picks it up like any other job). */
-async function queue(templateId: string, userId: string, name: string, direct: boolean) {
+async function queue(templateId: string, userId: string, name: string, mode: "remotion" | "html" | "claude") {
   const admin = createAdminClient();
-  await admin.from("jobs").insert({ user_id: userId, tool_id: "free-motion", title: `مكتبة الأساليب: ${name}`.slice(0, 60), status: "queued", progress: 0, input: { kind: "free", mode: "ingest", templateId, direct } });
+  await admin.from("jobs").insert({ user_id: userId, tool_id: "free-motion", title: `مكتبة الأساليب: ${name}`.slice(0, 60), status: "queued", progress: 0, input: { kind: "free", mode: "ingest", templateId, ...(mode === "remotion" ? { direct: true } : mode === "html" ? { html: true } : {}) } });
 }
 /** كود Remotion جاهز (يصدّر Free) يدخل بالرفع المباشر بدون Claude. غير كذا (صفحة HTML مثلًا) يتحوّل بClaude. */
+/** HTML أصلي (من جيميناي): نحتفظ به كما هو بدون تحويل، ونعرضه ونسجّله فيديو. */
+const looksHtml = (code: string) => /<(!doctype html|html|body|div|svg|style|script)\b/i.test(code) && !/export\s+(const|function)\s+Free\b/.test(code);
+const modeOf = (code: string, via: unknown): "remotion" | "html" | "claude" => (via === "claude" ? "claude" : looksReady(code) ? "remotion" : looksHtml(code) ? "html" : "claude");
 const looksReady = (code: string) => /export\s+(const|function)\s+Free\b/.test(code) && /from\s*["'](react-)?remotion["']/.test(code);
 
 export async function createTemplate(form: FormData) {
@@ -27,10 +30,10 @@ export async function createTemplate(form: FormData) {
   const file = form.get("file");
   if (!code.trim() && file instanceof File && file.size > 0 && file.size < 400_000) code = await file.text();
   code = code.trim(); // الأقواس وأي كلام زائد ينظفها شاهين تلقائيًا
-  if (!name || code.length < 200 || code.length > 200_000) return;
+  if (!name || code.length < 200 || code.length > 600_000) return;
   const admin = createAdminClient();
   const { data: row } = await admin.from("free_templates").insert({ name, tags, source_code: code, created_by: me.id }).select("id").single();
-  if (row) await queue(row.id, me.id, name, looksReady(code) && form.get("via") !== "claude");
+  if (row) await queue(row.id, me.id, name, modeOf(code, form.get("via")));
   refresh();
 }
 
@@ -49,8 +52,8 @@ export async function retryTemplate(form: FormData) {
   const admin = createAdminClient();
   const { data: t } = await admin.from("free_templates").select("name,source_code").eq("id", id).maybeSingle();
   if (!t) return;
-  await admin.from("free_templates").update({ status: "converting", error: null, updated_at: new Date().toISOString() }).eq("id", id);
-  await queue(id, me.id, t.name, looksReady(String(t.source_code ?? "")) && form.get("via") !== "claude");
+  await admin.from("free_templates").update({ status: "converting", error: null, assets: {}, updated_at: new Date().toISOString() }).eq("id", id);
+  await queue(id, me.id, t.name, modeOf(String(t.source_code ?? ""), form.get("via")));
   refresh();
 }
 
@@ -89,7 +92,7 @@ export async function setTags(form: FormData) {
 }
 
 /** يطلب فيديو MP4 من القالب بالتعديلات الحالية (نصوص/ألوان/خط/مدة). بدون صوت وبدون Claude. */
-export async function renderTemplate(id: string, input: { t: Record<string, string>; colors: { bg: string; accent: string; text: string }; font: string; seconds: number; contact: string[] }) {
+export async function renderTemplate(id: string, input: { t: Record<string, string>; colors: { bg: string; accent: string; text: string }; font: string; seconds: number; contact: string[]; hex?: Record<string, string> }) {
   const me = await guard();
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false };
   const hex = (c: unknown, d: string) => (typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c) ? c : d);
@@ -99,6 +102,7 @@ export async function renderTemplate(id: string, input: { t: Record<string, stri
     t, font: ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(input?.font) ? input.font : "Cairo",
     colors: { bg: hex(input?.colors?.bg, "#0B2A4A"), accent: hex(input?.colors?.accent, "#E8B44C"), text: hex(input?.colors?.text, "#FFFFFF") },
     seconds: Math.max(15, Math.min(120, Math.round(Number(input?.seconds) || 35))), contact: (input?.contact ?? []).map((x) => String(x).slice(0, 60)).filter(Boolean).slice(0, 6),
+    texts: t, hex: Object.fromEntries(Object.entries(input?.hex ?? {}).filter(([a, b]) => /^#[0-9a-f]{6}$/i.test(a) && /^#[0-9a-f]{6}$/i.test(String(b))).slice(0, 12)),
   };
   const admin = createAdminClient();
   const { data: tpl } = await admin.from("free_templates").select("name,assets").eq("id", id).maybeSingle();

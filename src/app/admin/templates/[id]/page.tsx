@@ -16,8 +16,10 @@ export default async function TryTemplate({ params }: { params: Promise<{ id: st
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const admin = createAdminClient();
   const { data: t } = await admin.from("free_templates").select("id,name,aspect,status,fields,assets,code").eq("id", id).maybeSingle();
-  if (!t || !t.code) notFound();
+  const kind = (t?.assets as { _kind?: string } | null)?._kind === "html" ? "html" : "remotion";
+  if (!t || (!t.code && kind !== "html")) notFound();
   const previewPath = (t.assets as { _preview?: string } | null)?._preview ?? "";
+  const colorList = ((t.assets as { _colors?: string[] } | null)?._colors ?? []).filter((c) => /^#[0-9a-f]{6}$/i.test(c));
   const url = previewPath ? (await admin.storage.from("results").createSignedUrl(previewPath, 60 * 60)).data?.signedUrl ?? "" : "";
   const { data: busy } = url ? { data: [] } : await admin.from("jobs").select("id").eq("tool_id", "free-motion").in("status", ["queued", "running"]).contains("input", { mode: "tplpreview", templateId: id }).limit(1);
   const vp = (t.assets as { _video?: string | null } | null)?._video ?? "";
@@ -31,12 +33,12 @@ export default async function TryTemplate({ params }: { params: Promise<{ id: st
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-[24px] font-bold text-navy-900">{L("جرّب القالب")}: {t.name}</h1>
-          <p className="mt-1 text-sm text-subtle">{L("معاينة حية بدون صوت. غيّر النصوص والألوان والخط والمدة وشوف الحركة. ما يكلّف شي.")}</p>
+          <p className="mt-1 text-sm text-subtle">{kind === "html" ? L("هذا التصميم الأصلي من جيميناي كما هو (بدون تحويل). غيّر النصوص والألوان وشوف الحركة، ثم نزّله فيديو. ما يكلّف شي.") : L("معاينة حية بدون صوت. غيّر النصوص والألوان والخط والمدة وشوف الحركة. ما يكلّف شي.")}</p>
         </div>
         <Link href="/admin/templates" className="btn btn-outline px-4 py-2">← {L("رجوع للمكتبة")}</Link>
       </div>
       {url ? (
-        <TemplateTry id={t.id} name={t.name} aspect={t.aspect} fields={fields} previewUrl={url} videoUrl={videoUrl} videoErr={verr} rendering={!!rendering?.length} />
+        <TemplateTry kind={kind} colorList={colorList} id={t.id} name={t.name} aspect={t.aspect} fields={fields} previewUrl={url} videoUrl={videoUrl} videoErr={verr} rendering={!!rendering?.length} />
       ) : (
         <div className="card flex flex-col items-start gap-3 p-5">
           {busy?.length ? <p className="text-[15px]">⏳ {L("جاري تجهيز المعاينة… تتحدّث الصفحة تلقائيًا.")}</p> : (

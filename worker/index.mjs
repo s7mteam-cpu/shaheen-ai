@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, readFile, writeFile, rm, mkdir, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -19,6 +19,8 @@ import { captureSite } from "./site.mjs";
 import { prepareFree, checkFreeCode, MAX_CODE } from "./free.mjs";
 import { normalizeTemplate, verifyTemplate } from "./ingest.mjs";
 import { buildPreview } from "./freepreview.mjs";
+import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
+import { extractTexts, extractColors, applyEdits } from "./htmlkit.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
@@ -828,9 +830,20 @@ async function tplRenderJob(job) {
   const setAssets = async (row, patch) => db.from("free_templates").update({ assets: { ...(row?.assets ?? {}), ...patch }, updated_at: now() }).eq("id", tid);
   const { data: row } = await db.from("free_templates").select("id,name,aspect,code,assets").eq("id", tid).maybeSingle();
   try {
+    const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
+    if (isHtmlRow(row)) {
+      const { data: src } = await db.from("free_templates").select("source_code").eq("id", tid).maybeSingle();
+      const html = applyEdits(String(src?.source_code ?? ""), { texts: pr.texts ?? {}, hex: pr.hex ?? {} });
+      const secs = Math.max(8, Math.min(120, Number(pr.seconds) || 30));
+      await recordHtml({ html, width: W, height: H, seconds: secs, outFile, fontCss: htmlFontCss() });
+      const path = `templates/${tid}/video-${Date.now()}.mp4`;
+      const up = await db.storage.from("results").upload(path, await readFile(outFile), { contentType: "video/mp4" });
+      if (up.error) throw new Error(`upload: ${up.error.message}`);
+      await setAssets(row, { _video: path, _videoErr: null });
+      return;
+    }
     if (!row?.code) throw new Error("template has no code");
     const why = checkFreeCode(row.code); if (why) throw new Error(`unsafe code: ${why}`);
-    const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
     const seconds = Math.max(8, Math.min(120, Number(pr.seconds) || 35));
     prep = await prepareFree({ chapters: [{ code: row.code, b0: 0 }], width: W, height: H, seconds, workDir, brandFile: join(here, "..", "src", "remotion", "brandIcons.ts"), fontCss: FREE_FONTS, mediaOrigin: new URL(process.env.SUPABASE_URL).origin });
     const props = { assets: {}, t: pr.t ?? {}, colors: pr.colors ?? { bg: "#0B2A4A", accent: "#E8B44C", text: "#FFFFFF" }, font: pr.font ?? "Cairo", contact: pr.contact ?? [], logo: "", logoOn: false, logoBox: undefined, beats: [], seconds };
@@ -846,13 +859,52 @@ async function tplPreviewJob(job) {
   const tid = String(job.input?.templateId ?? "");
   try {
     const { data: row } = await db.from("free_templates").select("id,aspect,code,assets").eq("id", tid).maybeSingle();
-    if (!row?.code) throw new Error("template has no code yet");
-    const path = await buildTemplatePreview(row, row.code);
-    await db.from("free_templates").update({ assets: { ...(row.assets ?? {}), _preview: path }, updated_at: now() }).eq("id", tid);
+    if (!isHtmlRow(row)) {
+      if (!row?.code) throw new Error("template has no code yet");
+      const path = await buildTemplatePreview(row, row.code);
+      await db.from("free_templates").update({ assets: { ...(row.assets ?? {}), _preview: path }, updated_at: now() }).eq("id", tid);
+    }
   } catch (e) { console.error("template preview failed", e?.message ?? e); }
   await db.from("jobs").delete().eq("id", job.id);
 }
 /** الرفع المباشر: كود Remotion جاهز (من جيميناي) يُنظَّف تلقائيًا ثم يمرّ بالفحص الحقيقي، بدون Claude وبدون أي تكلفة. */
+/** fonts for original-HTML templates (the page cannot download any): Arabic + Latin parts, embedded as data urls */
+function htmlFontCss() {
+  let css = "";
+  for (const [family, pkg, weights] of FONT_FILES) for (const weight of [400, ...weights]) for (const [subset, range] of [["arabic", "U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF"], ["latin", "U+0000-00FF,U+2000-206F"]]) {
+    for (const root of [join(here, "node_modules"), join(here, "..", "node_modules")]) {
+      const file = join(root, "@fontsource", pkg, "files", `${pkg}-${subset}-${weight}-normal.woff2`);
+      if (existsSync(file)) { css += `@font-face{font-family:"${family}";font-weight:${weight};unicode-range:${range};src:url(data:font/woff2;base64,${readFileSync(file).toString("base64")}) format("woff2");}`; break; }
+    }
+  }
+  return css;
+}
+const isHtmlRow = (row) => row?.assets?._kind === "html";
+/** original HTML template: nothing is converted. We keep it as is, check it really draws, make the sheet + the live preview page. */
+async function ingestHtml(job, row, setRow) {
+  const html = String(row.source_code ?? "");
+  if (html.length < 200 || html.length > 600_000) throw new Error("حجم كود الـHTML غير مناسب (من 200 حرف إلى 600 ألف)");
+  const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
+  const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  const fontCss = htmlFontCss();
+  const times = [1.5, 6, 12, 20];
+  const stills = await htmlStills({ html, width: W, height: H, times, fontCss });
+  const files = [];
+  for (const [i, b] of stills.entries()) { const f = join(workDir, `hs-${job.id}-${i}.png`); await writeFile(f, b); files.push(f); }
+  if (await frameIsBlank(files[1])) throw new Error("الصفحة طلعت فاضية بعد 6 ثواني. تأكد إن الـHTML يشتغل لحاله (بدون مكتبات من الإنترنت مثل Tailwind CDN أو صور خارجية).");
+  const sheet = join(workDir, `hsheet-${job.id}.png`);
+  await run("ffmpeg", ["-y", "-loglevel", "error", ...files.flatMap((f) => ["-i", f]), "-filter_complex", `${files.map((_, i) => `[${i}:v]scale=300:-1[s${i}]`).join(";")};${files.map((_, i) => `[s${i}]`).join("")}hstack=${files.length}`, sheet]);
+  const thumb = `templates/${row.id}/thumb-${Date.now()}.png`;
+  const up = await db.storage.from("results").upload(thumb, await readFile(sheet), { contentType: "image/png", upsert: true });
+  if (up.error) throw up.error;
+  for (const f of [...files, sheet]) await rm(f, { force: true });
+  const pv = `templates/${row.id}/preview-${Date.now()}.html`;
+  const pu = await db.storage.from("results").upload(pv, Buffer.from(htmlPreviewDoc(html, fontCss)), { contentType: "text/html" });
+  if (pu.error) throw new Error(`upload preview: ${pu.error.message}`);
+  const fields = extractTexts(html);
+  await setRow({ status: "review", code: null, fields, assets: { _kind: "html", _preview: pv, _colors: extractColors(html), _notes: ["نحتفظ بالتصميم الأصلي كما هو (بدون تحويل). المعاينة والفيديو ينطلقون من نفس كود جيميناي."] }, thumb_path: thumb, error: null });
+  await db.from("jobs").delete().eq("id", job.id);
+}
 async function ingestDirect(job, row, setRow) {
   const norm = normalizeTemplate(row.source_code, MAX_CODE);
   if (norm.error) throw new Error(norm.error);
@@ -880,6 +932,7 @@ async function ingestJob(job) {
   try {
     const { data: row } = await db.from("free_templates").select("id,name,aspect,source_code").eq("id", tid).maybeSingle();
     if (!row) throw new Error("template row missing");
+    if (job.input?.html) { await ingestHtml(job, row, setRow); return; }
     if (job.input?.direct) { await ingestDirect(job, row, setRow); return; }
     const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
     const seconds = 40;
