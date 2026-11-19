@@ -115,9 +115,11 @@ export type Graphic = {
   cdur?: number;                           // clip: length of the stock clip in seconds (it loops if the scene is longer)
   photo?: number;                          // scene made from the customer's own photo: its number (1-6), swapped for `img` on the server
   sec?: number;                            // site: which section of the page the sentence is about (the writer picks it; the server fills `site`)
-  site?: { y: number; y0: number; y2: number; w: number; h: number; dev: "phone" | "desktop"; host: string; look: SiteLook }; // site: where to scroll in the page picture (`img`), and how the scene looks
+  site?: { y: number; y0: number; y2: number; w: number; h: number; dev: "phone" | "desktop"; host: string; look: SiteLook; b?: { y: number; w: number; h: number } }; // `b`: the same section in the second picture (`img2`: computer picture for tall videos, phone picture for wide ones) // site: where to scroll in the page picture (`img`), and how the scene looks
   img?: string;                            // scene: storage path in "results"
   url?: string;                            // scene: signed URL (filled on load / render)
+  img2?: string;                           // site: the other device's page picture (for the two-screens look)
+  url2?: string;                           // site: its signed URL
   style?: string;                          // scene: illustration style
   shape?: "triangle" | "square" | "circle" | "hexagon"; // geometry
   bad?: string; good?: string;             // compare
@@ -150,7 +152,9 @@ function cleanSite(v: unknown): Graphic["site"] {
   if (!o || typeof o !== "object") return undefined;
   const n = (x: unknown, lo: number, hi: number) => Math.max(lo, Math.min(hi, Number(x) || 0));
   const w = n(o.w, 100, 4000), h = n(o.h, 100, 40000);
-  return { y: n(o.y, 0, h), y0: n(o.y0, 0, h), y2: n(o.y2, 0, h), w, h, dev: o.dev === "desktop" ? "desktop" : "phone", host: String(o.host ?? "").replace(/[^\w.\-]/g, "").slice(0, 80), look: cleanLook(o.look) };
+  const bo = (o.b ?? null) as Record<string, unknown> | null;
+  const b = bo && typeof bo === "object" ? { w: n(bo.w, 100, 4000), h: n(bo.h, 100, 40000), y: n(bo.y, 0, 40000) } : undefined;
+  return { y: n(o.y, 0, h), y0: n(o.y0, 0, h), y2: n(o.y2, 0, h), w, h, ...(b ? { b } : {}), dev: o.dev === "desktop" ? "desktop" : "phone", host: String(o.host ?? "").replace(/[^\w.\-]/g, "").slice(0, 80), look: cleanLook(o.look) };
 }
 export function cleanGraphics(arr: unknown, len: number): Graphic[] {
   const kinds: string[] = [...GRAPHIC_KINDS.map((k) => k[0]), "clip", "site"];
@@ -174,6 +178,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       photo: Number.isFinite(Number(x?.photo)) && x?.photo !== undefined && x?.photo !== null && x?.photo !== "" ? c(Math.round(Number(x.photo)), 1, 6) : undefined,
       prompt: str(x?.prompt, 400), img: typeof x?.img === "string" && /^[\w-]+\/[\w./-]+$/.test(x.img as string) ? (x.img as string) : undefined,
       url: typeof x?.url === "string" ? (x.url as string) : undefined, style: str(x?.style, 20),
+      img2: typeof x?.img2 === "string" && /^[\w-]+\/[\w./-]+$/.test(x.img2 as string) ? (x.img2 as string) : undefined, url2: typeof x?.url2 === "string" ? (x.url2 as string) : undefined,
       shape: (["triangle", "square", "circle", "hexagon"] as const).find((v) => v === x?.shape),
       ty: x?.ty === undefined || x?.ty === null ? undefined : +c(Number(x.ty) || 0, 0, 1).toFixed(3),
       ts: x?.ts === undefined || x?.ts === null ? undefined : +c(Number(x.ts) || 1, 0.4, 2).toFixed(2),

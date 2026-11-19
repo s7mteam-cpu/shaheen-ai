@@ -77,7 +77,8 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     cstyle: ok(DSTYLES, s.cstyle), // character look
     // pictures must be the customer's own (or already in this project)
     graphics: cleanGraphics(Array.isArray(s.graphics) ? s.graphics : base.graphics ?? [], len)
-      .map((g) => (g.img && (!g.img.startsWith(`${userId}/`) || g.img.includes("..")) && !(base.graphics ?? []).some((x) => x.img === g.img) ? { ...g, img: undefined, url: undefined } : g)),
+      .map((g) => (g.img && (!g.img.startsWith(`${userId}/`) || g.img.includes("..")) && !(base.graphics ?? []).some((x) => x.img === g.img) ? { ...g, img: undefined, url: undefined } : g))
+      .map((g) => (g.img2 && (!g.img2.startsWith(`${userId}/`) || g.img2.includes("..")) && !(base.graphics ?? []).some((x) => x.img2 === g.img2) ? { ...g, img2: undefined, url2: undefined } : g)),
     illus: ILLUS_STYLES.some((x) => x[0] === s.illus) ? s.illus : base.illus,
     zooms: (Array.isArray(s.zooms) ? s.zooms : base.zooms).slice(0, 15).map((z) => ({ at: clamp(Number(z.at) || 0, 0, len), dur: clamp(Number(z.dur) || 2, 0.5, 6), scale: clamp(Number(z.scale) || 1.15, 1.02, 1.35) })),
     intro: { on: !!(s.intro?.on ?? base.intro.on), title: String(s.intro?.title ?? base.intro.title).slice(0, 60), subtitle: String(s.intro?.subtitle ?? base.intro.subtitle).slice(0, 60) },

@@ -154,9 +154,9 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
     ? { ...spec.music, url: spec.music.bucket === "uploads" ? (await createAdminClient().storage.from("uploads").createSignedUrl(spec.music.path, 60 * 60 * 6)).data?.signedUrl ?? "" : await sign(spec.music.path) }
     : spec.music ?? null;
   const vo = spec.vo ? { ...spec.vo, url: await sign(spec.vo.path) } : null;
-  const pics = (spec.graphics ?? []).filter((g) => g.img).map((g) => g.img!);
+  const pics = [...new Set((spec.graphics ?? []).flatMap((g) => [g.img, g.img2]).filter((x): x is string => !!x))];
   const picUrls = pics.length ? (await createAdminClient().storage.from("results").createSignedUrls(pics, 60 * 60 * 6)).data ?? [] : [];
-  const graphics = (spec.graphics ?? []).map((g) => (g.img ? { ...g, url: picUrls[pics.indexOf(g.img)]?.signedUrl ?? "" } : g));
+  const graphics = (spec.graphics ?? []).map((g) => (g.img ? { ...g, url: picUrls[pics.indexOf(g.img)]?.signedUrl ?? "", ...(g.img2 ? { url2: picUrls[pics.indexOf(g.img2)]?.signedUrl ?? "" } : {}) } : g));
   const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name").maybeSingle();
   const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null } : null;
   const caption = (data.input as { caption?: string } | null)?.caption;

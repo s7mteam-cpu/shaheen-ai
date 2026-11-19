@@ -622,7 +622,9 @@ async function renderMontage(job) {
   for (const g of spec.graphics ?? []) {
     if (!g.img) { graphics.push(g); continue; }
     const s = await db.storage.from("results").createSignedUrl(g.img, 60 * 60 * 3);
-    if (s.data?.signedUrl) graphics.push({ ...g, url: s.data.signedUrl });
+    let url2;
+    if (g.img2) { const s2 = await db.storage.from("results").createSignedUrl(g.img2, 60 * 60 * 3); url2 = s2.data?.signedUrl; }
+    if (s.data?.signedUrl) graphics.push({ ...g, url: s.data.signedUrl, ...(url2 ? { url2 } : {}) });
   }
   return render(job, "Montage", { ...spec, src: data.signedUrl, logo, broll, music, vo, graphics });
 }

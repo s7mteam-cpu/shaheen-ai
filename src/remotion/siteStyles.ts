@@ -1,17 +1,17 @@
 /** «فيديو من موقعك»: 50 ready looks. Each one = device frame + background + camera move + entrance (transition) + text style + effect. */
-export type SFrame = "device" | "device3d" | "card" | "bare"; // device = phone (tall video) or browser window (wide video)
+export type SFrame = "device" | "device3d" | "card" | "bare" | "duo" | "bento" | "collage" | "type"; // device = phone (tall video) or browser window (wide video)
 export type SBg = "dark" | "aurora" | "neon" | "light" | "pastel" | "spot" | "brand" | "stripes" | "dots" | "orbs" | "sunset" | "paper";
-export type SCam = "scroll" | "zoom" | "focus" | "sway" | "parallax" | "orbit" | "push";
-export type SEnter = "up" | "left" | "pop" | "flip" | "blur" | "wipe" | "spin" | "drop" | "fade" | "iris";
-export type STextS = "pill" | "kinetic" | "lower" | "big" | "outline" | "glass";
-export type SFx = "none" | "ripple" | "ring" | "glow" | "shine";
-export type SiteLook = { frame: SFrame; bg: SBg; cam: SCam; enter: SEnter; text: STextS; fx: SFx };
-export type SiteStyle = { id: string; name: string; group: string; frame: SFrame; bg: SBg; cam: SCam; enter: [SEnter, SEnter]; text: STextS; fx: SFx };
+export type SCam = "scroll" | "zoom" | "focus" | "sway" | "parallax" | "orbit" | "push" | "punch";
+export type SEnter = "up" | "left" | "pop" | "flip" | "blur" | "wipe" | "spin" | "drop" | "fade" | "iris" | "whip" | "flash" | "glitch" | "velocity";
+export type STextS = "pill" | "kinetic" | "lower" | "big" | "outline" | "glass" | "torn";
+export type SFx = "none" | "ripple" | "ring" | "glow" | "shine" | "cursor" | "callout" | "hand";
+export type SiteLook = { frame: SFrame; bg: SBg; cam: SCam; enter: SEnter; text: STextS; fx: SFx; hook?: boolean };
+export type SiteStyle = { id: string; name: string; group: string; frame: SFrame; bg: SBg; cam: SCam; enter: [SEnter, SEnter]; text: STextS; fx: SFx; hook?: boolean; alt?: SFrame };
 
-export const SITE_GROUPS = ["فخم وهادئ", "جريء وحيوي", "تقني وعصري", "ناعم وودّي", "سينمائي"] as const;
+export const SITE_GROUPS = ["فخم وهادئ", "جريء وحيوي", "تقني وعصري", "ناعم وودّي", "سينمائي", "جولة حيّة"] as const;
 
-const r = (id: string, name: string, group: (typeof SITE_GROUPS)[number], frame: SFrame, bg: SBg, cam: SCam, enter: [SEnter, SEnter], text: STextS, fx: SFx): SiteStyle => ({ id, name, group, frame, bg, cam, enter, text, fx });
-const [LUX, BOLD, TECH, SOFT, CINE] = SITE_GROUPS;
+const r = (id: string, name: string, group: (typeof SITE_GROUPS)[number], frame: SFrame, bg: SBg, cam: SCam, enter: [SEnter, SEnter], text: STextS, fx: SFx, o: { hook?: boolean; alt?: SFrame } = {}): SiteStyle => ({ id, name, group, frame, bg, cam, enter, text, fx, ...o });
+const [LUX, BOLD, TECH, SOFT, CINE, TOUR] = SITE_GROUPS;
 
 export const SITE_STYLES: SiteStyle[] = [
   r("lux-gold", "ذهبي فاخر", LUX, "device", "dark", "push", ["fade", "up"], "lower", "shine"),
@@ -68,28 +68,46 @@ export const SITE_STYLES: SiteStyle[] = [
   r("reveal", "كشف", CINE, "device3d", "dark", "push", ["iris", "up"], "big", "shine"),
   r("dusk", "الغسق", CINE, "card", "sunset", "orbit", ["fade", "wipe"], "glass", "glow"),
   r("premiere", "عرض أول", CINE, "device", "brand", "push", ["iris", "wipe"], "big", "ripple"),
+  // 2026 trends: cursor tours, elastic punch-ins, call-outs, hooks, bento reveals, hand-made notes, fast transitions, two screens, type breaks, collage
+  r("tour-cursor", "جولة بالمؤشر", TOUR, "device", "light", "scroll", ["fade", "up"], "pill", "cursor", { hook: true }),
+  r("tour-punch", "تقريب مطاطي", TOUR, "device", "dark", "punch", ["pop", "up"], "big", "callout"),
+  r("tour-callout", "تظليل وشرح", TOUR, "card", "pastel", "scroll", ["up", "fade"], "glass", "callout"),
+  r("hook-open", "افتتاحية قوية", TOUR, "device", "brand", "punch", ["flash", "pop"], "kinetic", "ripple", { hook: true }),
+  r("bento-reveal", "كشف بينتو", TOUR, "bento", "aurora", "scroll", ["pop", "up"], "pill", "none"),
+  r("lofi-notes", "مفكرة يدوية", TOUR, "card", "paper", "sway", ["drop", "up"], "torn", "hand"),
+  r("beat-whip", "سحب بإيقاع", TOUR, "device", "dark", "push", ["whip", "flash"], "kinetic", "ring", { hook: true }),
+  r("velocity-edit", "مونتاج السرعة", TOUR, "device3d", "neon", "scroll", ["velocity", "glitch"], "big", "glow"),
+  r("duo-screens", "جوال وكمبيوتر", TOUR, "duo", "aurora", "scroll", ["fade", "up"], "glass", "shine"),
+  r("type-break", "نص حركي بينهم", TOUR, "device", "spot", "zoom", ["up", "wipe"], "kinetic", "none", { alt: "type" }),
+  r("collage-cut", "قص ولصق", TOUR, "collage", "paper", "sway", ["spin", "drop"], "torn", "none"),
+  r("street-grunge", "شارع خشن", TOUR, "collage", "dots", "zoom", ["glitch", "pop"], "big", "hand", { hook: true }),
+  r("glitch-tour", "تشويش وجولة", TOUR, "device", "neon", "scroll", ["glitch", "whip"], "pill", "cursor", { hook: true }),
+  r("bento-mix", "بينتو ومؤشر", TOUR, "device", "light", "parallax", ["up", "pop"], "lower", "callout", { alt: "bento" }),
+  r("cine-cursor", "مؤشر سينمائي", TOUR, "device3d", "spot", "punch", ["blur", "iris"], "lower", "cursor"),
+  r("duo-mix", "شاشتين وتقريب", TOUR, "device", "dark", "punch", ["fade", "up"], "pill", "callout", { alt: "duo" }),
 ];
 
 export const siteStyleById = (id: unknown) => SITE_STYLES.find((s) => s.id === id);
 
-const FRAMES: SFrame[] = ["device", "device3d", "card", "bare"];
+const FRAMES: SFrame[] = ["device", "device3d", "card", "bare", "duo", "bento", "collage", "type"];
 const BGS: SBg[] = ["dark", "aurora", "neon", "light", "pastel", "spot", "brand", "stripes", "dots", "orbs", "sunset", "paper"];
-const CAMS: SCam[] = ["scroll", "zoom", "focus", "sway", "parallax", "orbit", "push"];
-const ENTERS: SEnter[] = ["up", "left", "pop", "flip", "blur", "wipe", "spin", "drop", "fade", "iris"];
-const TEXTS: STextS[] = ["pill", "kinetic", "lower", "big", "outline", "glass"];
-const FXS: SFx[] = ["none", "ripple", "ring", "glow", "shine"];
+const CAMS: SCam[] = ["scroll", "zoom", "focus", "sway", "parallax", "orbit", "push", "punch"];
+const ENTERS: SEnter[] = ["up", "left", "pop", "flip", "blur", "wipe", "spin", "drop", "fade", "iris", "whip", "flash", "glitch", "velocity"];
+const TEXTS: STextS[] = ["pill", "kinetic", "lower", "big", "outline", "glass", "torn"];
+const FXS: SFx[] = ["none", "ripple", "ring", "glow", "shine", "cursor", "callout", "hand"];
 const pickOf = <T extends string>(list: T[], v: unknown, d: T): T => (list.includes(v as T) ? (v as T) : d);
 
 /** Checks a look that came from a saved video (never trust stored data). */
 export function cleanLook(x: unknown): SiteLook {
   const o = (x ?? {}) as Record<string, unknown>;
-  return { frame: pickOf(FRAMES, o.frame, "device"), bg: pickOf(BGS, o.bg, "dark"), cam: pickOf(CAMS, o.cam, "scroll"), enter: pickOf(ENTERS, o.enter, "up"), text: pickOf(TEXTS, o.text, "pill"), fx: pickOf(FXS, o.fx, "none") };
+  return { frame: pickOf(FRAMES, o.frame, "device"), bg: pickOf(BGS, o.bg, "dark"), cam: pickOf(CAMS, o.cam, "scroll"), enter: pickOf(ENTERS, o.enter, "up"), text: pickOf(TEXTS, o.text, "pill"), fx: pickOf(FXS, o.fx, "none"), ...(o.hook === true ? { hook: true } : {}) };
 }
 
 /** A look for scene number `i`: the style's frame, background, camera, text and effect stay the same; the entrance alternates so every scene arrives differently. */
 export function lookFor(style: SiteStyle, i: number): SiteLook {
   const ex: SEnter[] = [style.enter[0], style.enter[1], ENTERS[(ENTERS.indexOf(style.enter[0]) + 3 + i) % ENTERS.length]];
-  return { frame: style.frame, bg: style.bg, cam: style.cam, enter: ex[i % 3], text: style.text, fx: style.fx };
+  const frame = style.alt && i % 3 === 2 ? style.alt : style.frame; // some styles break the rhythm every third scene (a type break, a bento, two screens)
+  return { frame, bg: style.bg, cam: style.cam, enter: ex[i % 3], text: style.text, fx: style.fx, ...(style.hook && i === 0 ? { hook: true } : {}) };
 }
 
 /** «تلقائي»: a style that fits the kind of site (found from its words), different each time within that mood. */

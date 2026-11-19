@@ -225,7 +225,11 @@ export async function POST(req: Request) {
         const i = Math.min(secs.length - 1, Math.max(0, g.sec ?? 0));
         const y = secs[i].y, y2 = secs[i + 1]?.y ?? Math.min(shot.h, y + 900);
         const { sec: _sec, ...rest } = g; void _sec;
-        const r = { ...rest, img: shot.path, site: { y, y0: prev, y2, w: shot.w, h: shot.h, dev: (portrait ? "phone" : "desktop") as "phone" | "desktop", host: siteData.host, look: lookFor(style, n++) } };
+        // the same section in the other device's picture (found by its title, else by how far down the page it is)
+        const other = portrait ? siteData.desktop : siteData.mobile;
+        const ti = secs[i].title ? other.sections.findIndex((x) => x.title === secs[i].title) : -1;
+        const yb = ti >= 0 ? other.sections[ti].y : Math.round((y / Math.max(1, shot.h)) * other.h);
+        const r = { ...rest, img: shot.path, img2: other.path, site: { y, y0: prev, y2, w: shot.w, h: shot.h, b: { y: yb, w: other.w, h: other.h }, dev: (portrait ? "phone" : "desktop") as "phone" | "desktop", host: siteData.host, look: lookFor(style, n++) } };
         prev = y + Math.min(250, (y2 - y) * 0.5);
         return r;
       });
