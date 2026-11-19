@@ -35,11 +35,20 @@ export function TemplateTry({ kind, colorList, id, aspect, fields: initial, prev
   const [w, h] = useMemo(() => (aspect || "9:16").split(":").map((x) => Number(x) || 1), [aspect]);
 
   useEffect(() => { if (!rendering) setAsked(false); }, [rendering]);
+  // while the mp4 is being drawn, only the data is re-read (the live preview is NOT reloaded)
+  useEffect(() => {
+    if (!rendering && !asked) return;
+    const t = setInterval(() => router.refresh(), 6000);
+    return () => clearInterval(t);
+  }, [rendering, asked, router]);
+  const stable = previewUrl.split("?")[0];
+  const urlRef = useRef(previewUrl);
+  urlRef.current = previewUrl;
   useEffect(() => {
     let dead = false;
-    fetch(previewUrl).then((r) => (r.ok ? r.text() : Promise.reject())).then((t) => { if (!dead) { setHtml(t.replace(/<head>/i, (m) => m + ERR_SNIPPET)); setRaw(t); } }).catch(() => { if (!dead) setLoadErr(true); });
+    fetch(urlRef.current).then((r) => (r.ok ? r.text() : Promise.reject())).then((t) => { if (!dead) { setHtml(t.replace(/<head>/i, (m) => m + ERR_SNIPPET)); setRaw(t); } }).catch(() => { if (!dead) setLoadErr(true); });
     return () => { dead = true; };
-  }, [previewUrl]);
+  }, [stable]);
 
   // original-HTML templates: the page plays by itself exactly like in Gemini; edits rebuild the page (after a short pause)
   useEffect(() => {
@@ -65,7 +74,7 @@ export function TemplateTry({ kind, colorList, id, aspect, fields: initial, prev
 
   const total = Math.max(30, Math.round(seconds * 30));
   const reset = () => { setVals(Object.fromEntries(initial.map((f) => [f.key, f.value]))); setColors(DEFAULT_COLORS); setFont("Cairo"); setSeconds(isHtml ? 30 : 35); setHex(Object.fromEntries(colorList.map((c) => [c, c]))); setContact(""); setRunErr(""); };
-  const key = previewUrl;
+  const key = previewUrl.split("?")[0]; // the signed link changes on every refresh; the preview must not restart because of it
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(300px,420px)_1fr]">

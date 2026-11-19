@@ -29,7 +29,7 @@ export default async function TryTemplate({ params }: { params: Promise<{ id: st
   const fields = (Array.isArray(t.fields) ? t.fields : []) as TField[];
   return (
     <div className="flex flex-col gap-4">
-      {(!!rendering?.length || (!url && !!busy?.length)) && <meta httpEquiv="refresh" content="6" />}
+      {!url && !!busy?.length && <meta httpEquiv="refresh" content="6" />}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-[24px] font-bold text-navy-900">{L("جرّب القالب")}: {t.name}</h1>
