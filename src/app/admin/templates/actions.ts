@@ -64,3 +64,26 @@ export async function deleteTemplate(form: FormData) {
   await admin.from("free_templates").delete().eq("id", id);
   refresh();
 }
+
+/** يجهّز المعاينة الحية لقالب (للقوالب اللي ما لها معاينة بعد). العامل يبنيها ويحفظ مسارها داخل assets._preview */
+export async function prepareTry(form: FormData) {
+  const me = await guard();
+  const id = String(form.get("id") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+  const admin = createAdminClient();
+  const { data: t } = await admin.from("free_templates").select("name,code").eq("id", id).maybeSingle();
+  if (!t?.code) return;
+  const { data: busy } = await admin.from("jobs").select("id").eq("tool_id", "free-motion").in("status", ["queued", "running"]).contains("input", { mode: "tplpreview", templateId: id }).limit(1);
+  if (!busy?.length) await admin.from("jobs").insert({ user_id: me.id, tool_id: "free-motion", title: `معاينة قالب: ${t.name}`.slice(0, 60), status: "queued", progress: 0, input: { kind: "free", mode: "tplpreview", templateId: id } });
+  revalidatePath(`/admin/templates/${id}`);
+}
+
+/** يغيّر مهن القالب (الوسوم). نفس الوسوم تطلع كأزرار فلتر بأعلى المكتبة. */
+export async function setTags(form: FormData) {
+  await guard();
+  const id = String(form.get("id") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+  const tags = [...new Set(String(form.get("tags") ?? "").split(/[,،]/).map((t) => clean(t, 24)).filter(Boolean))].slice(0, 8);
+  await createAdminClient().from("free_templates").update({ tags, updated_at: new Date().toISOString() }).eq("id", id);
+  refresh();
+}

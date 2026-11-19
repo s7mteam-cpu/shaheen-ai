@@ -12,6 +12,7 @@ import type { Music } from "@/remotion/montage";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize, type LogoBox } from "@/components/app/LogoDrag";
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { uploadImage } from "@/components/app/DesignStart";
+import { ERR_SNIPPET } from "@/lib/freeErrSnippet";
 
 export type Field = { key: string; label: string; value: string };
 export type Contact = { icon: BrandId; handle: string };
@@ -30,7 +31,6 @@ const card = "card flex flex-col gap-3 p-4";
 
 /** «تصميم مبتكر»: the finished design plays LIVE inside a sandboxed frame; every edit shows at once. The mp4 is drawn only on export. */
 /** Put in front of the sandboxed page: tells this page the first error that happens inside it (so a blank picture shows its cause). */
-const ERR_SNIPPET = `<script>(function(){var s=0;function rep(m){if(s)return;s=1;try{parent.postMessage({type:"err",message:String(m).slice(0,300)},"*")}catch(e){}}addEventListener("error",function(e){rep((e.error&&e.error.message)||e.message)});addEventListener("unhandledrejection",function(e){rep((e.reason&&e.reason.message)||e.reason)});var ce=console.error;console.error=function(){try{var a=[].slice.call(arguments).map(function(x){return x&&x.message?x.message:String(x)}).join(" ");if(a.indexOf("Warning")!==0)rep(a)}catch(e){}ce.apply(console,arguments)}})();</script>`;
 export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRefresh, onSimilar }: {
   jobId: string; data: StudioData; busy: StudioData["busy"]; kitLogo?: { path: string; url: string } | null; editCost: number; balance: number;
   onRefresh: (kind: "export" | "revoice") => void; onSimilar: (idea: string, opts: { dialect: string; vtype: string; music: boolean }) => Promise<string | null>;

@@ -809,6 +809,25 @@ async function frameIsBlank(file) {
 }
 /** «مكتبة الأساليب»: the owner uploaded the code of a finished design (HTML or anything else); Claude rebuilds it in our format,
  *  texts become fields, personal data is made generic, then it is checked like any design and a picture sheet is saved for the owner to approve. */
+/** معاينة حية للقالب (نفس مشغّل التصميم المبتكر): صفحة HTML وحدة تنرفع لـ results ومسارها يتخزن داخل assets._preview (بدون عمود جديد). */
+async function buildTemplatePreview(row, code) {
+  const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
+  const html = await buildPreview({ chapters: [{ code, b0: 0 }], width: W, height: H, brandFile: join(here, "..", "src", "remotion", "brandIcons.ts"), fonts: previewFonts(), mediaOrigin: new URL(process.env.SUPABASE_URL).origin });
+  const path = `templates/${row.id}/preview-${Date.now()}.html`;
+  const up = await db.storage.from("results").upload(path, Buffer.from(html), { contentType: "text/html" });
+  if (up.error) throw new Error(`upload preview: ${up.error.message}`);
+  return path;
+}
+async function tplPreviewJob(job) {
+  const tid = String(job.input?.templateId ?? "");
+  try {
+    const { data: row } = await db.from("free_templates").select("id,aspect,code,assets").eq("id", tid).maybeSingle();
+    if (!row?.code) throw new Error("template has no code yet");
+    const path = await buildTemplatePreview(row, row.code);
+    await db.from("free_templates").update({ assets: { ...(row.assets ?? {}), _preview: path }, updated_at: now() }).eq("id", tid);
+  } catch (e) { console.error("template preview failed", e?.message ?? e); }
+  await db.from("jobs").delete().eq("id", job.id);
+}
 /** الرفع المباشر: كود Remotion جاهز (من جيميناي) يُنظَّف تلقائيًا ثم يمرّ بالفحص الحقيقي، بدون Claude وبدون أي تكلفة. */
 async function ingestDirect(job, row, setRow) {
   const norm = normalizeTemplate(row.source_code, MAX_CODE);
@@ -823,8 +842,10 @@ async function ingestDirect(job, row, setRow) {
   const up = await db.storage.from("results").upload(thumb, await readFile(v.sheet), { contentType: "image/png", upsert: true });
   if (up.error) throw up.error;
   for (const f of [...(v.shots ?? []), v.sheet]) await rm(f, { force: true });
-  // ملاحظات التنظيف نخزنها داخل assets._notes (بدون عمود جديد)، تظهر للأدمن بصفحة المكتبة
-  await setRow({ status: "review", code: norm.code, fields: norm.fields, assets: { _notes: norm.notes }, thumb_path: thumb, error: null });
+  let previewPath = null;
+  try { previewPath = await buildTemplatePreview(row, norm.code); } catch (e) { console.error("template preview skipped", e?.message ?? e); }
+  // ملاحظات التنظيف ومسار المعاينة الحية نخزنهم داخل assets (بدون عمود جديد)، تظهر للأدمن بصفحة المكتبة
+  await setRow({ status: "review", code: norm.code, fields: norm.fields, assets: { _notes: norm.notes, ...(previewPath ? { _preview: previewPath } : {}) }, thumb_path: thumb, error: null });
   await db.from("jobs").delete().eq("id", job.id);
 }
 async function ingestJob(job) {
@@ -1150,6 +1171,7 @@ for (;;) {
   if (!claimed?.length) continue;
   if (job.tool_id === "site-video") await captureJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "ingest") await ingestJob(job);
+  else if (job.tool_id === "free-motion" && job.input?.mode === "tplpreview") await tplPreviewJob(job);
   else if (job.tool_id === "free-motion") await freeJob(job);
   else if (job.tool_id === "cv") await renderCV(job);
   else if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
