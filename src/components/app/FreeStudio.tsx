@@ -185,7 +185,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
       <div className="flex flex-col items-center gap-3 lg:sticky lg:top-4 lg:self-start">
         <div className="text-[13px] text-subtle">{L("معاينة مباشرة")} · {L("أي تعديل تسويه يبان بالفيديو على طول.")}</div>
         <div className="relative overflow-hidden rounded-2xl bg-black shadow-md" style={boxStyle}>
-          {html && !loadErr ? <iframe key={reloads} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={html} className="absolute inset-0 h-full w-full border-0" /> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
+          {html && !loadErr ? <iframe key={reloads} ref={iframe} allow="autoplay" title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={html} className="absolute inset-0 h-full w-full border-0" /> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
           {logo.on && logo.url && <LogoDrag box={logo.box} onChange={(b) => setLogo((p) => ({ ...p, box: b }))} />}
         </div>
         <div className="flex w-full max-w-[360px] items-center gap-3">

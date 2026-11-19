@@ -38,7 +38,7 @@ const App = () => {
     pl.addEventListener("frameupdate", (e) => window.parent.postMessage({ type: "frame", frame: e.detail.frame }, "*"));
     pl.addEventListener("play", p); pl.addEventListener("pause", s); pl.addEventListener("ended", s);
   }, []);
-  return React.createElement(Player, { ref, component: Host, inputProps: props, durationInFrames: Math.max(30, Math.round((props.seconds || 15) * 30)), compositionWidth: W, compositionHeight: H, fps: 30, controls: false, loop: true, clickToPlay: false, acknowledgeRemotionLicense: true, style: { width: "100%", height: "100%" } });
+  return React.createElement(Player, { ref, component: Host, inputProps: props, durationInFrames: Math.max(30, Math.round((props.seconds || 15) * 30)), compositionWidth: W, compositionHeight: H, fps: 30, controls: false, numberOfSharedAudioTags: 0, loop: true, clickToPlay: false, acknowledgeRemotionLicense: true, style: { width: "100%", height: "100%" } });
 };
 createRoot(document.getElementById("root")).render(React.createElement(App));
 `;
