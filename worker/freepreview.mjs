@@ -1,12 +1,12 @@
 // Builds ONE self-contained HTML page that plays an AI-written design live (Remotion Player) inside a sandboxed iframe on the customer's page.
 // The page has no network at all (CSP), runs in an opaque origin (sandbox without allow-same-origin) and only talks through postMessage.
 import { build } from "esbuild";
-import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
-import { checkFreeCode, hostTsx } from "./free.mjs";
+import { checkFreeCode, hostTsx, writeBrand } from "./free.mjs";
 
 const ENTRY = `
 import React from "react";
@@ -51,7 +51,7 @@ export async function buildPreview({ code, chapters, width, height, brandFile, f
   try {
     for (const [i, c] of chs.entries()) await writeFile(join(dir, `Free${i}.tsx`), c.code);
     await writeFile(join(dir, "host.tsx"), hostTsx(chs));
-    await copyFile(brandFile, join(dir, "brand.ts"));
+    writeBrand(dir, brandFile);
     await writeFile(join(dir, "entry.tsx"), ENTRY.replace("__W__", String(width)).replace("__H__", String(height)));
     const out = await build({
       entryPoints: [join(dir, "entry.tsx")], bundle: true, write: false, format: "iife", platform: "browser", target: "es2020", minify: true, jsx: "automatic",

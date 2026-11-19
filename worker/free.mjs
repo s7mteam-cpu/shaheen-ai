@@ -6,6 +6,7 @@ import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const MAX_CODE = 45_000;
 const BAD = [
@@ -62,6 +63,13 @@ export const Host = (p: any) => {
 const CSP = (media) => `default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: ${media}; media-src 'self' data: blob: ${media}; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`;
 
 /** Bundles the code once (CSP injected) and gives back render helpers: a check still, the full video, and a cleanup. */
+/** brand.ts for a render/preview: the brand + social icons file, plus the bundled general icon set (Icon, ICON_NAMES). */
+export function writeBrand(dir, brandFile) {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  fs.writeFileSync(path.join(dir, "brand.ts"), fs.readFileSync(brandFile, "utf8") + '\nexport * from "./icons";\n');
+  fs.copyFileSync(path.join(here, "icons.tsx"), path.join(dir, "icons.tsx"));
+}
+
 export async function prepareFree({ code, chapters, width, height, fps = 30, seconds, workDir, brandFile, fontCss = [], mediaOrigin = "", browserExecutable, timeoutMs = 240_000, unsafeSkipCheckForTests = false }) {
   const chs = chapters?.length ? chapters : [{ code, b0: 0 }];
   for (const c of chs) { const why = unsafeSkipCheckForTests ? "" : checkFreeCode(c.code); if (why) throw new Error(`unsafe code: ${why}`); }
@@ -69,7 +77,7 @@ export async function prepareFree({ code, chapters, width, height, fps = 30, sec
   const cleanup = () => fs.rmSync(dir, { recursive: true, force: true });
   try {
     chs.forEach((c, i) => fs.writeFileSync(path.join(dir, `Free${i}.tsx`), c.code));
-    fs.writeFileSync(path.join(dir, "brand.ts"), fs.readFileSync(brandFile, "utf8"));
+    writeBrand(dir, brandFile);
     fs.writeFileSync(path.join(dir, "host.tsx"), hostTsx(chs));
     fs.writeFileSync(path.join(dir, "index.tsx"), `import React from "react";
 import { Composition, registerRoot } from "remotion";
