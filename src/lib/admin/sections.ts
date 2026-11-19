@@ -13,6 +13,7 @@ export const SECTIONS = [
   { key: "jobs", path: "/admin/jobs", label: "الطلبات" },
   { key: "gallery", path: "/admin/gallery", label: "أعمال صُنعت بشاهين" },
   { key: "packs", path: "/admin/packs", label: "مكتبة المجالات" },
+  { key: "templates", path: "/admin/templates", label: "مكتبة الأساليب" },
   { key: "trends", path: "/admin/trends", label: "الترندات" },
   { key: "changes", path: "/admin/changes", label: "آخر التعديلات" },
   { key: "reset", path: "/admin/reset", label: "تصفير المنصة" },

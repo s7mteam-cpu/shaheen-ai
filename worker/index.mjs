@@ -16,7 +16,8 @@ import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { createRequire } from "node:module";
 import { captureSite } from "./site.mjs";
-import { prepareFree, checkFreeCode } from "./free.mjs";
+import { prepareFree, checkFreeCode, MAX_CODE } from "./free.mjs";
+import { normalizeTemplate, verifyTemplate } from "./ingest.mjs";
 import { buildPreview } from "./freepreview.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
@@ -806,6 +807,82 @@ async function frameIsBlank(file) {
     return !!(mn && mx) && Number(mx[1]) - Number(mn[1]) < 8;
   } catch { return false; }
 }
+/** «مكتبة الأساليب»: the owner uploaded the code of a finished design (HTML or anything else); Claude rebuilds it in our format,
+ *  texts become fields, personal data is made generic, then it is checked like any design and a picture sheet is saved for the owner to approve. */
+/** الرفع المباشر: كود Remotion جاهز (من جيميناي) يُنظَّف تلقائيًا ثم يمرّ بالفحص الحقيقي، بدون Claude وبدون أي تكلفة. */
+async function ingestDirect(job, row, setRow) {
+  const norm = normalizeTemplate(row.source_code, MAX_CODE);
+  if (norm.error) throw new Error(norm.error);
+  const why = checkFreeCode(norm.code);
+  if (why) throw new Error(`رفضه فحص الأمان: ${why}`);
+  const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
+  const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  const v = await verifyTemplate({ code: norm.code, fields: norm.fields, prepareFree, frameIsBlank, run, join, workDir, brandFile: join(here, "..", "src", "remotion", "brandIcons.ts"), mediaOrigin: new URL(process.env.SUPABASE_URL).origin, fontCss: FREE_FONTS, W, H, tag: job.id });
+  if (v.error) throw new Error(v.error);
+  const thumb = `templates/${row.id}/thumb-${Date.now()}.png`;
+  const up = await db.storage.from("results").upload(thumb, await readFile(v.sheet), { contentType: "image/png", upsert: true });
+  if (up.error) throw up.error;
+  for (const f of [...(v.shots ?? []), v.sheet]) await rm(f, { force: true });
+  // ملاحظات التنظيف نخزنها داخل assets._notes (بدون عمود جديد)، تظهر للأدمن بصفحة المكتبة
+  await setRow({ status: "review", code: norm.code, fields: norm.fields, assets: { _notes: norm.notes }, thumb_path: thumb, error: null });
+  await db.from("jobs").delete().eq("id", job.id);
+}
+async function ingestJob(job) {
+  const tid = String(job.input?.templateId ?? "");
+  const setRow = (patch) => db.from("free_templates").update({ ...patch, updated_at: now() }).eq("id", tid);
+  let prep = null;
+  const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  try {
+    const { data: row } = await db.from("free_templates").select("id,name,aspect,source_code").eq("id", tid).maybeSingle();
+    if (!row) throw new Error("template row missing");
+    if (job.input?.direct) { await ingestDirect(job, row, setRow); return; }
+    const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
+    const seconds = 40;
+    const colors = { bg: "#0B2A4A", accent: "#E8B44C", text: "#FFFFFF" };
+    const brandFile = join(here, "..", "src", "remotion", "brandIcons.ts");
+    const mediaOrigin = new URL(process.env.SUPABASE_URL).origin;
+    let prev = null, g = null, res = {}, lastWhy = "";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      g = await generateFree({ idea: `Convert the reference design "${row.name}".`, aspect: row.aspect, seconds, brand: { name: "" }, colors, contact: [], hasLogo: false, prev, beats: [], reference: row.source_code });
+      lastWhy = g.cut ? "the answer was cut off (too long)" : checkFreeCode(g.code);
+      if (!lastWhy) {
+        res = await resolveAssets(g.assets, { max: 14 }).catch(() => ({}));
+        const props = { assets: res, t: Object.fromEntries((g.fields ?? []).map((f) => [f.key, f.value])), colors, font: "Cairo", contact: [], logo: "", logoOn: false, beats: [], seconds };
+        prep?.cleanup(); prep = await prepareFree({ chapters: [{ code: g.code, b0: 0 }], width: W, height: H, seconds, workDir, brandFile, fontCss: FREE_FONTS, mediaOrigin });
+        try {
+          const png = join(workDir, `tp-${job.id}.png`);
+          await prep.still(props, Math.round(seconds * 30 * 0.5), png);
+          if (await frameIsBlank(png)) lastWhy = "the picture is empty (one flat colour)";
+          else {
+            const crash = await prep.scrub(props, Math.max(10, Math.ceil((seconds * 30) / 120)));
+            if (crash.length) lastWhy = `it crashes while playing: ${crash[0][1].slice(0, 120)}. Call every hook at the very top of the component, before any return, never conditionally.`;
+          }
+        } catch (e) { lastWhy = String(e?.message ?? e).slice(0, 300); }
+      }
+      if (!lastWhy) break;
+      prev = { code: g?.code ?? "", error: lastWhy };
+      await setProgress(job.id, 30 + attempt * 20);
+    }
+    if (lastWhy) throw new Error(`conversion failed: ${lastWhy}`);
+    // picture sheet: three frames
+    const props = { assets: res, t: Object.fromEntries((g.fields ?? []).map((f) => [f.key, f.value])), colors, font: "Cairo", contact: [], logo: "", logoOn: false, beats: [], seconds };
+    const shots = [];
+    for (const [i, f] of [0.12, 0.5, 0.88].entries()) { const fp = join(workDir, `ts-${job.id}-${i}.png`); await prep.still(props, Math.round(seconds * 30 * f), fp); shots.push(fp); }
+    const sheet = join(workDir, `ts-${job.id}.png`);
+    await run("ffmpeg", ["-y", "-hide_banner", "-loglevel", "error", ...shots.flatMap((x) => ["-i", x]), "-filter_complex", "[0]scale=400:-1[a];[1]scale=400:-1[b];[2]scale=400:-1[c];[a][b][c]hstack=3", sheet]);
+    const thumb = `templates/${tid}/thumb-${Date.now()}.png`;
+    const up = await db.storage.from("results").upload(thumb, await readFile(sheet), { contentType: "image/png", upsert: true });
+    if (up.error) throw up.error;
+    for (const f of [...shots, sheet]) await rm(f, { force: true });
+    await setRow({ status: "review", code: g.code, fields: g.fields ?? [], assets: res, thumb_path: thumb, error: null });
+    await db.from("jobs").delete().eq("id", job.id);
+  } catch (e) {
+    console.error("template ingest failed", e?.message ?? e);
+    await setRow({ status: "failed", error: String(e?.message ?? e).slice(0, 400) });
+    await db.from("jobs").delete().eq("id", job.id);
+  } finally { prep?.cleanup(); }
+}
+
 async function freeJob(job) {
   const inp = job.input ?? {};
   const mode = inp.mode;
@@ -1072,6 +1149,7 @@ for (;;) {
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
   if (!claimed?.length) continue;
   if (job.tool_id === "site-video") await captureJob(job);
+  else if (job.tool_id === "free-motion" && job.input?.mode === "ingest") await ingestJob(job);
   else if (job.tool_id === "free-motion") await freeJob(job);
   else if (job.tool_id === "cv") await renderCV(job);
   else if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
