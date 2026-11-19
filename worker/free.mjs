@@ -3,7 +3,7 @@
 // Content-Security-Policy (injected into the bundle's index.html) forbids every network request, eval and frames.
 // Layers: 1) static check (allowed imports, no network/eval words)  2) CSP in the page  3) time limit  4) caller falls back to the ready templates.
 import { bundle } from "@remotion/bundler";
-import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { renderFrames, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,7 +39,7 @@ ${chapters.map((_, i) => `import * as M${i} from "./Free${i}";`).join("\n")}
 class Guard extends React.Component<any, { bad: boolean }> {
   state = { bad: false };
   static getDerivedStateFromError() { return { bad: true }; }
-  componentDidCatch(e: any) { try { (window as any).__freeErrors = ((window as any).__freeErrors || []).concat(String(e && e.message || e)); console.error("free chapter error", e); } catch {} }
+  componentDidCatch(e: any) { try { console.error("free chapter error #" + (this.props as any).i + ": " + String(e && e.message || e).slice(0, 200)); } catch {} }
   render() { return this.state.bad ? null : (this.props as any).children; }
 }
 const FS: any[] = [${chapters.map((_, i) => `(M${i} as any).Free ?? (M${i} as any).default`).join(", ")}];
@@ -59,7 +59,7 @@ export const Host = (p: any) => {
       const t = N === 1 ? p.t : Object.fromEntries(Object.entries(p.t || {}).filter(([k]) => k.startsWith("c" + i + "_")).map(([k, v]) => [k.slice(("c" + i + "_").length), v]));
       const assets = N === 1 ? p.assets : Object.fromEntries(Object.entries(p.assets || {}).filter(([k]) => k.startsWith("c" + i + "_")).map(([k, v]) => [k.slice(("c" + i + "_").length), v]));
       const beats = (p.beats || []).slice(B0[i], i < N - 1 ? B0[i + 1] : undefined).map((b: any) => ({ ...b, start: +(b.start - c.from / 30).toFixed(2), end: +(b.end - c.from / 30).toFixed(2) }));
-      return <Sequence key={i} from={c.from} durationInFrames={c.frames}><Guard><F {...p} t={t} assets={assets || {}} beats={beats} seconds={c.frames / 30} /></Guard></Sequence>;
+      return <Sequence key={i} from={c.from} durationInFrames={c.frames}><Guard i={i}><F {...p} t={t} assets={assets || {}} beats={beats} seconds={c.frames / 30} /></Guard></Sequence>;
     })}
     {p.logoOn && p.logo ? <img src={p.logo} style={{ position: "absolute", left: (p.logoBox?.x ?? 0.85) * 100 + "%", top: (p.logoBox?.y ?? 0.09) * 100 + "%", width: (p.logoBox?.w ?? 0.18) * 100 + "%", transform: "translate(-50%, -50%)", objectFit: "contain" }} /> : null}
   </>);
@@ -101,6 +101,16 @@ registerRoot(() => <Composition id="Free" component={C} durationInFrames={${Math
     return {
       cleanup,
       async still(props, frame, out) { await renderStill({ composition: await comp(props), serveUrl, frame, output: out, inputProps: props, imageFormat: "png", ...o }); },
+      /** Plays the picture frame after frame on ONE page (like the real render and the live preview) and collects chapter crashes that a single still never shows (e.g. React hooks called in a different order). Returns [[chapterIndex, message]]. */
+      async scrub(props, step = 15) {
+        const found = new Map();
+        const outputDir = fs.mkdtempSync(path.join(dir, "scrub-"));
+        try {
+          await renderFrames({ composition: await comp(props), serveUrl, inputProps: props, imageFormat: "jpeg", jpegQuality: 30, scale: 0.2, concurrency: 1, everyNthFrame: step, outputDir, onStart: () => {}, onFrameUpdate: () => {},
+            onBrowserLog: (l) => { const m = /free chapter error #(\d+): (.*)/.exec(String(l?.text ?? "")); if (m && !found.has(+m[1])) found.set(+m[1], m[2]); }, ...o });
+        } finally { fs.rmSync(outputDir, { recursive: true, force: true }); }
+        return [...found.entries()];
+      },
       async video(props, out, onProgress) {
         await renderMedia({ composition: await comp(props), serveUrl, codec: "h264", crf: 22, x264Preset: "veryfast", outputLocation: out, inputProps: props, concurrency: Number(process.env.RENDER_CONCURRENCY) || null, onProgress: onProgress ? ({ progress }) => onProgress(progress) : undefined, ...o });
       },

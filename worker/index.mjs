@@ -975,6 +975,11 @@ async function freeJob(job) {
           }
         } catch (e) { bad.push([i, String(e?.message ?? e).slice(0, 400)]); }
       }
+      // play the whole picture frame after frame on one page: crashes that only happen while it plays (hooks called in a different order, state changes) show here and nowhere else
+      try {
+        const step = Math.max(10, Math.ceil((seconds * 30) / 120));
+        for (const [i, msg] of await prep.scrub(propsOf(f0.fields), step)) if (!bad.some(([j]) => j === i)) bad.push([i, `it crashes WHILE PLAYING (${msg.slice(0, 120)}). Call EVERY hook (useCurrentFrame, useVideoConfig, useState, useMemo, useRef, useEffect, interpolate helpers that use hooks) at the very top of the component, always, before any return, never inside if/ternary/loops/.map callbacks/nested functions. Components defined inside the component are forbidden: define them at the top level.`]);
+      } catch (e) { console.error("free scrub skipped", e?.message ?? e); }
       return bad;
     };
     let bad = await checkAll(parts);
