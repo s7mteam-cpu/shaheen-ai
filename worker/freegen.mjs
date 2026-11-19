@@ -97,7 +97,12 @@ export async function pickPalette({ idea }) {
     maxTokens: 200, model: process.env.FREE_REFILL_MODEL || "claude-haiku-5-5", signal: AbortSignal.timeout(60_000),
   });
   const m = out.match(/\{[^}]*\}/);
-  try { const j = JSON.parse(m ? m[0] : "{}"); const ok = (x) => /^#[0-9a-fA-F]{6}$/.test(String(x ?? "")); return ok(j.bg) && ok(j.accent) && ok(j.text) ? { bg: j.bg, accent: j.accent, text: j.text } : null; } catch { return null; }
+  try { const j = JSON.parse(m ? m[0] : "{}"); const ok = (x) => /^#[0-9a-fA-F]{6}$/.test(String(x ?? "")); if (!(ok(j.bg) && ok(j.accent) && ok(j.text))) return null;
+    const lum = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    // text and accent must be clearly readable on the background, otherwise the video looks empty
+    if (ratio(j.bg, j.text) < 4.5 || ratio(j.bg, j.accent) < 2.5) return null;
+    return { bg: j.bg, accent: j.accent, text: j.text }; } catch { return null; }
 }
 
 /** The voice-over script: `count` short sentences in the customer's dialect, in clean spelling (read aloud by the voice). */
