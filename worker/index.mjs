@@ -18,7 +18,7 @@ import { createRequire } from "node:module";
 import { captureSite } from "./site.mjs";
 import { prepareFree, checkFreeCode } from "./free.mjs";
 import { buildPreview } from "./freepreview.mjs";
-import { generateFree, refillFields, writeNarration, reviewFree, pickPalette } from "./freegen.mjs";
+import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
 
@@ -906,8 +906,22 @@ async function freeJob(job) {
 
     // ---------- new: voice first, then the design is written to follow it ----------
     let musicP = null;
+    // expert step: the customer's own words become a clear professional brief (the original text stays saved as it was)
+    const brief = (await refineBrief({ idea: inp.idea, brand: inp.brand }).catch((e) => { console.error("free brief skipped", e?.message ?? e); return null; })) || inp.idea;
+    const ideaText = brief === inp.idea ? inp.idea : `${brief}\n\n(Customer's original words:)\n${String(inp.idea).slice(0, 800)}`;
     if (wantVo) {
-      vo = await buildVoice(job, base, await writeNarration({ idea: inp.idea, brand: inp.brand, seconds, dialectLabel: inp.dialectLabel, count: 0 }), inp.voice); fit();
+      const want = Math.max(8, Number(inp.seconds) || seconds);
+      vo = await buildVoice(job, base, await writeNarration({ idea: ideaText, brand: inp.brand, seconds: want, dialectLabel: inp.dialectLabel, count: 0 }), inp.voice);
+      // the video lasts as long as the voice: when the first recording is far from the length the customer chose, write it again with more (or fewer) words, once
+      const real = vo.duration - OFFSET;
+      if (real > 3 && (real + OFFSET + 1.2 < want * 0.88 || real + OFFSET + 1.2 > want * 1.12)) {
+        const scale = Math.max(0.5, Math.min(2.2, ((want - 1.6) / real) * 0.98));
+        try {
+          const vo2 = await buildVoice(job, base, await writeNarration({ idea: ideaText, brand: inp.brand, seconds: want, dialectLabel: inp.dialectLabel, count: 0, wordsScale: scale }), inp.voice);
+          if (Math.abs(vo2.duration + 1.2 - want) < Math.abs(vo.duration + 1.2 - want)) vo = vo2;
+        } catch (e) { console.error("free voice length retry skipped", e?.message ?? e); }
+      }
+      fit();
       if (inp.music !== false) musicP = makeMusic("upbeat modern promo background music, warm and catchy", seconds + 3).catch((e) => { console.error("free music skipped", e?.message ?? e); return null; });
     }
     // chapters: a long video is written as several short designs at the same time (faster, and each one stays small)
@@ -922,7 +936,7 @@ async function freeJob(job) {
     const writeChapter = async (i, prevTry) => {
       let prev = prevTry ?? null, last = "";
       for (let attempt = 0; attempt < 2; attempt++) {
-        const g = await generateFree({ idea: inp.idea, aspect: inp.aspect, seconds: secs(i), brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: localBeats(i), chapter: { i, n } });
+        const g = await generateFree({ idea: ideaText, aspect: inp.aspect, seconds: secs(i), brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: localBeats(i), chapter: { i, n } });
         const why = g.fields.length >= 3 ? checkFreeCode(g.code) : "fields";
         if (!why) return { ...g, b0: b0s[i] };
         last = g.cut ? "answer cut off (too long)" : why;
