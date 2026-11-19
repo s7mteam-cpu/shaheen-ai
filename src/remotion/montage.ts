@@ -1,5 +1,6 @@
 /** Smart montage = the customer's own footage + an edit plan (data). Player previews it, the worker renders it. */
 import { ICONS, dimensions, type Aspect, type IconName } from "./spec";
+import { cleanLook, type SiteLook } from "./siteStyles";
 import { DOODLES } from "./doodles";
 import { CHARS, MOODS, POSES, type CharName, type Mood, type Pose } from "./characters";
 
@@ -85,7 +86,7 @@ export type GraphicKind = "headline" | "timer" | "counter" | "steps" | "compare"
   | "scene" | "cube" | "globe" | "text3d" | "plot" | "geometry" | "burst" | "confetti" | "dotgrid" | "sketchbars"
   | "price" | "offer" | "menu" | "rating" | "testimonial" | "contact" | "specs" | "appointment" | "beforeafter" | "countdown" | "delivery" | "hours"
   | "doodle" | "character"
-  | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring" | "map" | "route" | "terrain" | "clip";
+  | "dish" | "shine" | "mist" | "ecg" | "flight" | "scales" | "shutter" | "giftbox" | "house" | "ring" | "map" | "route" | "terrain" | "clip" | "site";
 export type Graphic = {
   kind: GraphicKind;
   at: number; dur: number;                 // output seconds (video part)
@@ -113,6 +114,8 @@ export type Graphic = {
   credit?: string;                         // clip: who filmed it (shown small on the clip)
   cdur?: number;                           // clip: length of the stock clip in seconds (it loops if the scene is longer)
   photo?: number;                          // scene made from the customer's own photo: its number (1-6), swapped for `img` on the server
+  sec?: number;                            // site: which section of the page the sentence is about (the writer picks it; the server fills `site`)
+  site?: { y: number; y0: number; y2: number; w: number; h: number; dev: "phone" | "desktop"; host: string; look: SiteLook }; // site: where to scroll in the page picture (`img`), and how the scene looks
   img?: string;                            // scene: storage path in "results"
   url?: string;                            // scene: signed URL (filled on load / render)
   style?: string;                          // scene: illustration style
@@ -141,8 +144,16 @@ export const DARK_BOARDS: BoardStyle[] = ["chalk", "blueprint", "night", "neon"]
 export { ICONS };
 
 /** Clean up graphics coming from the AI or the editor. */
+/** The page-scroll data of a website scene, checked (it comes from stored videos, never trusted). */
+function cleanSite(v: unknown): Graphic["site"] {
+  const o = (v ?? null) as Record<string, unknown> | null;
+  if (!o || typeof o !== "object") return undefined;
+  const n = (x: unknown, lo: number, hi: number) => Math.max(lo, Math.min(hi, Number(x) || 0));
+  const w = n(o.w, 100, 4000), h = n(o.h, 100, 40000);
+  return { y: n(o.y, 0, h), y0: n(o.y0, 0, h), y2: n(o.y2, 0, h), w, h, dev: o.dev === "desktop" ? "desktop" : "phone", host: String(o.host ?? "").replace(/[^\w.\-]/g, "").slice(0, 80), look: cleanLook(o.look) };
+}
 export function cleanGraphics(arr: unknown, len: number): Graphic[] {
-  const kinds: string[] = [...GRAPHIC_KINDS.map((k) => k[0]), "clip"];
+  const kinds: string[] = [...GRAPHIC_KINDS.map((k) => k[0]), "clip", "site"];
   const icon = (v: unknown) => (ICONS as readonly string[]).includes(String(v)) ? (v as IconName) : undefined;
   const str = (v: unknown, n: number) => (v === undefined || v === null || v === "" ? undefined : String(v).slice(0, n));
   const c = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -167,10 +178,12 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       ty: x?.ty === undefined || x?.ty === null ? undefined : +c(Number(x.ty) || 0, 0, 1).toFixed(3),
       ts: x?.ts === undefined || x?.ts === null ? undefined : +c(Number(x.ts) || 1, 0.4, 2).toFixed(2),
       shade: x?.shade === false ? false : undefined,
+      sec: Number.isFinite(Number(x?.sec)) && x?.sec !== undefined && x?.sec !== null && x?.sec !== "" ? c(Math.round(Number(x.sec)), 0, 40) : undefined,
+      site: cleanSite(x?.site),
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.kind === "clip" ? !!(g.img || g.q) : g.kind === "scene" ? !!(g.img || g.prompt || g.photo) : ["doodle", "character", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || (g.kind === "terrain" && !!(g.place || g.lat !== undefined)) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.kind === "site" ? !!(g.site || g.sec !== undefined) : g.kind === "clip" ? !!(g.img || g.q) : g.kind === "scene" ? !!(g.img || g.prompt || g.photo) : ["doodle", "character", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || (g.kind === "terrain" && !!(g.place || g.lat !== undefined)) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];

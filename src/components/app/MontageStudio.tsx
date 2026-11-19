@@ -19,6 +19,7 @@ import { ILLUS_STYLES } from "@/remotion/styles";
 import { CaptionDrag } from "@/components/app/CaptionDrag";
 import { MusicEditor } from "@/components/app/MusicEditor";
 import { BeatPanel, GrainPicker, StickerPanel, StockSearch } from "@/components/app/MontageExtras";
+import { SITE_GROUPS, SITE_STYLES, lookFor, siteStyleById } from "@/remotion/siteStyles";
 import { BOARD_STYLES, DSTYLES, DSTYLE_BOARD, DARK_BOARDS, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
 import { FONTS } from "@/remotion/spec";
 import { Progress } from "@/components/app/Progress";
@@ -416,13 +417,20 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               </div>
             );
           })()}
+          {(spec.graphics ?? []).some((g) => g.kind === "site") && (
+            <label className="flex flex-col gap-1.5 text-[14px]"><span className="font-semibold">{L("ستايل تصفّح الموقع")}</span>
+              <select className="field" defaultValue="" onChange={(e) => { const st = siteStyleById(e.target.value); if (!st) return; let n = 0; setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x) => (x.kind === "site" && x.site ? { ...x, site: { ...x.site, look: lookFor(st, n++) } } : x)) }); }}>
+                <option value="">{L("غيّر الستايل (50 ستايل)…")}</option>
+                {SITE_GROUPS.map((gr) => <optgroup key={gr} label={L(gr)}>{SITE_STYLES.filter((x) => x.group === gr).map((x) => <option key={x.id} value={x.id}>{L(x.name)}</option>)}</optgroup>)}
+              </select></label>
+          )}
           <Sub>{L("المشاهد المتحركة")}</Sub>
           <div className="flex flex-col gap-2">
             {(spec.graphics ?? []).length === 0 && <p className="text-[13px] text-subtle">{L("ما فيه مشاهد للحين.")}</p>}
             {(spec.graphics ?? []).map((g, i) => (
               <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[14px]">
                 <button type="button" onClick={() => player.current?.seekTo(introFrames(spec) + Math.round(g.at * MFPS))} className="shrink-0 rounded-lg bg-tint px-2 py-1 font-mono text-[12px]" dir="ltr">{g.at.toFixed(1)}s</button>
-                <span className="shrink-0 font-semibold">{L(GRAPHIC_KINDS.find((k) => k[0] === g.kind)?.[1] ?? "")}</span>
+                <span className="shrink-0 font-semibold">{L(GRAPHIC_KINDS.find((k) => k[0] === g.kind)?.[1] ?? (g.kind === "site" ? "تصفّح الموقع" : g.kind === "clip" ? "لقطة واقعية" : ""))}</span>
                 <span className="min-w-0 flex-1 truncate text-subtle">{g.text ?? g.items?.map((x) => x.label).join(" · ") ?? g.good ?? ""}</span>
                 {(g.kind === "headline" || g.kind === "quote" || g.kind === "arrow") && (
                   <select value={g.fx ?? ""} onChange={(e) => setSpec({ ...spec, graphics: (spec.graphics ?? []).map((x, j) => (j === i ? { ...x, fx: (e.target.value || undefined) as typeof x.fx, hl: x.hl || x.text?.split(/\s+/).slice(-1)[0] } : x)) })} aria-label={L("تأثير الكلمة")} className="shrink-0 rounded-lg border border-line bg-white px-1 py-1 text-[12px]">

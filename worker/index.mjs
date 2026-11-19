@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { createRequire } from "node:module";
+import { captureSite } from "./site.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
 
@@ -702,6 +703,30 @@ async function renderCV(job) {
   }
 }
 
+// ---------- «فيديو من موقعك»: open the customer's website, take a phone and a computer picture of the whole page ----------
+async function captureJob(job) {
+  try {
+    const site = await captureSite(job.input.url);
+    await setProgress(job.id, 70);
+    const up = async (shot, name) => {
+      const path = `${job.user_id}/${job.id}/site-${name}.jpg`;
+      const { error } = await db.storage.from("results").upload(path, shot.buf, { contentType: "image/jpeg", upsert: true });
+      if (error) throw new Error(`storage: ${error.message}`);
+      return path;
+    };
+    const [mp, dp] = [await up(site.mobile, "mobile"), await up(site.desktop, "desktop")];
+    const info = site.mobile.info;
+    const out = { site: { url: site.url, host: site.host, title: info.title, desc: info.desc, siteName: info.siteName, lang: info.lang, theme: info.theme, text: info.text,
+      mobile: { path: mp, w: site.mobile.w, h: site.mobile.h, sc: site.mobile.sc, sections: site.mobile.sections },
+      desktop: { path: dp, w: site.desktop.w, h: site.desktop.h, sc: site.desktop.sc, sections: site.desktop.sections } } };
+    await db.from("jobs").update({ status: "done", progress: 100, title: (info.siteName || info.title || site.host).slice(0, 80), output: out, updated_at: now() }).eq("id", job.id);
+  } catch (e) {
+    console.error("site capture failed", job.id, e);
+    // free step: nothing was charged, so nothing to refund
+    await db.from("jobs").update({ status: "failed", error: `site: ${String(e?.message ?? e).slice(0, 300)}`, updated_at: now() }).eq("id", job.id);
+  }
+}
+
 console.log("Shaheen video worker started");
 
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
@@ -709,6 +734,8 @@ async function recoverStale(minutes) {
   const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
   const { data: videos } = await db.from("jobs").select("id,tool_id,input").in("tool_id", ["video-editing", "motion-video", "real-scenes", "lesson-video", "quran-video"]).eq("status", "running").lt("updated_at", cutoff);
   const { data: designs } = await db.from("jobs").select("id,tool_id,input").in("tool_id", DESIGN_TOOLS).eq("input->>render", "true").eq("status", "running").lt("updated_at", cutoff);
+  const { data: sites } = await db.from("jobs").select("id").eq("tool_id", "site-video").eq("status", "running").lt("updated_at", cutoff);
+  for (const j of sites ?? []) await db.from("jobs").update({ status: "failed", error: "site: worker restarted", updated_at: now() }).eq("id", j.id);
   for (const j of [...(videos ?? []), ...(designs ?? [])]) {
     const attempts = Number(j.input?.attempts ?? 0) + 1;
     if (attempts >= 2 && DESIGN_TOOLS.includes(j.tool_id)) {
@@ -729,13 +756,15 @@ setInterval(() => recoverStale(15).catch(() => {}), 60_000);
 for (;;) {
   const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", ["video-editing", "motion-video", "real-scenes", "lesson-video", "quran-video"]).eq("status", "queued").order("created_at").limit(1);
   const { data: designs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", DESIGN_TOOLS).eq("status", "queued").eq("input->>render", "true").order("updated_at").limit(1);
-  // Designs are quick stills: they go first so customers don't wait behind long videos.
-  const job = designs?.[0] ?? jobs?.[0];
+  const { data: sites } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").eq("tool_id", "site-video").eq("status", "queued").order("created_at").limit(1);
+  // Website captures and designs are quick: they go first so customers don't wait behind long videos.
+  const job = sites?.[0] ?? designs?.[0] ?? jobs?.[0];
   if (!job) { await sleep(4000); continue; }
   // claim it (only one worker wins)
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
   if (!claimed?.length) continue;
-  if (job.tool_id === "cv") await renderCV(job);
+  if (job.tool_id === "site-video") await captureJob(job);
+  else if (job.tool_id === "cv") await renderCV(job);
   else if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
   else if ((job.tool_id === "motion-video" || job.tool_id === "real-scenes") && job.input.spec?.segments) await renderMontage(job);
   else if (job.tool_id === "motion-video") {

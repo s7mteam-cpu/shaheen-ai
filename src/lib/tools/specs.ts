@@ -119,6 +119,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
   "business-cards": { fields: [], units: () => 1 }, // design studio (/api/design/*)
   cv: { fields: [], units: () => 1 }, // own page + route (/api/cv)
   presentations: { fields: [], units: () => 1 }, // own page + route (/api/presentation)
+  "site-video": { fields: [], units: () => 1 }, // runs in its own page: the website is read by the video worker, then /api/lesson makes a motion video (priced as motion-video)
   "real-scenes": { fields: [], units: () => 1 }, // runs in its own studio (/api/lesson), like motion-video
   "product-video": {
     fields: [

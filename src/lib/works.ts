@@ -10,7 +10,7 @@ export async function listWorks(opts: { limit?: number; tool?: string; category?
   if (!u.user) return [];
   const tools = await getToolsL(true);
   // admins can read every job (RLS), so «أعمالي» must filter to the signed-in user explicitly
-  let q = supabase.from("jobs").select("id,title,tool_id,status,created_at,output,error,progress,input").eq("user_id", u.user.id).order("created_at", { ascending: false }).not("tool_id", "in", "(brand-identity,brand-plan)").limit(opts.limit ?? 60);
+  let q = supabase.from("jobs").select("id,title,tool_id,status,created_at,output,error,progress,input").eq("user_id", u.user.id).order("created_at", { ascending: false }).not("tool_id", "in", "(brand-identity,brand-plan,site-video)").limit(opts.limit ?? 60);
   if (opts.ready) q = q.not("input->plan", "is", null);
   if (opts.tool) q = q.eq("tool_id", opts.tool);
   if (opts.category) q = q.in("tool_id", tools.filter((t) => t.category === opts.category).map((t) => t.id));

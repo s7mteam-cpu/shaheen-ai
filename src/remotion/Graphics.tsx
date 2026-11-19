@@ -21,6 +21,7 @@ import { DARK_BOARDS, MFPS, type DStyle, type Graphic, type MontageSpec } from "
 import { DOODLES } from "./doodles";
 import { Character } from "./characters";
 import { Doodle3D } from "./Obj3D";
+import { SiteScene } from "./SiteScene";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 const cl = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -640,6 +641,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
       );
       break;
     }
+    case "site": return <SiteScene g={g} m={m} f={f} len={len} w={w} h={h} />;
     case "clip": {
       // real stock footage under the voice: slow push-in, our Arabic text on top, a tiny credit for whoever filmed it
       const sty = g.ty ?? m.titleY ?? null; // no zoom on real footage: it would magnify any shake of the camera
