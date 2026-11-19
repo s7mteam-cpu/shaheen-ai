@@ -30,9 +30,10 @@ DESIGN QUALITY (this is what the customer pays for)
 SIZE DISCIPLINE (the customer rejects oversized work). Let S = Math.min(width, height). Headline font 0.06*S to 0.085*S (never above 0.09*S), secondary text 0.032*S to 0.045*S, small captions never below 0.026*S. A single icon or logo tile is at most 0.16*S wide (social tiles at the end 0.09*S to 0.12*S); an illustration may be larger but must keep a 6% margin from every edge. Keep every text block inside a 8% side margin with maxWidth set, at most 3 lines per heading. No element may be cut by the screen edge unless it is a background shape. Check long Arabic lines: they wrap, so reserve vertical room.
 
 FIELDS: 6-16 fields covering every text on screen, with clear Arabic labels, values in the customer's dialect/Arabic written in clean spelling.
-Keep the code under 38000 characters.`;
+HARD LIMIT: the whole code must stay under 20000 characters or the answer is cut off and lost. Be compact, reuse small helper components and loops instead of repeating markup.`;
 
-const text = (r) => (r.content ?? []).map((c) => c.text ?? "").join("");
+let lastStop = ""; // why the last answer ended ("max_tokens" = it was cut off)
+const text = (r) => { lastStop = r.stop_reason ?? ""; return (r.content ?? []).map((c) => c.text ?? "").join(""); };
 async function claude({ system, user, maxTokens = 20000, model, signal }) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal,
@@ -68,9 +69,10 @@ Social accounts to show at the end: ${contact?.length ? contact.map((c) => `${c.
 Logo: the host overlays the customer's logo above your design (draggable), so NEVER draw p.logo yourself and keep a clear 14% area free near the top-right corner.
 ${beats?.length ? `Voice-over (already recorded; p.beats has EXACTLY ${beats.length} entries): ${beats.map((b, i) => `${i + 1}) [${b.start}s-${b.end}s] ${b.text}`).join(" | ")}` : "No voice-over: choose your own beats."}`;
   const user = prev ? `${brief}\n\nYour previous attempt was refused: ${prev.error}\nFix the problem and return the full answer again in the same format. Previous code:\n<code>\n${String(prev.code).slice(0, 20000)}\n</code>` : brief;
-  const out = await claude({ system: SYSTEM, user, signal: AbortSignal.timeout(330_000) });
+  const out = await claude({ system: SYSTEM, user, maxTokens: 16000, signal: AbortSignal.timeout(420_000) });
+  const cut = lastStop === "max_tokens";
   const code = tag(out, "code").replace(/^```(?:tsx|jsx|typescript)?\s*|```\s*$/g, "").trim();
-  return { title: tag(out, "title").replace(/[<>]/g, "").slice(0, 80), fields: cleanFields(tag(out, "fields")), code };
+  return { title: tag(out, "title").replace(/[<>]/g, "").slice(0, 80), fields: cleanFields(tag(out, "fields")), code, cut };
 }
 
 /** «سوّ مثله»: same design, new words. Returns the same fields with new values. */

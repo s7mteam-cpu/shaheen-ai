@@ -867,10 +867,13 @@ async function freeJob(job) {
     }
     let prev = null, lastErr = "", fallback = null;
     for (let attempt = 0; attempt < 2 && !prep; attempt++) {
-      const g = await generateFree({ idea: inp.idea, aspect: inp.aspect, seconds, brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: vo?.beats });
+      let shown = attempt ? 45 : 8; // the writing takes minutes: the bar creeps forward so the customer sees it is alive
+      const tick = setInterval(() => { shown = Math.min(shown + 2, attempt ? 58 : 38); setProgress(job.id, shown); }, 8000);
+      let g;
+      try { g = await generateFree({ idea: inp.idea, aspect: inp.aspect, seconds, brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: vo?.beats }); } finally { clearInterval(tick); }
       await setProgress(job.id, attempt ? 55 : 40);
       const why = g.fields.length >= 3 ? checkFreeCode(g.code) : "fields";
-      if (why) { lastErr = why; prev = { code: g.code, error: `static check: ${why}` }; continue; }
+      if (why) { lastErr = g.cut ? "answer cut off (too long)" : why; prev = { code: g.cut ? "" : g.code, error: why === "size" || g.cut ? "your answer was CUT OFF because it was too long. Write a MUCH shorter and simpler design: under 14000 characters in total, fewer scenes, small reusable components, no long repeated SVG paths." : `static check: ${why}` }; continue; }
       let p;
       try {
         p = await prepareFree(prepOpts(g.code));
