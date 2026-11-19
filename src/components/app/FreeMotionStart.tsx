@@ -23,6 +23,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { cos
   const jobId = sp.get("job");
   const [idea, setIdea] = useState("");
   const [brand, setBrand] = useState("");
+  const [useIdentity, setUseIdentity] = useState(true);
   const [aspect, setAspect] = useState("9:16");
   const [seconds, setSeconds] = useState(15);
   const [colors, setColors] = useState<Colors>({ bg: "#0B2A4A", accent: "#E8B44C", text: "#FFFFFF" });
@@ -74,7 +75,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { cos
   }
   async function start(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setError(null);
-    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds, brand, colors, font, contact, voiceover, dialect, vtype, music: withMusic }) });
+    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds, brand, colors, useIdentity, font, contact, voiceover, dialect, vtype, music: withMusic }) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setError(d.error ?? L("تعذّر البدء.")); return; }
@@ -125,7 +126,8 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { cos
           <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} />{L("موسيقى هادية بالخلفية")}</label>
         </>)}
       </div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("ألوان هويتك")}</span>{colorRow(colors)}</div>
+      <label className="flex items-center gap-2 text-[14px] font-semibold"><input type="checkbox" checked={useIdentity} onChange={(e) => setUseIdentity(e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("طبّق هويتي (ألوانها)")}</label>
+      {useIdentity ? <div className="flex flex-col gap-2"><span className="font-semibold">{L("ألوان هويتك")}</span>{colorRow(colors)}</div> : <p className="text-[13px] text-subtle">{L("بدون هويتك: المصمم يختار الألوان المناسبة للفكرة، وإذا كتبت ألوان بالنص يلتزم بها. تقدر تغيّرها بعد التصميم.")}</p>}
       <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("حسابات التواصل (اختياري)")}</span>{contactRow(contact, setContact)}</div>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}

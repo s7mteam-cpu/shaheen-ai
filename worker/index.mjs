@@ -18,7 +18,7 @@ import { createRequire } from "node:module";
 import { captureSite } from "./site.mjs";
 import { prepareFree, checkFreeCode } from "./free.mjs";
 import { buildPreview } from "./freepreview.mjs";
-import { generateFree, refillFields, writeNarration, reviewFree } from "./freegen.mjs";
+import { generateFree, refillFields, writeNarration, reviewFree, pickPalette } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
 
@@ -790,7 +790,7 @@ async function freeJob(job) {
   const inp = job.input ?? {};
   const mode = inp.mode;
   const [W, H] = FREE_SIZE[inp.aspect] ?? FREE_SIZE["9:16"];
-  const colors = { bg: hexOk(inp.colors?.bg, "#0B2A4A"), accent: hexOk(inp.colors?.accent, "#E8B44C"), text: hexOk(inp.colors?.text, "#FFFFFF") };
+  let colors = { bg: hexOk(inp.colors?.bg, "#0B2A4A"), accent: hexOk(inp.colors?.accent, "#E8B44C"), text: hexOk(inp.colors?.text, "#FFFFFF") };
   const font = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(inp.font) ? inp.font : "Cairo";
   const contact = (Array.isArray(inp.contact) ? inp.contact : []).slice(0, 6).map((c) => ({ icon: String(c.icon ?? "").replace(/[^a-z]/g, ""), handle: String(c.handle ?? "").replace(/[^\w@+.\-]/g, "").slice(0, 40) })).filter((c) => c.icon && c.handle);
   const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
@@ -884,6 +884,7 @@ async function freeJob(job) {
     const t0 = (i) => (i === 0 ? 0 : vo ? vo.beats[b0s[i]].start : (i * seconds) / n), t1 = (i) => (i < n - 1 ? (vo ? vo.beats[b0s[i + 1]].start : ((i + 1) * seconds) / n) : seconds);
     const secs = (i) => Math.max(4, Math.round((n > 1 ? t1(i) - t0(i) : seconds) * 10) / 10);
     const localBeats = (i) => (vo ? vo.beats.slice(b0s[i], i < n - 1 ? b0s[i + 1] : undefined).map((b) => ({ ...b, start: +(b.start - t0(i)).toFixed(2), end: +(b.end - t0(i)).toFixed(2) })) : undefined);
+    if (inp.autoStyle && !inp.free?.code) { const pal = await pickPalette({ idea: inp.idea }).catch(() => null); if (pal) colors = pal; }
     let shown = 8;
     const tick = setInterval(() => { shown = Math.min(shown + 1.5, 55); setProgress(job.id, shown); }, 8000);
     const writeChapter = async (i, prevTry) => {
@@ -950,7 +951,7 @@ async function freeJob(job) {
     let tPath = null;
     try { tPath = `${base}/${crypto.randomUUID()}.png`; const t = await db.storage.from("results").upload(tPath, await readFile(thumb), { contentType: "image/png" }); if (t.error) tPath = null; } catch { tPath = null; }
     free = { ...free, previewPath, ...(tPath ? { thumbPath: tPath } : {}), ...(vo ? { vo } : {}) };
-    await db.from("jobs").update({ status: "done", progress: 100, title: String(free.title || inp.brand?.name || "تصميم مبتكر").slice(0, 80), error: null, input: { ...inp, mode: "done", cseconds: seconds, free }, output: { preview: previewPath, ...(tPath ? { thumb: tPath } : {}) }, updated_at: now() }).eq("id", job.id);
+    await db.from("jobs").update({ status: "done", progress: 100, title: String(free.title || inp.brand?.name || "تصميم مبتكر").slice(0, 80), error: null, input: { ...inp, mode: "done", cseconds: seconds, free, colors }, output: { preview: previewPath, ...(tPath ? { thumb: tPath } : {}) }, updated_at: now() }).eq("id", job.id);
     console.log("free design done", job.id);
   } catch (e) {
     if ((mode === "export" || mode === "revoice") && job.output?.preview) { // a failed edit or export never destroys the studio, and costs nothing

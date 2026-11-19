@@ -1861,4 +1861,6 @@ export const EN: Record<string, string> = {
   "الوقت": "Time",
   "الهاتف": "Phone",
 
+  "طبّق هويتي (ألوانها)": "Apply my brand (its colours)",
+  "بدون هويتك: المصمم يختار الألوان المناسبة للفكرة، وإذا كتبت ألوان بالنص يلتزم بها. تقدر تغيّرها بعد التصميم.": "Without your brand: the designer picks colours that fit the idea (colours you write in the text are respected). You can change them after.",
 };
