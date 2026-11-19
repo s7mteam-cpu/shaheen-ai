@@ -20,10 +20,14 @@ export default async function TryTemplate({ params }: { params: Promise<{ id: st
   const previewPath = (t.assets as { _preview?: string } | null)?._preview ?? "";
   const url = previewPath ? (await admin.storage.from("results").createSignedUrl(previewPath, 60 * 60)).data?.signedUrl ?? "" : "";
   const { data: busy } = url ? { data: [] } : await admin.from("jobs").select("id").eq("tool_id", "free-motion").in("status", ["queued", "running"]).contains("input", { mode: "tplpreview", templateId: id }).limit(1);
+  const vp = (t.assets as { _video?: string | null } | null)?._video ?? "";
+  const verr = (t.assets as { _videoErr?: string | null } | null)?._videoErr ?? "";
+  const videoUrl = vp ? (await admin.storage.from("results").createSignedUrl(vp, 60 * 60, { download: `${t.name}.mp4` })).data?.signedUrl ?? "" : "";
+  const { data: rendering } = await admin.from("jobs").select("id").eq("tool_id", "free-motion").in("status", ["queued", "running"]).contains("input", { mode: "tplrender", templateId: id }).limit(1);
   const fields = (Array.isArray(t.fields) ? t.fields : []) as TField[];
   return (
     <div className="flex flex-col gap-4">
-      {!url && !!busy?.length && <meta httpEquiv="refresh" content="6" />}
+      {(!!rendering?.length || (!url && !!busy?.length)) && <meta httpEquiv="refresh" content="6" />}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-[24px] font-bold text-navy-900">{L("جرّب القالب")}: {t.name}</h1>
@@ -32,7 +36,7 @@ export default async function TryTemplate({ params }: { params: Promise<{ id: st
         <Link href="/admin/templates" className="btn btn-outline px-4 py-2">← {L("رجوع للمكتبة")}</Link>
       </div>
       {url ? (
-        <TemplateTry name={t.name} aspect={t.aspect} fields={fields} previewUrl={url} />
+        <TemplateTry id={t.id} name={t.name} aspect={t.aspect} fields={fields} previewUrl={url} videoUrl={videoUrl} videoErr={verr} rendering={!!rendering?.length} />
       ) : (
         <div className="card flex flex-col items-start gap-3 p-5">
           {busy?.length ? <p className="text-[15px]">⏳ {L("جاري تجهيز المعاينة… تتحدّث الصفحة تلقائيًا.")}</p> : (

@@ -818,6 +818,30 @@ async function buildTemplatePreview(row, code) {
   if (up.error) throw new Error(`upload preview: ${up.error.message}`);
   return path;
 }
+/** فيديو MP4 من القالب بالنصوص/الألوان اللي عدّلها الأدمن (بدون صوت). الناتج يتخزن داخل assets._video */
+async function tplRenderJob(job) {
+  const tid = String(job.input?.templateId ?? "");
+  const pr = job.input?.props ?? {};
+  const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  const outFile = join(workDir, `tpl-${job.id}.mp4`);
+  let prep = null;
+  const setAssets = async (row, patch) => db.from("free_templates").update({ assets: { ...(row?.assets ?? {}), ...patch }, updated_at: now() }).eq("id", tid);
+  const { data: row } = await db.from("free_templates").select("id,name,aspect,code,assets").eq("id", tid).maybeSingle();
+  try {
+    if (!row?.code) throw new Error("template has no code");
+    const why = checkFreeCode(row.code); if (why) throw new Error(`unsafe code: ${why}`);
+    const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
+    const seconds = Math.max(8, Math.min(120, Number(pr.seconds) || 35));
+    prep = await prepareFree({ chapters: [{ code: row.code, b0: 0 }], width: W, height: H, seconds, workDir, brandFile: join(here, "..", "src", "remotion", "brandIcons.ts"), fontCss: FREE_FONTS, mediaOrigin: new URL(process.env.SUPABASE_URL).origin });
+    const props = { assets: {}, t: pr.t ?? {}, colors: pr.colors ?? { bg: "#0B2A4A", accent: "#E8B44C", text: "#FFFFFF" }, font: pr.font ?? "Cairo", contact: pr.contact ?? [], logo: "", logoOn: false, logoBox: undefined, beats: [], seconds };
+    await prep.video(props, outFile, () => {});
+    const path = `templates/${tid}/video-${Date.now()}.mp4`;
+    const up = await db.storage.from("results").upload(path, await readFile(outFile), { contentType: "video/mp4" });
+    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    await setAssets(row, { _video: path, _videoErr: null });
+  } catch (e) { console.error("template render failed", e?.message ?? e); await setAssets(row, { _videoErr: String(e?.message ?? e).slice(0, 300) }); }
+  finally { try { await prep?.close?.(); } catch {} await rm(outFile, { force: true }); await db.from("jobs").delete().eq("id", job.id); }
+}
 async function tplPreviewJob(job) {
   const tid = String(job.input?.templateId ?? "");
   try {
@@ -1172,6 +1196,7 @@ for (;;) {
   if (job.tool_id === "site-video") await captureJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "ingest") await ingestJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplpreview") await tplPreviewJob(job);
+  else if (job.tool_id === "free-motion" && job.input?.mode === "tplrender") await tplRenderJob(job);
   else if (job.tool_id === "free-motion") await freeJob(job);
   else if (job.tool_id === "cv") await renderCV(job);
   else if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);

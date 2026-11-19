@@ -1,6 +1,8 @@
 "use client";
 import { L } from "@/lib/i18n/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { renderTemplate } from "../actions";
 import { ERR_SNIPPET } from "@/lib/freeErrSnippet";
 
 export type TField = { key: string; label: string; value: string };
@@ -9,7 +11,9 @@ const DEFAULT_COLORS = { bg: "#0B2A4A", accent: "#E8B44C", text: "#FFFFFF" };
 const card = "card flex flex-col gap-3 p-4";
 
 /** معاينة حية لقالب من المكتبة: نفس المشغّل ونفس الصفحة المعزولة (sandbox) اللي يشوفها العميل. النصوص والألوان تتحدّث فورًا. */
-export function TemplateTry({ aspect, fields: initial, previewUrl }: { name: string; aspect: string; fields: TField[]; previewUrl: string }) {
+export function TemplateTry({ id, aspect, fields: initial, previewUrl, videoUrl, videoErr, rendering }: { id: string; name: string; aspect: string; fields: TField[]; previewUrl: string; videoUrl: string; videoErr: string; rendering: boolean }) {
+  const router = useRouter();
+  const [asked, setAsked] = useState(false);
   const iframe = useRef<HTMLIFrameElement>(null);
   const [html, setHtml] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState(false);
@@ -24,6 +28,7 @@ export function TemplateTry({ aspect, fields: initial, previewUrl }: { name: str
   const [contact, setContact] = useState("");
   const [w, h] = useMemo(() => (aspect || "9:16").split(":").map((x) => Number(x) || 1), [aspect]);
 
+  useEffect(() => { if (!rendering) setAsked(false); }, [rendering]);
   useEffect(() => {
     let dead = false;
     fetch(previewUrl).then((r) => (r.ok ? r.text() : Promise.reject())).then((t) => { if (!dead) setHtml(t.replace(/<head>/i, (m) => m + ERR_SNIPPET)); }).catch(() => { if (!dead) setLoadErr(true); });
@@ -81,6 +86,12 @@ export function TemplateTry({ aspect, fields: initial, previewUrl }: { name: str
           <div className="flex flex-col gap-1">
             <label className="label">{L("معلومات التواصل (سطر لكل واحدة، تظهر لو القالب يدعمها)")}</label>
             <textarea rows={2} dir="auto" value={contact} onChange={(e) => setContact(e.target.value)} className="field" placeholder="@s7m_team" />
+          </div>
+          <div className="flex flex-col gap-2 rounded-xl bg-neutral-50 p-3">
+            <button className="btn btn-gold w-fit px-5 py-2.5 disabled:opacity-60" disabled={asked || rendering} onClick={async () => { setAsked(true); await renderTemplate(id, { t: vals, colors, font, seconds, contact: props.contact }); router.refresh(); }}>🎞 {rendering || asked ? L("جاري رسم الفيديو… (دقيقة إلى ثلاث)") : L("حمّل كفيديو MP4 بهالتعديلات")}</button>
+            {videoUrl && !rendering && <a href={videoUrl} className="btn btn-outline w-fit px-5 py-2.5" download>⬇ {L("نزّل الفيديو الجاهز")}</a>}
+            {videoErr && !rendering && <p dir="auto" className="text-[12px] text-red-800">⚠️ {videoErr}</p>}
+            <p className="text-[12px] text-subtle">{L("الفيديو يطلع بآخر تعديل عملته هون، بدون صوت. افتحه على تلفونك عشان تحكم على السلاسة والألوان الحقيقية.")}</p>
           </div>
           <button className="btn btn-outline w-fit px-4 py-2" onClick={reset}>↺ {L("رجّع الكل للأصل")}</button>
         </div>
