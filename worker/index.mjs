@@ -21,6 +21,7 @@ import { normalizeTemplate, verifyTemplate } from "./ingest.mjs";
 import { buildPreview } from "./freepreview.mjs";
 import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
 import { extractTexts, extractColors, applyEdits } from "./htmlkit.mjs";
+import { prepareHtml } from "./htmlprep.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
@@ -833,7 +834,7 @@ async function tplRenderJob(job) {
     const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
     if (isHtmlRow(row)) {
       const { data: src } = await db.from("free_templates").select("source_code").eq("id", tid).maybeSingle();
-      const html = applyEdits(String(src?.source_code ?? ""), { texts: pr.texts ?? {}, hex: pr.hex ?? {} });
+      const html = (await prepareHtml(applyEdits(String(src?.source_code ?? ""), { texts: pr.texts ?? {}, hex: pr.hex ?? {} }))).html;
       const secs = Math.max(8, Math.min(120, Number(pr.seconds) || 30));
       await recordHtml({ html, width: W, height: H, seconds: secs, outFile, fontCss: htmlFontCss() });
       const path = `templates/${tid}/video-${Date.now()}.mp4`;
@@ -882,8 +883,10 @@ function htmlFontCss() {
 const isHtmlRow = (row) => row?.assets?._kind === "html";
 /** original HTML template: nothing is converted. We keep it as is, check it really draws, make the sheet + the live preview page. */
 async function ingestHtml(job, row, setRow) {
-  const html = String(row.source_code ?? "");
-  if (html.length < 200 || html.length > 600_000) throw new Error("حجم كود الـHTML غير مناسب (من 200 حرف إلى 600 ألف)");
+  const original = String(row.source_code ?? "");
+  const prepared = await prepareHtml(original); // Tailwind/CDN links made to work offline
+  const html = prepared.html;
+  if (original.length < 200 || original.length > 600_000) throw new Error("حجم كود الـHTML غير مناسب (من 200 حرف إلى 600 ألف)");
   const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
   const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
   const fontCss = htmlFontCss();
@@ -901,8 +904,8 @@ async function ingestHtml(job, row, setRow) {
   const pv = `templates/${row.id}/preview-${Date.now()}.html`;
   const pu = await db.storage.from("results").upload(pv, Buffer.from(htmlPreviewDoc(html, fontCss)), { contentType: "text/html" });
   if (pu.error) throw new Error(`upload preview: ${pu.error.message}`);
-  const fields = extractTexts(html);
-  await setRow({ status: "review", code: null, fields, assets: { _kind: "html", _preview: pv, _colors: extractColors(html), _notes: ["نحتفظ بالتصميم الأصلي كما هو (بدون تحويل). المعاينة والفيديو ينطلقون من نفس كود جيميناي."] }, thumb_path: thumb, error: null });
+  const fields = extractTexts(original);
+  await setRow({ status: "review", code: null, fields, assets: { _kind: "html", _preview: pv, _colors: extractColors(original), _notes: ["نحتفظ بالتصميم الأصلي كما هو (بدون تحويل). المعاينة والفيديو ينطلقون من نفس كود جيميناي.", ...prepared.notes] }, thumb_path: thumb, error: null });
   await db.from("jobs").delete().eq("id", job.id);
 }
 async function ingestDirect(job, row, setRow) {

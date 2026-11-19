@@ -33,9 +33,11 @@
     "esbuild": "0.28.1",
     "lucide-react": "^1.71.0",
     "pdf-lib": "^1.17.1",
+    "postcss": "^8.5.33",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "remotion": "4.0.542",
+    "tailwindcss": "^3.4.17",
     "three": "^0.187.0"
   }
 }
