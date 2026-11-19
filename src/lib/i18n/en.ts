@@ -1858,4 +1858,6 @@ export const EN: Record<string, string> = {
   "موسيقى هادية بالخلفية": "Soft background music",
   "إذا غيّرت جملة، الصوت ينسجّل من جديد (يأخذ دقيقة تقريباً). عدد الجمل ثابت عشان الصورة تمشي مع الصوت.": "If you change a sentence the voice is re-recorded (about a minute). The number of sentences is fixed so the visuals stay in sync.",
   "شاهين يصمّم ويرسم فكرتك… (ثلاث إلى ست دقايق)": "Shaheen is designing and rendering your idea… (3–6 minutes)",
+  "الوقت": "Time",
+  "الهاتف": "Phone",
 };

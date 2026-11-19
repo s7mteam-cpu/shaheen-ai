@@ -296,7 +296,7 @@ const spec_bottom = (c: Ctx) => (c.spec.kind === "carousel" && c.total > 1 ? 70 
 
 function Classic(c: Ctx) {
   const { s } = c;
-  const list = (s.items ?? []).slice(0, 3);
+  const list = (s.items ?? []).slice(0, 6);
   const hasBar = !!(s.price || s.cta);
   return (
     <div style={{ position: "absolute", inset: 0 }}>
@@ -307,9 +307,9 @@ function Classic(c: Ctx) {
           <Title c={c} base={104} />
           <Body c={c} max={760} />
           {list.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: `repeat(${list.length}, 1fr)`, gap: 22, marginTop: 18 * c.k }}>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${list.length > 4 ? 3 : Math.min(list.length, 3)}, 1fr)`, gap: 22, marginTop: 18 * c.k }}>
               {list.map((it, i) => (
-                <div key={i} style={{ background: c.soft, border: `2px solid ${c.line}`, borderRadius: 26, padding: `${28 * c.k}px 26px` }}>
+                <div key={i} style={{ background: c.soft, border: `2px solid ${c.line}`, borderRadius: 26, padding: `${(list.length > 3 ? 20 : 28) * c.k}px 26px` }}>
                   <div style={{ width: 68 * c.k, height: 68 * c.k, borderRadius: 18, background: c.spec.icons === "3d" ? "transparent" : c.accent, display: "grid", placeItems: "center", marginBottom: 20 * c.k }}>
                     <DIcon name={it.icon ?? "check"} size={34 * c.k} color={c.onAccent} />
                   </div>
@@ -333,7 +333,7 @@ function Classic(c: Ctx) {
 
 function Bold(c: Ctx) {
   const { s } = c;
-  const list = (s.items ?? []).slice(0, 4);
+  const list = (s.items ?? []).slice(0, 6);
   return (
     <div style={{ position: "absolute", inset: 0, color: c.ink }}>
       <div style={{ position: "absolute", inset: `${PAD * c.k}px ${PAD}px`, display: "flex", flexDirection: "column" }}>
@@ -599,9 +599,10 @@ function Split(c: Ctx) {
           <Kicker c={c} line={false} />
           <Title c={c} base={wide ? 96 : 78} />
           <Body c={c} size={wide ? 34 : 29} />
-          {(s.items ?? []).slice(0, 3).map((it, i) => (
+          {(s.items ?? []).slice(0, 5).map((it, i) => (
             <div key={i} style={{ display: "flex", gap: 14, alignItems: "center", fontSize: 28 * c.k, fontWeight: 700, color: c.ink }}><DIcon name={it.icon ?? "check"} size={32 * c.k} color={c.accent} />{it.text}</div>
           ))}
+          <Meta list={s.meta} c={c} size={26} />
         </div>
         <Price c={c} />
         <div style={{ display: "flex" }}><Cta c={c} size={34} /></div>

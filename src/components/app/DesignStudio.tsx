@@ -64,7 +64,7 @@ function IconPick({ value, onChange }: { value?: string; onChange: (v: string) =
   );
 }
 
-function ListEdit({ list, onChange, max, placeholder }: { list: DItem[]; onChange: (l: DItem[]) => void; max: number; placeholder: string }) {
+function ListEdit({ list, onChange, max, placeholder, quick }: { list: DItem[]; onChange: (l: DItem[]) => void; max: number; placeholder: string; quick?: [string, string][] }) {
   return (
     <div className="flex flex-col gap-2">
       {list.map((it, i) => (
@@ -74,7 +74,12 @@ function ListEdit({ list, onChange, max, placeholder }: { list: DItem[]; onChang
           <button type="button" aria-label={L("حذف")} onClick={() => onChange(list.filter((_, j) => j !== i))} className="grid h-10 w-10 place-items-center rounded-xl text-red-700 hover:bg-red-50">✕</button>
         </div>
       ))}
-      {list.length < max && <button type="button" onClick={() => onChange([...list, { icon: "check", text: "" }])} className="btn btn-outline self-start px-4 py-2 text-sm">+ {placeholder}</button>}
+      {list.length < max && (
+        <div className="flex flex-wrap gap-2">
+          {quick ? quick.map(([icon, label]) => <button key={icon} type="button" onClick={() => onChange([...list, { icon, text: label + ": " }])} className="btn btn-outline px-4 py-2 text-sm">+ {label}</button>) : <button type="button" onClick={() => onChange([...list, { icon: "check", text: "" }])} className="btn btn-outline self-start px-4 py-2 text-sm">+ {placeholder}</button>}
+          {quick && <button type="button" onClick={() => onChange([...list, { icon: "check", text: "" }])} className="btn btn-outline px-4 py-2 text-sm">+ {placeholder}</button>}
+        </div>
+      )}
     </div>
   );
 }
@@ -476,8 +481,8 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
               <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("تحته")}</span><input value={s.stat?.label ?? ""} maxLength={40} onChange={(e) => setSlide({ stat: { ...(s.stat ?? { value: "" }), label: e.target.value } })} className="field py-2.5" /></label>
             </div>
           )}
-          {uses.has("items") && <><Sub>{s.layout === "point" ? L("الأيقونة والنقاط") : L("المزايا")}</Sub><ListEdit list={s.items ?? []} onChange={(items) => setSlide({ items })} max={s.layout === "bold" || s.layout === "bento" || s.layout === "point" ? 4 : 3} placeholder={L("ميزة")} /></>}
-          {uses.has("meta") && <><Sub>{L("التفاصيل (تاريخ، وقت، مكان، هاتف)")}</Sub><ListEdit list={s.meta ?? []} onChange={(meta) => setSlide({ meta })} max={spec.kind === "bcard" ? 5 : 4} placeholder={L("تفصيل")} /></>}
+          {uses.has("items") && <><Sub>{s.layout === "point" ? L("الأيقونة والنقاط") : L("المزايا")}</Sub><ListEdit list={s.items ?? []} onChange={(items) => setSlide({ items })} max={s.layout === "bento" || s.layout === "point" ? 4 : s.layout === "split" ? 5 : 6} placeholder={L("ميزة")} /></>}
+          {uses.has("meta") && <><Sub>{L("التفاصيل (تاريخ، وقت، مكان، هاتف)")}</Sub><ListEdit list={s.meta ?? []} onChange={(meta) => setSlide({ meta })} max={spec.kind === "bcard" ? 5 : 4} placeholder={L("تفصيل")} quick={spec.kind !== "bcard" ? [["calendar", L("التاريخ")], ["clock", L("الوقت")], ["map-pin", L("المكان")], ["phone", L("الهاتف")]] : undefined} /></>}
           {uses.has("date") && (
             <div className="grid grid-cols-3 gap-2">
               {(["day", "month", "weekday"] as const).map((k, i) => (

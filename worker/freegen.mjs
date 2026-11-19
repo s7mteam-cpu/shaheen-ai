@@ -27,6 +27,8 @@ DESIGN QUALITY (this is what the customer pays for)
 - Finish with a call to action and, if p.contact has entries, the real brand tiles with the handles (direction ltr for handles).
 - Only claim what the customer's brief says; never invent prices, phone numbers, offers or names: if a number is needed and not given, make it a field with a neutral placeholder the customer can edit.
 
+SIZE DISCIPLINE (the customer rejects oversized work). Let S = Math.min(width, height). Headline font 0.06*S to 0.085*S (never above 0.09*S), secondary text 0.032*S to 0.045*S, small captions never below 0.026*S. A single icon or logo tile is at most 0.16*S wide (social tiles at the end 0.09*S to 0.12*S); an illustration may be larger but must keep a 6% margin from every edge. Keep every text block inside a 8% side margin with maxWidth set, at most 3 lines per heading. No element may be cut by the screen edge unless it is a background shape. Check long Arabic lines: they wrap, so reserve vertical room.
+
 FIELDS: 6-16 fields covering every text on screen, with clear Arabic labels, values in the customer's dialect/Arabic written in clean spelling.
 Keep the code under 38000 characters.`;
 
@@ -97,4 +99,22 @@ export async function writeNarration({ idea, brand, seconds, dialectLabel, count
   const list = (Array.isArray(arr) ? arr : []).map((x) => String(x ?? "").replace(/[<>"]/g, "").replace(/\s+/g, " ").trim().slice(0, 220)).filter(Boolean).slice(0, 10);
   if (list.length < 3) throw new Error("narration: too short");
   return list;
+}
+
+/** A strict "art director" look at a few frames of the finished design. Returns {ok, issues}. */
+export async function reviewFree({ frames, aspect, idea }) {
+  const content = [
+    ...frames.map((b) => ({ type: "image", source: { type: "base64", media_type: "image/png", data: b.toString("base64") } })),
+    { type: "text", text: `These are ${frames.length} frames (${aspect}) from one motion-graphics video made for this brief: "${String(idea).slice(0, 300)}".\nBe a strict art director. Reject if ANY frame has: text or icons that are too big (a headline over about 3 lines or over a quarter of the screen height, a single icon or logo over about a sixth of the short side), text cut by the screen edge, overlapping text, unreadable contrast, a nearly empty or fully black frame, or a crowded unbalanced layout. Answer ONLY JSON: {"ok":true|false,"issues":"short concrete fixes in English, e.g. reduce headline font to 0.07*S, move X up"}.` },
+  ];
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", signal: AbortSignal.timeout(120_000),
+    headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: process.env.FREE_REVIEW_MODEL || "claude-sonnet-5-5", max_tokens: 600, messages: [{ role: "user", content }] }),
+  });
+  if (!res.ok) throw new Error(`review ${res.status}`);
+  const out = text(await res.json());
+  const a = out.indexOf("{"), b = out.lastIndexOf("}");
+  const j = JSON.parse(out.slice(a, b + 1));
+  return { ok: j.ok !== false, issues: String(j.issues ?? "").slice(0, 600) };
 }

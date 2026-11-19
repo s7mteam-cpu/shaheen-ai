@@ -16,7 +16,7 @@ import { renderMedia, renderStill, selectComposition } from "@remotion/renderer"
 import { createRequire } from "node:module";
 import { captureSite } from "./site.mjs";
 import { prepareFree, checkFreeCode } from "./free.mjs";
-import { generateFree, refillFields, writeNarration } from "./freegen.mjs";
+import { generateFree, refillFields, writeNarration, reviewFree } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
 
@@ -791,7 +791,7 @@ async function freeJob(job) {
       prep = await prepareFree(prepOpts(free.code));
     } else {
       if (wantVo) { vo = await buildVoice(job, base, await writeNarration({ idea: inp.idea, brand: inp.brand, seconds, dialectLabel: inp.dialectLabel, count: 0 }), inp.voice); fitSeconds(); } // a new design: write it, check it, try one frame; if it fails, tell the writer why and try once more
-      let prev = null, lastErr = "";
+      let prev = null, lastErr = "", fallback = null;
       for (let attempt = 0; attempt < 2 && !prep; attempt++) {
         const g = await generateFree({ idea: inp.idea, aspect: inp.aspect, seconds, brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: vo?.beats });
         await setProgress(job.id, attempt ? 32 : 22);
@@ -802,8 +802,17 @@ async function freeJob(job) {
           p = await prepareFree(prepOpts(g.code));
           await p.still(propsOf(g.fields), Math.round(seconds * 30 * 0.5), join(workDir, `chk-${job.id}.png`));
         } catch (e) { p?.cleanup(); lastErr = String(e?.message ?? e).slice(0, 400); prev = { code: g.code, error: lastErr }; continue; }
+        if (attempt === 0) { // an art-director pass: four frames are looked at; oversized text/icons, overflow or clutter send the design back once
+          try {
+            const shots = [];
+            for (const [i, f] of [0.1, 0.35, 0.6, 0.9].entries()) { const fp = join(workDir, `rv-${job.id}-${i}.png`); await p.still(propsOf(g.fields), Math.round(seconds * 30 * f), fp); shots.push(await readFile(fp)); await rm(fp, { force: true }); }
+            const r = await reviewFree({ frames: shots, aspect: inp.aspect, idea: inp.idea });
+            if (!r.ok && r.issues) { p.cleanup(); fallback = g; prev = { code: g.code, error: `visual review by the art director: ${r.issues}` }; await setProgress(job.id, 30); continue; }
+          } catch (e) { console.error("free review skipped", e?.message ?? e); }
+        }
         prep = p; free = { title: g.title, fields: g.fields, code: g.code };
       }
+      if (!prep && fallback) { prep = await prepareFree(prepOpts(fallback.code)); free = { title: fallback.title, fields: fallback.fields, code: fallback.code }; } // the first design worked, only the art director disliked it: better than nothing
       if (!prep) throw new Error(`free design failed: ${lastErr}`);
     }
     await setProgress(job.id, 40);

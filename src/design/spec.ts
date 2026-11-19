@@ -110,11 +110,11 @@ export const fontsFor = (kind: DKind): readonly { id: string; label: string }[] 
 
 /** Which fields each layout shows: the studio offers exactly these, and Claude is told the same. */
 export const LAYOUTS: Record<LayoutId, { label: string; hint: string; uses: (keyof Slide)[] }> = {
-  classic: { label: "كلاسيكي", hint: "إعلان كامل: عنوان، وصف، 3 مزايا بأيقونات، تفاصيل، سعر وزر", uses: ["kicker", "title", "highlight", "body", "items", "meta", "price", "cta", "badge", "photo"] },
+  classic: { label: "كلاسيكي", hint: "إعلان كامل: عنوان، وصف، حتى 6 مزايا بأيقونات، تفاصيل، سعر وزر", uses: ["kicker", "title", "highlight", "body", "items", "meta", "price", "cta", "badge", "photo"] },
   bold: { label: "جريء", hint: "فعالية أو دورة: تاريخ بارز، عنوان كبير، قائمة مرقّمة، مقدّم، سعر وزر", uses: ["kicker", "title", "highlight", "date", "items", "meta", "person", "price", "cta"] },
   bento: { label: "بينتو", hint: "مربعات عصرية متفاوتة: عنوان، صورة أو ميزة بارزة، مزايا، سعر وزر. مناسب للمنتجات والخدمات والتقنية", uses: ["kicker", "title", "highlight", "body", "items", "meta", "photo", "price", "cta", "badge"] },
   minimal: { label: "طباعي بسيط", hint: "عنوان ضخم جداً بأسلوب مجلات، خطوط فاصلة، بدون زحمة. مناسب للإعلانات الفاخرة والعبارات القوية", uses: ["kicker", "badge", "title", "highlight", "body", "meta", "price", "cta"] },
-  split: { label: "نص وصورة", hint: "الصورة بنص التصميم والنص بالنص الثاني، مع مزايا وسعر. مناسب للمنتجات والأزياء والعقار", uses: ["kicker", "title", "highlight", "body", "items", "photo", "price", "cta", "badge"] },
+  split: { label: "نص وصورة", hint: "الصورة بنص التصميم والنص بالنص الثاني، مع مزايا وتفاصيل (تاريخ، مكان) وسعر. مناسب للمنتجات والأزياء والعقار", uses: ["kicker", "title", "highlight", "body", "items", "meta", "photo", "price", "cta", "badge"] },
   photo: { label: "صورة كبيرة", hint: "منتج أو مكان أو طبق: صورة كبيرة فوق، نص وسعر تحت", uses: ["kicker", "title", "highlight", "body", "photo", "price", "cta", "badge"] },
   offer: { label: "عرض وخصم", hint: "رقم ضخم (خصم أو سعر)، عنوان، مدة العرض وزر", uses: ["badge", "stat", "title", "highlight", "body", "meta", "cta", "photo"] },
   quote: { label: "اقتباس ونصيحة", hint: "جملة أو نصيحة كبيرة مع صاحبها", uses: ["kicker", "body", "person"] },
@@ -212,8 +212,8 @@ export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fa
     title: str(raw.title, 150) || " ",
     highlight: opt(raw.highlight, 110),
     body: opt(raw.body, 520),
-    items: items(raw.items, 5),
-    meta: items(raw.meta, (CARD_LAYOUTS as string[]).includes(layout) ? 5 : 3),
+    items: items(raw.items, 6),
+    meta: items(raw.meta, (CARD_LAYOUTS as string[]).includes(layout) ? 5 : 4),
     date: d && str(d.day, 6) ? { day: str(d.day, 6), month: str(d.month, 14), weekday: opt(d.weekday, 14) } : null,
     price: p && str(p.value, 12) ? { value: str(p.value, 12), old: opt(p.old, 12), currency: opt(p.currency, 10), note: opt(p.note, 60) } : null,
     stat: s && str(s.value, 8) ? { value: str(s.value, 8), label: opt(s.label, 40) } : null,
