@@ -70,6 +70,30 @@ export const Host = (p: any) => {
 const CSP = (media) => `default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: ${media}; media-src 'self' data: blob: ${media}; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`;
 
 /** Bundles the code once (CSP injected) and gives back render helpers: a check still, the full video, and a cleanup. */
+/** The AI's code gets crash-proof versions of Sequence and interpolate (a negative or NaN duration, or a range that is not increasing, would otherwise blank the whole picture). */
+export const SAFE_TSX = `import React from "react";
+import { Sequence as S, interpolate as I } from "remotion";
+export const Sequence: any = (p: any) => {
+  const d = p.durationInFrames;
+  const dur = d == null || d === Infinity ? d : Number.isFinite(d) ? Math.max(1, Math.round(d)) : 1;
+  return <S {...p} from={Number.isFinite(p.from) ? Math.round(p.from) : 0} durationInFrames={dur} />;
+};
+export const interpolate: any = (x: number, inR: number[], outR: any[], o?: any) => {
+  try { return (I as any)(x, inR, outR, o); } catch {
+    try { return (I as any)(x, inR.map((v, i) => (i === 0 ? v : Math.max(v, inR[i - 1] + 0.001))), outR, o); } catch { return outR[outR.length - 1]; }
+  }
+};
+`;
+export function safeChapter(code) {
+  return String(code).replace(/import\s*\{([^}]*)\}\s*from\s*["']remotion["'];?/g, (m, names) => {
+    const list = names.split(",").map((x) => x.trim()).filter(Boolean);
+    const safe = list.filter((n) => /^(Sequence|interpolate)(\s+as\s+\w+)?$/.test(n));
+    if (!safe.length) return m;
+    const rest = list.filter((n) => !safe.includes(n));
+    return (rest.length ? `import { ${rest.join(", ")} } from "remotion";\n` : "") + `import { ${safe.join(", ")} } from "./safe";`;
+  });
+}
+
 /** brand.ts for a render/preview: the brand + social icons file, plus the bundled general icon set (Icon, ICON_NAMES). */
 export function writeBrand(dir, brandFile) {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -83,7 +107,8 @@ export async function prepareFree({ code, chapters, width, height, fps = 30, sec
   const dir = fs.mkdtempSync(path.join(workDir, "free-"));
   const cleanup = () => fs.rmSync(dir, { recursive: true, force: true });
   try {
-    chs.forEach((c, i) => fs.writeFileSync(path.join(dir, `Free${i}.tsx`), c.code));
+    chs.forEach((c, i) => fs.writeFileSync(path.join(dir, `Free${i}.tsx`), safeChapter(c.code)));
+    fs.writeFileSync(path.join(dir, "safe.tsx"), SAFE_TSX);
     writeBrand(dir, brandFile);
     fs.writeFileSync(path.join(dir, "host.tsx"), hostTsx(chs));
     fs.writeFileSync(path.join(dir, "index.tsx"), `import React from "react";

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
-import { checkFreeCode, hostTsx, writeBrand } from "./free.mjs";
+import { SAFE_TSX, checkFreeCode, hostTsx, safeChapter, writeBrand } from "./free.mjs";
 
 const ENTRY = `
 import React from "react";
@@ -49,7 +49,8 @@ export async function buildPreview({ code, chapters, width, height, brandFile, f
   for (const c of chs) { const bad = checkFreeCode(c.code); if (bad) throw new Error(`preview: ${bad}`); }
   const dir = await mkdtemp(join(tmpdir(), "freeprev-"));
   try {
-    for (const [i, c] of chs.entries()) await writeFile(join(dir, `Free${i}.tsx`), c.code);
+    for (const [i, c] of chs.entries()) await writeFile(join(dir, `Free${i}.tsx`), safeChapter(c.code));
+    await writeFile(join(dir, "safe.tsx"), SAFE_TSX);
     await writeFile(join(dir, "host.tsx"), hostTsx(chs));
     writeBrand(dir, brandFile);
     await writeFile(join(dir, "entry.tsx"), ENTRY.replace("__W__", String(width)).replace("__H__", String(height)));
