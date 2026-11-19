@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Progress } from "@/components/app/Progress";
 import { More } from "@/components/app/Collapse";
 import { TONES, VOICE_AGES, voiceDialects } from "@/lib/voiceMatch";
+import { PhotoPicker, type Photo } from "@/components/app/PhotoPicker";
 import { SITE_GROUPS, SITE_STYLES, type SBg } from "@/remotion/siteStyles";
 
 const sizes = [["9:16", "📱 ريلز / تيك توك 9:16"], ["16:9", "▶️ يوتيوب 16:9"], ["1:1", "⬜ مربع 1:1"], ["4:5", "🖼️ طولي 4:5"]] as const;
@@ -28,6 +29,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
   const [reading, setReading] = useState(false);
   const [topic, setTopic] = useState("");
   const [style, setStyle] = useState("auto");
+  const [shots, setShots] = useState<Photo[]>([]);
   const [aspect, setAspect] = useState<string>("9:16");
   const [seconds, setSeconds] = useState(30);
   const [dialect, setDialect] = useState<string>("kuwaiti");
@@ -77,7 +79,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
     setBusy(true); setError(null);
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        siteJob: jobId, siteStyle: style, topic, seconds, aspect, dialect, voiceover, vgender, vage, tone, music: withMusic, brand: site?.title ?? "" }) });
+        siteJob: jobId, siteStyle: style, shots: shots.map((x) => ({ path: x.path, bucket: x.bucket, label: x.label })), topic, seconds, aspect, dialect, voiceover, vgender, vage, tone, music: withMusic, brand: site?.title ?? "" }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -122,6 +124,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
         <label className="flex flex-col gap-2"><span className="font-semibold">{L("شنو تبي الفيديو يركّز عليه؟")}</span>
           <textarea required minLength={5} maxLength={800} rows={3} value={topic} onChange={(e) => setTopic(e.target.value)} className="field" />
           <span className="text-[13px] text-subtle">{L("شاهين يشرح الموقع من محتواه الفعلي (ما يخترع أسعار ولا خدمات). تقدر تضيف: ركّز على الخدمات، أو على العروض، أو على التواصل.")}</span></label>
+        <PhotoPicker photos={shots} onChange={setShots} max={6} title="صفحات من داخل موقعك (لقطات شاشة)" hint="لو موقعك فيه صفحات ما تنفتح إلا بتسجيل دخول (لوحة تحكم، حجوزات، طلبات)، صوّرها بنفسك وارفعها هنا، واكتب تحت كل صورة وش هي. ما نطلب منك يوزر ولا كلمة سر أبداً." />
         <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(sizes, aspect, setAspect)}</div>
         <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span>{chips(lengths, seconds, setSeconds)}</div>
         <div className="flex flex-col gap-2">

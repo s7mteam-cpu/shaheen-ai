@@ -114,6 +114,7 @@ export type Graphic = {
   credit?: string;                         // clip: who filmed it (shown small on the clip)
   cdur?: number;                           // clip: length of the stock clip in seconds (it loops if the scene is longer)
   photo?: number;                          // scene made from the customer's own photo: its number (1-6), swapped for `img` on the server
+  page?: number;                           // site: the customer's own screenshot of an inner page (1-6) this sentence is about (the server fills `site`)
   sec?: number;                            // site: which section of the page the sentence is about (the writer picks it; the server fills `site`)
   site?: { y: number; y0: number; y2: number; w: number; h: number; dev: "phone" | "desktop"; host: string; look: SiteLook; b?: { y: number; w: number; h: number } }; // `b`: the same section in the second picture (`img2`: computer picture for tall videos, phone picture for wide ones) // site: where to scroll in the page picture (`img`), and how the scene looks
   img?: string;                            // scene: storage path in "results"
@@ -184,11 +185,12 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       ts: x?.ts === undefined || x?.ts === null ? undefined : +c(Number(x.ts) || 1, 0.4, 2).toFixed(2),
       shade: x?.shade === false ? false : undefined,
       sec: Number.isFinite(Number(x?.sec)) && x?.sec !== undefined && x?.sec !== null && x?.sec !== "" ? c(Math.round(Number(x.sec)), 0, 40) : undefined,
+      page: Number.isFinite(Number(x?.page)) && x?.page !== undefined && x?.page !== null && x?.page !== "" ? c(Math.round(Number(x.page)), 1, 6) : undefined,
       site: cleanSite(x?.site),
     };
     for (const k of Object.keys(g) as (keyof Graphic)[]) if (g[k] === undefined) delete g[k];
     return g;
-  }).filter((g) => g.kind === "site" ? !!(g.site || g.sec !== undefined) : g.kind === "clip" ? !!(g.img || g.q) : g.kind === "scene" ? !!(g.img || g.prompt || g.photo) : ["doodle", "character", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || (g.kind === "terrain" && !!(g.place || g.lat !== undefined)) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
+  }).filter((g) => g.kind === "site" ? !!(g.site || g.sec !== undefined || g.page !== undefined) : g.kind === "clip" ? !!(g.img || g.q) : g.kind === "scene" ? !!(g.img || g.prompt || g.photo) : ["doodle", "character", "confetti", "dotgrid", "globe", "cube", "plot", "geometry", "countdown", "delivery", "dish", "shine", "mist", "ecg", "flight", "scales", "shutter", "giftbox", "house", "ring", "map", "route"].includes(g.kind) || (g.kind === "terrain" && !!(g.place || g.lat !== undefined)) || g.text || g.items?.length || g.values?.length || g.bad || g.good || g.icon || g.emoji || g.value !== undefined).sort((a, b) => a.at - b.at);
 }
 export type Grade = "none" | "natural" | "vivid" | "warm" | "cinematic" | "pop" | "reels" | "luxury" | "cool" | "sunset" | "bw";
 export const GRADES: [Grade, string][] = [["none", "بدون"], ["natural", "طبيعي"], ["vivid", "زاهي"], ["pop", "زاهي جداً"], ["reels", "ريلز قوي"], ["warm", "دافئ"], ["sunset", "غروب ذهبي"], ["cool", "بارد أزرق"], ["luxury", "فخم هادي"], ["cinematic", "سينمائي"], ["bw", "أبيض وأسود"]];

@@ -1790,6 +1790,8 @@ export const EN: Record<string, string> = {
   "بينتو ومؤشر": "Bento & cursor",
   "مؤشر سينمائي": "Cinematic cursor",
   "شاشتين وتقريب": "Two screens & zoom",
+  "صفحات من داخل موقعك (لقطات شاشة)": "Pages inside your site (screenshots)",
+  "لو موقعك فيه صفحات ما تنفتح إلا بتسجيل دخول (لوحة تحكم، حجوزات، طلبات)، صوّرها بنفسك وارفعها هنا، واكتب تحت كل صورة وش هي. ما نطلب منك يوزر ولا كلمة سر أبداً.": "If your site has pages that need a login (dashboard, bookings, orders), take screenshots yourself and upload them here, and write under each what it is. We never ask for your username or password.",
   "فخم وهادئ": "Luxury & calm",
   "جريء وحيوي": "Bold & lively",
   "تقني وعصري": "Tech & modern",

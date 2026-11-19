@@ -40,3 +40,28 @@ export async function importPhotos(userId: string, jobId: string, photos: PhotoI
     } catch (e) { console.error("importPhotos", e); return null; }
   }));
 }
+
+export type ShotOut = { img: string; label: string; dev: "phone" | "desktop"; w: number; h: number };
+
+/** Screenshots of pages inside the customer's own site (behind his login): brought into "results" whole (never cropped), with the size the scene needs to scroll through them. */
+export async function importShots(userId: string, jobId: string, photos: PhotoIn[]): Promise<(ShotOut | null)[]> {
+  const admin = createAdminClient();
+  return Promise.all(photos.map(async (p) => {
+    try {
+      const { data, error } = await admin.storage.from(p.bucket ?? "uploads").download(p.path);
+      if (error || !data) return null;
+      const sharp = (await import("sharp")).default;
+      const src = await sharp(Buffer.from(await data.arrayBuffer())).rotate().toBuffer();
+      const meta = await sharp(src).metadata();
+      const iw = meta.width ?? 0, ih = meta.height ?? 0;
+      if (iw < 200 || ih < 200) return null;
+      const phone = iw <= 900 || (iw < 1000 && iw / ih < 0.8); // phone screenshots are narrow; computer ones are wide
+      let width = Math.min(iw, phone ? 780 : 1920);
+      if ((ih * width) / iw > 12000) width = Math.floor((12000 * iw) / ih);
+      const buf = await sharp(src).resize({ width }).jpeg({ quality: 88 }).toBuffer();
+      const out = await sharp(buf).metadata();
+      const cw = phone ? 390 : 1280;
+      return { img: await saveResult(userId, jobId, buf, "image/jpeg", "jpg"), label: p.label || "", dev: phone ? "phone" as const : "desktop" as const, w: cw, h: Math.round(((out.height ?? ih) * cw) / (out.width ?? width)) };
+    } catch (e) { console.error("importShots", e); return null; }
+  }));
+}
