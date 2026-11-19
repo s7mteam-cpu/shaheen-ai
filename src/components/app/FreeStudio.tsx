@@ -119,13 +119,14 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
+    if (busy) return; // the panel is locked while the video is being made
     dirty.current = true; setSaving("saving");
     const t = setTimeout(async () => {
       const r = await fetch("/api/free-motion/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body(), action: "save" }) }).catch(() => null);
       dirty.current = !r?.ok; setSaving(r?.ok ? "saved" : "");
     }, 1200);
     return () => clearTimeout(t);
-  }, [body]);
+  }, [body, busy]);
 
   async function act(action: "revoice" | "export") {
     setErr(null); setMsg(null);
@@ -173,6 +174,8 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
         {busy && <div className="card p-4"><Progress value={busy.progress || 5} label={busy.kind === "export" ? L("جاري تجهيز الفيديو…") : L("جاري التسجيل…")} /></div>}
         {msg && <p className="rounded-xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">{L(msg)}</p>}
         {err && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{err}</p>}
+        {busy && busy.kind === "export" && <p className="rounded-xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">{L("الفيديو يتجهز بآخر تعديلاتك لحظة الضغط. اللوحة مقفلة لين يخلص، وبعدها تقدر تعدّل وتصدّر من جديد.")}</p>}
+        <fieldset disabled={!!busy} className={`m-0 flex min-w-0 flex-col gap-4 border-0 p-0 ${busy ? "pointer-events-none opacity-60" : ""}`}>
 
         <section className={card}>
           <h3 className="font-bold text-navy-900">{L("النصوص")}</h3>
@@ -250,6 +253,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
           <textarea minLength={10} maxLength={1500} rows={3} value={simIdea} onChange={(e) => setSimIdea(e.target.value)} className="field" />
           <button type="button" disabled={simIdea.trim().length < 10 || balance < editCost || !!busy} onClick={async () => { const e = await onSimilar(simIdea, { dialect, vtype, music: musicOn }); if (e) setErr(e); }} className="btn btn-gold py-3">{L("سوّ مثله")} ({editCost} {L("ريشة")})</button>
         </section>
+        </fieldset>
       </div>
     </div>
   );

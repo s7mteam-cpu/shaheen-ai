@@ -1863,4 +1863,5 @@ export const EN: Record<string, string> = {
 
   "طبّق هويتي (ألوانها)": "Apply my brand (its colours)",
   "بدون هويتك: المصمم يختار الألوان المناسبة للفكرة، وإذا كتبت ألوان بالنص يلتزم بها. تقدر تغيّرها بعد التصميم.": "Without your brand: the designer picks colours that fit the idea (colours you write in the text are respected). You can change them after.",
+  "الفيديو يتجهز بآخر تعديلاتك لحظة الضغط. اللوحة مقفلة لين يخلص، وبعدها تقدر تعدّل وتصدّر من جديد.": "The video is being made with your latest changes at the moment you pressed. The panel is locked until it finishes; then you can edit and export again.",
 };
