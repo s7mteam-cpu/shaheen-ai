@@ -2,12 +2,15 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/server/auth";
+import { INDUSTRIES } from "@/design/industries";
 
 async function guard() {
   const u = await requireAdmin("templates");
   if (!u) throw new Error("غير مصرّح");
   return u;
 }
+/** المجالات = معرّفات من قائمة «مجالك» الفعلية فقط (مو كتابة حرّة) */
+const fieldIds = (raw: unknown) => [...new Set(String(raw ?? "").split(",").map((x) => x.trim()).filter((x) => INDUSTRIES.some((i) => i.id === x)))];
 const refresh = () => revalidatePath("/admin/templates");
 const clean = (x: unknown, n: number) => String(x ?? "").replace(/[<>"]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
 
@@ -25,7 +28,7 @@ const looksReady = (code: string) => /export\s+(const|function)\s+Free\b/.test(c
 export async function createTemplate(form: FormData) {
   const me = await guard();
   const name = clean(form.get("name"), 60);
-  const tags = String(form.get("tags") ?? "").split(/[,،]/).map((t) => clean(t, 24)).filter(Boolean).slice(0, 8);
+  const tags = fieldIds(form.get("tags"));
   let code = String(form.get("code") ?? "");
   const file = form.get("file");
   if (!code.trim() && file instanceof File && file.size > 0 && file.size < 400_000) code = await file.text();
@@ -86,7 +89,7 @@ export async function setTags(form: FormData) {
   await guard();
   const id = String(form.get("id") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(id)) return;
-  const tags = [...new Set(String(form.get("tags") ?? "").split(/[,،]/).map((t) => clean(t, 24)).filter(Boolean))].slice(0, 8);
+  const tags = fieldIds(form.get("tags"));
   await createAdminClient().from("free_templates").update({ tags, updated_at: new Date().toISOString() }).eq("id", id);
   refresh();
 }
