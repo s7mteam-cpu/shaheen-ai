@@ -27,7 +27,11 @@ export async function POST(req: Request) {
   const fields = (inp.free.fields ?? []).map((f) => ({ ...f, value: asked.has(f.key) ? asked.get(f.key)! : f.value }));
   const blocked = await guardContent(user.id, fields.map((f) => f.value).join(" "), "free-motion-edit");
   if (blocked) return blocked;
-  const next = { ...job.input, mode: "rerender", editError: null, free: { ...inp.free, fields }, colors: cleanColors(b.colors), font: FONTS.includes(String(b.font)) ? String(b.font) : "Cairo", contact: cleanContact(b.contact) };
+  const oldN = (inp.free as { vo?: { sentences?: string[] } }).vo?.sentences ?? [];
+  const newN = Array.isArray(b.narration) && b.narration.length === oldN.length ? b.narration.map((x) => String(x ?? "").replace(/[<>"]/g, "").replace(/\s+/g, " ").trim().slice(0, 220)) : null; // same number of sentences, so the picture keeps following the voice
+  if (newN && newN.some((x) => !x)) return NextResponse.json({ error: "جملة التعليق ما تنفع فاضية." }, { status: 400 });
+  if (newN) { const g2 = await guardContent(user.id, newN.join(" "), "free-motion-edit"); if (g2) return g2; }
+  const next = { ...job.input, mode: "rerender", editError: null, ...(newN ? { narration: newN } : {}), free: { ...inp.free, fields }, colors: cleanColors(b.colors), font: FONTS.includes(String(b.font)) ? String(b.font) : "Cairo", contact: cleanContact(b.contact) };
   const { error } = await admin.from("jobs").update({ status: "queued", progress: 0, input: next, updated_at: new Date().toISOString() }).eq("id", job.id).eq("status", "done");
   if (error) return NextResponse.json({ error: "تعذّر بدء التعديل." }, { status: 500 });
   return NextResponse.json({ ok: true });

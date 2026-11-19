@@ -4,11 +4,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Progress } from "@/components/app/Progress";
 import { BRANDS, type BrandId } from "@/remotion/brandIcons";
+import { GULF_DIALECTS, myDialect } from "@/lib/countries";
+import { VOICE_TYPES } from "@/lib/voiceMatch";
 
 type Field = { key: string; label: string; value: string };
 type Contact = { icon: BrandId; handle: string };
 type Colors = { bg: string; accent: string; text: string };
-type Done = { status: "done"; title: string; video: string; aspect: string; seconds: number; idea: string; editError: string; fields: Field[]; colors: Colors; font: string; contact: Contact[]; brand: string };
+type Done = { status: "done"; voiceover: boolean; narration: string[]; title: string; video: string; aspect: string; seconds: number; idea: string; editError: string; fields: Field[]; colors: Colors; font: string; contact: Contact[]; brand: string };
 type State = Done | { status: "queued" | "running"; progress: number; rerender?: boolean } | { status: "failed"; error: string };
 
 const sizes = [["9:16", "📱 ريلز 9:16"], ["16:9", "▶️ يوتيوب 16:9"], ["1:1", "⬜ مربع 1:1"], ["4:5", "🖼️ طولي 4:5"]] as const;
@@ -27,6 +29,12 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
   const [colors, setColors] = useState<Colors>({ bg: "#0B2A4A", accent: "#E8B44C", text: "#FFFFFF" });
   const [font, setFont] = useState("Cairo");
   const [contact, setContact] = useState<Contact[]>([]);
+  const [voiceover, setVoiceover] = useState(true);
+  const [dialect, setDialect] = useState("kuwaiti");
+  useEffect(() => { setDialect(myDialect()); }, []);
+  const [vtype, setVtype] = useState("auto");
+  const [withMusic, setWithMusic] = useState(true);
+  const [narr, setNarr] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<State | null>(null);
@@ -50,7 +58,7 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
     setState(d);
     if (d.status === "done" && loaded.current !== jobId) { // the signed video link changes on every request: load the editor once per job, never on each poll
       loaded.current = jobId;
-      setFields(d.fields); setEcolors(d.colors); setEfont(d.font); setEcontact(d.contact); setSimIdea(d.idea);
+      setFields(d.fields); setNarr(d.narration ?? []); setEcolors(d.colors); setEfont(d.font); setEcontact(d.contact); setSimIdea(d.idea);
     }
   }, [jobId]);
   useEffect(() => {
@@ -62,7 +70,7 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
 
   async function start(e: React.FormEvent, from?: string) {
     e.preventDefault(); setBusy(true); setError(null);
-    const body = from ? { idea: simIdea, aspect: (state as Done).aspect, seconds: (state as Done).seconds, brand: (state as Done).brand, colors: ecolors, font: efont, contact: econtact, fromJob: from } : { idea, aspect, seconds, brand, colors, font, contact };
+    const body = from ? { idea: simIdea, aspect: (state as Done).aspect, seconds: (state as Done).seconds, brand: (state as Done).brand, colors: ecolors, font: efont, contact: econtact, fromJob: from, voiceover: (state as Done).voiceover, dialect, vtype, music: withMusic } : { idea, aspect, seconds, brand, colors, font, contact, voiceover, dialect, vtype, music: withMusic };
     const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
@@ -73,7 +81,7 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
   }
   async function apply() {
     setBusy(true); setError(null);
-    const r = await fetch("/api/free-motion/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job: jobId, fields, colors: ecolors, font: efont, contact: econtact }) });
+    const r = await fetch("/api/free-motion/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job: jobId, fields, narration: narr, colors: ecolors, font: efont, contact: econtact }) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setError(d.error ?? L("تعذّر التعديل.")); return; }
@@ -101,7 +109,7 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
   );
 
   if (jobId && state && state.status !== "done" && state.status !== "failed") {
-    return <div className="card max-w-2xl p-6"><Progress value={state.progress || 5} label={state.rerender ? L("شاهين يطبّق تعديلاتك…") : L("شاهين يصمّم ويرسم فكرتك… (دقيقتين إلى خمس)")} /><p className="mt-3 text-[13px] text-subtle">{L("تقدر تطلع من الصفحة، تلقاه بـ«أعمالي» لما يخلص.")}</p></div>;
+    return <div className="card max-w-2xl p-6"><Progress value={state.progress || 5} label={state.rerender ? L("شاهين يطبّق تعديلاتك…") : L("شاهين يصمّم ويرسم فكرتك… (ثلاث إلى ست دقايق)")} /><p className="mt-3 text-[13px] text-subtle">{L("تقدر تطلع من الصفحة، تلقاه بـ«أعمالي» لما يخلص.")}</p></div>;
   }
   if (jobId && state?.status === "failed") {
     return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p><button onClick={() => router.replace("/app/tools/free-motion")} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
@@ -119,6 +127,13 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
               <span className="font-semibold">{L("النصوص")}</span>
               {fields.map((f, i) => <label key={f.key} className="flex flex-col gap-1 text-[13px] text-subtle">{f.label}<input value={f.value} maxLength={200} onChange={(e) => setFields(fields.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} className="field text-[15px] text-ink" /></label>)}
             </div>
+            {d.voiceover && narr.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <span className="font-semibold">{L("التعليق الصوتي")}</span>
+                {narr.map((n, i) => <textarea key={i} rows={2} maxLength={220} value={n} onChange={(e) => setNarr(narr.map((x, j) => (j === i ? e.target.value : x)))} className="field text-[14px]" />)}
+                <span className="text-[12px] text-subtle">{L("إذا غيّرت جملة، الصوت ينسجّل من جديد (يأخذ دقيقة تقريباً). عدد الجمل ثابت عشان الصورة تمشي مع الصوت.")}</span>
+              </div>
+            )}
             <div className="flex flex-col gap-2"><span className="font-semibold">{L("الألوان")}</span>{colorRow(ecolors, true)}</div>
             <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={efont} onChange={(e) => setEfont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
             <div className="flex flex-col gap-2"><span className="font-semibold">{L("حسابات التواصل")}</span>{contactRow(econtact, setEcontact)}</div>
@@ -144,6 +159,14 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("اسم النشاط (اختياري)")}</span><input value={brand} onChange={(e) => setBrand(e.target.value)} maxLength={60} className="field" /></label>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span><div className="flex flex-wrap gap-2">{sizes.map(([v, l]) => <button key={v} type="button" aria-pressed={aspect === v} onClick={() => setAspect(v)} className="chip">{L(l)}</button>)}</div></div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span><div className="flex gap-2">{[15, 30].map((s) => <button key={s} type="button" aria-pressed={seconds === s} onClick={() => setSeconds(s)} className="chip">{s} {L("ثانية")}</button>)}</div></div>
+      <div className="flex flex-col gap-3 rounded-xl border p-4">
+        <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} />{L("تعليق صوتي (والصورة تمشي مع الكلام)")}</label>
+        {voiceover && (<>
+          <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => setDialect(e.target.value)} className="field w-48">{GULF_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-[14px]">{L("الصوت")}<select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field w-48">{VOICE_TYPES.map(([v, l]) => <option key={v} value={v}>{L(l)}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} />{L("موسيقى هادية بالخلفية")}</label>
+        </>)}
+      </div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("ألوان هويتك")}</span>{colorRow(colors, false)}</div>
       <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("حسابات التواصل (اختياري)")}</span>{contactRow(contact, setContact)}</div>

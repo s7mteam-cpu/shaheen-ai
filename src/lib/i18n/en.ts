@@ -1853,4 +1853,9 @@ export const EN: Record<string, string> = {
   "▶️ يوتيوب 16:9": "▶️ YouTube 16:9",
   "⬜ مربع 1:1": "⬜ Square 1:1",
   "🖼️ طولي 4:5": "🖼️ Portrait 4:5",
+  "تعليق صوتي (والصورة تمشي مع الكلام)": "Voice-over (the visuals follow the speech)",
+  "اللهجة": "Dialect",
+  "موسيقى هادية بالخلفية": "Soft background music",
+  "إذا غيّرت جملة، الصوت ينسجّل من جديد (يأخذ دقيقة تقريباً). عدد الجمل ثابت عشان الصورة تمشي مع الصوت.": "If you change a sentence the voice is re-recorded (about a minute). The number of sentences is fixed so the visuals stay in sync.",
+  "شاهين يصمّم ويرسم فكرتك… (ثلاث إلى ست دقايق)": "Shaheen is designing and rendering your idea… (3–6 minutes)",
 };

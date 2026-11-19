@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/server/auth";
 import { guardContent } from "@/lib/server/moderation";
 import { signedResultUrls } from "@/lib/providers/storage";
 import { FREE_FONTS, cleanColors, cleanContact } from "@/lib/server/freeMotion";
+import { DIALECT_NAME, pickVoice, typeToGA, type VoiceItem } from "@/lib/voiceMatch";
 
 export const maxDuration = 30;
 const ASPECTS = ["9:16", "16:9", "1:1", "4:5"];
@@ -34,8 +35,19 @@ export async function POST(req: Request) {
     if (!f?.code) return NextResponse.json({ error: "ما لقينا التصميم الأصلي." }, { status: 404 });
     free = f;
   }
+  // the narrator: the best registered voice for the dialect / gender / age the customer asked for
+  const wantVoice = b.voiceover !== false;
+  let voice: { id: string; model?: string; settings?: unknown } | null = null;
+  const dialect = typeof b.dialect === "string" && b.dialect in DIALECT_NAME ? b.dialect : "kuwaiti";
+  if (wantVoice) {
+    const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
+    const voices = ((vc?.value as { items?: VoiceItem[] })?.items ?? []);
+    const { gender, age } = typeToGA(String(b.vtype ?? "auto"));
+    const v = voices.some((x) => x.id === b.voice) ? voices.find((x) => x.id === b.voice) : pickVoice(voices, { dialect, gender, age });
+    if (v) voice = { id: v.id, ...(v.model ? { model: v.model } : {}), ...(v.settings ? { settings: v.settings } : {}) };
+  }
   const cost = from ? tool.edit_cost ?? 8 : Math.max(1, Math.round(seconds / 15)) * tool.credit_cost;
-  const input = { kind: "free", mode: from ? "similar" : "new", idea, aspect, seconds, brand: { name: String(b.brand ?? "").slice(0, 60) }, colors: cleanColors(b.colors), font: FONTS.includes(String(b.font)) ? String(b.font) : "Cairo", contact: cleanContact(b.contact), ...(free ? { free } : {}), ...(typeof b.logoPath === "string" && b.logoPath.startsWith(`${user.id}/`) && !b.logoPath.includes("..") ? { logoPath: b.logoPath } : {}) };
+  const input = { kind: "free", mode: from ? "similar" : "new", voiceover: !!voice, voice, dialect, dialectLabel: DIALECT_NAME[dialect], music: b.music !== false, idea, aspect, seconds, brand: { name: String(b.brand ?? "").slice(0, 60) }, colors: cleanColors(b.colors), font: FONTS.includes(String(b.font)) ? String(b.font) : "Cairo", contact: cleanContact(b.contact), ...(free ? { free } : {}), ...(typeof b.logoPath === "string" && b.logoPath.startsWith(`${user.id}/`) && !b.logoPath.includes("..") ? { logoPath: b.logoPath } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: "free-motion", title: idea.slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء التصميم." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
@@ -53,12 +65,12 @@ export async function GET(req: Request) {
   if (!job) return NextResponse.json({ error: "ما لقينا الطلب." }, { status: 404 });
   if (job.status === "failed") return NextResponse.json({ status: "failed", error: "ما قدرنا نكمل هذا التصميم. تم إرجاع ريشك، جرّب فكرة أبسط أو القوالب الجاهزة." });
   if (job.status !== "done") return NextResponse.json({ status: job.status, progress: job.progress ?? 0, rerender: (job.input as { mode?: string })?.mode === "rerender" });
-  const inp = (job.input ?? {}) as { free?: { fields?: unknown[]; title?: string }; colors?: unknown; font?: string; contact?: unknown; aspect?: string; seconds?: number; idea?: string; editError?: string; brand?: { name?: string } };
+  const inp = (job.input ?? {}) as { voiceover?: boolean; free?: { fields?: unknown[]; title?: string; vo?: { sentences?: string[] } }; colors?: unknown; font?: string; contact?: unknown; aspect?: string; seconds?: number; idea?: string; editError?: string; brand?: { name?: string } };
   const out = (job.output ?? {}) as { files?: { path: string }[]; thumb?: string };
   const paths = [out.files?.[0]?.path, out.thumb].filter((x): x is string => !!x && x.startsWith(`${user.id}/`));
   const urls = await signedResultUrls(paths, 60 * 60 * 3);
   return NextResponse.json({
-    status: "done", title: job.title, video: urls[0] ?? "", aspect: inp.aspect ?? "9:16", seconds: inp.seconds ?? 15, idea: inp.idea ?? "", editError: inp.editError ? "تعذّر تطبيق التعديل، وبقي الفيديو السابق." : "",
+    status: "done", title: job.title, voiceover: !!inp.voiceover, narration: Array.isArray(inp.free?.vo?.sentences) ? inp.free!.vo!.sentences : [], video: urls[0] ?? "", aspect: inp.aspect ?? "9:16", seconds: inp.seconds ?? 15, idea: inp.idea ?? "", editError: inp.editError ? "تعذّر تطبيق التعديل، وبقي الفيديو السابق." : "",
     fields: Array.isArray(inp.free?.fields) ? inp.free!.fields : [], colors: cleanColors(inp.colors), font: inp.font ?? "Cairo", contact: cleanContact(inp.contact), brand: inp.brand?.name ?? "",
   });
 }
