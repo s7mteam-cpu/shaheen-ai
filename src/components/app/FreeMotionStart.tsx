@@ -62,7 +62,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { cos
   }, [jobId, poll]);
 
   async function startFrom(ideaText: string, opts: { dialect: string; vtype: string; music: boolean }, from: string): Promise<string | null> {
-    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea: ideaText, aspect: studio?.aspect ?? "9:16", seconds: 15, brand: studio?.brand ?? "", colors: studio?.colors, font: studio?.font, contact: studio?.contact, fromJob: from, voiceover: studio?.voiceover, dialect: opts.dialect, vtype: opts.vtype, music: opts.music }) });
+    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea: ideaText, aspect: studio?.aspect ?? "9:16", seconds: [15, 30, 60, 120].reduce((a, c) => (Math.abs(c - (studio?.cseconds ?? 15)) < Math.abs(a - (studio?.cseconds ?? 15)) ? c : a), 15), brand: studio?.brand ?? "", colors: studio?.colors, font: studio?.font, contact: studio?.contact, fromJob: from, voiceover: studio?.voiceover, dialect: opts.dialect, vtype: opts.vtype, music: opts.music }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) return d.error ?? L("تعذّر البدء.");
     router.replace(`/app/tools/free-motion?job=${d.jobId}`);
@@ -113,7 +113,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { cos
         <textarea required minLength={10} maxLength={1500} rows={5} value={idea} onChange={(e) => setIdea(e.target.value)} className="field" placeholder={L("مثال: إعلان لمطعم مندي بالكويت، افتتاح فرع جديد، خصم 20% أول أسبوع، أجواء فخمة بالذهبي…")} /></label>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("اسم النشاط (اختياري)")}</span><input value={brand} onChange={(e) => setBrand(e.target.value)} maxLength={60} className="field" /></label>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span><div className="flex flex-wrap gap-2">{sizes.map(([v, l]) => <button key={v} type="button" aria-pressed={aspect === v} onClick={() => setAspect(v)} className="chip">{L(l)}</button>)}</div></div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span><div className="flex gap-2">{[15, 30].map((s) => <button key={s} type="button" aria-pressed={seconds === s} onClick={() => setSeconds(s)} className="chip">{s} {L("ثانية")}</button>)}</div></div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span><div className="flex gap-2">{([[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"], [120, "دقيقتين"]] as const).map(([s, l]) => <button key={s} type="button" aria-pressed={seconds === s} onClick={() => setSeconds(s)} className="chip">{L(l)}</button>)}</div></div>
       <div className="flex flex-col gap-3 rounded-xl border p-4">
         <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} />{L("تعليق صوتي (والصورة تمشي مع الكلام)")}</label>
         {voiceover && (<>

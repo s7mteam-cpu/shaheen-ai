@@ -29,27 +29,52 @@ export function checkFreeCode(code) {
   return "";
 }
 
+/** The TSX of the host: plays every chapter (an AI-written component each) one after another and lays the customer's logo above them.
+ *  Chapter k starts when its first narration sentence (b0) starts, so the picture follows the voice. Shared by the render and the live preview. */
+export function hostTsx(chapters) {
+  return `import React from "react";
+import { Sequence } from "remotion";
+${chapters.map((_, i) => `import * as M${i} from "./Free${i}";`).join("\n")}
+const FS: any[] = [${chapters.map((_, i) => `(M${i} as any).Free ?? (M${i} as any).default`).join(", ")}];
+const B0: number[] = ${JSON.stringify(chapters.map((c) => c.b0 ?? 0))};
+const N = B0.length;
+function layout(p: any) {
+  const total = Math.round((p.seconds || 15) * 30);
+  const beats = p.beats || [];
+  const starts = B0.map((b, i) => (i === 0 ? 0 : beats.length ? Math.round(beats[Math.min(b, beats.length - 1)].start * 30) : Math.round((i * total) / N)));
+  return starts.map((s, i) => ({ from: s, frames: Math.max(30, (i < N - 1 ? starts[i + 1] : total) - s) }));
+}
+export const Host = (p: any) => {
+  const L = layout(p);
+  return (<>
+    {L.map((c, i) => {
+      const F = FS[i];
+      const t = N === 1 ? p.t : Object.fromEntries(Object.entries(p.t || {}).filter(([k]) => k.startsWith("c" + i + "_")).map(([k, v]) => [k.slice(("c" + i + "_").length), v]));
+      const beats = (p.beats || []).slice(B0[i], i < N - 1 ? B0[i + 1] : undefined).map((b: any) => ({ ...b, start: +(b.start - c.from / 30).toFixed(2), end: +(b.end - c.from / 30).toFixed(2) }));
+      return <Sequence key={i} from={c.from} durationInFrames={c.frames}><F {...p} t={t} beats={beats} seconds={c.frames / 30} /></Sequence>;
+    })}
+    {p.logoOn && p.logo ? <img src={p.logo} style={{ position: "absolute", left: (p.logoBox?.x ?? 0.85) * 100 + "%", top: (p.logoBox?.y ?? 0.09) * 100 + "%", width: (p.logoBox?.w ?? 0.18) * 100 + "%", transform: "translate(-50%, -50%)", objectFit: "contain" }} /> : null}
+  </>);
+};
+`;
+}
+
 const CSP = (media) => `default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: ${media}; media-src 'self' data: blob: ${media}; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`;
 
 /** Bundles the code once (CSP injected) and gives back render helpers: a check still, the full video, and a cleanup. */
-export async function prepareFree({ code, width, height, fps = 30, seconds, workDir, brandFile, fontCss = [], mediaOrigin = "", browserExecutable, timeoutMs = 240_000, unsafeSkipCheckForTests = false }) {
-  const why = unsafeSkipCheckForTests ? "" : checkFreeCode(code);
-  if (why) throw new Error(`unsafe code: ${why}`);
+export async function prepareFree({ code, chapters, width, height, fps = 30, seconds, workDir, brandFile, fontCss = [], mediaOrigin = "", browserExecutable, timeoutMs = 240_000, unsafeSkipCheckForTests = false }) {
+  const chs = chapters?.length ? chapters : [{ code, b0: 0 }];
+  for (const c of chs) { const why = unsafeSkipCheckForTests ? "" : checkFreeCode(c.code); if (why) throw new Error(`unsafe code: ${why}`); }
   const dir = fs.mkdtempSync(path.join(workDir, "free-"));
   const cleanup = () => fs.rmSync(dir, { recursive: true, force: true });
   try {
-    fs.writeFileSync(path.join(dir, "Free.tsx"), code);
+    chs.forEach((c, i) => fs.writeFileSync(path.join(dir, `Free${i}.tsx`), c.code));
     fs.writeFileSync(path.join(dir, "brand.ts"), fs.readFileSync(brandFile, "utf8"));
+    fs.writeFileSync(path.join(dir, "host.tsx"), hostTsx(chs));
     fs.writeFileSync(path.join(dir, "index.tsx"), `import React from "react";
 import { Composition, registerRoot } from "remotion";
 ${fontCss.map((f) => `import "${f}";`).join("\n")}
-import * as M from "./Free";
-const F = (M as any).Free ?? (M as any).default;
-// the logo is laid over the design by the host (same as the motion studio): centre x/y and width as fractions of the frame
-const C = (p: any) => (<>
-  <F {...p} />
-  {p.logoOn && p.logo ? <img src={p.logo} style={{ position: "absolute", left: (p.logoBox?.x ?? 0.85) * 100 + "%", top: (p.logoBox?.y ?? 0.09) * 100 + "%", width: (p.logoBox?.w ?? 0.18) * 100 + "%", transform: "translate(-50%, -50%)", objectFit: "contain" }} /> : null}
-</>);
+import { Host as C } from "./host";
 registerRoot(() => <Composition id="Free" component={C} durationInFrames={${Math.round(seconds * fps)}} fps={${fps}} width={${width}} height={${height}} defaultProps={{}} />);
 `);
     const serveUrl = await bundle({ entryPoint: path.join(dir, "index.tsx"), outDir: path.join(dir, "out") });

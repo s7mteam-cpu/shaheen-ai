@@ -6,13 +6,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
-import { checkFreeCode } from "./free.mjs";
+import { checkFreeCode, hostTsx } from "./free.mjs";
 
 const ENTRY = `
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { Player } from "@remotion/player";
-import { Free } from "./Free";
+import { Host } from "./host";
 const W = __W__, H = __H__;
 const App = () => {
   const [props, setProps] = React.useState({ t: {}, colors: { bg: "#000", accent: "#fff", text: "#fff" }, font: "Cairo", contact: [], logo: "", beats: [], seconds: 15 });
@@ -38,19 +38,19 @@ const App = () => {
     pl.addEventListener("frameupdate", (e) => window.parent.postMessage({ type: "frame", frame: e.detail.frame }, "*"));
     pl.addEventListener("play", p); pl.addEventListener("pause", s); pl.addEventListener("ended", s);
   }, []);
-  const Host = React.useCallback((p) => React.createElement(React.Fragment, null, React.createElement(Free, p), p.logoOn && p.logo ? React.createElement("img", { src: p.logo, style: { position: "absolute", left: ((p.logoBox && p.logoBox.x) || 0.85) * 100 + "%", top: ((p.logoBox && p.logoBox.y) || 0.09) * 100 + "%", width: ((p.logoBox && p.logoBox.w) || 0.18) * 100 + "%", transform: "translate(-50%, -50%)", objectFit: "contain" } }) : null), []);
   return React.createElement(Player, { ref, component: Host, inputProps: props, durationInFrames: Math.max(30, Math.round((props.seconds || 15) * 30)), compositionWidth: W, compositionHeight: H, fps: 30, controls: false, loop: true, clickToPlay: false, acknowledgeRemotionLicense: true, style: { width: "100%", height: "100%" } });
 };
 createRoot(document.getElementById("root")).render(React.createElement(App));
 `;
 
 /** fonts: [{family, weight, file}] woff2 files embedded as data URLs. mediaOrigin: where the logo may be loaded from. */
-export async function buildPreview({ code, width, height, brandFile, fonts = [], mediaOrigin = "" }) {
-  const bad = checkFreeCode(code);
-  if (bad) throw new Error(`preview: ${bad}`);
+export async function buildPreview({ code, chapters, width, height, brandFile, fonts = [], mediaOrigin = "" }) {
+  const chs = chapters?.length ? chapters : [{ code, b0: 0 }];
+  for (const c of chs) { const bad = checkFreeCode(c.code); if (bad) throw new Error(`preview: ${bad}`); }
   const dir = await mkdtemp(join(tmpdir(), "freeprev-"));
   try {
-    await writeFile(join(dir, "Free.tsx"), code);
+    for (const [i, c] of chs.entries()) await writeFile(join(dir, `Free${i}.tsx`), c.code);
+    await writeFile(join(dir, "host.tsx"), hostTsx(chs));
     await copyFile(brandFile, join(dir, "brand.ts"));
     await writeFile(join(dir, "entry.tsx"), ENTRY.replace("__W__", String(width)).replace("__H__", String(height)));
     const out = await build({

@@ -1860,4 +1860,5 @@ export const EN: Record<string, string> = {
   "شاهين يصمّم ويرسم فكرتك… (ثلاث إلى ست دقايق)": "Shaheen is designing and rendering your idea… (3–6 minutes)",
   "الوقت": "Time",
   "الهاتف": "Phone",
+
 };

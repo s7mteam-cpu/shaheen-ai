@@ -770,7 +770,20 @@ function previewFonts() {
   }
   return out;
 }
-const compSeconds = (inp, vo) => (vo ? Math.max(8, Math.min(70, Math.ceil(vo.duration + 1.2))) : Math.max(8, Math.min(30, Number(inp.seconds) || 15)));
+const compSeconds = (inp, vo) => (vo ? Math.max(8, Math.min(135, Math.ceil(vo.duration + 1.2))) : Math.max(8, Math.min(120, Number(inp.seconds) || 15)));
+const chaptersOf = (free) => (free?.chapters?.length ? free.chapters : [{ code: free?.code ?? "", b0: 0 }]);
+const chapterCount = (secs) => Math.max(1, Math.min(4, Math.ceil(secs / 32)));
+/** first beat of each chapter: chapters of about equal length, always on a sentence start */
+function splitBeats(beats, n) {
+  const b0 = [0];
+  const total = beats.length ? beats[beats.length - 1].end : 0;
+  for (let k = 1; k < n; k++) {
+    const target = (total * k) / n; let best = b0[b0.length - 1] + 1, d = Infinity;
+    for (let i = b0[b0.length - 1] + 1; i < beats.length - (n - k); i++) { const dd = Math.abs(beats[i].start - target); if (dd < d) { d = dd; best = i; } }
+    b0.push(Math.min(best, Math.max(1, beats.length - (n - k))));
+  }
+  return b0;
+}
 
 /** «تصميم مبتكر». new/similar/revoice end WITHOUT rendering a video: the design is played live in the customer's page. Only "export" renders the mp4. */
 async function freeJob(job) {
@@ -792,7 +805,7 @@ async function freeJob(job) {
     let free = inp.free && inp.free.code ? inp.free : null; // {title, fields, code, vo, previewPath}
     let vo = free?.vo ?? null; // {path, beats, sentences, duration, musicPath, musicSecs}
     const wantVo = inp.voiceover !== false && !!inp.voice?.id;
-    const prepOpts = (code) => ({ code, width: W, height: H, seconds, workDir, brandFile, fontCss: FREE_FONTS, mediaOrigin });
+    const prepOpts = (chapters) => ({ chapters, width: W, height: H, seconds, workDir, brandFile, fontCss: FREE_FONTS, mediaOrigin });
     const logoBox = inp.logoBox && typeof inp.logoBox === "object" ? { x: Math.min(0.97, Math.max(0.03, +inp.logoBox.x || 0.85)), y: Math.min(0.97, Math.max(0.03, +inp.logoBox.y || 0.09)), w: Math.min(0.7, Math.max(0.06, +inp.logoBox.w || 0.18)) } : { x: 0.85, y: 0.09, w: 0.18 };
     const propsOf = (fields) => ({ t: Object.fromEntries((fields ?? []).map((f) => [f.key, f.value])), colors, font, contact, logo, logoOn: !!logo && inp.logoOn !== false, logoBox, beats: vo?.beats ?? [], seconds });
     const fit = () => { seconds = compSeconds(inp, vo); };
@@ -813,7 +826,7 @@ async function freeJob(job) {
     // ---------- export: draw the finished mp4 from what the customer saved ----------
     if (mode === "export") {
       if (!free) throw new Error("export: no design");
-      fit(); prep = await prepareFree(prepOpts(free.code)); await setProgress(job.id, 12);
+      fit(); prep = await prepareFree(prepOpts(chaptersOf(free))); await setProgress(job.id, 12);
       const outFile = join(workDir, `out-${job.id}.mp4`);
       let last = 0;
       await prep.video(propsOf(free.fields), outFile, (pr) => { const v = 12 + pr * 78; if (v - last >= 4) { last = v; setProgress(job.id, v); } });
@@ -865,38 +878,72 @@ async function freeJob(job) {
       vo = await buildVoice(job, base, await writeNarration({ idea: inp.idea, brand: inp.brand, seconds, dialectLabel: inp.dialectLabel, count: 0 }), inp.voice); fit();
       if (inp.music !== false) musicP = makeMusic("upbeat modern promo background music, warm and catchy", seconds + 3).catch((e) => { console.error("free music skipped", e?.message ?? e); return null; });
     }
-    let prev = null, lastErr = "", fallback = null;
-    for (let attempt = 0; attempt < 2 && !prep; attempt++) {
-      let shown = attempt ? 45 : 8; // the writing takes minutes: the bar creeps forward so the customer sees it is alive
-      const tick = setInterval(() => { shown = Math.min(shown + 2, attempt ? 58 : 38); setProgress(job.id, shown); }, 8000);
-      let g;
-      try { g = await generateFree({ idea: inp.idea, aspect: inp.aspect, seconds, brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: vo?.beats }); } finally { clearInterval(tick); }
-      await setProgress(job.id, attempt ? 55 : 40);
-      const why = g.fields.length >= 3 ? checkFreeCode(g.code) : "fields";
-      if (why) { lastErr = g.cut ? "answer cut off (too long)" : why; prev = { code: g.cut ? "" : g.code, error: why === "size" || g.cut ? "your answer was CUT OFF because it was too long. Write a MUCH shorter and simpler design: under 14000 characters in total, fewer scenes, small reusable components, no long repeated SVG paths." : `static check: ${why}` }; continue; }
-      let p;
-      try {
-        p = await prepareFree(prepOpts(g.code));
-        await p.still(propsOf(g.fields), Math.round(seconds * 30 * 0.5), join(workDir, `chk-${job.id}.png`));
-      } catch (e) { p?.cleanup(); lastErr = String(e?.message ?? e).slice(0, 400); prev = { code: g.code, error: lastErr }; continue; }
-      if (attempt === 0) { // an art-director pass: four frames are looked at; oversized text/icons, overflow or clutter send the design back once
-        try {
-          const shots = [];
-          for (const [i, f] of [0.1, 0.35, 0.6, 0.9].entries()) { const fp = join(workDir, `rv-${job.id}-${i}.png`); await p.still(propsOf(g.fields), Math.round(seconds * 30 * f), fp); shots.push(await readFile(fp)); await rm(fp, { force: true }); }
-          const r = await reviewFree({ frames: shots, aspect: inp.aspect, idea: inp.idea });
-          if (!r.ok && r.issues) { p.cleanup(); fallback = g; prev = { code: g.code, error: `visual review by the art director: ${r.issues}` }; await setProgress(job.id, 50); continue; }
-        } catch (e) { console.error("free review skipped", e?.message ?? e); }
+    // chapters: a long video is written as several short designs at the same time (faster, and each one stays small)
+    const n = vo ? Math.min(chapterCount(seconds), Math.max(1, Math.floor(vo.beats.length / 2))) : chapterCount(seconds);
+    const b0s = vo ? (n > 1 ? splitBeats(vo.beats, n) : [0]) : Array.from({ length: n }, (_, i) => i);
+    const t0 = (i) => (i === 0 ? 0 : vo ? vo.beats[b0s[i]].start : (i * seconds) / n), t1 = (i) => (i < n - 1 ? (vo ? vo.beats[b0s[i + 1]].start : ((i + 1) * seconds) / n) : seconds);
+    const secs = (i) => Math.max(4, Math.round((n > 1 ? t1(i) - t0(i) : seconds) * 10) / 10);
+    const localBeats = (i) => (vo ? vo.beats.slice(b0s[i], i < n - 1 ? b0s[i + 1] : undefined).map((b) => ({ ...b, start: +(b.start - t0(i)).toFixed(2), end: +(b.end - t0(i)).toFixed(2) })) : undefined);
+    let shown = 8;
+    const tick = setInterval(() => { shown = Math.min(shown + 1.5, 55); setProgress(job.id, shown); }, 8000);
+    const writeChapter = async (i, prevTry) => {
+      let prev = prevTry ?? null, last = "";
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const g = await generateFree({ idea: inp.idea, aspect: inp.aspect, seconds: secs(i), brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: localBeats(i), chapter: { i, n } });
+        const why = g.fields.length >= 3 ? checkFreeCode(g.code) : "fields";
+        if (!why) return { ...g, b0: b0s[i] };
+        last = g.cut ? "answer cut off (too long)" : why;
+        prev = { code: g.cut ? "" : g.code, error: why === "size" || g.cut ? "your answer was CUT OFF because it was too long. Write a MUCH shorter and simpler design: under 14000 characters in total, fewer scenes, small reusable components, no long repeated SVG paths." : `static check: ${why}` };
       }
-      prep = p; free = { title: g.title, fields: g.fields, code: g.code };
+      throw new Error(`free design failed (chapter ${i + 1}): ${last}`);
+    };
+    let parts;
+    try { parts = await Promise.all(Array.from({ length: n }, (_, i) => writeChapter(i))); } finally { clearInterval(tick); }
+    await setProgress(job.id, 58);
+    const merge = (ps) => ({ title: ps[0].title, chapters: ps.map((g) => ({ code: g.code, b0: g.b0 })), code: ps[0].code, fields: n === 1 ? ps[0].fields : ps.flatMap((g, i) => g.fields.map((f) => ({ ...f, key: `c${i}_${f.key}`, label: `الفصل ${i + 1}: ${f.label}` }))) });
+    // compile once, draw a frame from the middle of every chapter; a chapter whose code crashes is written again (with the error) and compiled again
+    const checkAll = async (ps) => {
+      const bad = []; const f0 = merge(ps);
+      prep?.cleanup(); prep = await prepareFree(prepOpts(f0.chapters));
+      for (let i = 0; i < n; i++) {
+        try { await prep.still(propsOf(f0.fields), Math.round((n > 1 ? (t0(i) + t1(i)) / 2 : seconds / 2) * 30), join(workDir, `chk-${job.id}.png`)); }
+        catch (e) { bad.push([i, String(e?.message ?? e).slice(0, 400)]); }
+      }
+      return bad;
+    };
+    let bad = await checkAll(parts);
+    if (bad.length) {
+      await setProgress(job.id, 62);
+      for (const [i, why] of bad) parts[i] = await writeChapter(i, { code: parts[i].code, error: `it failed when drawn: ${why}` });
+      bad = await checkAll(parts);
+      if (bad.length) throw new Error(`free design failed: ${bad[0][1]}`);
     }
-    if (!prep && fallback) { prep = await prepareFree(prepOpts(fallback.code)); free = { title: fallback.title, fields: fallback.fields, code: fallback.code }; } // the first design worked, only the art director disliked it: better than nothing
-    if (!prep) throw new Error(`free design failed: ${lastErr}`);
+    // art director: three frames of every chapter; a chapter with oversized text/icons, overflow or clutter is written once more
+    try {
+      const f0 = merge(parts);
+      const verdicts = await Promise.all(Array.from({ length: n }, async (_, i) => {
+        const shots = [];
+        for (const [k, f] of [0.15, 0.5, 0.85].entries()) { const fp = join(workDir, `rv-${job.id}-${i}-${k}.png`); await prep.still(propsOf(f0.fields), Math.round((t0(i) + (n > 1 ? t1(i) - t0(i) : seconds) * f) * 30), fp); shots.push(await readFile(fp)); await rm(fp, { force: true }); }
+        return reviewFree({ frames: shots, aspect: inp.aspect, idea: inp.idea }).catch(() => ({ ok: true }));
+      }));
+      const flagged = verdicts.map((v, i) => [v, i]).filter(([v]) => !v.ok && v.issues);
+      if (flagged.length) {
+        await setProgress(job.id, 66);
+        const old = [...parts];
+        try {
+          await Promise.all(flagged.map(async ([v, i]) => { parts[i] = await writeChapter(i, { code: parts[i].code, error: `visual review by the art director: ${v.issues}` }); }));
+          if ((await checkAll(parts)).length) { parts = old; await checkAll(parts); } // the rewrite crashed: keep the first version
+        } catch (e) { console.error("free rewrite skipped", e?.message ?? e); parts = old; await checkAll(parts); }
+      }
+    } catch (e) { console.error("free review skipped", e?.message ?? e); }
+    const merged = merge(parts);
+    free = { title: merged.title, fields: merged.fields, chapters: merged.chapters, code: merged.code };
     await setProgress(job.id, 75);
     const thumb = join(workDir, `th-${job.id}.png`);
-    await prep.still(propsOf(free.fields), Math.round(seconds * 30 * 0.4), thumb).catch(() => {});
+    await prep.still(propsOf(free.fields), Math.round(seconds * 30 * (n > 1 ? 0.12 : 0.4)), thumb).catch(() => {});
     await ensureMusic(musicP);
     // the live page: one sandboxed HTML file
-    const html = await buildPreview({ code: free.code, width: W, height: H, brandFile, fonts: previewFonts(), mediaOrigin });
+    const html = await buildPreview({ chapters: chaptersOf(free), width: W, height: H, brandFile, fonts: previewFonts(), mediaOrigin });
     const previewPath = `${base}/preview-${crypto.randomUUID()}.html`;
     const pu = await db.storage.from("results").upload(previewPath, Buffer.from(html), { contentType: "text/html" });
     if (pu.error) throw new Error(`upload preview: ${pu.error.message}`);
