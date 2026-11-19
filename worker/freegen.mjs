@@ -30,7 +30,8 @@ DESIGN QUALITY (this is what the customer pays for)
 SIZE DISCIPLINE (the customer rejects oversized work). Let S = Math.min(width, height). Headline font 0.06*S to 0.085*S (never above 0.09*S), secondary text 0.032*S to 0.045*S, small captions never below 0.026*S. A single icon or logo tile is at most 0.16*S wide (social tiles at the end 0.09*S to 0.12*S); an illustration may be larger but must keep a 6% margin from every edge. Keep every text block inside a 8% side margin with maxWidth set, at most 3 lines per heading. No element may be cut by the screen edge unless it is a background shape. Check long Arabic lines: they wrap, so reserve vertical room.
 
 FIELDS: 6-16 fields covering every text on screen, with clear Arabic labels, values in the customer's dialect/Arabic written in clean spelling.
-HARD LIMIT: the whole code must stay under 20000 characters or the answer is cut off and lost. Be compact, reuse small helper components and loops instead of repeating markup.`;
+CARTOON CHARACTERS: build each character ONCE as a small component (<= 40 lines) from simple primitives (circles, ellipses, rounded rects, a few short paths with few coordinates), take props like mood/pose/x/y, and reuse it in every scene. Never paste long SVG path data, never copy the same character markup per scene. Flat colours, big readable shapes, simple smooth motion (translate/scale/rotate with interpolate/spring).
+HARD LIMIT: the whole code must stay under 14000 characters or the answer is cut off and lost. Be compact, reuse small helper components and loops instead of repeating markup.`;
 
 let lastStop = ""; // why the last answer ended ("max_tokens" = it was cut off)
 const text = (r) => { lastStop = r.stop_reason ?? ""; return (r.content ?? []).map((c) => c.text ?? "").join(""); };

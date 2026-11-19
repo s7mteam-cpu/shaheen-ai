@@ -772,7 +772,7 @@ function previewFonts() {
 }
 const compSeconds = (inp, vo) => (vo ? Math.max(8, Math.min(135, Math.ceil(vo.duration + 1.2))) : Math.max(8, Math.min(120, Number(inp.seconds) || 15)));
 const chaptersOf = (free) => (free?.chapters?.length ? free.chapters : [{ code: free?.code ?? "", b0: 0 }]);
-const chapterCount = (secs) => Math.max(1, Math.min(4, Math.ceil(secs / 32)));
+const chapterCount = (secs) => Math.max(1, Math.min(6, Math.ceil(secs / 22)));
 /** first beat of each chapter: chapters of about equal length, always on a sentence start */
 function splitBeats(beats, n) {
   const b0 = [0];
@@ -894,7 +894,7 @@ async function freeJob(job) {
         const why = g.fields.length >= 3 ? checkFreeCode(g.code) : "fields";
         if (!why) return { ...g, b0: b0s[i] };
         last = g.cut ? "answer cut off (too long)" : why;
-        prev = { code: g.cut ? "" : g.code, error: why === "size" || g.cut ? "your answer was CUT OFF because it was too long. Write a MUCH shorter and simpler design: under 14000 characters in total, fewer scenes, small reusable components, no long repeated SVG paths." : `static check: ${why}` };
+        prev = { code: g.cut ? "" : g.code, error: why === "size" || g.cut ? "your answer was CUT OFF because it was too long. Write a MUCH shorter and simpler design: under 9000 characters in total, at most 3 simple scenes, characters made of a few circles and rounded rectangles in ONE reusable component, no long SVG paths." : `static check: ${why}` };
       }
       throw new Error(`free design failed (chapter ${i + 1}): ${last}`);
     };
