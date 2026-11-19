@@ -6,6 +6,9 @@ import { Progress } from "@/components/app/Progress";
 import { BRANDS, type BrandId } from "@/remotion/brandIcons";
 import { GULF_DIALECTS } from "@/lib/countries";
 import { VOICE_TYPES } from "@/lib/voiceMatch";
+import { FreeTimeline, type Trim } from "@/components/app/FreeTimeline";
+import { MusicEditor } from "@/components/app/MusicEditor";
+import type { Music } from "@/remotion/montage";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize, type LogoBox } from "@/components/app/LogoDrag";
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { uploadImage } from "@/components/app/DesignStart";
@@ -17,7 +20,7 @@ export type StudioData = {
   status: "studio"; busy: { kind: "export" | "revoice"; progress: number } | null; title: string; aspect: string; cseconds: number; idea: string; brand: string;
   voiceover: boolean; narration: string[]; beats: { text: string; start: number; end: number }[]; dialect: string;
   fields: Field[]; colors: Colors; font: string; contact: Contact[]; musicOn: boolean; musicVol: number;
-  logoOn: boolean; logoBox: LogoBox; logoPath: string; logo: string;
+  logoOn: boolean; logoBox: LogoBox; logoPath: string; logo: string; trim?: Trim | null; ownAudio?: Music | null;
   previewUrl: string; voiceUrl: string; musicUrl: string; exportUrl: string; editError: string;
 };
 const OFFSET = 0.4;
@@ -38,6 +41,8 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   const [musicOn, setMusicOn] = useState(data.musicOn);
   const [musicVol, setMusicVol] = useState(data.musicVol);
   const [logo, setLogo] = useState<{ path: string; url: string; on: boolean; box: LogoBox; frameUrl?: string }>({ path: data.logoPath, url: data.logo, on: data.logoOn, box: data.logoBox ?? DEFAULT_LOGO_BOX });
+  const [trim, setTrim] = useState<Trim>(data.trim ?? { start: 0, end: data.cseconds });
+  const [own, setOwn] = useState<Music | null>(data.ownAudio ?? null);
   const [narr, setNarr] = useState(data.narration);
   const [dialect, setDialect] = useState(data.dialect);
   const [vtype, setVtype] = useState("");
@@ -55,6 +60,9 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   const iframe = useRef<HTMLIFrameElement>(null);
   const voice = useRef<HTMLAudioElement>(null);
   const music = useRef<HTMLAudioElement>(null);
+  const ownRef = useRef<HTMLAudioElement>(null);
+  const trimRef = useRef(trim);
+  trimRef.current = trim;
   const playingRef = useRef(false);
   const dirty = useRef(false);
   const total = Math.max(30, Math.round(data.cseconds * 30));
@@ -84,11 +92,18 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
       if (want < 0) { if (!v.paused) v.pause(); if (force) v.currentTime = 0; }
       else { if (force || Math.abs(v.currentTime - want) > 0.35) v.currentTime = Math.min(want, v.duration || want); if (v.paused && playingRef.current) v.play().catch(() => {}); }
     }
+    const o = ownRef.current;
+    if (o && own?.url) {
+      const at = own.at ?? 0, st = own.start ?? 0, len = (own.end ?? own.dur ?? 0) - st;
+      const want = t - at + st;
+      if (t < at || (len > 0 && t > at + len)) { if (!o.paused) o.pause(); }
+      else { if (force || Math.abs(o.currentTime - want) > 0.35) o.currentTime = Math.max(0, want); if (o.paused && playingRef.current) o.play().catch(() => {}); }
+    }
     if (m && data.musicUrl && musicOn) {
       if (force || Math.abs(m.currentTime - t) > 0.5) m.currentTime = Math.min(t, m.duration || t);
       if (m.paused && playingRef.current) m.play().catch(() => {});
     }
-  }, [data.voiceUrl, data.musicUrl, musicOn]);
+  }, [data.voiceUrl, data.musicUrl, musicOn, own]);
   useEffect(() => { if (music.current) music.current.volume = Math.min(1, musicVol * 2.2); if (music.current && !musicOn) music.current.pause(); }, [musicVol, musicOn]);
 
   useEffect(() => {
@@ -96,26 +111,39 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
       if (e.source !== iframe.current?.contentWindow) return;
       const m = e.data as { type?: string; frame?: number; playing?: boolean };
       if (m.type === "ready") setReady(true);
-      else if (m.type === "frame" && typeof m.frame === "number") { setFrame(m.frame); if (playingRef.current) syncAudio(m.frame / 30); }
+      else if (m.type === "frame" && typeof m.frame === "number") {
+        if (playingRef.current && m.frame >= trimRef.current.end * 30 - 1) { playingRef.current = false; iframe.current?.contentWindow?.postMessage({ type: "pause" }, "*"); iframe.current?.contentWindow?.postMessage({ type: "seek", frame: Math.round(trimRef.current.start * 30) }, "*"); setFrame(Math.round(trimRef.current.start * 30)); return; }
+        setFrame(m.frame); if (playingRef.current) syncAudio(m.frame / 30);
+      }
       else if (m.type === "state") {
         playingRef.current = !!m.playing; setPlaying(!!m.playing);
-        if (!m.playing) { voice.current?.pause(); music.current?.pause(); }
+        if (!m.playing) { voice.current?.pause(); music.current?.pause(); ownRef.current?.pause(); }
       }
     };
     window.addEventListener("message", on);
     return () => window.removeEventListener("message", on);
   }, [syncAudio]);
-  useEffect(() => { setReady(false); }, [html]);
+  const [reloads, setReloads] = useState(0);
+  const readyRef = useRef(false);
+  readyRef.current = ready;
+  useEffect(() => {
+    setReady(false); playingRef.current = false; setPlaying(false);
+    // if the page inside never says "ready" (a load that went wrong), load it again by itself instead of waiting for a manual refresh
+    if (!html) return;
+    const t = setTimeout(() => { if (!readyRef.current) setReloads((r) => r + 1); }, 5000);
+    return () => clearTimeout(t);
+  }, [html, reloads]);
 
   function toggle() {
     if (playingRef.current) { send({ type: "pause" }); return; }
+    let f = frame; if (f < trim.start * 30 || f >= trim.end * 30 - 2) { f = Math.round(trim.start * 30); setFrame(f); send({ type: "seek", frame: f }); }
     playingRef.current = true; setPlaying(true);
-    send({ type: "play" }); syncAudio(frame / 30, true);
+    send({ type: "play" }); syncAudio(f / 30, true);
   }
   function seek(f: number) { setFrame(f); send({ type: "seek", frame: f }); syncAudio(f / 30, true); }
 
   // everything is saved by itself a moment after the last change
-  const body = useCallback(() => ({ job: jobId, fields, colors, font, contact: contact.filter((c) => c.handle.trim()), musicOn, musicVol, logoPath: logo.path, logoOn: logo.on, logoBox: logo.box }), [jobId, fields, colors, font, contact, musicOn, musicVol, logo]);
+  const body = useCallback(() => ({ job: jobId, fields, colors, font, contact: contact.filter((c) => c.handle.trim()), musicOn, musicVol, logoPath: logo.path, logoOn: logo.on, logoBox: logo.box, trim, ownAudio: own ? { ...own, url: "" } : null }), [jobId, fields, colors, font, contact, musicOn, musicVol, logo, trim, own]);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
@@ -157,7 +185,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
       <div className="flex flex-col items-center gap-3 lg:sticky lg:top-4 lg:self-start">
         <div className="text-[13px] text-subtle">{L("معاينة مباشرة")} · {L("أي تعديل تسويه يبان بالفيديو على طول.")}</div>
         <div className="relative overflow-hidden rounded-2xl bg-black shadow-md" style={boxStyle}>
-          {html && !loadErr ? <iframe ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={html} className="absolute inset-0 h-full w-full border-0" /> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
+          {html && !loadErr ? <iframe key={reloads} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={html} className="absolute inset-0 h-full w-full border-0" /> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
           {logo.on && logo.url && <LogoDrag box={logo.box} onChange={(b) => setLogo((p) => ({ ...p, box: b }))} />}
         </div>
         <div className="flex w-full max-w-[360px] items-center gap-3">
@@ -167,6 +195,11 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
         </div>
         {data.voiceUrl && <audio ref={voice} src={data.voiceUrl} preload="auto" />}
         {data.musicUrl && <audio ref={music} src={data.musicUrl} preload="auto" loop />}
+        {own?.url && <audio ref={ownRef} src={own.url} preload="auto" />}
+        <FreeTimeline total={data.cseconds} playhead={frame / 30} trim={trim} onTrim={setTrim} disabled={!!busy}
+          voice={data.voiceUrl ? { at: OFFSET, dur: Math.max(1, data.cseconds - OFFSET - 1.2) } : null} music={!!data.musicUrl && musicOn}
+          own={own ? { at: own.at ?? 0, len: (own.end ?? own.dur ?? 3) - (own.start ?? 0), name: own.name } : null}
+          onOwnMove={(at) => setOwn((p) => (p ? { ...p, at: +at.toFixed(2) } : p))} onSeek={(sec) => seek(Math.round(sec * 30))} />
         <p className="text-[12px] text-subtle">{saving === "saving" ? L("جاري الحفظ…") : saving === "saved" ? L("✓ محفوظ") : ""}</p>
       </div>
 
@@ -211,6 +244,12 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
             ))}
           </div>
           <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
+        </section>
+
+        <section className={card}>
+          <h3 className="font-bold text-navy-900">🎧 {L("صوتك من جهازك")}</h3>
+          <p className="text-[13px] text-subtle">{L("ارفع صوت أو موسيقى، وقصّه وحدد مكانه ومستواه. يظهر بالخط الزمني تحت الفيديو.")}</p>
+          <MusicEditor music={own} onChange={setOwn} total={data.cseconds} playhead={() => frame / 30} disabled={!!busy} />
         </section>
 
         <section className={card}>

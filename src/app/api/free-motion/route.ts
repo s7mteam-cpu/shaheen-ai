@@ -72,6 +72,8 @@ export async function GET(req: Request) {
   const signed = paths.length ? (await admin.storage.from("results").createSignedUrls(paths, 60 * 60 * 3)).data ?? [] : [];
   const urlOf = (p?: string) => (p ? signed.find((x) => x.path === p)?.signedUrl ?? "" : "");
   const logo = own(inp.logoPath) ? (await admin.storage.from("uploads").createSignedUrl(inp.logoPath!, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
+  const ownA = (inp as { ownAudio?: { path?: string } | null }).ownAudio;
+  const ownAudio = ownA && own(ownA.path) ? { ...ownA, url: (await admin.storage.from("uploads").createSignedUrl(ownA.path!, 60 * 60 * 3)).data?.signedUrl ?? "" } : null;
   const busy = job.status !== "done" ? { kind: inp.mode === "export" ? "export" : "revoice", progress: job.progress ?? 0 } : null;
   return NextResponse.json({
     status: "studio", busy, title: job.title, aspect: inp.aspect ?? "9:16", cseconds: inp.cseconds ?? inp.seconds ?? 15, idea: inp.idea ?? "", brand: inp.brand?.name ?? "",
@@ -80,6 +82,7 @@ export async function GET(req: Request) {
     logoOn: inp.logoOn !== false, logoBox: inp.logoBox ?? { x: 0.85, y: 0.09, w: 0.18 }, logoPath: own(inp.logoPath),
     musicOn: inp.music !== false, musicVol: typeof inp.musicVol === "number" ? inp.musicVol : 0.14,
     previewUrl: urlOf(own(out.preview)), voiceUrl: urlOf(own(inp.free?.vo?.path)), musicUrl: urlOf(own(inp.free?.vo?.musicPath)), exportUrl: urlOf(own(out.files?.[0]?.path)), logo,
+    trim: (inp as { trim?: { start: number; end: number } }).trim ?? null, ownAudio,
     editError: inp.editError ? "تعذّر تطبيق العملية الأخيرة، وبقي تصميمك كما هو." : "",
   });
 }

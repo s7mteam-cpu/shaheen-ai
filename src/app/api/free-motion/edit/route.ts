@@ -3,11 +3,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { guardContent } from "@/lib/server/moderation";
 import { FREE_FONTS, cleanColors, cleanContact } from "@/lib/server/freeMotion";
+import { cleanMusicTiming, type Music } from "@/remotion/montage";
 import { DIALECT_NAME, pickVoice, typeToGA, type VoiceItem } from "@/lib/voiceMatch";
 
 export const maxDuration = 30;
 const num = (v: unknown, a: number, z: number, d: number) => (typeof v === "number" && isFinite(v) ? Math.min(z, Math.max(a, v)) : d);
 const clean = (x: unknown, n: number) => String(x ?? "").replace(/[<>"]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
+
+/** The customer's own sound from their phone: it must sit in their own folder; only the timing numbers are kept. */
+function cleanOwn(m: unknown, userId: string): Music | null {
+  if (!m || typeof m !== "object") return null;
+  const o = m as Partial<Music>;
+  const path = String(o.path ?? "");
+  if (!userId || !path.startsWith(`${userId}/`) || path.includes("..")) return null;
+  return { url: "", name: clean(o.name, 80) || "صوت", path, bucket: "uploads", own: true, ...cleanMusicTiming(o) };
+}
 
 /**
  * The live studio's server side. Actions:
@@ -45,6 +55,12 @@ export async function POST(req: Request) {
     ...(typeof b.logoOn === "boolean" ? { logoOn: b.logoOn } : {}),
     ...(b.logoBox && typeof b.logoBox === "object" ? { logoBox: { x: num((b.logoBox as Record<string, unknown>).x, 0.03, 0.97, 0.85), y: num((b.logoBox as Record<string, unknown>).y, 0.03, 0.97, 0.09), w: num((b.logoBox as Record<string, unknown>).w, 0.06, 0.7, 0.18) } } : {}),
     ...(typeof b.musicVol === "number" ? { musicVol: Math.max(0, Math.min(0.6, b.musicVol)) } : {}),
+    ...(b.trim && typeof b.trim === "object" ? (() => {
+      const total = Number(inp.cseconds ?? inp.seconds ?? 15), t = b.trim as Record<string, unknown>;
+      const st = num(t.start, 0, Math.max(0, total - 2), 0), en = num(t.end, st + 2, total, total);
+      return { trim: { start: +st.toFixed(2), end: +en.toFixed(2) } };
+    })() : {}),
+    ...("ownAudio" in b ? { ownAudio: cleanOwn(b.ownAudio, user.id) } : {}),
   };
   const since = new Date(Date.now() - 60 * 60_000).toISOString();
 

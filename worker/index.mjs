@@ -755,7 +755,17 @@ async function buildVoice(job, base, sentences, voice) {
     return { text: sentences[i], start: +(w0.s + OFFSET).toFixed(2), end: +(w1.e + OFFSET).toFixed(2) };
   });
   const path = `${base}/vo-${crypto.randomUUID()}.mp3`;
-  const up = await db.storage.from("results").upload(path, v.audio, { contentType: "audio/mpeg" });
+  // some voices are recorded much quieter than others: bring every voice to the same loudness
+  let audio = v.audio;
+  const tmp = join(tmpdir(), `vn-${crypto.randomUUID()}`);
+  try {
+    await writeFile(`${tmp}.in.mp3`, v.audio);
+    await ff(["-i", `${tmp}.in.mp3`, "-af", "loudnorm=I=-15:TP=-1.5:LRA=9", "-ar", "44100", "-c:a", "libmp3lame", "-b:a", "128k", `${tmp}.out.mp3`]);
+    const o = await readFile(`${tmp}.out.mp3`);
+    if (o.length > 1000) audio = o;
+  } catch (e) { console.error("voice loudness skipped", e?.message ?? e); }
+  await rm(`${tmp}.in.mp3`, { force: true }); await rm(`${tmp}.out.mp3`, { force: true });
+  const up = await db.storage.from("results").upload(path, audio, { contentType: "audio/mpeg" });
   if (up.error) throw new Error(`upload voice: ${up.error.message}`);
   return { path, beats, sentences, duration: +(v.duration + OFFSET).toFixed(2), voiceId: voice.id };
 }
@@ -830,19 +840,41 @@ async function freeJob(job) {
       const outFile = join(workDir, `out-${job.id}.mp4`);
       let last = 0;
       await prep.video(propsOf(free.fields), outFile, (pr) => { const v = 12 + pr * 78; if (v - last >= 4) { last = v; setProgress(job.id, v); } });
-      if (vo) {
+      // sound + cut: voice, music, the customer's own sound, then the chosen start/end
+      const own = inp.ownAudio && inp.ownAudio.path && String(inp.ownAudio.path).startsWith(`${job.user_id}/`) ? inp.ownAudio : null;
+      const tr = inp.trim && Number.isFinite(inp.trim.start) && Number.isFinite(inp.trim.end) && inp.trim.end - inp.trim.start >= 2 && (inp.trim.start > 0.05 || inp.trim.end < seconds - 0.05) ? { s: Math.max(0, inp.trim.start), e: Math.min(seconds, inp.trim.end) } : null;
+      const vol = Math.max(0, Math.min(0.6, Number(inp.musicVol ?? 0.14)));
+      const music = !!vo && inp.music !== false && vol > 0 && !!vo.musicPath;
+      if (vo || own || tr) {
         await setProgress(job.id, 93);
-        const voFile = join(workDir, `vo-${job.id}.mp3`), muFile = join(workDir, `mu-${job.id}.mp3`), mixed = join(workDir, `mix-${job.id}.mp4`);
-        await writeFile(voFile, await dl(vo.path));
-        const vol = Math.max(0, Math.min(0.6, Number(inp.musicVol ?? 0.14)));
-        const music = inp.music !== false && vol > 0 && !!vo.musicPath;
-        if (music) await writeFile(muFile, await dl(vo.musicPath));
-        const delay = Math.round(OFFSET * 1000);
-        await ff(music
-          ? ["-i", outFile, "-i", voFile, "-i", muFile, "-filter_complex", `[1:a]adelay=${delay}|${delay},volume=1.0[v];[2:a]volume=${vol},afade=t=out:st=${Math.max(0, seconds - 2)}:d=2[m];[v][m]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[a]`, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", String(seconds), mixed]
-          : ["-i", outFile, "-i", voFile, "-filter_complex", `[1:a]adelay=${delay}|${delay}[a]`, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", String(seconds), mixed]);
+        const files = [], parts = [], labels = [];
+        const args = ["-i", outFile];
+        const add = async (buf, name) => { const f = join(workDir, `${name}-${job.id}`); await writeFile(f, buf); files.push(f); args.push("-i", f); return args.filter((x) => x === "-i").length - 1; };
+        if (vo) { const i = await add(await dl(vo.path), "vo.mp3"); const d = Math.round(OFFSET * 1000); parts.push(`[${i}:a]adelay=${d}|${d},volume=1.0[a${labels.length}]`); labels.push(`[a${labels.length}]`); }
+        if (music) { const i = await add(await dl(vo.musicPath), "mu.mp3"); parts.push(`[${i}:a]volume=${vol},afade=t=out:st=${Math.max(0, seconds - 2)}:d=2[a${labels.length}]`); labels.push(`[a${labels.length}]`); }
+        if (own) {
+          const { data: ob, error: oe } = await db.storage.from("uploads").download(own.path);
+          if (!oe && ob) {
+            const i = await add(Buffer.from(await ob.arrayBuffer()), "own.bin");
+            const st = Math.max(0, Number(own.start) || 0), en = own.end != null ? Math.max(st + 0.5, Number(own.end)) : null, at = Math.max(0, Number(own.at) || 0), ov = Math.max(0, Math.min(1, Number(own.volume ?? 0.6)));
+            const len = en != null ? en - st : null, fi = Math.max(0, Number(own.fadeIn) || 0), fo = Math.max(0, Number(own.fadeOut) || 0);
+            const chain = [`atrim=start=${st}${en != null ? `:end=${en}` : ""}`, "asetpts=PTS-STARTPTS", fi ? `afade=t=in:st=0:d=${fi}` : "", fo && len ? `afade=t=out:st=${Math.max(0, len - fo)}:d=${fo}` : "", `adelay=${Math.round(at * 1000)}|${Math.round(at * 1000)}`, `volume=${ov}`].filter(Boolean).join(",");
+            parts.push(`[${i}:a]${chain}[a${labels.length}]`); labels.push(`[a${labels.length}]`);
+          }
+        }
+        let aOut = null;
+        if (labels.length > 1) { parts.push(`${labels.join("")}amix=inputs=${labels.length}:duration=longest:dropout_transition=0:normalize=0[mx]`); aOut = "[mx]"; }
+        else if (labels.length === 1) aOut = labels[0];
+        let vOut = "0:v";
+        if (tr) {
+          parts.push(`[0:v]trim=start=${tr.s}:end=${tr.e},setpts=PTS-STARTPTS[vv]`); vOut = "[vv]";
+          if (aOut) { parts.push(`${aOut}atrim=start=${tr.s}:end=${tr.e},asetpts=PTS-STARTPTS,afade=t=out:st=${Math.max(0, tr.e - tr.s - 0.3)}:d=0.3[aa]`); aOut = "[aa]"; }
+        }
+        const mixed = join(workDir, `mix-${job.id}.mp4`);
+        const outLen = tr ? tr.e - tr.s : seconds;
+        await ff([...args, ...(parts.length ? ["-filter_complex", parts.join(";")] : []), "-map", vOut, ...(aOut ? ["-map", aOut, "-c:a", "aac", "-b:a", "160k"] : ["-an"]), ...(tr ? ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"] : ["-c:v", "copy"]), "-t", String(outLen), mixed]);
         await rename(mixed, outFile);
-        await rm(voFile, { force: true }); await rm(muFile, { force: true });
+        for (const f of files) await rm(f, { force: true });
       }
       const vPath = `${base}/${crypto.randomUUID()}.mp4`;
       const up = await db.storage.from("results").upload(vPath, await readFile(outFile), { contentType: "video/mp4" });
