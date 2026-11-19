@@ -890,7 +890,7 @@ async function freeJob(job) {
       const vPath = `${base}/${crypto.randomUUID()}.mp4`;
       const up = await db.storage.from("results").upload(vPath, await readFile(outFile), { contentType: "video/mp4" });
       if (up.error) throw new Error(`upload: ${up.error.message}`);
-      await db.from("jobs").update({ status: "done", progress: 100, error: null, input: { ...inp, mode: "done", editError: null }, output: { ...(job.output ?? {}), files: [{ path: vPath, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
+      await db.from("jobs").update({ status: "done", progress: 100, error: null, input: { ...inp, mode: "done", editError: null, unlocked: false }, output: { ...(job.output ?? {}), files: [{ path: vPath, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
       console.log("free export done", job.id);
       return;
     }

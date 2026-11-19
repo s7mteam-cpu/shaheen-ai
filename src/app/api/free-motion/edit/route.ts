@@ -31,12 +31,29 @@ export async function POST(req: Request) {
   const b = ((await req.json().catch(() => null)) ?? {}) as Record<string, unknown>;
   const id = String(b.job ?? "");
   const action = String(b.action ?? "save");
-  if (!/^[0-9a-f-]{36}$/i.test(id) || !["save", "revoice", "export"].includes(action)) return NextResponse.json({ error: "طلب غير صالح." }, { status: 400 });
+  if (!/^[0-9a-f-]{36}$/i.test(id) || !["save", "revoice", "export", "unlock"].includes(action)) return NextResponse.json({ error: "طلب غير صالح." }, { status: 400 });
   const admin = createAdminClient();
   const { data: job } = await admin.from("jobs").select("id,status,input,output").eq("id", id).eq("user_id", user.id).eq("tool_id", "free-motion").maybeSingle();
   if (!job || job.status !== "done" || !(job.output as { preview?: string } | null)?.preview) return NextResponse.json({ error: "التصميم غير جاهز." }, { status: 400 });
   const inp = job.input as Record<string, unknown> & { free?: { fields?: { key: string; label: string; value: string }[]; vo?: { sentences?: string[] } } };
   if (!inp.free) return NextResponse.json({ error: "ما لقينا التصميم." }, { status: 404 });
+
+  // after an export the design is closed: editing it again costs the edit price ("unlock"), as in the other tools
+  const exported = !!(job.output as { files?: unknown[] } | null)?.files?.length;
+  if (action === "unlock") {
+    if (!exported || inp.unlocked) return NextResponse.json({ ok: true, charged: 0 });
+    const { data: tool } = await admin.from("tools").select("edit_cost").eq("id", "free-motion").maybeSingle();
+    const cost = Math.max(0, tool?.edit_cost ?? 8);
+    // flip the flag first (only one request can win), then charge; if the payment fails the flag goes back
+    const { data: won } = await admin.from("jobs").update({ input: { ...inp, unlocked: true }, updated_at: new Date().toISOString() }).eq("id", job.id).eq("status", "done").or("input->>unlocked.is.null,input->>unlocked.neq.true").select("id");
+    if (!won?.length) return NextResponse.json({ ok: true, charged: 0 });
+    if (cost > 0) {
+      const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
+      if (payErr) { await admin.from("jobs").update({ input: { ...inp, unlocked: false }, updated_at: new Date().toISOString() }).eq("id", job.id); return NextResponse.json({ error: "رصيدك ما يكفي." }, { status: 402 }); }
+    }
+    return NextResponse.json({ ok: true, charged: cost });
+  }
+  if (exported && !inp.unlocked) return NextResponse.json({ error: "الفيديو انصدّر. لتعديله افتح التعديل من صفحة الفيديو." }, { status: 403 });
 
   // what the customer edited in the studio (only values of the fields the design already has; never code)
   const asked = new Map((Array.isArray(b.fields) ? b.fields : []).map((f: Record<string, unknown>) => [String(f?.key ?? ""), clean(f?.value, 200)] as const));

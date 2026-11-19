@@ -64,7 +64,7 @@ export async function GET(req: Request) {
   const { data: job } = await admin.from("jobs").select("id,status,progress,error,input,output,title,created_at").eq("id", id).eq("user_id", user.id).eq("tool_id", "free-motion").maybeSingle();
   if (!job) return NextResponse.json({ error: "ما لقينا الطلب." }, { status: 404 });
   if (job.status === "failed") return NextResponse.json({ status: "failed", error: "ما قدرنا نكمل هذا التصميم. تم إرجاع ريشك، جرّب فكرة أبسط أو القوالب الجاهزة.", reason: String(job.error ?? "").replace(/sk-[\w-]+|eyJ[\w.-]+/g, "").slice(0, 220) }); // the technical reason is shown while the tool is experimental
-  const inp = (job.input ?? {}) as { mode?: string; voiceover?: boolean; free?: { assets?: unknown; fields?: unknown[]; title?: string; vo?: { sentences?: string[]; beats?: unknown[]; path?: string; musicPath?: string } }; colors?: unknown; font?: string; contact?: unknown; aspect?: string; cseconds?: number; seconds?: number; idea?: string; editError?: string; brand?: { name?: string }; music?: boolean; musicVol?: number; dialect?: string; logoPath?: string; logoOn?: boolean; logoBox?: { x: number; y: number; w: number } };
+  const inp = (job.input ?? {}) as { mode?: string; voiceover?: boolean; free?: { assets?: unknown; fields?: unknown[]; title?: string; vo?: { sentences?: string[]; beats?: unknown[]; path?: string; musicPath?: string } }; colors?: unknown; font?: string; contact?: unknown; aspect?: string; cseconds?: number; seconds?: number; idea?: string; editError?: string; brand?: { name?: string }; music?: boolean; musicVol?: number; dialect?: string; logoPath?: string; logoOn?: boolean; logoBox?: { x: number; y: number; w: number }; unlocked?: boolean };
   const out = (job.output ?? {}) as { files?: { path: string }[]; thumb?: string; preview?: string };
   if (!out.preview) return NextResponse.json({ status: job.status, progress: job.progress ?? 0 });
   const own = (x?: string) => (x && x.startsWith(`${user.id}/`) && !x.includes("..") ? x : "");
@@ -81,6 +81,7 @@ export async function GET(req: Request) {
     fields: Array.isArray(inp.free?.fields) ? inp.free!.fields : [], colors: cleanColors(inp.colors), font: FONTS.includes(String(inp.font)) ? inp.font : "Cairo", contact: cleanContact(inp.contact),
     logoOn: inp.logoOn !== false, logoBox: inp.logoBox ?? { x: 0.85, y: 0.09, w: 0.18 }, logoPath: own(inp.logoPath),
     musicOn: inp.music !== false, musicVol: typeof inp.musicVol === "number" ? inp.musicVol : 0.14,
+    locked: !!own(out.files?.[0]?.path) && !inp.unlocked,
     previewUrl: urlOf(own(out.preview)), voiceUrl: urlOf(own(inp.free?.vo?.path)), musicUrl: urlOf(own(inp.free?.vo?.musicPath)), exportUrl: urlOf(own(out.files?.[0]?.path)), logo,
     assets: inp.free?.assets ?? {}, trim: (inp as { trim?: { start: number; end: number } }).trim ?? null, ownAudio,
     editError: inp.editError ? "تعذّر تطبيق العملية الأخيرة، وبقي تصميمك كما هو." : "",

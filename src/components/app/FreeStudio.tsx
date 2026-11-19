@@ -21,7 +21,7 @@ export type StudioData = {
   voiceover: boolean; narration: string[]; beats: { text: string; start: number; end: number }[]; dialect: string;
   fields: Field[]; colors: Colors; font: string; contact: Contact[]; musicOn: boolean; musicVol: number;
   logoOn: boolean; logoBox: LogoBox; logoPath: string; logo: string; trim?: Trim | null; ownAudio?: Music | null; assets?: Record<string, unknown>;
-  previewUrl: string; voiceUrl: string; musicUrl: string; exportUrl: string; editError: string;
+  previewUrl: string; voiceUrl: string; musicUrl: string; exportUrl: string; editError: string; locked?: boolean;
 };
 const OFFSET = 0.4;
 const fonts = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
@@ -31,7 +31,7 @@ const card = "card flex flex-col gap-3 p-4";
 /** «تصميم مبتكر»: the finished design plays LIVE inside a sandboxed frame; every edit shows at once. The mp4 is drawn only on export. */
 export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRefresh, onSimilar }: {
   jobId: string; data: StudioData; busy: StudioData["busy"]; kitLogo?: { path: string; url: string } | null; editCost: number; balance: number;
-  onRefresh: () => void; onSimilar: (idea: string, opts: { dialect: string; vtype: string; music: boolean }) => Promise<string | null>;
+  onRefresh: (kind: "export" | "revoice") => void; onSimilar: (idea: string, opts: { dialect: string; vtype: string; music: boolean }) => Promise<string | null>;
 }) {
   const router = useRouter();
   const [fields, setFields] = useState(data.fields);
@@ -162,7 +162,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { setErr(d.error ?? L("تعذّر البدء.")); return; }
     send({ type: "pause" });
-    onRefresh();
+    onRefresh(action);
   }
   async function uploadLogo(f: File) {
     setUpBusy(true); setErr(null);
@@ -282,7 +282,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
           <h3 className="font-bold text-navy-900">{L("⬇️ تصدير الفيديو (MP4)")}</h3>
           {data.exportUrl && !busy && <><p className="text-[14px] text-emerald-800">{L("✓ الفيديو جاهز")}</p><a href={data.exportUrl} download className="btn btn-gold py-3 text-center">{L("⬇️ تحميل الفيديو")}</a></>}
           <button type="button" disabled={!!busy} onClick={() => act("export")} className="btn btn-outline py-3">{data.exportUrl ? L("صدّر من جديد بآخر تعديلاتك") : L("⬇️ تصدير الفيديو (MP4)")}</button>
-          <span className="text-[12px] text-subtle">{L("التصدير مجاني، ياخذ دقيقة إلى ثلاث. تقدر تطلع من الصفحة، تلقاه بـ«أعمالي».")}</span>
+          <span className="text-[12px] text-subtle">{L("التصدير مجاني، ياخذ دقيقة إلى ثلاث. بعد التصدير تطلع لك شاشة الفيديو، والتعديل عليه بعدها يكلّف ريش.")}</span>
           <button type="button" onClick={() => router.push("/app/works")} className="btn btn-outline self-start px-4 py-2 text-sm">{L("روح لأعمالي")}</button>
         </section>
 

@@ -7,6 +7,7 @@ import { BRANDS, type BrandId } from "@/remotion/brandIcons";
 import { GULF_DIALECTS, myDialect } from "@/lib/countries";
 import { VOICE_TYPES } from "@/lib/voiceMatch";
 import { FreeStudio, type StudioData } from "@/components/app/FreeStudio";
+import { FreeSent } from "@/components/app/FreeSent";
 
 type Contact = { icon: BrandId; handle: string };
 type Colors = { bg: string; accent: string; text: string };
@@ -45,6 +46,9 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
   const [state, setState] = useState<State | null>(null);
   const [studio, setStudio] = useState<StudioData | null>(null);
   const [busyNow, setBusyNow] = useState<StudioData["busy"]>(null);
+  const [sentLocal, setSentLocal] = useState(false);
+  const [unlockedNow, setUnlockedNow] = useState(false);
+  const [epoch, setEpoch] = useState(0);
   const stopped = useRef(false);
   const waitBusy = useRef(0); // after revoice/export: ignore "not busy" answers for a moment, the worker may not have picked the job up yet
   const cost = Math.max(1, Math.round(seconds / 15)) * costPer15;
@@ -108,7 +112,16 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
     </div>
   );
 
-  if (jobId && studio) return <FreeStudio key={jobId} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={() => { stopped.current = false; waitBusy.current = Date.now() + 30000; setBusyNow({ kind: "export", progress: 3 }); poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
+  async function unlock(): Promise<string | null> {
+    const r = await fetch("/api/free-motion/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job: jobId, action: "unlock" }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return d.error ?? L("تعذّر فتح التعديل.");
+    setUnlockedNow(true); setSentLocal(false); setEpoch((n) => n + 1); stopped.current = false; poll(); router.refresh();
+    return null;
+  }
+  const showSent = !!studio && !unlockedNow && ((sentLocal && (!!busyNow || !!studio.exportUrl)) || (!!studio.locked && !busyNow));
+  if (jobId && studio && showSent) return <FreeSent data={studio} busy={busyNow} editCost={editCost} balance={balance} onUnlock={unlock} />;
+  if (jobId && studio) return <FreeStudio key={`${jobId}-${epoch}`} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={(k) => { stopped.current = false; waitBusy.current = Date.now() + 30000; setBusyNow({ kind: k, progress: 3 }); if (k === "export") { setSentLocal(true); setUnlockedNow(false); } poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
   if (jobId && state?.status === "failed") {
     return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p>{state.reason && <p dir="ltr" className="mt-3 rounded-lg bg-neutral-100 p-3 text-start text-[12px] text-neutral-600">{state.reason}</p>}<button onClick={() => router.replace("/app/tools/free-motion")} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
   }
