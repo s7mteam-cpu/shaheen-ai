@@ -30,6 +30,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
   const [topic, setTopic] = useState("");
   const [style, setStyle] = useState("auto");
   const [shots, setShots] = useState<Photo[]>([]);
+  const [readImgs, setReadImgs] = useState(true);
   const [aspect, setAspect] = useState<string>("9:16");
   const [seconds, setSeconds] = useState(30);
   const [dialect, setDialect] = useState<string>("kuwaiti");
@@ -79,7 +80,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
     setBusy(true); setError(null);
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        siteJob: jobId, siteStyle: style, shots: shots.map((x) => ({ path: x.path, bucket: x.bucket, label: x.label })), topic, seconds, aspect, dialect, voiceover, vgender, vage, tone, music: withMusic, brand: site?.title ?? "" }) });
+        siteJob: jobId, siteStyle: style, readShots: readImgs, shots: shots.map((x) => ({ path: x.path, bucket: x.bucket, label: x.label })), topic, seconds, aspect, dialect, voiceover, vgender, vage, tone, music: withMusic, brand: site?.title ?? "" }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -125,6 +126,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
           <textarea required minLength={5} maxLength={800} rows={3} value={topic} onChange={(e) => setTopic(e.target.value)} className="field" />
           <span className="text-[13px] text-subtle">{L("شاهين يشرح الموقع من محتواه الفعلي (ما يخترع أسعار ولا خدمات). تقدر تضيف: ركّز على الخدمات، أو على العروض، أو على التواصل.")}</span></label>
         <PhotoPicker photos={shots} onChange={setShots} max={6} title="صفحات من داخل موقعك (لقطات شاشة)" hint="لو موقعك فيه صفحات ما تنفتح إلا بتسجيل دخول (لوحة تحكم، حجوزات، طلبات)، صوّرها بنفسك وارفعها هنا، واكتب تحت كل صورة وش هي. ما نطلب منك يوزر ولا كلمة سر أبداً." />
+        {shots.length > 0 && <label className="flex items-start gap-3 rounded-2xl border border-line p-3"><input type="checkbox" checked={readImgs} onChange={(e) => setReadImgs(e.target.checked)} className="mt-1 h-5 w-5" /><span>{L("خلّ شاهين يقرأ محتوى الصور ويشرح ميزاتها")}<span className="block text-[13px] text-subtle">{L("يقرأ النص والأقسام الظاهرة بكل لقطة، ويتكلم عنها بالتعليق حتى لو ما كتبت وصف.")}</span></span></label>}
         <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(sizes, aspect, setAspect)}</div>
         <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span>{chips(lengths, seconds, setSeconds)}</div>
         <div className="flex flex-col gap-2">

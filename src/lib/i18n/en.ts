@@ -1792,6 +1792,8 @@ export const EN: Record<string, string> = {
   "شاشتين وتقريب": "Two screens & zoom",
   "صفحات من داخل موقعك (لقطات شاشة)": "Pages inside your site (screenshots)",
   "لو موقعك فيه صفحات ما تنفتح إلا بتسجيل دخول (لوحة تحكم، حجوزات، طلبات)، صوّرها بنفسك وارفعها هنا، واكتب تحت كل صورة وش هي. ما نطلب منك يوزر ولا كلمة سر أبداً.": "If your site has pages that need a login (dashboard, bookings, orders), take screenshots yourself and upload them here, and write under each what it is. We never ask for your username or password.",
+  "خلّ شاهين يقرأ محتوى الصور ويشرح ميزاتها": "Let Shaheen read the images and explain their features",
+  "يقرأ النص والأقسام الظاهرة بكل لقطة، ويتكلم عنها بالتعليق حتى لو ما كتبت وصف.": "It reads the text and sections visible in each screenshot and talks about them in the narration, even if you wrote no description.",
   "فخم وهادئ": "Luxury & calm",
   "جريء وحيوي": "Bold & lively",
   "تقني وعصري": "Tech & modern",
