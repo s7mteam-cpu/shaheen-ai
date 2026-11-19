@@ -39,15 +39,23 @@ export function htmlPreviewDoc(html, fontCss = "") {
   const head = `<meta http-equiv="Content-Security-Policy" content="${CSP}"><style>${fontCss}html,body{margin:0;overflow:hidden}</style>`;
   return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + head) : `<!doctype html><html><head>${head}</head><body>${html}</body></html>`;
 }
+/** The page is laid out like on the preview (a phone-sized screen: 432 css px wide for portrait) and drawn at a higher pixel density,
+ * so the video is exactly what the live preview shows (designs switch to their "mobile" layout on narrow screens). */
+function layoutOf(width, height) {
+  const baseW = height > width ? 432 : height === width ? 540 : 960;
+  const scale = width / baseW;
+  return { lw: baseW, lh: Math.round(height / scale), scale };
+}
 async function openHtmlPage({ html, width, height, fontCss, browserExecutable }) {
+  const { lw, lh, scale } = layoutOf(width, height);
   const csp = `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src 'none'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'`;
   const head = `<meta http-equiv="Content-Security-Policy" content="${csp}"><style>${fontCss}html,body{margin:0;overflow:hidden}</style>`;
   const page0 = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + head) : `<!doctype html><html><head>${head}</head><body>${html}</body></html>`;
-  const browser = await openBrowser("chrome", { browserExecutable, chromiumOptions: {}, logLevel: "error", forceDeviceScaleFactor: 1 });
+  const browser = await openBrowser("chrome", { browserExecutable, chromiumOptions: {}, logLevel: "error", forceDeviceScaleFactor: scale });
   try {
     const page = await browser.newPage({ context: { indent: false, logLevel: "error" }, logLevel: "error", indent: false, pageIndex: 0, onBrowserLog: null, onLog: () => {} });
     const cdp = page._client();
-    await page.setViewport({ width, height, deviceScaleFactor: 1 });
+    await page.setViewport({ width: lw, height: lh, deviceScaleFactor: scale });
     await page.evaluateOnNewDocument(CLOCK);
     await cdp.send("Network.enable");
     await cdp.send("Network.setBlockedURLs", { urls: ["http://*", "https://*", "ws://*", "wss://*", "ftp://*"] }).catch(() => {});
@@ -57,41 +65,70 @@ async function openHtmlPage({ html, width, height, fontCss, browserExecutable })
     await sleep(600); // fonts / first layout
     if (!(await page.evaluate(() => typeof window.__step === "function").catch(() => false))) throw new Error("page clock not installed");
     const step = (ms) => page.evaluate((dt) => window.__step(dt), ms);
-    const shot = async (format = "jpeg", quality = 94) => { const r = await cdp.send("Page.captureScreenshot", { format, quality, fromSurface: true, captureBeyondViewport: false }); return Buffer.from((r.value ?? r).data, "base64"); };
-    return { step, shot, browser };
+    const shot = async (format = "jpeg", quality = 94, crop = null) => {
+      const clip = crop ? { x: crop.x, y: crop.y, width: crop.w, height: crop.h, scale: width / crop.w } : undefined; // crop is in css px
+      const r = await cdp.send("Page.captureScreenshot", { format, quality, fromSurface: true, captureBeyondViewport: false, ...(clip ? { clip } : {}) });
+      return Buffer.from((r.value ?? r).data, "base64");
+    };
+    const evalIn = (fn, arg) => page.evaluate(fn, arg);
+    return { step, shot, evalIn, browser };
   } catch (e) { try { await browser.close({ silent: true }); } catch {} throw e; }
 }
 
+/** Designs made for a desktop screen often draw a small phone frame in the middle of the page. Find it (the biggest box with the video's shape that is clearly smaller than the page) so only it is recorded, full size. */
+export async function findCrop({ html, width, height, fontCss = "", browserExecutable, fps = 30 }) {
+  const { lw, lh } = layoutOf(width, height);
+  const { step, evalIn, browser } = await openHtmlPage({ html, width, height, fontCss, browserExecutable });
+  try {
+    for (let i = 0; i < 2 * fps; i++) await step(1000 / fps);
+    const r = await evalIn(({ W, H }) => { // W,H: only the shape matters
+      const vw = innerWidth, vh = innerHeight, target = W / H; let best = null;
+      for (const el of document.querySelectorAll("body *")) {
+        const b = el.getBoundingClientRect();
+        if (b.width < 200 || b.height < 300 || b.left < -1 || b.top < -1 || b.right > vw + 1 || b.bottom > vh + 1) continue;
+        if (Math.abs(b.width / b.height - target) / target > 0.12) continue;
+        const area = b.width * b.height;
+        if (area > 0.9 * vw * vh || area < 0.1 * vw * vh) continue;
+        if (!best || area > best.area) best = { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height), area };
+      }
+      return best;
+    }, { W: width, H: height });
+    return r ? { x: r.x, y: r.y, w: r.w, h: r.h } : null;
+  } finally { try { await browser.close({ silent: true }); } catch {} }
+}
+
 /** stills at given seconds (PNG buffers), same clock as the recording */
-export async function htmlStills({ html, width, height, times, fontCss = "", browserExecutable, fps = 30 }) {
+export async function htmlStills({ html, width, height, times, fontCss = "", browserExecutable, fps = 30, crop = false }) {
+  const box = crop ? await findCrop({ html, width, height, fontCss, browserExecutable, fps }) : null;
   const { step, shot, browser } = await openHtmlPage({ html, width, height, fontCss, browserExecutable });
   try {
     const out = []; let t = 0;
     for (const sec of [...times].sort((a, b) => a - b)) {
       const target = Math.round(sec * fps);
       while (t < target) { await step(1000 / fps); t++; }
-      out.push(await shot("png"));
+      out.push(await shot("png", 94, box));
     }
     return out;
   } finally { try { await browser.close({ silent: true }); } catch {} }
 }
 
 /** html: the whole page. fontCss: @font-face rules with data: urls (fonts cannot be downloaded). Returns {frames}. */
-export async function recordHtml({ html, width, height, seconds, fps = 30, outFile, fontCss = "", browserExecutable, onProgress = () => {}, ffmpeg = "ffmpeg" }) {
+export async function recordHtml({ html, width, height, seconds, fps = 30, outFile, fontCss = "", browserExecutable, onProgress = () => {}, ffmpeg = "ffmpeg", crop = false }) {
+  const box = crop ? await findCrop({ html, width, height, fontCss, browserExecutable, fps }) : null;
   const { step, shot, browser } = await openHtmlPage({ html, width, height, fontCss, browserExecutable });
   let ff = null;
   try {
     const frames = Math.max(1, Math.round(seconds * fps));
-    ff = spawn(ffmpeg, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outFile], { stdio: ["pipe", "ignore", "pipe"] });
+    ff = spawn(ffmpeg, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-", "-vf", `scale=${width}:${height}:flags=lanczos`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outFile], { stdio: ["pipe", "ignore", "pipe"] });
     let ffErr = ""; ff.stderr.on("data", (d) => { ffErr += d; });
     const done = new Promise((res, rej) => { ff.on("close", (c) => (c === 0 ? res() : rej(new Error(`ffmpeg: ${ffErr.slice(0, 300)}`)))); ff.on("error", rej); });
     ff.stdin.on("error", () => {}); done.catch(() => {});
     for (let i = 0; i < frames; i++) {
       await step(1000 / fps);
-      if (!ff.stdin.write(await shot("jpeg", 94))) await new Promise((r) => ff.stdin.once("drain", r));
+      if (!ff.stdin.write(await shot("jpeg", 94, box))) await new Promise((r) => ff.stdin.once("drain", r));
       if (i % 15 === 0) onProgress(i / frames);
     }
     ff.stdin.end(); await done; ff = null;
-    return { frames };
+    return { frames, cropped: !!box };
   } finally { try { ff?.kill("SIGKILL"); } catch {} try { await browser.close({ silent: true }); } catch {} }
 }
