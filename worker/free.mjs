@@ -36,6 +36,12 @@ export function hostTsx(chapters) {
   return `import React from "react";
 import { Sequence } from "remotion";
 ${chapters.map((_, i) => `import * as M${i} from "./Free${i}";`).join("\n")}
+class Guard extends React.Component<any, { bad: boolean }> {
+  state = { bad: false };
+  static getDerivedStateFromError() { return { bad: true }; }
+  componentDidCatch(e: any) { try { (window as any).__freeErrors = ((window as any).__freeErrors || []).concat(String(e && e.message || e)); console.error("free chapter error", e); } catch {} }
+  render() { return this.state.bad ? null : (this.props as any).children; }
+}
 const FS: any[] = [${chapters.map((_, i) => `(M${i} as any).Free ?? (M${i} as any).default`).join(", ")}];
 const B0: number[] = ${JSON.stringify(chapters.map((c) => c.b0 ?? 0))};
 const N = B0.length;
@@ -53,7 +59,7 @@ export const Host = (p: any) => {
       const t = N === 1 ? p.t : Object.fromEntries(Object.entries(p.t || {}).filter(([k]) => k.startsWith("c" + i + "_")).map(([k, v]) => [k.slice(("c" + i + "_").length), v]));
       const assets = N === 1 ? p.assets : Object.fromEntries(Object.entries(p.assets || {}).filter(([k]) => k.startsWith("c" + i + "_")).map(([k, v]) => [k.slice(("c" + i + "_").length), v]));
       const beats = (p.beats || []).slice(B0[i], i < N - 1 ? B0[i + 1] : undefined).map((b: any) => ({ ...b, start: +(b.start - c.from / 30).toFixed(2), end: +(b.end - c.from / 30).toFixed(2) }));
-      return <Sequence key={i} from={c.from} durationInFrames={c.frames}><F {...p} t={t} assets={assets || {}} beats={beats} seconds={c.frames / 30} /></Sequence>;
+      return <Sequence key={i} from={c.from} durationInFrames={c.frames}><Guard><F {...p} t={t} assets={assets || {}} beats={beats} seconds={c.frames / 30} /></Guard></Sequence>;
     })}
     {p.logoOn && p.logo ? <img src={p.logo} style={{ position: "absolute", left: (p.logoBox?.x ?? 0.85) * 100 + "%", top: (p.logoBox?.y ?? 0.09) * 100 + "%", width: (p.logoBox?.w ?? 0.18) * 100 + "%", transform: "translate(-50%, -50%)", objectFit: "contain" }} /> : null}
   </>);

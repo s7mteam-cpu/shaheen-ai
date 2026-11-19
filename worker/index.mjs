@@ -797,6 +797,15 @@ function splitBeats(beats, n) {
 }
 
 /** «تصميم مبتكر». new/similar/revoice end WITHOUT rendering a video: the design is played live in the customer's page. Only "export" renders the mp4. */
+// a picture that is one flat colour (a white or empty screen) means the design shows nothing: read the brightest and darkest pixel
+async function frameIsBlank(file) {
+  try {
+    const { stdout } = await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", file, "-vf", "signalstats,metadata=print:file=-", "-f", "null", "-"], { maxBuffer: 8 * 1024 * 1024 }).catch((e) => e);
+    const out = String(stdout ?? "");
+    const mn = out.match(/YMIN=([\d.]+)/), mx = out.match(/YMAX=([\d.]+)/);
+    return !!(mn && mx) && Number(mx[1]) - Number(mn[1]) < 8;
+  } catch { return false; }
+}
 async function freeJob(job) {
   const inp = job.input ?? {};
   const mode = inp.mode;
@@ -955,8 +964,16 @@ async function freeJob(job) {
       const bad = []; const f0 = merge(ps); curAssets = f0.assets;
       prep?.cleanup(); prep = await prepareFree(prepOpts(f0.chapters));
       for (let i = 0; i < n; i++) {
-        try { await prep.still(propsOf(f0.fields), Math.round((n > 1 ? (t0(i) + t1(i)) / 2 : seconds / 2) * 30), join(workDir, `chk-${job.id}.png`)); }
-        catch (e) { bad.push([i, String(e?.message ?? e).slice(0, 400)]); }
+        try {
+          const png = join(workDir, `chk-${job.id}.png`);
+          const mid = (n > 1 ? (t0(i) + t1(i)) / 2 : seconds / 2);
+          await prep.still(propsOf(f0.fields), Math.round(mid * 30), png);
+          if (await frameIsBlank(png)) {
+            // maybe just a moment between two scenes: look again a bit later before calling it empty
+            await prep.still(propsOf(f0.fields), Math.round((mid + Math.min(1.5, (n > 1 ? t1(i) - t0(i) : seconds) * 0.2)) * 30), png);
+            if (await frameIsBlank(png)) bad.push([i, "the picture is empty (one flat colour): make sure the background and the content are drawn with colours that differ"]);
+          }
+        } catch (e) { bad.push([i, String(e?.message ?? e).slice(0, 400)]); }
       }
       return bad;
     };
