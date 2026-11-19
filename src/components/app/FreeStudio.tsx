@@ -29,6 +29,8 @@ const social = Object.keys(BRANDS) as BrandId[];
 const card = "card flex flex-col gap-3 p-4";
 
 /** «تصميم مبتكر»: the finished design plays LIVE inside a sandboxed frame; every edit shows at once. The mp4 is drawn only on export. */
+/** Put in front of the sandboxed page: tells this page the first error that happens inside it (so a blank picture shows its cause). */
+const ERR_SNIPPET = `<script>(function(){var s=0;function rep(m){if(s)return;s=1;try{parent.postMessage({type:"err",message:String(m).slice(0,300)},"*")}catch(e){}}addEventListener("error",function(e){rep((e.error&&e.error.message)||e.message)});addEventListener("unhandledrejection",function(e){rep((e.reason&&e.reason.message)||e.reason)});var ce=console.error;console.error=function(){try{var a=[].slice.call(arguments).map(function(x){return x&&x.message?x.message:String(x)}).join(" ");if(a.indexOf("Warning")!==0)rep(a)}catch(e){}ce.apply(console,arguments)}})();</script>`;
 export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRefresh, onSimilar }: {
   jobId: string; data: StudioData; busy: StudioData["busy"]; kitLogo?: { path: string; url: string } | null; editCost: number; balance: number;
   onRefresh: (kind: "export" | "revoice") => void; onSimilar: (idea: string, opts: { dialect: string; vtype: string; music: boolean }) => Promise<string | null>;
@@ -50,6 +52,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   const [html, setHtml] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState(false);
   const [ready, setReady] = useState(false);
+  const [runErr, setRunErr] = useState("");
   const [playing, setPlaying] = useState(false);
   const [frame, setFrame] = useState(0);
   const [msg, setMsg] = useState<string | null>(data.editError || null);
@@ -75,7 +78,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   useEffect(() => {
     let dead = false;
     setHtml(null); setLoadErr(false);
-    fetch(data.previewUrl).then((r) => (r.ok ? r.text() : Promise.reject())).then((t) => { if (!dead) setHtml(t); }).catch(() => { if (!dead) setLoadErr(true); });
+    fetch(data.previewUrl).then((r) => (r.ok ? r.text() : Promise.reject())).then((t) => { if (!dead) setHtml(t.replace(/<head>/i, (m) => m + ERR_SNIPPET)); }).catch(() => { if (!dead) setLoadErr(true); });
     return () => { dead = true; };
   }, [data.previewUrl]);
 
@@ -111,6 +114,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
       if (e.source !== iframe.current?.contentWindow) return;
       const m = e.data as { type?: string; frame?: number; playing?: boolean };
       if (m.type === "ready") setReady(true);
+      else if (m.type === "err") setRunErr(String((m as { message?: string }).message ?? "").slice(0, 300));
       else if (m.type === "frame" && typeof m.frame === "number") {
         if (playingRef.current && m.frame >= trimRef.current.end * 30 - 1) { playingRef.current = false; iframe.current?.contentWindow?.postMessage({ type: "pause" }, "*"); iframe.current?.contentWindow?.postMessage({ type: "seek", frame: Math.round(trimRef.current.start * 30) }, "*"); setFrame(Math.round(trimRef.current.start * 30)); return; }
         setFrame(m.frame); if (playingRef.current) syncAudio(m.frame / 30);
@@ -188,6 +192,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
           {html && !loadErr ? <iframe key={reloads} ref={iframe} allow="autoplay" title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={html} className="absolute inset-0 h-full w-full border-0" /> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
           {logo.on && logo.url && <LogoDrag box={logo.box} onChange={(b) => setLogo((p) => ({ ...p, box: b }))} />}
         </div>
+        {runErr && <p dir="ltr" role="alert" className="w-full max-w-[360px] rounded-lg bg-red-50 p-2 text-start text-[12px] text-red-800">⚠️ {L("خطأ داخل التصميم")}: {runErr}</p>}
         <div className="flex w-full max-w-[360px] items-center gap-3">
           <button type="button" onClick={toggle} disabled={!ready} className="btn btn-gold h-11 w-11 shrink-0 rounded-full p-0 text-lg" aria-label={playing ? L("إيقاف") : L("تشغيل")}>{playing ? "❚❚" : "▶"}</button>
           <input type="range" min={0} max={total - 1} value={Math.min(frame, total - 1)} onChange={(e) => seek(Number(e.target.value))} className="flex-1 accent-navy-700" aria-label={L("الوقت")} />

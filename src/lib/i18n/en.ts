@@ -620,6 +620,7 @@ export const EN: Record<string, string> = {
   "رمال ودفء": "Warm sands",
   "رمضان": "Ramadan",
   "روح لأعمالي": "Go to My works",
+  "خطأ داخل التصميم": "Error inside the design",
   "لحظات…": "One moment…",
   "التعديل بعد التصدير يكلّف ريش، ثم تصدّر من جديد بدون رسوم إضافية.": "Editing after export costs credits; exporting again is then free.",
   "رصيدك ما يكفي للتعديل.": "Not enough credits to edit.",
