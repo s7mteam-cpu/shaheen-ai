@@ -1,4 +1,5 @@
 /** Animated explainer scenes (timer, counter, steps, compare…) drawn inside a box: the split panel, or a card over the footage. */
+import { BRANDS, brandFromText } from "./brandIcons";
 import React from "react";
 import { Easing, getRemotionEnvironment, Img, interpolate, Loop, OffthreadVideo, random, spring } from "remotion";
 import { MIcon } from "./icons";
@@ -947,9 +948,11 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
             const kw = it.label;
             const auto = g.kind === "hours" ? "clock" : /واتس|whats|wa\b/i.test(kw) ? "whatsapp" : /انست|إنست|insta|ig\b/i.test(kw) ? "instagram" : /ايميل|إيميل|بريد|mail|\S@\S+\.\S/i.test(kw) ? "mail" : /موقع|www|\.com|\.net|http/i.test(kw) ? "web" : /عنوان|فرع|شارع|منطقة|location/i.test(kw) ? "pin" : "phone";
             const ic = (it.icon && it.icon !== "phone" ? it.icon : auto) as IconName;
+            const brand = g.kind === "hours" ? null : brandFromText(kw);
             const bg = ic === "whatsapp" ? "#25D366" : ic === "instagram" ? "linear-gradient(45deg,#F9A13C,#E1306C,#7B3FE4)" : th.accent;
             return <div key={i} style={{ display: "flex", alignItems: "center", gap: 20 * s, padding: `${16 * s}px ${24 * s}px`, borderRadius: 24 * s, background: th.card, border: `${2 * s}px solid ${th.line}`, opacity: q, transform: `translateY(${(1 - q) * 30 * s}px)` }}>
-              <div style={{ width: 70 * s, height: 70 * s, borderRadius: 20 * s, flexShrink: 0, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}><MIcon name={ic} size={40 * s} color="#fff" stroke={2.2} /></div>
+              {brand ? <div style={{ width: 78 * s, height: 78 * s, borderRadius: 22 * s, flexShrink: 0, background: brand === "snapchat" ? "#FFFC00" : brand === "instagram" ? "linear-gradient(45deg,#F9A13C,#E1306C,#7B3FE4)" : `#${BRANDS[brand].hex === "000000" ? "111111" : BRANDS[brand].hex}`, display: "flex", alignItems: "center", justifyContent: "center" }}><svg viewBox="0 0 24 24" width={46 * s} height={46 * s}><path d={BRANDS[brand].path} fill={brand === "snapchat" ? "#000" : "#fff"} /></svg></div>
+              : <div style={{ width: 70 * s, height: 70 * s, borderRadius: 20 * s, flexShrink: 0, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}><MIcon name={ic} size={40 * s} color="#fff" stroke={2.2} /></div>}
               <span style={{ fontSize: 42 * s, fontWeight: 800, color: th.text }}>{k}</span>
               {v && <span dir="auto" style={{ marginInlineStart: "auto", fontSize: 40 * s, fontWeight: 700, color: th.accent }}>{v}</span>}
             </div>;

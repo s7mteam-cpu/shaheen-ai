@@ -89,7 +89,7 @@ const TIDY_JS = `(() => {
 const INFO_JS = `(() => {
   const m = (n) => document.querySelector('meta[name="' + n + '"],meta[property="' + n + '"]')?.content || "";
   const clean = (t) => String(t || "").replace(/[ \\t]+/g, " ").replace(/\\n\\s*\\n+/g, "\\n").trim();
-  return { title: clean(document.title).slice(0, 200), desc: clean(m("description") || m("og:description")).slice(0, 500), siteName: clean(m("og:site_name")).slice(0, 80), lang: document.documentElement.lang || "", theme: m("theme-color"), text: clean(document.body ? document.body.innerText : "").slice(0, 7000) };
+  return { title: clean(document.title).slice(0, 200), desc: clean(m("description") || m("og:description")).slice(0, 500), siteName: clean(m("og:site_name")).slice(0, 80), lang: document.documentElement.lang || "", theme: m("theme-color"), text: clean(document.body ? document.body.innerText : "").slice(0, 7000), links: Array.from(document.querySelectorAll("a[href]")).map((a) => a.href).filter((h) => /^https?:/i.test(h) && /(wa\\.me|whatsapp\\.com|instagram\\.com|tiktok\\.com|snapchat\\.com|twitter\\.com|x\\.com|youtube\\.com|facebook\\.com|fb\\.com|t\\.me|threads\\.net|pinterest\\.com)/i.test(h)).slice(0, 60) };
 })()`;
 
 async function shoot(browser, url, kind, cache, hostCheck) {

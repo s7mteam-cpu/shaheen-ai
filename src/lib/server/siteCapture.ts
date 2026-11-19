@@ -3,6 +3,7 @@ import dns from "node:dns/promises";
 import net from "node:net";
 import { isPublicUrl } from "@/lib/server/safeFetch";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { socialFromLinks, type BrandId } from "@/remotion/brandIcons";
 
 const PRIVATE_V4 = (ip: string) => { const [a, b] = ip.split(".").map(Number); return a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || (a === 198 && (b === 18 || b === 19)); };
 export function isPrivateIp(ip: string): boolean {
@@ -33,7 +34,7 @@ export async function checkSiteUrl(raw: string): Promise<URL | null> {
 export const plain = (v: unknown, n: number) => String(v ?? "").replace(/[<>]|\[\[|\]\]/g, " ").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/[ \t]+/g, " ").trim().slice(0, n);
 
 export type Shot = { path: string; w: number; h: number; sc: number; sections: { y: number; title: string; text: string }[] };
-export type SiteData = { url: string; host: string; title: string; desc: string; siteName: string; lang: string; theme: string; text: string; mobile: Shot; desktop: Shot };
+export type SiteData = { url: string; host: string; title: string; desc: string; siteName: string; lang: string; theme: string; text: string; social: { id: BrandId; handle: string }[]; mobile: Shot; desktop: Shot };
 
 const shot = (x: unknown, uid: string, job: string): Shot | null => {
   const o = (x ?? {}) as Record<string, unknown>;
@@ -49,7 +50,7 @@ export function siteFromOutput(output: unknown, uid: string, jobId: string): Sit
   if (!s) return null;
   const mobile = shot(s.mobile, uid, jobId), desktop = shot(s.desktop, uid, jobId);
   if (!mobile || !desktop) return null;
-  return { url: plain(s.url, 300), host: plain(s.host, 80).replace(/\s/g, ""), title: plain(s.title, 200), desc: plain(s.desc, 500), siteName: plain(s.siteName, 80), lang: plain(s.lang, 10), theme: plain(s.theme, 12), text: plain(s.text, 7000), mobile, desktop };
+  return { url: plain(s.url, 300), host: plain(s.host, 80).replace(/\s/g, ""), title: plain(s.title, 200), desc: plain(s.desc, 500), siteName: plain(s.siteName, 80), lang: plain(s.lang, 10), theme: plain(s.theme, 12), text: plain(s.text, 7000), social: socialFromLinks(s.links), mobile, desktop };
 }
 
 /** A finished website reading of this customer (never somebody else's). */

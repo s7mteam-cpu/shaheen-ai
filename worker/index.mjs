@@ -718,7 +718,7 @@ async function captureJob(job) {
     };
     const [mp, dp] = [await up(site.mobile, "mobile"), await up(site.desktop, "desktop")];
     const info = site.mobile.info;
-    const out = { site: { url: site.url, host: site.host, title: info.title, desc: info.desc, siteName: info.siteName, lang: info.lang, theme: info.theme, text: info.text,
+    const out = { site: { url: site.url, host: site.host, title: info.title, desc: info.desc, siteName: info.siteName, lang: info.lang, theme: info.theme, text: info.text, links: (info.links ?? []).slice(0, 60).map((x) => String(x).slice(0, 300)),
       mobile: { path: mp, w: site.mobile.w, h: site.mobile.h, sc: site.mobile.sc, sections: site.mobile.sections },
       desktop: { path: dp, w: site.desktop.w, h: site.desktop.h, sc: site.desktop.sc, sections: site.desktop.sections } } };
     await db.from("jobs").update({ status: "done", progress: 100, title: (info.siteName || info.title || site.host).slice(0, 80), output: out, updated_at: now() }).eq("id", job.id);
