@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,8 @@ import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { createRequire } from "node:module";
 import { captureSite } from "./site.mjs";
+import { prepareFree, checkFreeCode } from "./free.mjs";
+import { generateFree, refillFields } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
 
@@ -731,6 +733,74 @@ async function captureJob(job) {
 
 console.log("Shaheen video worker started");
 
+// ---------- «تصميم مبتكر»: motion graphics written by the AI as code, rendered inside a locked-down page ----------
+const FREE_SIZE = { "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080], "4:5": [1080, 1350] };
+const FREE_FONTS = ["@fontsource/cairo/arabic-400.css", "@fontsource/cairo/arabic-700.css", "@fontsource/cairo/arabic-800.css", "@fontsource/cairo/arabic-900.css", "@fontsource/tajawal/arabic-700.css", "@fontsource/tajawal/arabic-800.css", "@fontsource/almarai/arabic-700.css", "@fontsource/almarai/arabic-800.css", "@fontsource/changa/arabic-700.css", "@fontsource/amiri/arabic-700.css"];
+const hexOk = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v)) ? String(v) : d);
+async function freeJob(job) {
+  const inp = job.input ?? {};
+  const [W, H] = FREE_SIZE[inp.aspect] ?? FREE_SIZE["9:16"];
+  const seconds = Math.max(8, Math.min(30, Number(inp.seconds) || 15));
+  const colors = { bg: hexOk(inp.colors?.bg, "#0B2A4A"), accent: hexOk(inp.colors?.accent, "#E8B44C"), text: hexOk(inp.colors?.text, "#FFFFFF") };
+  const font = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(inp.font) ? inp.font : "Cairo";
+  const contact = (Array.isArray(inp.contact) ? inp.contact : []).slice(0, 6).map((c) => ({ icon: String(c.icon ?? "").replace(/[^a-z]/g, ""), handle: String(c.handle ?? "").replace(/[^\w@+.\-]/g, "").slice(0, 40) })).filter((c) => c.icon && c.handle);
+  const prior = job.output?.files; // a re-render keeps the old video until the new one is ready
+  const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  let prep = null;
+  try {
+    let logo = "";
+    if (inp.logoPath && String(inp.logoPath).startsWith(`${job.user_id}/`) && !String(inp.logoPath).includes("..")) logo = (await db.storage.from("uploads").createSignedUrl(inp.logoPath, 60 * 60 * 2)).data?.signedUrl ?? "";
+    let free = inp.free && inp.free.code ? inp.free : null; // {title, fields, code}
+    const prepOpts = (code) => ({ code, width: W, height: H, seconds, workDir, brandFile: join(here, "..", "src", "remotion", "brandIcons.ts"), fontCss: FREE_FONTS, mediaOrigin: new URL(process.env.SUPABASE_URL).origin });
+    const propsOf = (fields) => ({ t: Object.fromEntries((fields ?? []).map((f) => [f.key, f.value])), colors, font, contact, logo });
+    await setProgress(job.id, 5);
+    if (inp.mode === "similar" && free) { // same design, new words
+      free = { ...free, fields: await refillFields({ idea: inp.idea, fields: free.fields, brand: inp.brand }) };
+      prep = await prepareFree(prepOpts(free.code));
+    } else if (free) { // re-render with edited texts / colours
+      if (Array.isArray(inp.fields)) free = { ...free, fields: inp.fields };
+      prep = await prepareFree(prepOpts(free.code));
+    } else { // a new design: write it, check it, try one frame; if it fails, tell the writer why and try once more
+      let prev = null, lastErr = "";
+      for (let attempt = 0; attempt < 2 && !prep; attempt++) {
+        const g = await generateFree({ idea: inp.idea, aspect: inp.aspect, seconds, brand: inp.brand, colors, contact, hasLogo: !!logo, prev });
+        await setProgress(job.id, attempt ? 32 : 22);
+        const why = g.fields.length >= 3 ? checkFreeCode(g.code) : "fields";
+        if (why) { lastErr = why; prev = { code: g.code, error: `static check: ${why}` }; continue; }
+        let p;
+        try {
+          p = await prepareFree(prepOpts(g.code));
+          await p.still(propsOf(g.fields), Math.round(seconds * 30 * 0.5), join(workDir, `chk-${job.id}.png`));
+        } catch (e) { p?.cleanup(); lastErr = String(e?.message ?? e).slice(0, 400); prev = { code: g.code, error: lastErr }; continue; }
+        prep = p; free = { title: g.title, fields: g.fields, code: g.code };
+      }
+      if (!prep) throw new Error(`free design failed: ${lastErr}`);
+    }
+    await setProgress(job.id, 40);
+    const outFile = join(workDir, `out-${job.id}.mp4`), thumb = join(workDir, `th-${job.id}.png`);
+    let last = 0;
+    const props = propsOf(free.fields);
+    await prep.video(props, outFile, (pr) => { const v = 40 + pr * 52; if (v - last >= 4) { last = v; setProgress(job.id, v); } });
+    await prep.still(props, Math.round(seconds * 30 * 0.4), thumb).catch(() => {});
+    const base = `${job.user_id}/${job.id}`;
+    const vPath = `${base}/${crypto.randomUUID()}.mp4`;
+    const up = await db.storage.from("results").upload(vPath, await readFile(outFile), { contentType: "video/mp4" });
+    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    let tPath = null;
+    try { tPath = `${base}/${crypto.randomUUID()}.png`; const t = await db.storage.from("results").upload(tPath, await readFile(thumb), { contentType: "image/png" }); if (t.error) tPath = null; } catch { tPath = null; }
+    await db.from("jobs").update({ status: "done", progress: 100, title: String(free.title || inp.brand?.name || "تصميم مبتكر").slice(0, 80), error: null, input: { ...inp, mode: "done", free, colors, font, contact, aspect: inp.aspect, seconds }, output: { files: [{ path: vPath, type: "video/mp4" }], ...(tPath ? { thumb: tPath } : {}) }, updated_at: now() }).eq("id", job.id);
+    console.log("free design done", job.id);
+  } catch (e) {
+    if (inp.mode === "rerender" && prior?.length) { // a failed edit never destroys the finished video, and costs nothing
+      console.error("free rerender failed", job.id, e);
+      await db.from("jobs").update({ status: "done", progress: 100, input: { ...inp, mode: "done", editError: String(e?.message ?? e).slice(0, 200) }, updated_at: now() }).eq("id", job.id);
+    } else await fail(job, e);
+  } finally {
+    prep?.cleanup();
+    await rm(join(workDir, `out-${job.id}.mp4`), { force: true }); await rm(join(workDir, `th-${job.id}.png`), { force: true }); await rm(join(workDir, `chk-${job.id}.png`), { force: true });
+  }
+}
+
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
 async function recoverStale(minutes) {
   const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
@@ -738,6 +808,8 @@ async function recoverStale(minutes) {
   const { data: designs } = await db.from("jobs").select("id,tool_id,input").in("tool_id", DESIGN_TOOLS).eq("input->>render", "true").eq("status", "running").lt("updated_at", cutoff);
   const { data: sites } = await db.from("jobs").select("id").eq("tool_id", "site-video").eq("status", "running").lt("updated_at", cutoff);
   for (const j of sites ?? []) await db.from("jobs").update({ status: "failed", error: "site: worker restarted", updated_at: now() }).eq("id", j.id);
+  const { data: frees } = await db.from("jobs").select("id,input,output").eq("tool_id", "free-motion").eq("status", "running").lt("updated_at", cutoff);
+  for (const j of frees ?? []) { if (j.input?.mode === "rerender" && j.output?.files?.length) await db.from("jobs").update({ status: "done", progress: 100, input: { ...j.input, mode: "done" }, updated_at: now() }).eq("id", j.id); else { await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: now() }).eq("id", j.id); if (j.input?.mode !== "rerender") await db.rpc("refund_job", { p_job: j.id }); } }
   for (const j of [...(videos ?? []), ...(designs ?? [])]) {
     const attempts = Number(j.input?.attempts ?? 0) + 1;
     if (attempts >= 2 && DESIGN_TOOLS.includes(j.tool_id)) {
@@ -759,13 +831,15 @@ for (;;) {
   const { data: jobs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", ["video-editing", "motion-video", "real-scenes", "lesson-video", "quran-video"]).eq("status", "queued").order("created_at").limit(1);
   const { data: designs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", DESIGN_TOOLS).eq("status", "queued").eq("input->>render", "true").order("updated_at").limit(1);
   const { data: sites } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").eq("tool_id", "site-video").eq("status", "queued").order("created_at").limit(1);
+  const { data: frees } = await db.from("jobs").select("id,user_id,tool_id,input,output,created_at").eq("tool_id", "free-motion").eq("status", "queued").order("created_at").limit(1);
   // Website captures and designs are quick: they go first so customers don't wait behind long videos.
-  const job = sites?.[0] ?? designs?.[0] ?? jobs?.[0];
+  const job = sites?.[0] ?? designs?.[0] ?? frees?.[0] ?? jobs?.[0];
   if (!job) { await sleep(4000); continue; }
   // claim it (only one worker wins)
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
   if (!claimed?.length) continue;
   if (job.tool_id === "site-video") await captureJob(job);
+  else if (job.tool_id === "free-motion") await freeJob(job);
   else if (job.tool_id === "cv") await renderCV(job);
   else if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
   else if ((job.tool_id === "motion-video" || job.tool_id === "real-scenes") && job.input.spec?.segments) await renderMontage(job);
