@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { existsSync } from "node:fs";
 import { mkdtemp, readFile, writeFile, rm, mkdir, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -16,6 +17,7 @@ import { renderMedia, renderStill, selectComposition } from "@remotion/renderer"
 import { createRequire } from "node:module";
 import { captureSite } from "./site.mjs";
 import { prepareFree, checkFreeCode } from "./free.mjs";
+import { buildPreview } from "./freepreview.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
@@ -757,110 +759,157 @@ async function buildVoice(job, base, sentences, voice) {
   if (up.error) throw new Error(`upload voice: ${up.error.message}`);
   return { path, beats, sentences, duration: +(v.duration + OFFSET).toFixed(2), voiceId: voice.id };
 }
+const FONT_FILES = [["Cairo", "cairo", [700, 800]], ["Tajawal", "tajawal", [700, 800]], ["Almarai", "almarai", [700, 800]], ["Changa", "changa", [700, 800]], ["Amiri", "amiri", [700]]];
+function previewFonts() {
+  const out = [];
+  for (const [family, pkg, weights] of FONT_FILES) for (const weight of weights) {
+    for (const root of [join(here, "node_modules"), join(here, "..", "node_modules")]) {
+      const file = join(root, "@fontsource", pkg, "files", `${pkg}-arabic-${weight}-normal.woff2`);
+      if (existsSync(file)) { out.push({ family, weight, file }); break; }
+    }
+  }
+  return out;
+}
+const compSeconds = (inp, vo) => (vo ? Math.max(8, Math.min(70, Math.ceil(vo.duration + 1.2))) : Math.max(8, Math.min(30, Number(inp.seconds) || 15)));
+
+/** «تصميم مبتكر». new/similar/revoice end WITHOUT rendering a video: the design is played live in the customer's page. Only "export" renders the mp4. */
 async function freeJob(job) {
   const inp = job.input ?? {};
+  const mode = inp.mode;
   const [W, H] = FREE_SIZE[inp.aspect] ?? FREE_SIZE["9:16"];
-  let seconds = Math.max(8, Math.min(30, Number(inp.seconds) || 15));
   const colors = { bg: hexOk(inp.colors?.bg, "#0B2A4A"), accent: hexOk(inp.colors?.accent, "#E8B44C"), text: hexOk(inp.colors?.text, "#FFFFFF") };
   const font = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(inp.font) ? inp.font : "Cairo";
   const contact = (Array.isArray(inp.contact) ? inp.contact : []).slice(0, 6).map((c) => ({ icon: String(c.icon ?? "").replace(/[^a-z]/g, ""), handle: String(c.handle ?? "").replace(/[^\w@+.\-]/g, "").slice(0, 40) })).filter((c) => c.icon && c.handle);
-  const prior = job.output?.files; // a re-render keeps the old video until the new one is ready
   const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  const base = `${job.user_id}/${job.id}`;
+  const brandFile = join(here, "..", "src", "remotion", "brandIcons.ts");
+  const mediaOrigin = new URL(process.env.SUPABASE_URL).origin;
   let prep = null;
+  let seconds = compSeconds(inp, inp.free?.vo ?? null);
   try {
     let logo = "";
     if (inp.logoPath && String(inp.logoPath).startsWith(`${job.user_id}/`) && !String(inp.logoPath).includes("..")) logo = (await db.storage.from("uploads").createSignedUrl(inp.logoPath, 60 * 60 * 2)).data?.signedUrl ?? "";
-    let free = inp.free && inp.free.code ? inp.free : null; // {title, fields, code}
-    const prepOpts = (code) => ({ code, width: W, height: H, seconds, workDir, brandFile: join(here, "..", "src", "remotion", "brandIcons.ts"), fontCss: FREE_FONTS, mediaOrigin: new URL(process.env.SUPABASE_URL).origin });
-    const propsOf = (fields) => ({ t: Object.fromEntries((fields ?? []).map((f) => [f.key, f.value])), colors, font, contact, logo, beats: vo?.beats ?? [], seconds });
-    await setProgress(job.id, 5);
-    const base = `${job.user_id}/${job.id}`;
-    const wantVo = inp.voiceover !== false && !!inp.voice?.id;
-    let musicP = null; // music is made while the AI writes the design, so it costs no extra waiting
+    let free = inp.free && inp.free.code ? inp.free : null; // {title, fields, code, vo, previewPath}
     let vo = free?.vo ?? null; // {path, beats, sentences, duration, musicPath, musicSecs}
-    const fitSeconds = () => { if (vo) { seconds = Math.max(8, Math.min(70, Math.ceil(vo.duration + 1.2))); if (inp.music !== false && !(vo.musicPath && (vo.musicSecs ?? 0) >= seconds)) musicP = makeMusic("upbeat modern promo background music, warm and catchy", seconds + 3).catch((e) => { console.error("free music skipped", e?.message ?? e); return null; }); } };
-    if (inp.mode === "similar" && free) { // same design, new words (and a new voice-over with the same number of sentences)
+    const wantVo = inp.voiceover !== false && !!inp.voice?.id;
+    const prepOpts = (code) => ({ code, width: W, height: H, seconds, workDir, brandFile, fontCss: FREE_FONTS, mediaOrigin });
+    const logoBox = inp.logoBox && typeof inp.logoBox === "object" ? { x: Math.min(0.97, Math.max(0.03, +inp.logoBox.x || 0.85)), y: Math.min(0.97, Math.max(0.03, +inp.logoBox.y || 0.09)), w: Math.min(0.7, Math.max(0.06, +inp.logoBox.w || 0.18)) } : { x: 0.85, y: 0.09, w: 0.18 };
+    const propsOf = (fields) => ({ t: Object.fromEntries((fields ?? []).map((f) => [f.key, f.value])), colors, font, contact, logo, logoOn: !!logo && inp.logoOn !== false, logoBox, beats: vo?.beats ?? [], seconds });
+    const fit = () => { seconds = compSeconds(inp, vo); };
+    /** music for the whole length (made once; regenerated only if the voice got longer) */
+    const ensureMusic = async (promise) => {
+      if (inp.music === false || !vo) return;
+      if (vo.musicPath && (vo.musicSecs ?? 0) >= seconds) return;
+      try {
+        const m = await (promise ?? makeMusic("upbeat modern promo background music, warm and catchy", seconds + 3));
+        if (!m) return;
+        const path = `${base}/music-${crypto.randomUUID()}.mp3`;
+        const up = await db.storage.from("results").upload(path, m, { contentType: "audio/mpeg" });
+        if (!up.error) { vo.musicPath = path; vo.musicSecs = seconds + 3; }
+      } catch (e) { console.error("free music skipped", e?.message ?? e); }
+    };
+    await setProgress(job.id, 5);
+
+    // ---------- export: draw the finished mp4 from what the customer saved ----------
+    if (mode === "export") {
+      if (!free) throw new Error("export: no design");
+      fit(); prep = await prepareFree(prepOpts(free.code)); await setProgress(job.id, 12);
+      const outFile = join(workDir, `out-${job.id}.mp4`);
+      let last = 0;
+      await prep.video(propsOf(free.fields), outFile, (pr) => { const v = 12 + pr * 78; if (v - last >= 4) { last = v; setProgress(job.id, v); } });
+      if (vo) {
+        await setProgress(job.id, 93);
+        const voFile = join(workDir, `vo-${job.id}.mp3`), muFile = join(workDir, `mu-${job.id}.mp3`), mixed = join(workDir, `mix-${job.id}.mp4`);
+        await writeFile(voFile, await dl(vo.path));
+        const vol = Math.max(0, Math.min(0.6, Number(inp.musicVol ?? 0.14)));
+        const music = inp.music !== false && vol > 0 && !!vo.musicPath;
+        if (music) await writeFile(muFile, await dl(vo.musicPath));
+        const delay = Math.round(OFFSET * 1000);
+        await ff(music
+          ? ["-i", outFile, "-i", voFile, "-i", muFile, "-filter_complex", `[1:a]adelay=${delay}|${delay},volume=1.0[v];[2:a]volume=${vol},afade=t=out:st=${Math.max(0, seconds - 2)}:d=2[m];[v][m]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[a]`, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", String(seconds), mixed]
+          : ["-i", outFile, "-i", voFile, "-filter_complex", `[1:a]adelay=${delay}|${delay}[a]`, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", String(seconds), mixed]);
+        await rename(mixed, outFile);
+        await rm(voFile, { force: true }); await rm(muFile, { force: true });
+      }
+      const vPath = `${base}/${crypto.randomUUID()}.mp4`;
+      const up = await db.storage.from("results").upload(vPath, await readFile(outFile), { contentType: "video/mp4" });
+      if (up.error) throw new Error(`upload: ${up.error.message}`);
+      await db.from("jobs").update({ status: "done", progress: 100, error: null, input: { ...inp, mode: "done", editError: null }, output: { ...(job.output ?? {}), files: [{ path: vPath, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
+      console.log("free export done", job.id);
+      return;
+    }
+
+    // ---------- revoice: the customer changed a sentence or the voice ----------
+    if (mode === "revoice") {
+      if (!free || !vo || !wantVo) throw new Error("revoice: nothing to record");
+      const sentences = Array.isArray(inp.narration) && inp.narration.length === vo.sentences.length ? inp.narration : vo.sentences;
+      vo = await buildVoice(job, base, sentences, inp.voice); fit();
+      await ensureMusic(null);
+      await db.from("jobs").update({ status: "done", progress: 100, error: null, input: { ...inp, mode: "done", editError: null, narration: undefined, cseconds: seconds, free: { ...free, vo } }, updated_at: now() }).eq("id", job.id);
+      console.log("free revoice done", job.id);
+      return;
+    }
+
+    // ---------- similar: same design, new words, new voice with the same number of sentences ----------
+    if (mode === "similar" && free) {
       free = { ...free, fields: await refillFields({ idea: inp.idea, fields: free.fields, brand: inp.brand }) };
-      if (wantVo) { vo = await buildVoice(job, base, await writeNarration({ idea: inp.idea, brand: inp.brand, seconds: inp.seconds, dialectLabel: inp.dialectLabel, count: free.vo?.beats?.length || 0 }), inp.voice); fitSeconds(); }
-      prep = await prepareFree(prepOpts(free.code));
-    } else if (free) { // re-render with edited texts / colours (the voice is re-recorded only when its sentences were edited)
-      if (Array.isArray(inp.fields)) free = { ...free, fields: inp.fields };
-      if (wantVo && vo && Array.isArray(inp.narration) && inp.narration.length === vo.sentences.length && inp.narration.join("|") !== vo.sentences.join("|")) vo = await buildVoice(job, base, inp.narration, inp.voice);
-      if (!wantVo) vo = null;
-      fitSeconds();
-      prep = await prepareFree(prepOpts(free.code));
-    } else {
-      if (wantVo) { vo = await buildVoice(job, base, await writeNarration({ idea: inp.idea, brand: inp.brand, seconds, dialectLabel: inp.dialectLabel, count: 0 }), inp.voice); fitSeconds(); } // a new design: write it, check it, try one frame; if it fails, tell the writer why and try once more
-      let prev = null, lastErr = "", fallback = null;
-      for (let attempt = 0; attempt < 2 && !prep; attempt++) {
-        const g = await generateFree({ idea: inp.idea, aspect: inp.aspect, seconds, brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: vo?.beats });
-        await setProgress(job.id, attempt ? 32 : 22);
-        const why = g.fields.length >= 3 ? checkFreeCode(g.code) : "fields";
-        if (why) { lastErr = why; prev = { code: g.code, error: `static check: ${why}` }; continue; }
-        let p;
-        try {
-          p = await prepareFree(prepOpts(g.code));
-          await p.still(propsOf(g.fields), Math.round(seconds * 30 * 0.5), join(workDir, `chk-${job.id}.png`));
-        } catch (e) { p?.cleanup(); lastErr = String(e?.message ?? e).slice(0, 400); prev = { code: g.code, error: lastErr }; continue; }
-        if (attempt === 0) { // an art-director pass: four frames are looked at; oversized text/icons, overflow or clutter send the design back once
-          try {
-            const shots = [];
-            for (const [i, f] of [0.1, 0.35, 0.6, 0.9].entries()) { const fp = join(workDir, `rv-${job.id}-${i}.png`); await p.still(propsOf(g.fields), Math.round(seconds * 30 * f), fp); shots.push(await readFile(fp)); await rm(fp, { force: true }); }
-            const r = await reviewFree({ frames: shots, aspect: inp.aspect, idea: inp.idea });
-            if (!r.ok && r.issues) { p.cleanup(); fallback = g; prev = { code: g.code, error: `visual review by the art director: ${r.issues}` }; await setProgress(job.id, 30); continue; }
-          } catch (e) { console.error("free review skipped", e?.message ?? e); }
-        }
-        prep = p; free = { title: g.title, fields: g.fields, code: g.code };
-      }
-      if (!prep && fallback) { prep = await prepareFree(prepOpts(fallback.code)); free = { title: fallback.title, fields: fallback.fields, code: fallback.code }; } // the first design worked, only the art director disliked it: better than nothing
-      if (!prep) throw new Error(`free design failed: ${lastErr}`);
+      if (wantVo) { vo = await buildVoice(job, base, await writeNarration({ idea: inp.idea, brand: inp.brand, seconds: inp.seconds, dialectLabel: inp.dialectLabel, count: free.vo?.beats?.length || 0 }), inp.voice); fit(); await ensureMusic(null); } else vo = null;
+      await db.from("jobs").update({ status: "done", progress: 100, title: String(free.title || "تصميم مبتكر").slice(0, 80), error: null, input: { ...inp, mode: "done", cseconds: seconds, free: { ...free, ...(vo ? { vo } : { vo: undefined }) } }, output: { preview: free.previewPath, ...(free.thumbPath ? { thumb: free.thumbPath } : {}) }, updated_at: now() }).eq("id", job.id);
+      console.log("free similar done", job.id);
+      return;
     }
-    await setProgress(job.id, 40);
-    const outFile = join(workDir, `out-${job.id}.mp4`), thumb = join(workDir, `th-${job.id}.png`);
-    let last = 0;
-    const props = propsOf(free.fields);
-    await prep.video(props, outFile, (pr) => { const v = 40 + pr * 52; if (v - last >= 4) { last = v; setProgress(job.id, v); } });
-    await prep.still(props, Math.round(seconds * 30 * 0.4), thumb).catch(() => {});
-    if (vo) { // the finished video gets the voice and (optionally) soft music
-      await setProgress(job.id, 94);
-      const voFile = join(workDir, `vo-${job.id}.mp3`), muFile = join(workDir, `mu-${job.id}.mp3`), mixed = join(workDir, `mix-${job.id}.mp4`);
-      await writeFile(voFile, await dl(vo.path));
-      let music = false;
-      if (inp.music !== false) {
-        try {
-          if (vo.musicPath && (vo.musicSecs ?? 0) >= seconds) await writeFile(muFile, await dl(vo.musicPath));
-          else {
-            const m = await musicP;
-            if (!m) throw new Error("no music");
-            vo.musicPath = `${base}/music-${crypto.randomUUID()}.mp3`; vo.musicSecs = seconds + 3;
-            await db.storage.from("results").upload(vo.musicPath, m, { contentType: "audio/mpeg" });
-            await writeFile(muFile, m);
-          }
-          music = true;
-        } catch (e) { console.error("free music skipped", e?.message ?? e); }
-      }
-      const delay = Math.round(OFFSET * 1000);
-      await ff(music
-        ? ["-i", outFile, "-i", voFile, "-i", muFile, "-filter_complex", `[1:a]adelay=${delay}|${delay},volume=1.0[v];[2:a]volume=0.14,afade=t=out:st=${Math.max(0, seconds - 2)}:d=2[m];[v][m]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[a]`, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", String(seconds), mixed]
-        : ["-i", outFile, "-i", voFile, "-filter_complex", `[1:a]adelay=${delay}|${delay}[a]`, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", String(seconds), mixed]);
-      await rename(mixed, outFile);
-      await rm(voFile, { force: true }); await rm(muFile, { force: true });
+
+    // ---------- new: voice first, then the design is written to follow it ----------
+    let musicP = null;
+    if (wantVo) {
+      vo = await buildVoice(job, base, await writeNarration({ idea: inp.idea, brand: inp.brand, seconds, dialectLabel: inp.dialectLabel, count: 0 }), inp.voice); fit();
+      if (inp.music !== false) musicP = makeMusic("upbeat modern promo background music, warm and catchy", seconds + 3).catch((e) => { console.error("free music skipped", e?.message ?? e); return null; });
     }
-    const vPath = `${base}/${crypto.randomUUID()}.mp4`;
-    const up = await db.storage.from("results").upload(vPath, await readFile(outFile), { contentType: "video/mp4" });
-    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    let prev = null, lastErr = "", fallback = null;
+    for (let attempt = 0; attempt < 2 && !prep; attempt++) {
+      const g = await generateFree({ idea: inp.idea, aspect: inp.aspect, seconds, brand: inp.brand, colors, contact, hasLogo: !!logo, prev, beats: vo?.beats });
+      await setProgress(job.id, attempt ? 55 : 40);
+      const why = g.fields.length >= 3 ? checkFreeCode(g.code) : "fields";
+      if (why) { lastErr = why; prev = { code: g.code, error: `static check: ${why}` }; continue; }
+      let p;
+      try {
+        p = await prepareFree(prepOpts(g.code));
+        await p.still(propsOf(g.fields), Math.round(seconds * 30 * 0.5), join(workDir, `chk-${job.id}.png`));
+      } catch (e) { p?.cleanup(); lastErr = String(e?.message ?? e).slice(0, 400); prev = { code: g.code, error: lastErr }; continue; }
+      if (attempt === 0) { // an art-director pass: four frames are looked at; oversized text/icons, overflow or clutter send the design back once
+        try {
+          const shots = [];
+          for (const [i, f] of [0.1, 0.35, 0.6, 0.9].entries()) { const fp = join(workDir, `rv-${job.id}-${i}.png`); await p.still(propsOf(g.fields), Math.round(seconds * 30 * f), fp); shots.push(await readFile(fp)); await rm(fp, { force: true }); }
+          const r = await reviewFree({ frames: shots, aspect: inp.aspect, idea: inp.idea });
+          if (!r.ok && r.issues) { p.cleanup(); fallback = g; prev = { code: g.code, error: `visual review by the art director: ${r.issues}` }; await setProgress(job.id, 50); continue; }
+        } catch (e) { console.error("free review skipped", e?.message ?? e); }
+      }
+      prep = p; free = { title: g.title, fields: g.fields, code: g.code };
+    }
+    if (!prep && fallback) { prep = await prepareFree(prepOpts(fallback.code)); free = { title: fallback.title, fields: fallback.fields, code: fallback.code }; } // the first design worked, only the art director disliked it: better than nothing
+    if (!prep) throw new Error(`free design failed: ${lastErr}`);
+    await setProgress(job.id, 75);
+    const thumb = join(workDir, `th-${job.id}.png`);
+    await prep.still(propsOf(free.fields), Math.round(seconds * 30 * 0.4), thumb).catch(() => {});
+    await ensureMusic(musicP);
+    // the live page: one sandboxed HTML file
+    const html = await buildPreview({ code: free.code, width: W, height: H, brandFile, fonts: previewFonts(), mediaOrigin });
+    const previewPath = `${base}/preview-${crypto.randomUUID()}.html`;
+    const pu = await db.storage.from("results").upload(previewPath, Buffer.from(html), { contentType: "text/html" });
+    if (pu.error) throw new Error(`upload preview: ${pu.error.message}`);
     let tPath = null;
     try { tPath = `${base}/${crypto.randomUUID()}.png`; const t = await db.storage.from("results").upload(tPath, await readFile(thumb), { contentType: "image/png" }); if (t.error) tPath = null; } catch { tPath = null; }
-    await db.from("jobs").update({ status: "done", progress: 100, title: String(free.title || inp.brand?.name || "تصميم مبتكر").slice(0, 80), error: null, input: { ...inp, mode: "done", free: { ...free, ...(vo ? { vo } : {}) }, colors, font, contact, aspect: inp.aspect, seconds, narration: undefined }, output: { files: [{ path: vPath, type: "video/mp4" }], ...(tPath ? { thumb: tPath } : {}) }, updated_at: now() }).eq("id", job.id);
+    free = { ...free, previewPath, ...(tPath ? { thumbPath: tPath } : {}), ...(vo ? { vo } : {}) };
+    await db.from("jobs").update({ status: "done", progress: 100, title: String(free.title || inp.brand?.name || "تصميم مبتكر").slice(0, 80), error: null, input: { ...inp, mode: "done", cseconds: seconds, free }, output: { preview: previewPath, ...(tPath ? { thumb: tPath } : {}) }, updated_at: now() }).eq("id", job.id);
     console.log("free design done", job.id);
   } catch (e) {
-    if (inp.mode === "rerender" && prior?.length) { // a failed edit never destroys the finished video, and costs nothing
-      console.error("free rerender failed", job.id, e);
+    if ((mode === "export" || mode === "revoice") && job.output?.preview) { // a failed edit or export never destroys the studio, and costs nothing
+      console.error("free", mode, "failed", job.id, e);
       await db.from("jobs").update({ status: "done", progress: 100, input: { ...inp, mode: "done", editError: String(e?.message ?? e).slice(0, 200) }, updated_at: now() }).eq("id", job.id);
     } else await fail(job, e);
   } finally {
     prep?.cleanup();
-    await rm(join(workDir, `out-${job.id}.mp4`), { force: true }); await rm(join(workDir, `th-${job.id}.png`), { force: true }); await rm(join(workDir, `chk-${job.id}.png`), { force: true });
+    for (const f of [`out-${job.id}.mp4`, `th-${job.id}.png`, `chk-${job.id}.png`]) await rm(join(workDir, f), { force: true });
   }
 }
 
@@ -872,7 +921,7 @@ async function recoverStale(minutes) {
   const { data: sites } = await db.from("jobs").select("id").eq("tool_id", "site-video").eq("status", "running").lt("updated_at", cutoff);
   for (const j of sites ?? []) await db.from("jobs").update({ status: "failed", error: "site: worker restarted", updated_at: now() }).eq("id", j.id);
   const { data: frees } = await db.from("jobs").select("id,input,output").eq("tool_id", "free-motion").eq("status", "running").lt("updated_at", cutoff);
-  for (const j of frees ?? []) { if (j.input?.mode === "rerender" && j.output?.files?.length) await db.from("jobs").update({ status: "done", progress: 100, input: { ...j.input, mode: "done" }, updated_at: now() }).eq("id", j.id); else { await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: now() }).eq("id", j.id); if (j.input?.mode !== "rerender") await db.rpc("refund_job", { p_job: j.id }); } }
+  for (const j of frees ?? []) { if ((j.input?.mode === "export" || j.input?.mode === "revoice") && j.output?.preview) await db.from("jobs").update({ status: "done", progress: 100, input: { ...j.input, mode: "done" }, updated_at: now() }).eq("id", j.id); else { await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: now() }).eq("id", j.id); await db.rpc("refund_job", { p_job: j.id }); } }
   for (const j of [...(videos ?? []), ...(designs ?? [])]) {
     const attempts = Number(j.input?.attempts ?? 0) + 1;
     if (attempts >= 2 && DESIGN_TOOLS.includes(j.tool_id)) {

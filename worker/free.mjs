@@ -44,7 +44,12 @@ export async function prepareFree({ code, width, height, fps = 30, seconds, work
 import { Composition, registerRoot } from "remotion";
 ${fontCss.map((f) => `import "${f}";`).join("\n")}
 import * as M from "./Free";
-const C = (M as any).Free ?? (M as any).default;
+const F = (M as any).Free ?? (M as any).default;
+// the logo is laid over the design by the host (same as the motion studio): centre x/y and width as fractions of the frame
+const C = (p: any) => (<>
+  <F {...p} />
+  {p.logoOn && p.logo ? <img src={p.logo} style={{ position: "absolute", left: (p.logoBox?.x ?? 0.85) * 100 + "%", top: (p.logoBox?.y ?? 0.09) * 100 + "%", width: (p.logoBox?.w ?? 0.18) * 100 + "%", transform: "translate(-50%, -50%)", objectFit: "contain" }} /> : null}
+</>);
 registerRoot(() => <Composition id="Free" component={C} durationInFrames={${Math.round(seconds * fps)}} fps={${fps}} width={${width}} height={${height}} defaultProps={{}} />);
 `);
     const serveUrl = await bundle({ entryPoint: path.join(dir, "index.tsx"), outDir: path.join(dir, "out") });

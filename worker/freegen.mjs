@@ -65,7 +65,7 @@ Business name: ${brand?.name || "—"}
 Aspect ratio: ${aspect}. Exact duration: ${seconds} seconds (${Math.round(seconds * 30)} frames at 30 fps).
 Colours to use: bg ${colors.bg}, accent ${colors.accent}, text ${colors.text}.
 Social accounts to show at the end: ${contact?.length ? contact.map((c) => `${c.icon}: ${c.handle}`).join(", ") : "none"}.
-Logo: ${hasLogo ? "yes (p.logo)" : "none"}.
+Logo: the host overlays the customer's logo above your design (draggable), so NEVER draw p.logo yourself and keep a clear 14% area free near the top-right corner.
 ${beats?.length ? `Voice-over (already recorded; p.beats has EXACTLY ${beats.length} entries): ${beats.map((b, i) => `${i + 1}) [${b.start}s-${b.end}s] ${b.text}`).join(" | ")}` : "No voice-over: choose your own beats."}`;
   const user = prev ? `${brief}\n\nYour previous attempt was refused: ${prev.error}\nFix the problem and return the full answer again in the same format. Previous code:\n<code>\n${String(prev.code).slice(0, 20000)}\n</code>` : brief;
   const out = await claude({ system: SYSTEM, user, signal: AbortSignal.timeout(330_000) });

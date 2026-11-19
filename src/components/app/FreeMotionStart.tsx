@@ -6,19 +6,18 @@ import { Progress } from "@/components/app/Progress";
 import { BRANDS, type BrandId } from "@/remotion/brandIcons";
 import { GULF_DIALECTS, myDialect } from "@/lib/countries";
 import { VOICE_TYPES } from "@/lib/voiceMatch";
+import { FreeStudio, type StudioData } from "@/components/app/FreeStudio";
 
-type Field = { key: string; label: string; value: string };
 type Contact = { icon: BrandId; handle: string };
 type Colors = { bg: string; accent: string; text: string };
-type Done = { status: "done"; voiceover: boolean; narration: string[]; title: string; video: string; aspect: string; seconds: number; idea: string; editError: string; fields: Field[]; colors: Colors; font: string; contact: Contact[]; brand: string };
-type State = Done | { status: "queued" | "running"; progress: number; rerender?: boolean } | { status: "failed"; error: string; reason?: string };
+type State = StudioData | { status: "queued" | "running"; progress: number } | { status: "failed"; error: string; reason?: string };
 
 const sizes = [["9:16", "📱 ريلز 9:16"], ["16:9", "▶️ يوتيوب 16:9"], ["1:1", "⬜ مربع 1:1"], ["4:5", "🖼️ طولي 4:5"]] as const;
 const fonts = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 const social = Object.keys(BRANDS) as BrandId[];
 
 /** «تصميم مبتكر ✨»: the customer writes an idea; the AI writes a motion design as code and the worker renders it. Texts and colours can be edited afterwards. */
-export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: number; editCost: number; balance: number }) {
+export function FreeMotionStart({ costPer15, editCost, balance, kitLogo }: { costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null }) {
   const router = useRouter();
   const sp = useSearchParams();
   const jobId = sp.get("job");
@@ -34,18 +33,12 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
   useEffect(() => { setDialect(myDialect()); }, []);
   const [vtype, setVtype] = useState("auto");
   const [withMusic, setWithMusic] = useState(true);
-  const [narr, setNarr] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<State | null>(null);
-  const [fields, setFields] = useState<Field[]>([]);
-  const [ecolors, setEcolors] = useState<Colors>(colors);
-  const [efont, setEfont] = useState("Cairo");
-  const [econtact, setEcontact] = useState<Contact[]>([]);
-  const [simIdea, setSimIdea] = useState("");
-  const loaded = useRef<string | null>(null);
-  const doneRef = useRef(false);
-  useEffect(() => { doneRef.current = state?.status === "done" || state?.status === "failed"; }, [state]);
+  const [studio, setStudio] = useState<StudioData | null>(null);
+  const [busyNow, setBusyNow] = useState<StudioData["busy"]>(null);
+  const stopped = useRef(false);
   const cost = Math.max(1, Math.round(seconds / 15)) * costPer15;
 
   const poll = useCallback(async () => {
@@ -54,44 +47,41 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
     if (!r) return;
     const d = (await r.json().catch(() => null)) as State | null;
     if (!d || !("status" in d)) return;
-    if (d.status === "done" && loaded.current === jobId) { setState((p) => (p && p.status === "done" ? { ...d, video: p.video } : d)); return; }
-    setState(d);
-    if (d.status === "done" && loaded.current !== jobId) { // the signed video link changes on every request: load the editor once per job, never on each poll
-      loaded.current = jobId;
-      setFields(d.fields); setNarr(d.narration ?? []); setEcolors(d.colors); setEfont(d.font); setEcontact(d.contact); setSimIdea(d.idea);
-    }
+    if (d.status === "studio") {
+      setBusyNow(d.busy);
+      setStudio((p) => (!p || !d.busy ? d : p)); // while something is being recorded/exported the studio keeps its links (they change on every request)
+      stopped.current = !d.busy;
+    } else { setState(d); stopped.current = d.status === "failed"; }
   }, [jobId]);
   useEffect(() => {
-    if (!jobId) { setState(null); return; }
+    setStudio(null); setBusyNow(null); setState(null); stopped.current = false;
+    if (!jobId) return;
     poll();
-    const t = setInterval(() => { if (!doneRef.current) poll(); }, 3500);
+    const t = setInterval(() => { if (!stopped.current) poll(); }, 3500);
     return () => clearInterval(t);
   }, [jobId, poll]);
 
-  async function start(e: React.FormEvent, from?: string) {
+  async function startFrom(ideaText: string, opts: { dialect: string; vtype: string; music: boolean }, from: string): Promise<string | null> {
+    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea: ideaText, aspect: studio?.aspect ?? "9:16", seconds: 15, brand: studio?.brand ?? "", colors: studio?.colors, font: studio?.font, contact: studio?.contact, fromJob: from, voiceover: studio?.voiceover, dialect: opts.dialect, vtype: opts.vtype, music: opts.music }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return d.error ?? L("تعذّر البدء.");
+    router.replace(`/app/tools/free-motion?job=${d.jobId}`);
+    router.refresh();
+    return null;
+  }
+  async function start(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setError(null);
-    const body = from ? { idea: simIdea, aspect: (state as Done).aspect, seconds: (state as Done).seconds, brand: (state as Done).brand, colors: ecolors, font: efont, contact: econtact, fromJob: from, voiceover: (state as Done).voiceover, dialect, vtype, music: withMusic } : { idea, aspect, seconds, brand, colors, font, contact, voiceover, dialect, vtype, music: withMusic };
-    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds, brand, colors, font, contact, voiceover, dialect, vtype, music: withMusic }) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setError(d.error ?? L("تعذّر البدء.")); return; }
-    loaded.current = null;
     router.replace(`/app/tools/free-motion?job=${d.jobId}`);
     router.refresh();
   }
-  async function apply() {
-    setBusy(true); setError(null);
-    const r = await fetch("/api/free-motion/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job: jobId, fields, narration: narr, colors: ecolors, font: efont, contact: econtact }) });
-    const d = await r.json().catch(() => ({}));
-    setBusy(false);
-    if (!r.ok) { setError(d.error ?? L("تعذّر التعديل.")); return; }
-    loaded.current = null; doneRef.current = false; setState({ status: "queued", progress: 0, rerender: true });
-  }
-  const setCol = (k: keyof Colors, v: string, edit: boolean) => (edit ? setEcolors : setColors)((c) => ({ ...c, [k]: v }));
-  const colorRow = (c: Colors, edit: boolean) => (
+  const colorRow = (c: Colors) => (
     <div className="flex flex-wrap gap-4">
       {([["bg", "الخلفية"], ["accent", "اللون المميّز"], ["text", "الخط"]] as const).map(([k, l]) => (
-        <label key={k} className="flex items-center gap-2 text-[14px]"><input type="color" value={c[k]} onChange={(e) => setCol(k, e.target.value, edit)} className="h-9 w-12 cursor-pointer rounded border" />{L(l)}</label>
+        <label key={k} className="flex items-center gap-2 text-[14px]"><input type="color" value={c[k]} onChange={(e) => setColors((o) => ({ ...o, [k]: e.target.value }))} className="h-9 w-12 cursor-pointer rounded border" />{L(l)}</label>
       ))}
     </div>
   );
@@ -108,48 +98,13 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
     </div>
   );
 
-  if (jobId && state && state.status !== "done" && state.status !== "failed") {
-    return <div className="card max-w-2xl p-6"><Progress value={state.progress || 5} label={state.rerender ? L("شاهين يطبّق تعديلاتك…") : L("شاهين يصمّم ويرسم فكرتك… (ثلاث إلى ست دقايق)")} /><p className="mt-3 text-[13px] text-subtle">{L("تقدر تطلع من الصفحة، تلقاه بـ«أعمالي» لما يخلص.")}</p></div>;
-  }
+  if (jobId && studio) return <FreeStudio key={jobId} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={() => { stopped.current = false; setBusyNow({ kind: "export", progress: 3 }); poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
   if (jobId && state?.status === "failed") {
     return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p>{state.reason && <p dir="ltr" className="mt-3 rounded-lg bg-neutral-100 p-3 text-start text-[12px] text-neutral-600">{state.reason}</p>}<button onClick={() => router.replace("/app/tools/free-motion")} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
   }
-  if (jobId && state?.status === "done") {
-    const d = state;
-    return (
-      <div className="flex max-w-4xl flex-col gap-5">
-        <div className="card flex flex-col gap-5 p-5 sm:flex-row sm:p-6">
-          <video src={d.video} controls playsInline className="mx-auto max-h-[560px] w-full max-w-[320px] rounded-2xl bg-black sm:mx-0" />
-          <div className="flex flex-1 flex-col gap-4">
-            <h2 className="text-[20px] font-bold text-navy-900">{d.title}</h2>
-            {d.editError && <p className="rounded-xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">{L(d.editError)}</p>}
-            <div className="flex flex-col gap-2">
-              <span className="font-semibold">{L("النصوص")}</span>
-              {fields.map((f, i) => <label key={f.key} className="flex flex-col gap-1 text-[13px] text-subtle">{f.label}<input value={f.value} maxLength={200} onChange={(e) => setFields(fields.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} className="field text-[15px] text-ink" /></label>)}
-            </div>
-            {d.voiceover && narr.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="font-semibold">{L("التعليق الصوتي")}</span>
-                {narr.map((n, i) => <textarea key={i} rows={2} maxLength={220} value={n} onChange={(e) => setNarr(narr.map((x, j) => (j === i ? e.target.value : x)))} className="field text-[14px]" />)}
-                <span className="text-[12px] text-subtle">{L("إذا غيّرت جملة، الصوت ينسجّل من جديد (يأخذ دقيقة تقريباً). عدد الجمل ثابت عشان الصورة تمشي مع الصوت.")}</span>
-              </div>
-            )}
-            <div className="flex flex-col gap-2"><span className="font-semibold">{L("الألوان")}</span>{colorRow(ecolors, true)}</div>
-            <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={efont} onChange={(e) => setEfont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
-            <div className="flex flex-col gap-2"><span className="font-semibold">{L("حسابات التواصل")}</span>{contactRow(econtact, setEcontact)}</div>
-            {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
-            <button disabled={busy} onClick={apply} className="btn btn-gold py-3 text-[15px]">🔄 {L("طبّق التعديلات (مجاناً)")}</button>
-            <a href={d.video} download className="btn btn-outline py-3 text-center text-[15px]">⬇️ {L("تحميل الفيديو")}</a>
-          </div>
-        </div>
-        <form onSubmit={(e) => start(e, jobId)} className="card flex flex-col gap-3 p-5 sm:p-6">
-          <h3 className="font-bold text-navy-900">✨ {L("سوّ مثله بفكرة جديدة")}</h3>
-          <p className="text-[13px] text-subtle">{L("نفس التصميم والحركات، بس بالكلام والمعلومات الجديدة.")}</p>
-          <textarea required minLength={10} maxLength={1500} rows={3} value={simIdea} onChange={(e) => setSimIdea(e.target.value)} className="field" />
-          <button disabled={busy || balance < editCost} className="btn btn-gold py-3">{L("سوّ مثله")} ({editCost} {L("ريشة")})</button>
-        </form>
-      </div>
-    );
+  if (jobId) {
+    const pr = state && "progress" in state ? state.progress : 3;
+    return <div className="card max-w-2xl p-6"><Progress value={pr || 5} label={L("شاهين يصمّم فكرتك… (دقيقتين إلى خمس)")} /><p className="mt-3 text-[13px] text-subtle">{L("بعدها تنفتح لك المعاينة المباشرة وتعدّل عليها قبل التصدير.")} {L("تقدر تطلع من الصفحة، تلقاه بـ«أعمالي» لما يخلص.")}</p></div>;
   }
   return (
     <form onSubmit={start} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
@@ -167,7 +122,7 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
           <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} />{L("موسيقى هادية بالخلفية")}</label>
         </>)}
       </div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("ألوان هويتك")}</span>{colorRow(colors, false)}</div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">{L("ألوان هويتك")}</span>{colorRow(colors)}</div>
       <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("حسابات التواصل (اختياري)")}</span>{contactRow(contact, setContact)}</div>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}

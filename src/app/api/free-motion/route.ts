@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { guardContent } from "@/lib/server/moderation";
-import { signedResultUrls } from "@/lib/providers/storage";
 import { FREE_FONTS, cleanColors, cleanContact } from "@/lib/server/freeMotion";
 import { DIALECT_NAME, pickVoice, typeToGA, type VoiceItem } from "@/lib/voiceMatch";
 
@@ -55,22 +54,32 @@ export async function POST(req: Request) {
   return NextResponse.json({ jobId: job.id });
 }
 
-/** Polled by the page: progress, then the video and the editable fields. */
+/** Polled by the page: progress while the design is made, then everything the live studio needs. */
 export async function GET(req: Request) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
   const id = new URL(req.url).searchParams.get("job") ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "طلب غير صالح." }, { status: 400 });
-  const { data: job } = await createAdminClient().from("jobs").select("id,status,progress,error,input,output,title,created_at").eq("id", id).eq("user_id", user.id).eq("tool_id", "free-motion").maybeSingle();
+  const admin = createAdminClient();
+  const { data: job } = await admin.from("jobs").select("id,status,progress,error,input,output,title,created_at").eq("id", id).eq("user_id", user.id).eq("tool_id", "free-motion").maybeSingle();
   if (!job) return NextResponse.json({ error: "ما لقينا الطلب." }, { status: 404 });
   if (job.status === "failed") return NextResponse.json({ status: "failed", error: "ما قدرنا نكمل هذا التصميم. تم إرجاع ريشك، جرّب فكرة أبسط أو القوالب الجاهزة.", reason: String(job.error ?? "").replace(/sk-[\w-]+|eyJ[\w.-]+/g, "").slice(0, 220) }); // the technical reason is shown while the tool is experimental
-  if (job.status !== "done") return NextResponse.json({ status: job.status, progress: job.progress ?? 0, rerender: (job.input as { mode?: string })?.mode === "rerender" });
-  const inp = (job.input ?? {}) as { voiceover?: boolean; free?: { fields?: unknown[]; title?: string; vo?: { sentences?: string[] } }; colors?: unknown; font?: string; contact?: unknown; aspect?: string; seconds?: number; idea?: string; editError?: string; brand?: { name?: string } };
-  const out = (job.output ?? {}) as { files?: { path: string }[]; thumb?: string };
-  const paths = [out.files?.[0]?.path, out.thumb].filter((x): x is string => !!x && x.startsWith(`${user.id}/`));
-  const urls = await signedResultUrls(paths, 60 * 60 * 3);
+  const inp = (job.input ?? {}) as { mode?: string; voiceover?: boolean; free?: { fields?: unknown[]; title?: string; vo?: { sentences?: string[]; beats?: unknown[]; path?: string; musicPath?: string } }; colors?: unknown; font?: string; contact?: unknown; aspect?: string; cseconds?: number; seconds?: number; idea?: string; editError?: string; brand?: { name?: string }; music?: boolean; musicVol?: number; dialect?: string; logoPath?: string; logoOn?: boolean; logoBox?: { x: number; y: number; w: number } };
+  const out = (job.output ?? {}) as { files?: { path: string }[]; thumb?: string; preview?: string };
+  if (!out.preview) return NextResponse.json({ status: job.status, progress: job.progress ?? 0 });
+  const own = (x?: string) => (x && x.startsWith(`${user.id}/`) && !x.includes("..") ? x : "");
+  const paths = [own(out.preview), own(inp.free?.vo?.path), own(inp.free?.vo?.musicPath), own(out.files?.[0]?.path)].filter(Boolean);
+  const signed = paths.length ? (await admin.storage.from("results").createSignedUrls(paths, 60 * 60 * 3)).data ?? [] : [];
+  const urlOf = (p?: string) => (p ? signed.find((x) => x.path === p)?.signedUrl ?? "" : "");
+  const logo = own(inp.logoPath) ? (await admin.storage.from("uploads").createSignedUrl(inp.logoPath!, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
+  const busy = job.status !== "done" ? { kind: inp.mode === "export" ? "export" : "revoice", progress: job.progress ?? 0 } : null;
   return NextResponse.json({
-    status: "done", title: job.title, voiceover: !!inp.voiceover, narration: Array.isArray(inp.free?.vo?.sentences) ? inp.free!.vo!.sentences : [], video: urls[0] ?? "", aspect: inp.aspect ?? "9:16", seconds: inp.seconds ?? 15, idea: inp.idea ?? "", editError: inp.editError ? "تعذّر تطبيق التعديل، وبقي الفيديو السابق." : "",
-    fields: Array.isArray(inp.free?.fields) ? inp.free!.fields : [], colors: cleanColors(inp.colors), font: inp.font ?? "Cairo", contact: cleanContact(inp.contact), brand: inp.brand?.name ?? "",
+    status: "studio", busy, title: job.title, aspect: inp.aspect ?? "9:16", cseconds: inp.cseconds ?? inp.seconds ?? 15, idea: inp.idea ?? "", brand: inp.brand?.name ?? "",
+    voiceover: !!inp.voiceover, narration: inp.free?.vo?.sentences ?? [], beats: inp.free?.vo?.beats ?? [], dialect: inp.dialect ?? "kuwaiti",
+    fields: Array.isArray(inp.free?.fields) ? inp.free!.fields : [], colors: cleanColors(inp.colors), font: FONTS.includes(String(inp.font)) ? inp.font : "Cairo", contact: cleanContact(inp.contact),
+    logoOn: inp.logoOn !== false, logoBox: inp.logoBox ?? { x: 0.85, y: 0.09, w: 0.18 }, logoPath: own(inp.logoPath),
+    musicOn: inp.music !== false, musicVol: typeof inp.musicVol === "number" ? inp.musicVol : 0.14,
+    previewUrl: urlOf(own(out.preview)), voiceUrl: urlOf(own(inp.free?.vo?.path)), musicUrl: urlOf(own(inp.free?.vo?.musicPath)), exportUrl: urlOf(own(out.files?.[0]?.path)), logo,
+    editError: inp.editError ? "تعذّر تطبيق العملية الأخيرة، وبقي تصميمك كما هو." : "",
   });
 }
