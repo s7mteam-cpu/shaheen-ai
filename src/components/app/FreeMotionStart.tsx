@@ -36,6 +36,8 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
   const [econtact, setEcontact] = useState<Contact[]>([]);
   const [simIdea, setSimIdea] = useState("");
   const loaded = useRef<string | null>(null);
+  const doneRef = useRef(false);
+  useEffect(() => { doneRef.current = state?.status === "done" || state?.status === "failed"; }, [state]);
   const cost = Math.max(1, Math.round(seconds / 15)) * costPer15;
 
   const poll = useCallback(async () => {
@@ -44,16 +46,17 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
     if (!r) return;
     const d = (await r.json().catch(() => null)) as State | null;
     if (!d || !("status" in d)) return;
+    if (d.status === "done" && loaded.current === jobId) { setState((p) => (p && p.status === "done" ? { ...d, video: p.video } : d)); return; }
     setState(d);
-    if (d.status === "done" && loaded.current !== `${jobId}:${d.video}`) {
-      loaded.current = `${jobId}:${d.video}`;
+    if (d.status === "done" && loaded.current !== jobId) { // the signed video link changes on every request: load the editor once per job, never on each poll
+      loaded.current = jobId;
       setFields(d.fields); setEcolors(d.colors); setEfont(d.font); setEcontact(d.contact); setSimIdea(d.idea);
     }
   }, [jobId]);
   useEffect(() => {
     if (!jobId) { setState(null); return; }
     poll();
-    const t = setInterval(() => { poll(); }, 3500);
+    const t = setInterval(() => { if (!doneRef.current) poll(); }, 3500);
     return () => clearInterval(t);
   }, [jobId, poll]);
 
@@ -74,7 +77,7 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setError(d.error ?? L("تعذّر التعديل.")); return; }
-    loaded.current = null; setState({ status: "queued", progress: 0, rerender: true });
+    loaded.current = null; doneRef.current = false; setState({ status: "queued", progress: 0, rerender: true });
   }
   const setCol = (k: keyof Colors, v: string, edit: boolean) => (edit ? setEcolors : setColors)((c) => ({ ...c, [k]: v }));
   const colorRow = (c: Colors, edit: boolean) => (
