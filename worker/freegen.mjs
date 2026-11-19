@@ -107,3 +107,21 @@ export async function writeNarration({ idea, brand, seconds, dialectLabel, count
   if (list.length < 3) throw new Error("narration: too short");
   return list;
 }
+
+/** A strict "art director" look at a few frames of the finished design. Returns {ok, issues}. */
+export async function reviewFree({ frames, aspect, idea }) {
+  const content = [
+    ...frames.map((b) => ({ type: "image", source: { type: "base64", media_type: "image/png", data: b.toString("base64") } })),
+    { type: "text", text: `These are ${frames.length} frames (${aspect}) from one motion-graphics video made for this brief: "${String(idea).slice(0, 300)}".\nBe a strict art director. Reject if ANY frame has: text or icons that are too big (a headline over about 3 lines or over a quarter of the screen height, a single icon or logo over about a sixth of the short side), text cut by the screen edge, overlapping text, unreadable contrast, a nearly empty or fully black frame, or a crowded unbalanced layout. Answer ONLY JSON: {"ok":true|false,"issues":"short concrete fixes in English, e.g. reduce headline font to 0.07*S, move X up"}.` },
+  ];
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", signal: AbortSignal.timeout(120_000),
+    headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: process.env.FREE_REVIEW_MODEL || "claude-sonnet-5-5", max_tokens: 600, messages: [{ role: "user", content }] }),
+  });
+  if (!res.ok) throw new Error(`review ${res.status}`);
+  const out = text(await res.json());
+  const a = out.indexOf("{"), b = out.lastIndexOf("}");
+  const j = JSON.parse(out.slice(a, b + 1));
+  return { ok: j.ok !== false, issues: String(j.issues ?? "").slice(0, 600) };
+}
