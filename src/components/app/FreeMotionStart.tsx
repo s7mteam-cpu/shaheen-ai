@@ -11,7 +11,7 @@ type Field = { key: string; label: string; value: string };
 type Contact = { icon: BrandId; handle: string };
 type Colors = { bg: string; accent: string; text: string };
 type Done = { status: "done"; voiceover: boolean; narration: string[]; title: string; video: string; aspect: string; seconds: number; idea: string; editError: string; fields: Field[]; colors: Colors; font: string; contact: Contact[]; brand: string };
-type State = Done | { status: "queued" | "running"; progress: number; rerender?: boolean } | { status: "failed"; error: string };
+type State = Done | { status: "queued" | "running"; progress: number; rerender?: boolean } | { status: "failed"; error: string; reason?: string };
 
 const sizes = [["9:16", "📱 ريلز 9:16"], ["16:9", "▶️ يوتيوب 16:9"], ["1:1", "⬜ مربع 1:1"], ["4:5", "🖼️ طولي 4:5"]] as const;
 const fonts = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
@@ -112,7 +112,7 @@ export function FreeMotionStart({ costPer15, editCost, balance }: { costPer15: n
     return <div className="card max-w-2xl p-6"><Progress value={state.progress || 5} label={state.rerender ? L("شاهين يطبّق تعديلاتك…") : L("شاهين يصمّم ويرسم فكرتك… (ثلاث إلى ست دقايق)")} /><p className="mt-3 text-[13px] text-subtle">{L("تقدر تطلع من الصفحة، تلقاه بـ«أعمالي» لما يخلص.")}</p></div>;
   }
   if (jobId && state?.status === "failed") {
-    return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p><button onClick={() => router.replace("/app/tools/free-motion")} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
+    return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p>{state.reason && <p dir="ltr" className="mt-3 rounded-lg bg-neutral-100 p-3 text-start text-[12px] text-neutral-600">{state.reason}</p>}<button onClick={() => router.replace("/app/tools/free-motion")} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
   }
   if (jobId && state?.status === "done") {
     const d = state;

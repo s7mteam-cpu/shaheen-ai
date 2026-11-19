@@ -63,7 +63,7 @@ export async function GET(req: Request) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "طلب غير صالح." }, { status: 400 });
   const { data: job } = await createAdminClient().from("jobs").select("id,status,progress,error,input,output,title,created_at").eq("id", id).eq("user_id", user.id).eq("tool_id", "free-motion").maybeSingle();
   if (!job) return NextResponse.json({ error: "ما لقينا الطلب." }, { status: 404 });
-  if (job.status === "failed") return NextResponse.json({ status: "failed", error: "ما قدرنا نكمل هذا التصميم. تم إرجاع ريشك، جرّب فكرة أبسط أو القوالب الجاهزة." });
+  if (job.status === "failed") return NextResponse.json({ status: "failed", error: "ما قدرنا نكمل هذا التصميم. تم إرجاع ريشك، جرّب فكرة أبسط أو القوالب الجاهزة.", reason: String(job.error ?? "").replace(/sk-[\w-]+|eyJ[\w.-]+/g, "").slice(0, 220) }); // the technical reason is shown while the tool is experimental
   if (job.status !== "done") return NextResponse.json({ status: job.status, progress: job.progress ?? 0, rerender: (job.input as { mode?: string })?.mode === "rerender" });
   const inp = (job.input ?? {}) as { voiceover?: boolean; free?: { fields?: unknown[]; title?: string; vo?: { sentences?: string[] } }; colors?: unknown; font?: string; contact?: unknown; aspect?: string; seconds?: number; idea?: string; editError?: string; brand?: { name?: string } };
   const out = (job.output ?? {}) as { files?: { path: string }[]; thumb?: string };
