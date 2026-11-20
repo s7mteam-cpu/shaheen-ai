@@ -5,8 +5,7 @@ import { getL } from "@/lib/server/lang";
 import { startGemini } from "../actions";
 
 export const dynamic = "force-dynamic";
-type Scene = { n: number; start: number; end: number; narration: string; onScreen: string[] };
-type Meta = { idea?: string; seconds?: number; aspect?: string; error?: string; plan?: { title?: string; scenes?: Scene[] }; timings?: Record<string, number>; attempts?: { attempt: number; chars: number; model?: string; usage?: { promptTokenCount?: number; candidatesTokenCount?: number } | null; review?: { ok?: boolean; issues?: string } }[] };
+type Meta = { idea?: string; seconds?: number; aspect?: string; error?: string; plan?: { title?: string; text?: string }; timings?: Record<string, number>; attempts?: { attempt: number; chars: number; model?: string; usage?: { promptTokenCount?: number; candidatesTokenCount?: number } | null; review?: { ok?: boolean; issues?: string } }[] };
 
 /** «التجربة الكبرى» (أدمن فقط): Claude يخطط، Gemini يبني الحركة، شاهين يسجّل الفيديو. */
 export default async function GeminiLab() {
@@ -32,7 +31,7 @@ export default async function GeminiLab() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-[24px] font-bold text-navy-900">🚀 {L("التجربة الكبرى: جيميناي يبني")}</h1>
-          <p className="mt-1 text-sm text-subtle">{L("اكتب فكرة العميل. كلود يكتب الخطة والتوقيت، جيميناي يبني التصميم المتحرك، وشاهين يسجّله فيديو. بدون صوت بهالمرحلة. للأدمن فقط.")}</p>
+          <p className="mt-1 text-sm text-subtle">{L("اكتب فكرة العميل. كلود يرتّب نص العميل فقط، وجيميناي يقرر كل شي (ألوان ومشاهد وحركة)، وشاهين يسجّله فيديو. بدون صوت بهالمرحلة. للأدمن فقط.")}</p>
         </div>
         <Link href="/admin/templates" className="btn btn-outline px-4 py-2">← {L("رجوع للمكتبة")}</Link>
       </div>
@@ -58,7 +57,7 @@ export default async function GeminiLab() {
               {it.video && <a href={it.video} download className="btn btn-outline px-4 py-2">⬇ {L("الفيديو")}</a>}
               {it.code && <a href={it.code} download className="btn btn-outline px-4 py-2">⬇ HTML</a>}
             </div>
-            {!!it.meta.plan?.scenes?.length && <details><summary className="cursor-pointer text-subtle">{L("خطة كلود")} ({it.meta.plan.scenes.length})</summary><ul className="mt-1 list-disc ps-5">{it.meta.plan.scenes.map((s) => <li key={s.n} dir="auto">{s.start}–{s.end}s: {s.onScreen.join(" | ")} — {s.narration}</li>)}</ul></details>}
+            {it.meta.plan?.text && <details><summary className="cursor-pointer text-subtle">{L("النص بعد ترتيب كلود")}</summary><p dir="auto" className="mt-1">{it.meta.plan.text}</p></details>}
           </div>
         </div>
       ))}
