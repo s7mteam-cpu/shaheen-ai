@@ -37,7 +37,7 @@ for (let i = 0; i < 100; i++) {
   const tt = TT[(i * 5 + Math.floor(i / 11)) % 6];
   const side = ph === "left" || ph === "right" || ph === "strip";
   const al = side ? (ph === "left" ? "s" : "e") : AL[(i * 7 + Math.floor(i / 3)) % 3];
-  const po = ph === "full" ? (["b", "m", "t"] as const)[i % 3] : PO[(i * 2 + Math.floor(i / 5)) % 3];
+  const po = ph === "full" ? (["b", "m", "t"] as const)[i % 3] : ph === "band" ? PO[(i * 2 + Math.floor(i / 5)) % 3] : "m";
   const id = `d${String(i + 1).padStart(3, "0")}`;
   RECIPES[id] = {
     id, name: `${PHN[ph]} · ${TTN[tt]}`, ph, al: al as "s" | "c" | "e", po, tt,
@@ -51,13 +51,13 @@ for (let i = 0; i < 100; i++) {
   const ph = PH2[(i * 7) % 20];
   const side = isSide(ph);
   const textOnly = ph === "none" || ph === "band";
-  let tt = textOnly ? (["idx", "quote", "mark", "huge", "idx", "stack"] as RTitle[])[i % 6] : TT2[(i * 4 + Math.floor(i / 9)) % 9];
+  let tt = ph === "band" || ph === "inset" ? (["mark", "stack", "huge", "boxed", "bar", "under"] as RTitle[])[i % 6] : textOnly ? (["idx", "quote", "mark", "huge", "idx", "stack"] as RTitle[])[i % 6] : TT2[(i * 4 + Math.floor(i / 9)) % 9];
   const it: RItems = textOnly ? (["steps", "cards", "check", "num", "list", "steps"] as RItems[])[(i * 5 + 1) % 6] : side ? (["steps", "check", "cards", "list", "num"] as RItems[])[(i * 3 + 1) % 5] : IT2[(i * 3 + Math.floor(i / 7)) % 7];
   if (PH.includes(ph) && TT.includes(tt) && IT.includes(it)) { tt = TTNEW[i % 3]; }
   const al = ph === "left" || ph === "split" ? "s" : ph === "right" || ph === "pill" ? "e" : ph === "strip" ? "s" : AL[(i * 5 + Math.floor(i / 4)) % 3];
   const id = `d${String(i + 101).padStart(3, "0")}`;
   RECIPES[id] = {
-    id, name: `${PHN[ph]} · ${TTN[tt]}`, ph, al: al as "s" | "c" | "e", po: ph === "full" ? (["b", "m", "t"] as const)[i % 3] : PO[(i * 2 + Math.floor(i / 5)) % 3], tt, it,
+    id, name: `${PHN[ph]} · ${TTN[tt]}`, ph, al: al as "s" | "c" | "e", po: ph === "full" ? (["b", "m", "t"] as const)[i % 3] : ph === "band" || ph === "inset" ? PO[(i * 2 + Math.floor(i / 5)) % 3] : "m", tt, it,
     pn: ph === "full" ? (i % 2 ? "glass" : "none") : ph === "hero" || ph === "frame" ? "card" : side ? (i % 3 === 0 ? "brutal" : "none") : PN[(i * 3 + Math.floor(i / 4)) % 4], ct: CT[(i * 4 + 1) % 3],
     dv: DV[(i * 3 + Math.floor(i / 6)) % 5], ts: TS[(i + Math.floor(i / 9)) % 5], calm: textOnly || side || ph === "inset",
   };
@@ -112,10 +112,39 @@ export function rcpNeed(s: EstSlide, r: Recipe, w: number, k: number, hasBrand: 
   if (s.person) h += 110 * k;
   if (s.cta && r.ct !== "bar") h += 110 * k;
   if (hasBrand) h += 84 * k;
-  return (h + (s.badge ? 60 * k : 0) + 26 * k * 3) * (isSide(r.ph) ? 1.18 : 1);
+  const wrap = r.pn === "card" || r.pn === "brutal" || r.pn === "glass" || r.ph === "hero" || r.ph === "frame" ? 96 * k : 0;
+  return (h + wrap + (s.badge ? 60 * k : 0) + 26 * k * 3) * (isSide(r.ph) ? 1.18 : 1);
+}
+/** designs whose text is split in two boxes (title on top, details below the picture band): heights as fractions of the frame */
+export function rcpSplit(ph: RPhoto): { head: number; rest: number } | null {
+  return ph === "band" ? { head: 0.34, rest: 0.4 } : ph === "inset" ? { head: 0.3, rest: 0.42 } : null;
+}
+const HEAD_KEYS = ["title", "highlight", "kicker", "badge"] as const;
+/** the slide cut in two: what sits in the title box and what sits in the details box */
+export function rcpParts(s: EstSlide): { head: EstSlide; rest: EstSlide } {
+  const head: Record<string, unknown> = {}, rest: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(s)) (HEAD_KEYS as readonly string[]).includes(k) ? (head[k] = v) : (rest[k] = v);
+  return { head: { title: "", ...head } as EstSlide, rest: { title: "", ...rest } as EstSlide };
+}
+/** the scale (0.5 to 1) the text needs so every box holds its part */
+export function rcpScale(s: EstSlide, r: Recipe, W: number, H: number, k: number, hasBrand: boolean): number {
+  const sp = rcpSplit(r.ph);
+  if (!sp) {
+    const reg = rcpRegion(r.ph, W, H);
+    return Math.max(0.5, Math.min(1, (reg.h - RCP_PAD * k * 1.3) / Math.max(1, rcpNeed(s, r, reg.w, k, hasBrand))));
+  }
+  const { head, rest } = rcpParts(s);
+  const qh = (H * sp.head - RCP_PAD * k * 1.2) / Math.max(1, rcpNeed(head, r, W, k, hasBrand));
+  const qr = (H * sp.rest - RCP_PAD * k * 1.3) / Math.max(1, rcpNeed(rest, r, W, k, false));
+  return Math.max(0.5, Math.min(1, qh, qr));
 }
 /** true when the design can show this slide's text without crowding (otherwise the style falls back to a roomier design) */
 export function rcpHolds(s: EstSlide, r: Recipe, W: number, H: number, k: number, hasBrand: boolean): boolean {
+  const sp = rcpSplit(r.ph);
+  if (sp) {
+    const { head, rest } = rcpParts(s);
+    return rcpNeed(head, r, W, k, hasBrand) <= (H * sp.head - RCP_PAD * k * 1.2) / 0.78 && rcpNeed(rest, r, W, k, false) <= (H * sp.rest - RCP_PAD * k * 1.3) / 0.78;
+  }
   const reg = rcpRegion(r.ph, W, H);
   return rcpNeed(s, r, reg.w, k, hasBrand) <= (reg.h - RCP_PAD * k * 1.3) / 0.78;
 }

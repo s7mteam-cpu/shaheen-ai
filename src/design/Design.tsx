@@ -2,7 +2,7 @@ import React from "react";
 import { Img } from "remotion";
 import { ArrowLeft, Check, ChevronLeft, Quote } from "lucide-react";
 import { DIcon, IconStyleContext } from "./icons";
-import { RECIPES, rcpNeed, isSide, type Recipe } from "./recipes";
+import { RECIPES, rcpScale, isSide, type Recipe } from "./recipes";
 import { DSIZE, mix, onColor, type DImg, type DItem, type DesignSpec, type Slide, RICH_RE, stripRich } from "./spec";
 
 /** One slide of a post / carousel / ad, drawn at full size (1080 wide). Used by the studio preview and the worker. */
@@ -86,10 +86,16 @@ function BrandRow({ c, color }: { c: Ctx; color?: string }) {
   );
 }
 
-function Title({ c, base, color, hcolor, align }: { c: Ctx; base: number; color?: string; hcolor?: string; align?: "center" }) {
+/** biggest font size at which the longest word still fits the width (a word cannot wrap, so it would spill out) */
+const wordCap = (text: string, maxW?: number) => {
+  if (!maxW) return Infinity;
+  const longest = Math.max(3, ...text.replace(/\{\{#[0-9a-fA-F]{6}\|([^{}]*)\}\}/g, "$1").split(/\s+/).map((w) => w.length));
+  return maxW / (longest * 0.6);
+};
+function Title({ c, base, color, hcolor, align, maxW }: { c: Ctx; base: number; color?: string; hcolor?: string; align?: "center"; maxW?: number }) {
   if (gone(c, "title")) return null;
   const all = `${c.s.title} ${c.s.highlight ?? ""}`.trim();
-  const size = fit(all, base * c.k, 16);
+  const size = Math.min(fit(all, base * c.k, 16), wordCap(all, maxW));
   return (
     <h1 {...da("title")} style={{ fontSize: size, lineHeight: 1.16, fontWeight: 800, letterSpacing: -0.5, color: color ?? c.ink, textAlign: align, margin: 0, ...eo(c, "title") }}>
       {rich(c.s.title)}
@@ -1101,11 +1107,12 @@ const RCP_ICON = (c: Ctx) => (c.s.items?.[0]?.icon ?? c.s.meta?.[0]?.icon ?? "sp
 function RcpVisual({ c, r, box, shape, quiet }: { c: Ctx; r: Rect; box: Rect; shape?: React.CSSProperties; quiet?: boolean }) {
   void r;
   const st: React.CSSProperties = { position: "absolute", left: box.l, top: box.t, width: box.w, height: box.h, overflow: "hidden", ...shape };
-  if (c.s.photo && !gone(c, "photo")) return <div style={st}><Photo img={c.s.photo} c={c} style={{ width: "100%", height: "100%" }} /></div>;
+  void 0;
+  if (c.s.photo && !gone(c, "photo")) return <div data-chk="photo" style={st}><Photo img={c.s.photo} c={c} style={{ width: "100%", height: "100%" }} /></div>;
   if (gone(c, "photo")) return null;
   const m = Math.min(box.w, box.h);
   return (
-    <div style={{ ...st, background: `linear-gradient(145deg, ${c.accent}, ${mix(c.accent, c.ink, 0.45)})` }}>
+    <div data-chk="photo" style={{ ...st, background: `linear-gradient(145deg, ${c.accent}, ${mix(c.accent, c.ink, 0.45)})` }}>
       <div style={{ position: "absolute", width: m * 1.1, height: m * 1.1, borderRadius: "50%", border: `${Math.max(3, m * 0.012)}px solid ${rgba(c.onAccent, 0.22)}`, left: -m * 0.25, top: -m * 0.3 }} />
       <div style={{ position: "absolute", width: m * 0.7, height: m * 0.7, borderRadius: "50%", background: rgba(c.onAccent, 0.1), right: -m * 0.15, bottom: -m * 0.2 }} />
       {!quiet && <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><DIcon name={RCP_ICON(c)} size={m * 0.36} color={rgba(c.onAccent, 0.9)} stroke={1.4} /></div>}
@@ -1113,12 +1120,12 @@ function RcpVisual({ c, r, box, shape, quiet }: { c: Ctx; r: Rect; box: Rect; sh
   );
 }
 
-function RcpTitle({ c, r, align, scale }: { c: Ctx; r: Recipe; align: React.CSSProperties["textAlign"]; scale: number }) {
+function RcpTitle({ c, r, align, scale, maxW }: { c: Ctx; r: Recipe; align: React.CSSProperties["textAlign"]; scale: number; maxW?: number }) {
   if (gone(c, "title")) return null;
   const ts = scale * r.ts * (isSide(r.ph) ? 0.78 : 1);
   const jc = align === "center" ? "center" : align === "end" ? "flex-end" : "flex-start";
   if (r.tt === "stack" && c.s.highlight) {
-    const big = fit(c.s.highlight, 128 * c.k * ts, 9, 0.5), small = fit(c.s.title, 64 * c.k * ts, 20, 0.6);
+    const big = Math.min(fit(c.s.highlight, 128 * c.k * ts, 9, 0.5), wordCap(c.s.highlight, maxW)), small = Math.min(fit(c.s.title, 64 * c.k * ts, 20, 0.6), wordCap(c.s.title, maxW));
     return (
       <h1 {...da("title")} style={{ margin: 0, textAlign: align, lineHeight: 1.1, fontWeight: 800, letterSpacing: -0.5, color: c.ink, ...eo(c, "title") }}>
         <span style={{ fontSize: small, display: "block" }}>{rich(c.s.title)}</span>
@@ -1126,11 +1133,13 @@ function RcpTitle({ c, r, align, scale }: { c: Ctx; r: Recipe; align: React.CSSP
       </h1>
     );
   }
+  const tx = r.tt === "boxed" ? 72 * c.k : r.tt === "mark" ? 84 * c.k : r.tt === "bar" ? 44 * c.k : 0;
+  const mw = maxW ? maxW - tx : undefined;
   const base = (r.tt === "huge" ? 142 : r.tt === "boxed" ? 88 : 104) * ts;
-  if (r.tt === "mark") return <div style={{ background: rgba(c.accent, 0.14), borderInlineStart: `${16 * c.k}px solid ${c.accent}`, padding: `${22 * c.k}px ${34 * c.k}px`, borderRadius: 14 * c.k, textAlign: align }}><Title c={c} base={base * 0.92} align={align === "center" ? "center" : undefined} /></div>;
-  if (r.tt === "quote") return <div style={{ display: "flex", flexDirection: "column", gap: 4 * c.k, alignItems: jc }}><span style={{ fontSize: 200 * c.k, lineHeight: 0.7, height: 100 * c.k, fontWeight: 800, color: c.accent, fontFamily: "Georgia, serif" }}>“</span><Title c={c} base={base} align={align === "center" ? "center" : undefined} /></div>;
-  if (r.tt === "idx") return <div style={{ display: "flex", flexDirection: "column", gap: 6 * c.k, alignItems: jc }}>{c.total > 1 ? <span style={{ fontSize: 190 * c.k, lineHeight: 0.9, fontWeight: 800, color: c.accent, fontVariantNumeric: "tabular-nums" }}>{c.index + 1}</span> : <span style={{ width: 150 * c.k, height: 14 * c.k, background: c.accent, borderRadius: 8 }} />}<Title c={c} base={base * 0.92} align={align === "center" ? "center" : undefined} /></div>;
-  const t = <Title c={c} base={base} align={align === "center" ? "center" : undefined} color={r.tt === "boxed" ? c.onAccent : undefined} hcolor={r.tt === "boxed" ? c.onAccent : undefined} />;
+  if (r.tt === "mark") return <div style={{ background: rgba(c.accent, 0.14), borderInlineStart: `${16 * c.k}px solid ${c.accent}`, padding: `${22 * c.k}px ${34 * c.k}px`, borderRadius: 14 * c.k, textAlign: align }}><Title c={c} base={base * 0.92} align={align === "center" ? "center" : undefined} maxW={mw} /></div>;
+  if (r.tt === "quote") return <div style={{ display: "flex", flexDirection: "column", gap: 4 * c.k, alignItems: jc }}><span style={{ fontSize: 200 * c.k, lineHeight: 0.7, height: 100 * c.k, fontWeight: 800, color: c.accent, fontFamily: "Georgia, serif" }}>“</span><Title c={c} base={base} align={align === "center" ? "center" : undefined} maxW={mw} /></div>;
+  if (r.tt === "idx") return <div style={{ display: "flex", flexDirection: "column", gap: 6 * c.k, alignItems: jc }}>{c.total > 1 ? <span style={{ fontSize: 190 * c.k, lineHeight: 0.9, fontWeight: 800, color: c.accent, fontVariantNumeric: "tabular-nums" }}>{c.index + 1}</span> : <span style={{ width: 150 * c.k, height: 14 * c.k, background: c.accent, borderRadius: 8 }} />}<Title c={c} base={base * 0.92} align={align === "center" ? "center" : undefined} maxW={mw} /></div>;
+  const t = <Title c={c} base={base} maxW={mw} align={align === "center" ? "center" : undefined} color={r.tt === "boxed" ? c.onAccent : undefined} hcolor={r.tt === "boxed" ? c.onAccent : undefined} />;
   if (r.tt === "boxed") return <div style={{ background: c.accent, padding: `${26 * c.k}px ${36 * c.k}px`, borderRadius: 18 * c.k, textAlign: align, alignSelf: align === "center" ? "center" : undefined }}>{t}</div>;
   if (r.tt === "under") return <div style={{ display: "flex", flexDirection: "column", gap: 18 * c.k, alignItems: jc }}>{t}<span style={{ width: "34%", minWidth: 120, height: 12 * c.k, background: c.accent, borderRadius: 6 }} /></div>;
   if (r.tt === "bar") return <div style={{ display: "flex", gap: 28 * c.k, alignItems: "stretch", justifyContent: jc }}><span style={{ width: 16 * c.k, background: c.accent, borderRadius: 8, flex: "none" }} />{t}</div>;
@@ -1247,14 +1256,15 @@ function RecipeLayout(c: Ctx) {
   // text on a full-bleed picture is light, on a dark overlay
   const cc: Ctx = full ? { ...c, ink: "#FFFFFF", muted: "rgba(255,255,255,.84)", line: "rgba(255,255,255,.28)", bg: "#101010" } : c;
   const region = head ? { ...txt, h: txt.h + head.h } : txt;
-  const need = rcpNeed(s, r, region.w, c.k, !!c.spec.brand.name);
-  const q = Math.max(0.5, Math.min(1, (region.h - P * 1.3) / Math.max(1, need)));
+  const q = rcpScale(s, r, W, H, c.k, !!c.spec.brand.name);
   const ck: Ctx = { ...cc, k: cc.k * q };
   const al: React.CSSProperties["textAlign"] = r.al === "c" ? "center" : r.al === "e" ? "end" : "start";
   const ai: "flex-start" | "center" | "flex-end" = r.al === "c" ? "center" : r.al === "e" ? "flex-end" : "flex-start";
   const jc = r.po === "t" ? "flex-start" : r.po === "b" ? "flex-end" : "center";
   const barBottom = r.ct === "bar" && (s.cta || s.price) && !full && r.ph !== "bot" && !isSide(r.ph) && r.ph !== "hero" && r.ph !== "frame";
   const gap = 24 * ck.k;
+  const cardWrap = (r.pn === "card" || r.pn === "brutal" || r.pn === "glass") && (r.pn === "glass" ? full : !full) || r.ph === "hero" || r.ph === "frame";
+  const titleW = region.w - 2 * P - (cardWrap ? 80 * ck.k : 0);
   const heading = (
     <>
       <BrandRow c={ck} />
@@ -1262,7 +1272,7 @@ function RecipeLayout(c: Ctx) {
       {s.kicker && (r.pn === "bar"
         ? <div {...da("kicker")} style={{ background: ck.accent, color: ck.onAccent, padding: `${10 * ck.k}px ${28 * ck.k}px`, borderRadius: 8, fontSize: 30 * ck.k, fontWeight: 800, ...eo(ck, "kicker") }}>{rich(s.kicker)}</div>
         : <Kicker c={ck} line={r.al !== "c"} />)}
-      <RcpTitle c={ck} r={r} align={al} scale={1} />
+      <RcpTitle c={ck} r={r} align={al} scale={1} maxW={titleW} />
     </>
   );
   const rest = (
@@ -1300,7 +1310,6 @@ function RecipeLayout(c: Ctx) {
     </>
   );
   const colStyle: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: ai, textAlign: al, gap };
-  const cardWrap = (r.pn === "card" || r.pn === "brutal" || r.pn === "glass") && (r.pn === "glass" ? full : !full) || r.ph === "hero" || r.ph === "frame";
   const cardStyle: React.CSSProperties = r.pn === "brutal"
     ? { background: c.soft, border: `${4 * k}px solid ${c.ink}`, boxShadow: `${12 * k}px ${12 * k}px 0 ${c.ink}`, borderRadius: 14 * k, padding: `${34 * ck.k}px ${40 * ck.k}px` }
     : r.pn === "glass"
@@ -1360,11 +1369,11 @@ function Pano({ c }: { c: Ctx }) {
 function CarouselNav({ c }: { c: Ctx }) {
   const n = c.total, i = c.index, k = c.k, mode = c.spec.nav ?? "dots";
   if (n < 2 || mode === "none") return null;
-  const pill: React.CSSProperties = { position: "absolute", background: "rgba(10,10,10,.42)", backdropFilter: "blur(6px)", borderRadius: 999, display: "flex", alignItems: "center", gap: 10 * k, padding: `${10 * k}px ${22 * k}px`, pointerEvents: "none" };
-  if (mode === "count") return <div style={{ ...pill, left: 36 * k, top: 36 * k, color: "#fff", fontSize: 26 * k, fontWeight: 800, direction: "ltr" }}>{i + 1} / {n}</div>;
+  const pill: React.CSSProperties = { position: "absolute", background: "rgba(10,10,10,.42)", backdropFilter: "blur(6px)", borderRadius: 999, display: "flex", alignItems: "center", gap: 10 * k, padding: `${5 * k}px ${16 * k}px`, pointerEvents: "none" };
+  if (mode === "count") return <div data-chk="nav" style={{ ...pill, left: 22 * k, top: 22 * k, color: "#fff", fontSize: 22 * k, fontWeight: 800, direction: "ltr" }}>{i + 1} / {n}</div>;
   return (
-    <div style={{ ...pill, left: "50%", bottom: 26 * k, transform: "translateX(-50%)", gap: 9 * k }}>
-      {Array.from({ length: n }, (_, j) => <span key={j} style={{ width: (j === i ? 34 : 12) * k, height: 12 * k, borderRadius: 999, background: j === i ? c.accent : "rgba(255,255,255,.7)" }} />)}
+    <div data-chk="nav" style={{ ...pill, left: "50%", bottom: 14 * k, transform: "translateX(-50%)", gap: 8 * k }}>
+      {Array.from({ length: n }, (_, j) => <span key={j} style={{ width: (j === i ? 30 : 10) * k, height: 10 * k, borderRadius: 999, background: j === i ? c.accent : "rgba(255,255,255,.7)" }} />)}
     </div>
   );
 }
