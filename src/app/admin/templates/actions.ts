@@ -118,6 +118,20 @@ export async function renderTemplate(id: string, input: { t: Record<string, stri
 }
 
 /** المسار الكامل التجريبي: وصف + مجال ← قالب من المكتبة ← فيديو. للأدمن فقط. */
+/** «التجربة الكبرى» (أدمن فقط): Claude يخطط ← Gemini يبني ← شاهين يسجّل. */
+export async function startGemini(form: FormData) {
+  const me = await guard();
+  const idea = String(form.get("idea") ?? "").replace(/\s+/g, " ").trim().slice(0, 1500);
+  const seconds = [15, 30, 45, 60].includes(Number(form.get("seconds"))) ? Number(form.get("seconds")) : 30;
+  const aspect = ["9:16", "16:9", "1:1", "4:5"].includes(String(form.get("aspect"))) ? String(form.get("aspect")) : "9:16";
+  const brand = String(form.get("brand") ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
+  if (idea.length < 10) return;
+  const admin = createAdminClient();
+  const { data: busy } = await admin.from("jobs").select("id").eq("tool_id", "free-motion").in("status", ["queued", "running"]).contains("input", { mode: "gemflow" }).limit(1);
+  if (!busy?.length) await admin.from("jobs").insert({ user_id: me.id, tool_id: "free-motion", title: "تجربة جيميناي", status: "queued", progress: 0, input: { kind: "free", mode: "gemflow", idea, seconds, aspect, brand } });
+  revalidatePath("/admin/templates/gemini");
+}
+
 export async function startFlow(form: FormData) {
   const me = await guard();
   const idea = String(form.get("idea") ?? "").replace(/\s+/g, " ").trim().slice(0, 1500);

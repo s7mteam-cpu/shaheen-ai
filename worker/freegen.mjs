@@ -38,7 +38,7 @@ HARD LIMIT: the whole code must stay under 14000 characters or the answer is cut
 
 let lastStop = ""; // why the last answer ended ("max_tokens" = it was cut off)
 const text = (r) => { lastStop = r.stop_reason ?? ""; return (r.content ?? []).map((c) => c.text ?? "").join(""); };
-async function claude({ system, user, maxTokens = 20000, model, signal }) {
+export async function claude({ system, user, maxTokens = 20000, model, signal }) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal,
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },

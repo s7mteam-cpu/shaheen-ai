@@ -22,6 +22,7 @@ import { buildPreview } from "./freepreview.mjs";
 import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
 import { extractTexts, extractColors, applyEdits } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
+import { planVideo, geminiHtml } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
@@ -890,6 +891,53 @@ async function tplFlowJob(job) {
     await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify({ ...meta, error: String(e?.message ?? e).slice(0, 300) })), { contentType: "application/json", upsert: true });
   } finally { await rm(outFile, { force: true }); await db.from("jobs").delete().eq("id", job.id); }
 }
+/** «التجربة الكبرى» (للأدمن): Claude يخطط ← Gemini يبني الحركة (HTML) ← فحص بصري ← تسجيل MP4. النتيجة بالتخزين فقط. */
+async function gemFlowJob(job) {
+  const inp = job.input ?? {};
+  const idea = String(inp.idea ?? "").slice(0, 1500);
+  const seconds = [15, 30, 45, 60].includes(Number(inp.seconds)) ? Number(inp.seconds) : 30;
+  const aspect = ["9:16", "16:9", "1:1", "4:5"].includes(inp.aspect) ? inp.aspect : "9:16";
+  const [W, H] = FREE_SIZE[aspect];
+  const base = `templates/gem/${job.id}`;
+  const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  const outFile = join(workDir, `gem-${job.id}.mp4`);
+  const meta = { idea, aspect, seconds, at: new Date().toISOString(), timings: {}, attempts: [] };
+  const stage = async (txt, progress) => { try { await db.from("jobs").update({ title: txt.slice(0, 60), progress }).eq("id", job.id); } catch {} };
+  const t0 = Date.now(), lap = (k) => { meta.timings[k] = Math.round((Date.now() - t0) / 1000); };
+  try {
+    await stage("يكتب الخطة (Claude)…", 10);
+    const plan = await planVideo({ idea, seconds, brand: inp.brand });
+    meta.plan = plan; lap("plan");
+    let retry = "", page = "";
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);
+      const g = await geminiHtml({ plan, idea, retry });
+      const prepared = await prepareHtml(g.html);
+      const rec = { attempt, model: g.model, usage: g.usage, chars: g.html.length, notes: prepared.notes };
+      meta.attempts.push(rec); lap(`gemini${attempt}`);
+      await stage("يفحص الصورة (مراجعة فنية)…", 55 + attempt * 5);
+      const times = [0.06, 0.25, 0.45, 0.65, 0.85, 0.97].map((f) => f * seconds);
+      const stills = await htmlStills({ html: prepared.html, width: W, height: H, times, fontCss: htmlFontCss() });
+      const probe = join(workDir, `gp-${job.id}.png`); await writeFile(probe, stills[2]);
+      const blank = await frameIsBlank(probe); await rm(probe, { force: true });
+      let review = { ok: !blank, issues: blank ? "الصفحة طلعت فاضية بمنتصف الفيديو" : "" };
+      if (!blank) review = await reviewFree({ frames: stills, aspect, idea }).catch(() => ({ ok: true, issues: "" }));
+      rec.review = review; page = prepared.html;
+      if (review.ok) break;
+      retry = review.issues;
+    }
+    await stage("يرسم الفيديو…", 80);
+    await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss() });
+    lap("record");
+    const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(outFile), { contentType: "video/mp4", upsert: true });
+    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    await db.storage.from("results").upload(`${base}.html`, Buffer.from(page), { contentType: "text/html", upsert: true });
+  } catch (e) { console.error("gemini flow failed", e?.message ?? e); meta.error = String(e?.message ?? e).slice(0, 400); }
+  finally {
+    await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify(meta)), { contentType: "application/json", upsert: true });
+    await rm(outFile, { force: true }); await db.from("jobs").delete().eq("id", job.id);
+  }
+}
 async function tplPreviewJob(job) {
   const tid = String(job.input?.templateId ?? "");
   try {
@@ -1288,6 +1336,7 @@ for (;;) {
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplpreview") await tplPreviewJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplrender") await tplRenderJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplflow") await tplFlowJob(job);
+  else if (job.tool_id === "free-motion" && job.input?.mode === "gemflow") await gemFlowJob(job);
   else if (job.tool_id === "free-motion") await freeJob(job);
   else if (job.tool_id === "cv") await renderCV(job);
   else if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
