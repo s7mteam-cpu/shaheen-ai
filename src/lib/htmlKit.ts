@@ -7,15 +7,24 @@ const strip = (html: string) => html.replace(/<script[\s\S]*?<\/script>/gi, (m) 
 const dec = (s: string) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
 const enc = (s: unknown) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** unique visible texts in order of appearance: [{key:"t0", label, value}] */
+const AR = /[\u0600-\u06FF]/;
+const ATTR_RE = /\b(alt|title|placeholder|aria-label|data-[\w-]+)=("([^"<>]{2,200})"|'([^'<>]{2,200})')/gi;
+const SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+const STR_RE = /(["'`])((?:\\.|(?!\1)[^\\\n])*)\1/g;
+const unesc = (s: string) => s.replace(/\\n/g, " ").replace(/\\(["'`\\])/g, "$1");
+const escq = (s: unknown, q: string) => String(s).replace(/\\/g, "\\\\").replace(/\r?\n/g, " ").split(q).join("\\" + q).replace(q === "`" ? /\$\{/g : /$^/g, "\\${");
+
+/** unique visible texts in order of appearance: [{key:"t0", label, value}]. Order: text between tags, then Arabic attribute values, then Arabic string literals inside <script> (designs that write their words from JavaScript). */
 export function extractTexts(html: string, max = 60) {
   const seen = new Set<string>(); const out: { key: string; label: string; value: string }[] = [];
-  for (const m of strip(html).matchAll(TEXT_RE)) {
-    const v = dec(m[1]).replace(/\s+/g, " ").trim();
-    if (v.length < 2 || v.length > 160 || !/[\p{L}\p{N}]/u.test(v) || seen.has(v)) continue;
+  const add = (raw: string) => {
+    const v = dec(raw).replace(/\s+/g, " ").trim();
+    if (v.length < 2 || v.length > 160 || !/[\p{L}\p{N}]/u.test(v) || seen.has(v)) return;
     seen.add(v); out.push({ key: `t${out.length}`, label: v.slice(0, 40), value: v });
-    if (out.length >= max) break;
-  }
+  };
+  for (const m of strip(html).matchAll(TEXT_RE)) { add(m[1]); if (out.length >= max) return out; }
+  for (const m of html.matchAll(ATTR_RE)) { const v = m[3] ?? m[4] ?? ""; if (AR.test(v)) add(v); if (out.length >= max) return out; }
+  for (const sc of html.matchAll(SCRIPT_RE)) for (const m of sc[1].matchAll(STR_RE)) { const v = unesc(m[2]); if (AR.test(v) && !/\$\{/.test(v) && !/[{}<>=;]/.test(v)) add(v); if (out.length >= max) return out; }
   return out;
 }
 
@@ -37,11 +46,14 @@ export function applyEdits(html: string, { texts = {}, hex = {} }: { texts?: Rec
     for (const m of safe.matchAll(TEXT_RE)) {
       const v = dec(m[1]).replace(/\s+/g, " ").trim();
       if (!map.has(v)) continue;
-      const start = (m.index ?? 0) + 1;
-      const end = start + m[1].length; // position of the text inside "> … <"
+      const start = (m.index ?? 0) + 1; const end = start + m[1].length; // position of the text inside "> … <"
       res += out.slice(last, start) + m[1].replace(m[1].trim(), enc(map.get(v))); last = end;
     }
     out = res + out.slice(last);
+  }
+  if (map.size) {
+    out = out.replace(ATTR_RE, (all: string, name: string, _q: string, d?: string, sq?: string) => { const v = dec(d ?? sq ?? "").replace(/\s+/g, " ").trim(); return map.has(v) ? `${name}="${enc(map.get(v)).replace(/"/g, "&quot;")}"` : all; });
+    out = out.replace(SCRIPT_RE, (all: string, body: string) => all.replace(body, body.replace(STR_RE, (lit: string, q: string, inner: string) => { const v = unesc(inner); return map.has(v) ? q + escq(map.get(v), q) + q : lit; })));
   }
   for (const [from, to] of Object.entries(hex)) if (/^#[0-9a-f]{6}$/i.test(from) && /^#[0-9a-f]{6}$/i.test(to) && from.toLowerCase() !== to.toLowerCase()) out = out.replace(new RegExp(from, "gi"), to);
   return out;

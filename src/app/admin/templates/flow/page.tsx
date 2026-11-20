@@ -6,7 +6,7 @@ import { INDUSTRIES } from "@/design/industries";
 import { startFlow } from "../actions";
 
 export const dynamic = "force-dynamic";
-type Meta = { idea?: string; template?: string; seconds?: number; texts?: { label: string; value: string }[]; error?: string; at?: string; field?: string };
+type Meta = { idea?: string; template?: string; seconds?: number; texts?: { label: string; value: string }[]; error?: string; at?: string; field?: string; fieldsFound?: number; changed?: number };
 
 /** «المسار الكامل» (تجريبي، للأدمن): تكتب وصفًا وتختار مجالًا، وشاهين يختار قالبًا معتمدًا من المكتبة ويعبّي نصوصه ويرسم الفيديو. */
 export default async function Flow() {
@@ -52,6 +52,9 @@ export default async function Flow() {
           <div className="flex flex-col gap-2 text-[13px]">
             <p dir="auto" className="text-[14px] font-bold">{it.meta.idea}</p>
             <p className="text-subtle">{L("القالب")}: {it.meta.template ?? "—"} · {INDUSTRIES.find((i) => i.id === it.meta.field)?.label ?? ""} · {it.meta.seconds ? `${it.meta.seconds}s` : ""}</p>
+            {it.meta.fieldsFound !== undefined && it.meta.fieldsFound < 3 && <p dir="auto" className="rounded-lg bg-amber-50 p-2 text-amber-900">⚠️ {L("لقينا بالقالب أقل من 3 نصوص قابلة للتغيير، فالفيديو يطلع قريب من الأصل. افتح القالب وتأكد إن كلامه مكتوب بالـHTML أو بنصوص عربية واضحة.")}</p>}
+            {it.meta.fieldsFound !== undefined && it.meta.fieldsFound >= 3 && it.meta.changed === 0 && <p dir="auto" className="rounded-lg bg-amber-50 p-2 text-amber-900">⚠️ {L("النموذج ما غيّر أي نص (غالبًا فشل ورجع الأصل). جرّب مرة ثانية بوصف أوضح.")}</p>}
+            {it.meta.fieldsFound !== undefined && <p className="text-subtle">{L("نصوص القالب")}: {it.meta.fieldsFound} · {L("اللي تغيّرت")}: {it.meta.changed ?? 0}</p>}
             {it.meta.error && <p dir="auto" className="rounded-lg bg-red-50 p-2 text-red-800">⚠️ {it.meta.error}</p>}
             {it.video && <a href={it.video} download className="btn btn-outline w-fit px-4 py-2">⬇ {L("نزّل الفيديو")}</a>}
             {!!it.meta.texts?.length && <details><summary className="cursor-pointer text-subtle">{L("النصوص اللي عبّاها النموذج")} ({it.meta.texts.length})</summary><ul className="mt-1 list-disc ps-5">{it.meta.texts.map((t, i) => <li key={i} dir="auto">{t.value}</li>)}</ul></details>}

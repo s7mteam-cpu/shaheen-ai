@@ -875,6 +875,7 @@ async function tplFlowJob(job) {
     const fields = extractTexts(tpl.source_code);
     const filled = await refillFields({ idea: meta.idea, fields, brand: { name: "" } });
     const texts = Object.fromEntries(filled.map((f) => [f.key, f.value]));
+    const changed = filled.filter((f) => f.value !== fields.find((x) => x.key === f.key)?.value).length; // how many texts really differ from the template
     // length: the end of the last scene written in the page (<!-- SCENES: [...] -->), else 30 s
     let secs = 30;
     try { const m = /<!--\s*SCENES:\s*(\[[\s\S]*?\])\s*-->/.exec(tpl.source_code); const arr = m ? JSON.parse(m[1]) : []; const e = Math.max(...arr.map((x) => Number(x.end) || 0)); if (e >= 8 && e <= 180) secs = Math.ceil(e); } catch {}
@@ -883,7 +884,7 @@ async function tplFlowJob(job) {
     await recordHtml({ html: page, width: W, height: H, seconds: secs, outFile, fontCss: htmlFontCss() });
     const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(outFile), { contentType: "video/mp4", upsert: true });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
-    await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify({ ...meta, template: tpl.name, seconds: secs, texts: filled.map((f) => ({ label: f.label, value: f.value })) })), { contentType: "application/json", upsert: true });
+    await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify({ ...meta, template: tpl.name, seconds: secs, fieldsFound: fields.length, changed, texts: filled.map((f) => ({ label: f.label, value: f.value })) })), { contentType: "application/json", upsert: true });
   } catch (e) {
     console.error("template flow failed", e?.message ?? e);
     await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify({ ...meta, error: String(e?.message ?? e).slice(0, 300) })), { contentType: "application/json", upsert: true });
