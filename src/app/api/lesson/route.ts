@@ -1,3 +1,4 @@
+import { LIB_FONT_IDS } from "@/lib/fonts";
 import { CHAR_GENDER } from "@/remotion/characters";
 import { resolveTerrain } from "@/lib/server/maptiler";
 import { voiceGender } from "@/lib/voiceGender";
@@ -290,7 +291,7 @@ export async function POST(req: Request) {
     const kc = ((kit?.colors ?? []) as string[]).filter((c) => /^#[0-9a-f]{6}$/i.test(c));
     const kitBg = kc.filter((c) => lum(c) < 0.35).sort((a, b) => lum(a) - lum(b))[0];
     const kitAccent = kc.filter((c) => lum(c) >= 0.25 && lum(c) <= 0.85 && c !== kitBg)[0];
-    const kitFont = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(String(kit?.font)) ? String(kit!.font) : null;
+    const kitFont = LIB_FONT_IDS.includes(String(kit?.font)) ? String(kit!.font) : null;
     const contact = String(kit?.handle || kit?.instagram || "").slice(0, 60);
     const spec: MontageSpec = {
       src: "", srcPath: "", srcW: 1080, srcH: 1920, aspect,

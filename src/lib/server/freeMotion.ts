@@ -1,8 +1,9 @@
+import { LIB_FONT_IDS } from "@/lib/fonts";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BRANDS, type BrandId } from "@/remotion/brandIcons";
 
-export const FREE_FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
+export const FREE_FONTS: string[] = LIB_FONT_IDS;
 const hex = (v: unknown, d: string) => (/^#[0-9a-f]{6}$/i.test(String(v)) ? String(v) : d);
 
 /** The social accounts of a request, checked (only known apps, plain handles). */

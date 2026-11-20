@@ -30,10 +30,11 @@ import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag"
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
 import { designPack } from "@/design/packs";
-import { stylesFor, applyStyle } from "@/design/styles";
+import { stylesFor, applyStyle, styleFits } from "@/design/styles";
+import { FontPicker } from "./FontPicker";
 import { EL_LABELS } from "@/design/Design";
 import {
-  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, fontsFor, ICON_IDS, LAYOUTS, layoutsFor, PALETTES, lum, DSIZE, RICH_RE, NOTE_ATS, NOTE_LOOKS, NOTE_AT_LABELS, NOTE_LOOK_LABELS,
+  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, ICON_IDS, LAYOUTS, layoutsFor, PALETTES, lum, DSIZE, RICH_RE, NOTE_ATS, NOTE_LOOKS, NOTE_AT_LABELS, NOTE_LOOK_LABELS,
   type DAspect, type DColors, type DImg, type DItem, type DesignSpec, type LayoutId, type Slide,
 } from "@/design/spec";
 
@@ -362,18 +363,13 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
       </div>
 
       <div className="flex min-w-0 flex-col gap-5">
-        {printed && <StyleGallery spec={spec} cur={cur} onPick={(st) => setSpec((p) => applyStyle(p, st))} />}
+        <StyleGallery spec={spec} cur={cur} onPick={(st) => setSpec((p) => applyStyle(p, st))} />
         {printed && (
           <Card more title={L("الخطوط واللمسة النهائية")} icon="🔤">
             <Sub>{L("خط النص")}</Sub>
-            <div className="flex flex-wrap gap-2">
-              {fontsFor(spec.kind).map((f) => <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} className="chip text-[17px]" style={{ fontFamily: `"${f.id}"` }}>{L(f.label)}</button>)}
-            </div>
+            <FontPicker value={spec.font} onChange={(id) => setSpec({ ...spec, font: id })} />
             <Sub>{L("خط الأسماء والعناوين والتاريخ")}</Sub>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" aria-pressed={!spec.titleFont} onClick={() => setSpec({ ...spec, titleFont: undefined })} className="chip">{L("نفس الخط")}</button>
-              {fontsFor(spec.kind).map((f) => <button key={f.id} type="button" aria-pressed={spec.titleFont === f.id} onClick={() => setSpec({ ...spec, titleFont: f.id })} className="chip text-[17px]" style={{ fontFamily: `"${f.id}"` }}>{L(f.label)}</button>)}
-            </div>
+            <FontPicker value={spec.titleFont} onChange={(id) => setSpec({ ...spec, titleFont: id })} none={{ label: L("نفس الخط"), active: !spec.titleFont, onPick: () => setSpec({ ...spec, titleFont: undefined }) }} />
             <Sub>{L("لمعة اللون المميز")}</Sub>
             <div className="flex flex-wrap gap-2">
               <button type="button" aria-pressed={spec.finish === "foil"} onClick={() => setSpec({ ...spec, finish: "foil" })} className="chip">{L("✨ فويل معدني لامع")}</button>
@@ -428,9 +424,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
             );
           })()}
           <Sub>{L("الخط")}</Sub>
-          <div className="flex flex-wrap gap-2">
-            {fontsFor(spec.kind).map((f) => <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} className="chip" style={{ fontFamily: f.id }}>{L(f.label)}</button>)}
-          </div>
+          <FontPicker value={spec.font} onChange={(id) => setSpec({ ...spec, font: id })} />
           </>}
           </More>
           <Sub>{L("المقاس")}</Sub>
@@ -593,24 +587,29 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
 }
 
 function StyleGallery({ spec, cur, onPick }: { spec: DesignSpec; cur: number; onPick: (st: ReturnType<typeof stylesFor>[number]) => void }) {
-  const all = stylesFor(spec.kind);
+  const posts = spec.kind !== "bcard" && spec.kind !== "invite";
+  const all = stylesFor(spec.kind).filter((st) => !posts || styleFits(spec, st));
   const [n, setN] = useState(12);
   const [group, setGroup] = useState<string>("all");
-  const groups = Array.from(new Set(all.map((x) => x.front)));
-  const list = all.filter((x) => group === "all" || x.front === group);
+  const key = (x: (typeof all)[number]) => (posts ? x.cat ?? "" : x.front);
+  const groups = Array.from(new Set(all.map(key)));
+  const list = all.filter((x) => group === "all" || key(x) === group);
+  if (all.length === 0) return null;
   return (
     <Card more title={LT(`ستايلات جاهزة (${all.length})`, `Ready styles (${all.length})`)} icon="✨">
       <p className="text-[13px] text-subtle">{L("اضغط أي ستايل ويتطبق على نصوصك بالضبط، ونصوصك ما تتغير. تقدر تعدّل كل شي بعدها.")}</p>
       <div className="flex flex-wrap gap-1.5">
         <button type="button" aria-pressed={group === "all"} onClick={() => { setGroup("all"); setN(12); }} className="chip">{L("الكل")}</button>
-        {groups.map((g) => <button key={g} type="button" aria-pressed={group === g} onClick={() => { setGroup(g); setN(12); }} className="chip">{L(LAYOUTS[g].label)}</button>)}
+        {groups.map((g) => <button key={g} type="button" aria-pressed={group === g} onClick={() => { setGroup(g); setN(12); }} className="chip">{L(posts ? g : LAYOUTS[g as keyof typeof LAYOUTS].label)}</button>)}
       </div>
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className={`grid gap-2.5 ${spec.kind === "carousel" && spec.slides.length > 1 ? "grid-cols-2" : "grid-cols-3"}`}>
         {list.slice(0, n).map((st) => {
-          const prev = applyStyle({ ...spec, slides: spec.slides.slice(0, 1) }, st);
+          const two = spec.kind === "carousel" && spec.slides.length > 1;
+          const prevFull = applyStyle(spec, st);
+          const prev = { ...prevFull, slides: prevFull.slides.slice(0, two ? 2 : 1) };
           return (
             <button key={st.id} type="button" onClick={() => onPick(st)} className="group flex flex-col gap-1 rounded-xl border border-line bg-white p-1.5 text-start hover:border-gold-500" title={st.name}>
-              <div className="pointer-events-none overflow-hidden rounded-lg"><DesignView spec={prev} index={0} /></div>
+              <div className="pointer-events-none flex gap-1 overflow-hidden rounded-lg">{prev.slides.map((_, k) => <div key={k} className="min-w-0 flex-1"><DesignView spec={prev} index={k} /></div>)}</div>
               <span className="truncate px-1 text-[12px] font-semibold">{L(st.name)}</span>
             </button>
           );

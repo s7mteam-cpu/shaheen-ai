@@ -1,8 +1,9 @@
 // Ready-made styles for business cards and invitations: each one is a layout + colours + fonts + decoration.
 // The studio shows every style on the customer's own text, and one click applies it (the text never changes).
-import type { DColors, Deco, Frame, DKind, DesignSpec, LayoutId } from "./spec";
+import { LAYOUTS, type DColors, type Deco, type Frame, type DKind, type DesignSpec, type LayoutId, type Slide } from "./spec";
+import { POST_STYLES, CAROUSEL_STYLES } from "./postStyles";
 
-export type DStyle = { id: string; name: string; front: LayoutId; back: LayoutId; colors: DColors; font: string; titleFont?: string; deco: Deco; frame: Frame; finish: "flat" | "foil" };
+export type DStyle = { id: string; name: string; cat?: string; mid?: LayoutId; end?: LayoutId; front: LayoutId; back: LayoutId; colors: DColors; font: string; titleFont?: string; deco: Deco; frame: Frame; finish: "flat" | "foil" };
 
 type Pal = [name: string, bg: string, ink: string, accent: string, soft: string];
 const col = (p: Pal): DColors => ({ bg: p[1], ink: p[2], accent: p[3], soft: p[4] });
@@ -25,6 +26,12 @@ const IP: Record<string, Pal> = {
   apricot: ["مشمشي", "#FFF1E6", "#4A2A1A", "#E08A5B", "#FFE3CF"],
   night: ["ليل الصحراء", "#F3EEE4", "#10213A", "#D9B25F", "#E7DFCD"],
   rose: ["وردة جورية", "#FCEEF0", "#4B1B2B", "#C45A78", "#F8DDE3"],
+  platinum: ["كحلي وبلاتيني", "#F4F6F8", "#14213D", "#8C9BB0", "#E5E9EF"],
+  bronze: ["برونزي دافئ", "#F7EFE4", "#3A2616", "#A8693A", "#EBDCC8"],
+  mauve: ["موف ناعم", "#F6EEF2", "#3B2331", "#A5667F", "#EBDCE4"],
+  forest: ["غابة عميقة", "#EDF1EC", "#14301F", "#B79A4E", "#DCE5DA"],
+  coral: ["مرجاني", "#FFF1EC", "#4A231C", "#E2674F", "#FFE0D6"],
+  ink: ["حبر وفضة", "#F2F2F0", "#171717", "#9A9A94", "#E4E4E0"],
 };
 // [layout, palette, bodyFont, titleFont, deco, frame, name]
 type IRow = [LayoutId, string, string, string, Deco, Frame, string];
@@ -79,6 +86,18 @@ const IROWS: IRow[] = [
   ["invH", "noir", "Amiri", "El Messiri", "none", "none", "هلال وسواد"],
   ["invH", "lilac", "Tajawal", "Mirza", "none", "none", "هلال بنفسجي"],
   ["invA", "rose", "Amiri", "Katibeh", "sparkle", "none", "جورية ناعمة"],
+  ["invA", "platinum", "Almarai", "Aref Ruqaa", "none", "none", "بلاتيني أنيق"],
+  ["invA", "bronze", "Amiri", "Aref Ruqaa Ink", "none", "none", "برونزي دافئ"],
+  ["invB", "mauve", "Tajawal", "Katibeh", "sparkle", "none", "قوس موف"],
+  ["invB", "coral", "Cairo", "Mirza", "none", "none", "قوس مرجاني"],
+  ["invC", "ink", "Almarai", "El Messiri", "none", "none", "مجلة حبر وفضة"],
+  ["invC", "forest", "Tajawal", "Reem Kufi", "none", "none", "مجلة غابة"],
+  ["invD", "platinum", "Almarai", "El Messiri", "none", "none", "ليلة بلاتينية"],
+  ["invD", "forest", "Amiri", "Aref Ruqaa", "none", "none", "غابة وذهب"],
+  ["invE", "coral", "Cairo", "Reem Kufi", "none", "none", "فرحة مرجانية"],
+  ["invF", "mauve", "Tajawal", "Katibeh", "none", "none", "ورقة موف"],
+  ["invG", "bronze", "Almarai", "El Messiri", "none", "none", "شريط برونزي"],
+  ["invH", "forest", "Amiri", "Aref Ruqaa", "none", "none", "هلال غابة"],
 ];
 
 // ---------- business cards ----------
@@ -98,6 +117,12 @@ const BP: Record<string, Pal> = {
   red: ["أحمر جريء", "#FFF4F2", "#2B0F0D", "#C62F26", "#FFFFFF"],
   gold: ["ذهبي دافئ", "#FBF6EA", "#2E2410", "#B8862B", "#FFFFFF"],
   steel: ["رصاصي", "#F1F3F5", "#2B3440", "#5E7388", "#FFFFFF"],
+  plumD: ["بنفسجي داكن", "#F5F1F8", "#2A1B3D", "#B79BE0", "#FFFFFF"],
+  wineD: ["عنابي داكن", "#FAF3F0", "#4A1424", "#E58AA0", "#FFFFFF"],
+  emeraldD: ["زمردي داكن", "#F2F6F3", "#0E3B2E", "#5FD1A0", "#FFFFFF"],
+  copper: ["نحاسي", "#F6EEE8", "#2B1B14", "#B5603A", "#FFFFFF"],
+  slate: ["أردوازي وليموني", "#F2F4F3", "#1D2B2A", "#5E8F2B", "#FFFFFF"],
+  mocha: ["موكا", "#F4ECE6", "#2E2018", "#8B5E3C", "#FFFFFF"],
 };
 type BRow = [LayoutId, string, string, string, Deco, Frame, string];
 const BROWS: BRow[] = [
@@ -121,10 +146,10 @@ const BROWS: BRow[] = [
   ["cardC", "sky", "Tajawal", "", "none", "none", "نصفين سماوي"],
   ["cardD", "graphite", "Cairo", "", "none", "none", "داكن برتقالي"],
   ["cardD", "navy", "Tajawal", "Reem Kufi", "none", "none", "داكن كحلي"],
-  ["cardD", "emerald", "Almarai", "", "none", "none", "داكن زمردي"],
+  ["cardD", "emeraldD", "Almarai", "", "none", "none", "داكن زمردي"],
   ["cardD", "noir", "Amiri", "El Messiri", "none", "none", "داكن ذهبي"],
-  ["cardD", "plum", "Cairo", "", "none", "none", "داكن بنفسجي"],
-  ["cardD", "wine", "Tajawal", "", "none", "none", "داكن عنابي"],
+  ["cardD", "plumD", "Cairo", "", "none", "none", "داكن بنفسجي"],
+  ["cardD", "wineD", "Tajawal", "", "none", "none", "داكن عنابي"],
   ["cardE", "white", "Cairo", "", "none", "none", "طباعي أبيض"],
   ["cardE", "sand", "Almarai", "", "none", "none", "طباعي رملي"],
   ["cardE", "steel", "Tajawal", "", "none", "none", "طباعي رصاصي"],
@@ -153,22 +178,51 @@ const BROWS: BRow[] = [
   ["cardE", "wine", "Amiri", "", "none", "none", "طباعي عنابي"],
   ["cardD", "sky", "Cairo", "Reem Kufi", "none", "none", "داكن سماوي"],
   ["cardG", "teal", "Almarai", "", "none", "none", "ختم تركوازي"],
+  ["cardA", "copper", "Almarai", "El Messiri", "none", "none", "شريط نحاسي"],
+  ["cardB", "mocha", "Amiri", "El Messiri", "none", "rounded", "وسط موكا"],
+  ["cardC", "slate", "Tajawal", "", "none", "none", "نصفين أردوازي"],
+  ["cardD", "copper", "Cairo", "Reem Kufi", "none", "none", "داكن نحاسي"],
+  ["cardE", "mocha", "Almarai", "", "none", "none", "طباعي موكا"],
+  ["cardF", "copper", "Tajawal", "", "none", "none", "علوي نحاسي"],
+  ["cardG", "slate", "Cairo", "Reem Kufi", "none", "none", "ختم أردوازي"],
+  ["cardH", "mocha", "Almarai", "", "none", "none", "قطري موكا"],
 ];
 
 // palettes whose accent is a metal (gold, rose gold, copper, silver): they get the foil finish
-const METAL = new Set(["ivory", "blush", "navy", "wine", "noir", "champ", "emerald", "night", "silver", "gold", "clay", "rose", "graphite", "sand"]);
+const METAL = new Set(["platinum", "bronze", "copper", "ivory", "blush", "navy", "wine", "noir", "champ", "emerald", "night", "silver", "gold", "clay", "rose", "graphite", "sand"]);
 const pick = (kind: DKind): DStyle[] => {
   if (kind === "invite") return IROWS.map(([front, p, font, titleFont, deco, frame, name], i) => ({ id: `i${i + 1}`, name, front, back: "invBack", colors: col(IP[p]), font, titleFont, deco, frame, finish: METAL.has(p) ? "foil" : "flat" }));
   if (kind === "bcard") return BROWS.map(([front, p, font, titleFont, deco, frame, name], i) => ({ id: `b${i + 1}`, name, front, back: i % 2 ? "cardBackB" : "cardBack", colors: col(BP[p]), font, titleFont: titleFont || undefined, deco, frame, finish: METAL.has(p) ? "foil" : "flat" }));
+  if (kind === "post" || kind === "ads") return POST_STYLES.map((p) => ({ ...p, back: p.front }));
+  if (kind === "carousel") return CAROUSEL_STYLES.map((p) => ({ ...p, back: p.mid ?? p.front }));
   return [];
 };
 export const stylesFor = (kind: DKind): DStyle[] => pick(kind);
 
+const FIELDS = ["kicker", "title", "highlight", "body", "items", "meta", "date", "price", "stat", "badge", "cta", "person", "photo"] as const;
+const filled = (s: Slide, f: (typeof FIELDS)[number]) => { const v = s[f] as unknown; return Array.isArray(v) ? v.length > 0 : !!v; };
+/** A layout can show every field this slide has filled in, so a style never hides the customer's text. */
+const fits = (s: Slide, l: LayoutId) => FIELDS.every((f) => !filled(s, f) || (LAYOUTS[l].uses as string[]).includes(f));
+/** The style's layout for this slide, or a safe one (classic, bold) when it would hide something; null = keep the slide as it is. */
+export function layoutFor(s: Slide, want: LayoutId): LayoutId | null {
+  for (const l of [want, "classic", "bold"] as LayoutId[]) if (fits(s, l)) return l;
+  return null;
+}
+/** Does this style's own layout suit the slide (the gallery only lists styles that do). */
+export const styleFits = (spec: DesignSpec, st: DStyle) => !!spec.slides[0] && fits(spec.slides[0], st.front);
+
 /** Same design with a style applied: layouts, colours, fonts, decoration. The customer's text is untouched. */
 export function applyStyle(spec: DesignSpec, st: DStyle): DesignSpec {
+  const posts = spec.kind === "post" || spec.kind === "ads" || spec.kind === "carousel";
+  const last = spec.slides.length - 1;
   return {
     ...spec,
-    colors: st.colors, font: st.font, titleFont: st.titleFont, deco: st.deco, frame: st.frame, finish: st.finish,
-    slides: spec.slides.map((s, i) => ({ ...s, layout: i === 0 ? st.front : st.back, pos: undefined, hide: undefined, col: undefined })),
+    colors: st.colors, font: st.font, titleFont: posts ? undefined : st.titleFont, deco: st.deco, frame: st.frame, finish: st.finish,
+    slides: spec.slides.map((s, i) => {
+      if (!posts) return { ...s, layout: i === 0 ? st.front : st.back, pos: undefined, hide: undefined, col: undefined };
+      const want = i === 0 ? st.front : st.end && i === last && last > 0 ? st.end : st.mid ?? st.front;
+      const layout = layoutFor(s, want);
+      return layout ? { ...s, layout, pos: undefined, hide: undefined, col: undefined } : s;
+    }),
   };
 }

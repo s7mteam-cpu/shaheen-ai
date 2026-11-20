@@ -1,3 +1,4 @@
+import { FONT_LIBRARY } from "../lib/fonts";
 // CV (السيرة الذاتية): the data model, templates and the 50 ready styles. Rendered by CV.tsx (screen + PDF) and cvdocx.ts (Word).
 export type CVLang = "ar" | "en";
 export type CVTemplate = "side" | "classic" | "exec" | "modern" | "timeline" | "minimal" | "chips" | "split";
@@ -38,7 +39,7 @@ export const CV_TEMPLATES: { id: CVTemplate; label: string; hint: string }[] = [
   { id: "split", label: "نصفين", hint: "ترويسة بنصفين وعمودان متوازنان" },
 ];
 
-export const CV_FONTS = [["Cairo", "Cairo"], ["Tajawal", "Tajawal"], ["Almarai", "Almarai"], ["Amiri", "Amiri"], ["Changa", "Changa"]] as const;
+export const CV_FONTS = FONT_LIBRARY.map((f) => [f.id, f.label] as const);
 export const CV_FONT_IDS: string[] = CV_FONTS.map((f) => f[0]);
 
 export const TITLES: Record<CVLang, Record<SecKey, string>> = {

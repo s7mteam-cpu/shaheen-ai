@@ -1,5 +1,6 @@
 // Design studio data model: posts, carousels and ads, rendered by React (live preview) and by the worker (PNG).
 // Claude writes the content and picks a layout per slide; the customer edits everything live.
+import { FONT_LIBRARY, LIB_FONT_IDS } from "../lib/fonts";
 
 export type DAspect = "4:5" | "1:1" | "9:16" | "card" | "inv";
 export type DKind = "post" | "carousel" | "ads" | "bcard" | "invite";
@@ -104,9 +105,10 @@ export const DECOR_FONTS = [
   { id: "El Messiri", label: "المسيري" },
   { id: "Mirza", label: "ميرزا (مائل)" },
 ] as const;
-export const ALL_FONT_IDS: string[] = [...DFONTS.map((f) => f.id), ...DECOR_FONTS.map((f) => f.id)];
+export const ALL_FONT_IDS: string[] = Array.from(new Set([...DFONTS.map((f) => f.id), ...DECOR_FONTS.map((f) => f.id), ...LIB_FONT_IDS]));
 /** Fonts the studio offers for a kind of design. */
-export const fontsFor = (kind: DKind): readonly { id: string; label: string }[] => (kind === "invite" ? [...DECOR_FONTS, ...DFONTS] : kind === "bcard" ? [...DFONTS, DECOR_FONTS[3], DECOR_FONTS[4]] : DFONTS);
+/** every design kind offers the whole library (the studio's FontPicker groups it by style) */
+export const fontsFor = (): readonly { id: string; label: string }[] => FONT_LIBRARY.map((f) => ({ id: f.id, label: f.label }));
 
 /** Which fields each layout shows: the studio offers exactly these, and Claude is told the same. */
 export const LAYOUTS: Record<LayoutId, { label: string; hint: string; uses: (keyof Slide)[] }> = {

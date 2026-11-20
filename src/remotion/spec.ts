@@ -1,3 +1,4 @@
+import { FONT_LIBRARY } from "../lib/fonts";
 /** Motion-graphics video = plain data. The Player draws it live, the worker renders it to MP4. */
 export const ICONS = ["check", "x", "leaf", "bread", "bowl", "heart", "star", "bolt", "clock", "phone", "chat", "gift", "cart", "tag", "chart", "shield", "sparkle", "pin", "users", "drop", "book", "bulb", "video", "camera", "mic", "money", "rocket", "target", "brain", "scissors", "play", "question", "trophy", "calendar", "laptop", "grad", "eye", "lock", "whatsapp", "instagram", "mail", "web"] as const;
 export type IconName = (typeof ICONS)[number];
@@ -46,13 +47,7 @@ export type MotionSpec = {
 };
 
 export const FPS = 30;
-export const FONTS = [
-  { id: "Cairo", label: "كايرو" },
-  { id: "Tajawal", label: "تجوال" },
-  { id: "Almarai", label: "المراعي" },
-  { id: "Changa", label: "تشانغا" },
-  { id: "Amiri", label: "أميري" },
-];
+export const FONTS = FONT_LIBRARY.map((f) => ({ id: f.id, label: f.label }));
 export const COLOR_LABELS: Record<keyof Colors, string> = {
   bg: "الخلفية", bg2: "الخلفية 2", text: "النص", accent: "اللون المميز", accent2: "لون إضافي",
 };

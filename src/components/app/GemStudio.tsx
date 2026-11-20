@@ -26,6 +26,7 @@ import { ARAB_DIALECTS } from "@/lib/countries";
 import { VOICE_TYPES, voicesFor, type VoiceItem } from "@/lib/voiceMatch";
 import { VoicePick } from "@/components/app/VoicePick";
 import type { Music } from "@/remotion/montage";
+import { FontPicker } from "./FontPicker";
 
 type SavedMix = { voiceVol?: number; musicVol?: number; trim?: Trim; own?: (Music & { url: string }) | null };
 export type GemData = {
@@ -33,7 +34,6 @@ export type GemData = {
   hasVoice: boolean; scenes: string[] | null; dialect: string; musicOff: boolean; editCost: number; mix: SavedMix | null; logo: { path: string; url: string; box: LogoBox } | null;
 };
 const SIZES: Record<string, [number, number]> = { "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080], "4:5": [1080, 1350] };
-const FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 /** the preview frame is sealed (no origin), so it cannot use the page's fonts: copy the chosen family's @font-face rules into it with the files inlined */
 const fontCache = new Map<string, Promise<string>>();
 function fontCssFor(family: string): Promise<string> {
@@ -312,11 +312,7 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId
           </Card>
 
           <Card more title={L("تغيير الخط")} icon="🔤">
-            <div className="flex flex-wrap gap-2">
-              {FONTS.map((f) => (
-                <button key={f} type="button" aria-pressed={font === f} onClick={() => setFont(f)} style={{ fontFamily: f }} className={`rounded-xl border px-4 py-2 text-[16px] ${font === f ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink"}`}>{f}</button>
-              ))}
-            </div>
+            <FontPicker value={font} onChange={setFont} />
           </Card>
 
           <Card more title={L("الصوت وإضافة صوت من جوالك")} icon="🎚️">

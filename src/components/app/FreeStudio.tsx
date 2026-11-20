@@ -14,6 +14,7 @@ import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize, type LogoBox } from "@/components
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { uploadImage } from "@/components/app/DesignStart";
 import { ERR_SNIPPET } from "@/lib/freeErrSnippet";
+import { FONT_LIBRARY } from "@/lib/fonts";
 
 export type Field = { key: string; label: string; value: string };
 export type Contact = { icon: BrandId; handle: string };
@@ -26,7 +27,6 @@ export type StudioData = {
   previewUrl: string; voiceUrl: string; musicUrl: string; exportUrl: string; editError: string; locked?: boolean;
 };
 const OFFSET = 0.4;
-const fonts = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 const social = Object.keys(BRANDS) as BrandId[];
 const card = "card flex flex-col gap-3 p-4";
 
@@ -245,7 +245,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
               <label key={k} className="flex items-center gap-2 text-[14px]"><input type="color" value={colors[k]} onChange={(e) => setColors({ ...colors, [k]: e.target.value })} className="h-9 w-12 cursor-pointer rounded border" />{L(l)}</label>
             ))}
           </div>
-          <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{FONT_LIBRARY.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}</select></label>
         </Card>
 
         <Card more title={L("صوتك من جهازك")} icon="🎧">

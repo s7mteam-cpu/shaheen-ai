@@ -22,7 +22,7 @@ import { MusicEditor } from "@/components/app/MusicEditor";
 import { BeatPanel, GrainPicker, StickerPanel, StockSearch } from "@/components/app/MontageExtras";
 import { SITE_GROUPS, SITE_STYLES, lookFor, siteStyleById } from "@/remotion/siteStyles";
 import { BOARD_STYLES, DSTYLES, DSTYLE_BOARD, DARK_BOARDS, CAPTION_STYLES, GRAPHIC_KINDS, LAYOUTS, TRANSITIONS, TITLE_STYLES, EMOJIS, GRADES, MFPS, SUB_LANGS, dimensions, introFrames, montageTexts, setMontageText, totalFrames, videoSeconds, type CaptionPos, type CaptionStyle, type Corner, type GraphicKind, type MontageSpec, type Transition } from "@/remotion/montage";
-import { FONTS } from "@/remotion/spec";
+import { FontPicker } from "./FontPicker";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
 import { LogoCropper } from "@/components/app/LogoCropper";
@@ -365,12 +365,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         </Card>
 
         <Card more title={L("تغيير الخط")} icon="🔤">
-          <div className="flex flex-wrap gap-2">
-            {FONTS.map((f) => (
-              <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} style={{ fontFamily: f.id }}
-                className={`rounded-xl border px-4 py-2 text-[16px] ${spec.font === f.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink"}`}>{L(f.label)}</button>
-            ))}
-          </div>
+          <FontPicker value={spec.font} onChange={(id) => setSpec({ ...spec, font: id })} />
         </Card>
 
         <Card more title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">

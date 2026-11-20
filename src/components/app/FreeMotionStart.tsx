@@ -11,13 +11,13 @@ import { FreeSent } from "@/components/app/FreeSent";
 import { VoicePick } from "@/components/app/VoicePick";
 import { voicesFor, type VoiceItem } from "@/lib/voiceMatch";
 import { GemStudio, type GemData } from "@/components/app/GemStudio";
+import { FONT_LIBRARY } from "@/lib/fonts";
 
 type Contact = { icon: BrandId; handle: string };
 type Colors = { bg: string; accent: string; text: string };
 type State = StudioData | { status: "queued" | "running"; progress: number; engine?: string } | ({ status: "gemini" } & GemData) | { status: "failed"; error: string; reason?: string };
 
 const sizes = [["9:16", "📱 ريلز 9:16"], ["16:9", "▶️ يوتيوب 16:9"], ["1:1", "⬜ مربع 1:1"], ["4:5", "🖼️ طولي 4:5"]] as const;
-const fonts = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 const social = Object.keys(BRANDS) as BrandId[];
 
 /** «تصميم مبتكر ✨»: the customer writes an idea; the AI writes a motion design as code and the worker renders it. Texts and colours can be edited afterwards. */
@@ -166,7 +166,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
       </div>
       <label className="flex items-center gap-2 text-[14px] font-semibold"><input type="checkbox" checked={useIdentity} onChange={(e) => setUseIdentity(e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("طبّق هويتي (ألوانها)")}</label>
       {useIdentity ? <div className="flex flex-col gap-2"><span className="font-semibold">{L("ألوان هويتك")}</span>{colorRow(colors)}</div> : <p className="text-[13px] text-subtle">{L("بدون هويتك: المصمم يختار الألوان المناسبة للفكرة، وإذا كتبت ألوان بالنص يلتزم بها. تقدر تغيّرها بعد التصميم.")}</p>}
-      <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
+      <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{FONT_LIBRARY.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}</select></label>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("حسابات التواصل (اختياري)")}</span>{contactRow(contact, setContact)}</div>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
       {auto && plan ? (

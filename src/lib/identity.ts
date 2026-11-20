@@ -1,5 +1,7 @@
+import { LIB_FONT_IDS } from "@/lib/fonts";
 import { lum } from "@/design/spec";
 
+/** what the AI may pick for a brand identity (a short, safe list); the customer can choose any library font later */
 export const ID_FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"] as const;
 export const TILE_KINDS = ["quote", "offer", "tip", "product", "testimonial", "brand"] as const;
 export const TILE_LABEL: Record<string, string> = { quote: "عبارة", offer: "عرض", tip: "نصيحة", product: "منتج", testimonial: "رأي عميل", brand: "هوية" };
@@ -33,7 +35,7 @@ export function normaliseConcept(raw: unknown, i: number): Concept | null {
   const pal = (Array.isArray(r.palette) ? r.palette : []).map((c) => { const o = (c ?? {}) as Record<string, unknown>; const h = hex6(o.hex); return h ? { role: str(o.role, 20), name: str(o.name, 30), hex: h } : null; }).filter((c): c is IdColor => !!c).slice(0, 5);
   if (pal.length < 4 || !str(r.name, 60)) return null;
   const f = (r.fonts ?? {}) as Record<string, unknown>;
-  const font = (v: unknown, d: string) => (ID_FONTS as readonly string[]).includes(String(v)) ? String(v) : d;
+  const font = (v: unknown, d: string) => LIB_FONT_IDS.includes(String(v)) ? String(v) : d;
   const feed = (r.feed ?? {}) as Record<string, unknown>;
   const hexes = pal.map((c) => c.hex);
   const tiles: IdTile[] = (Array.isArray(feed.tiles) ? feed.tiles : []).slice(0, 9).map((t) => {

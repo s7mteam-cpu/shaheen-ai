@@ -1,5 +1,6 @@
 // (copy of worker/htmlkit.mjs: keep both the same) Helpers for «original HTML» templates (kept exactly as Gemini made them). Pure functions, no network.
 // Texts are the visible text pieces between tags; colours are the #rrggbb values used in the page. Both can be swapped before showing/recording.
+import { LIB_FONT_IDS } from "./fonts";
 const TEXT_RE = />([^<>]{1,400})</g;
 const HEX_RE = /#[0-9a-fA-F]{6}\b/g;
 
@@ -59,7 +60,8 @@ export function applyEdits(html: string, { texts = {}, hex = {} }: { texts?: Rec
   return out;
 }
 
-const FONT_NAMES = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
+// longest names first so "Cairo Play" is never mistaken for "Cairo"
+const FONT_NAMES = [...LIB_FONT_IDS].sort((a, b) => b.length - a.length);
 /** the first font family the page asks for (only the five fonts the platform embeds count) */
 export function currentFont(html: string) {
   const m = html.match(/font-family\s*:\s*([^;}]*)/i);

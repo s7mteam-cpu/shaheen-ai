@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { resetBrand, saveBrand } from "@/app/app/brand/actions";
 
-const FONTS = [["Cairo", "كايرو"], ["Tajawal", "تجوال"], ["Almarai", "المراعي"], ["Changa", "تشانغا"], ["Amiri", "أميري"]];
+import { FontPicker } from "./FontPicker";
 
 export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; refs?: { path: string; url: string }[] } }) {
   const [name, setName] = useState(initial.business_name);
@@ -82,10 +82,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
       </div>
       <div className="flex flex-col gap-2">
         <span className="label">{L("خط الهوية")}</span>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" aria-pressed={!font} onClick={() => setFont("")} className="chip">{L("يختاره شاهين")}</button>
-          {FONTS.map(([id, l]) => <button key={id} type="button" aria-pressed={font === id} onClick={() => setFont(id)} className="chip" style={{ fontFamily: id }}>{L(l)}</button>)}
-        </div>
+        <FontPicker value={font} onChange={setFont} none={{ label: L("يختاره شاهين"), active: !font, onPick: () => setFont("") }} />
       </div>
       <div className="flex flex-col gap-4 rounded-2xl bg-tint p-4">
         <div><span className="label">{L("ستايلك المفضّل")}</span><p className="text-[13px] text-subtle">{L("شاهين يتعلّم منها أسلوبك، ويصمّم لك بنفس الإحساس.")}</p></div>

@@ -18,7 +18,8 @@ function useWidth<T extends HTMLElement>() {
 import { Progress } from "@/components/app/Progress";
 import { uploadImage } from "@/components/app/DesignStart";
 import { CVPage, PW, PH } from "@/cv/CV";
-import { CV_STYLES, CV_ACCENTS, CV_FONTS, SEC_KEYS, TITLES, applyCVStyle, type CVSpec, type SecKey } from "@/cv/spec";
+import { FontPicker } from "./FontPicker";
+import { CV_STYLES, CV_ACCENTS, SEC_KEYS, TITLES, applyCVStyle, type CVSpec, type SecKey } from "@/cv/spec";
 
 const SCALE_MAX = 0.64;
 type Pg = { status: string; progress: number; files: { url: string }[] };
@@ -156,7 +157,7 @@ export function CVStudio({ jobId, initial, editCost, done }: { jobId: string; in
         <div className={card}>
           <b>{L("اللون والخط")}</b>
           <div className="flex flex-wrap gap-2">{CV_ACCENTS.map((c) => <button key={c} type="button" aria-label={c} aria-pressed={spec.accent === c} onClick={() => set({ accent: c })} className={`h-8 w-8 rounded-full border-2 ${spec.accent === c ? "border-gold-500 ring-2 ring-gold-300" : "border-white shadow"}`} style={{ background: c }} />)}</div>
-          <div className="flex flex-wrap gap-2">{CV_FONTS.map(([id, label]) => <button key={id} type="button" aria-pressed={spec.font === id} onClick={() => set({ font: id })} className="chip" style={{ fontFamily: `"${id}"` }}>{label}</button>)}</div>
+          <FontPicker value={spec.font} onChange={(id) => set({ font: id })} />
           <label className="flex items-center gap-2"><input type="checkbox" checked={spec.showPhoto && !!spec.photo} disabled={!spec.photo} onChange={(e) => set({ showPhoto: e.target.checked })} className="h-5 w-5" />{L("إظهار الصورة الشخصية")}</label>
           {spec.photo && <div className="flex items-center gap-3">{/* eslint-disable-next-line @next/next/no-img-element */}{spec.photo.url && <img src={spec.photo.url} alt="" className="h-14 w-14 rounded-full object-cover" />}<button type="button" onClick={() => set({ photo: null, showPhoto: false })} className="chip">🗑 {L("حذف الصورة")}</button></div>}
           <input type="file" accept="image/*" className="field" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const u = await uploadImage(f); set({ photo: { path: u.path, bucket: "uploads", url: u.preview }, showPhoto: true }); } catch (er) { setError((er as Error).message); } }} />

@@ -19,7 +19,8 @@ import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag"
 import { ElBar, ElPicker, type Picked } from "@/components/app/ElPicker";
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { uploadImage } from "@/components/app/DesignStart";
-import { COLOR_LABELS, FONTS, FPS, dimensions, narration, setText, textFields, type Colors, type MotionSpec } from "@/remotion/spec";
+import { FontPicker } from "./FontPicker";
+import { COLOR_LABELS, FPS, dimensions, narration, setText, textFields, type Colors, type MotionSpec } from "@/remotion/spec";
 
 type Track = { name: string; mood?: string; url: string };
 type Voice = { id: string; name: string; note?: string };
@@ -189,12 +190,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
         </Card>
 
         <Card more title={L("تغيير الخط")} icon="🔤">
-          <div className="flex flex-wrap gap-2">
-            {FONTS.map((f) => (
-              <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} style={{ fontFamily: f.id }}
-                className={`rounded-xl border px-4 py-2 text-[16px] ${spec.font === f.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink"}`}>{f.label}</button>
-            ))}
-          </div>
+          <FontPicker value={spec.font} onChange={(id) => setSpec({ ...spec, font: id })} />
         </Card>
 
         <Card more title={L("تعديل متقدّم (بالوصف)")} icon="✨">
