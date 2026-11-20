@@ -40,7 +40,7 @@ export default async function AiAdmin() {
 
       <form action={saveFreeEngine} className="card flex flex-col gap-4 p-6">
         <div><h2 className="text-lg font-bold">{L("محرك «تصميم مبتكر» عند العملاء")}</h2>
-          <p className="mt-1 text-sm text-subtle">{L("القديم: كلود يكتب كود الموشن (الاستوديو الحي والتعديل المباشر). الجديد (جيميناي): كلود يرتّب النص، الصوت يتسجّل أول، وجيميناي يبني التصميم ويطلع فيديو جاهز بصوت وموسيقى (التعديل المباشر قيد التجهيز، والفيديو ياخذ حتى 15 دقيقة). التغيير ينطبق على الطلبات الجديدة فقط.")}</p></div>
+          <p className="mt-1 text-sm text-subtle">{L("القديم: كلود يكتب كود الموشن (الاستوديو الحي والتعديل المباشر). الجديد (جيميناي): كلود يرتّب النص، الصوت يتسجّل أول، وجيميناي يبني التصميم ويطلع فيديو جاهز بصوت وموسيقى (تعدّل النصوص والألوان والخط والصوت بعد التصميم، والفيديو ياخذ حتى 15 دقيقة). التغيير ينطبق على الطلبات الجديدة فقط.")}</p></div>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="flex flex-col gap-1.5"><label className="label">{L("المحرك")}</label>
             <select name="engine" defaultValue={fe.engine} className="field"><option value="classic">{L("القديم (مبتكر بالكود)")}</option><option value="gemini">{L("الجديد (جيميناي)")}</option></select></div>
