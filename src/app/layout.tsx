@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import "@/lib/fontsCss";
 import "@fontsource/cairo/arabic-400.css";
 import "@fontsource/cairo/arabic-500.css";
 import "@fontsource/cairo/arabic-600.css";

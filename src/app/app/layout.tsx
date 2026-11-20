@@ -1,3 +1,4 @@
+import "@/lib/fontsCss"; // the tools' font library (not loaded on the public pages)
 import { after } from "next/server";
 import { sheetsTick } from "@/lib/server/sheetsSync";
 import Link from "next/link";
