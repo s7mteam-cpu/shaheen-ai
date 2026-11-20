@@ -901,12 +901,12 @@ async function gemFlowJob(job) {
   const base = `templates/gem/${job.id}`;
   const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
   const outFile = join(workDir, `gem-${job.id}.mp4`);
-  const meta = { idea, aspect, seconds, at: new Date().toISOString(), timings: {}, attempts: [] };
+  const meta = { idea, aspect, seconds, plan_mode: inp.plan === "scenes" ? "scenes" : "text", at: new Date().toISOString(), timings: {}, attempts: [] };
   const stage = async (txt, progress) => { try { await db.from("jobs").update({ title: txt.slice(0, 60), progress }).eq("id", job.id); } catch {} };
   const t0 = Date.now(), lap = (k) => { meta.timings[k] = Math.round((Date.now() - t0) / 1000); };
   try {
     await stage("يكتب الخطة (Claude)…", 10);
-    const plan = await planVideo({ idea, seconds, brand: inp.brand });
+    const plan = await planVideo({ idea, seconds, brand: inp.brand, mode: inp.plan === "scenes" ? "scenes" : "text" });
     meta.plan = plan; lap("plan");
     let retry = "", page = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
