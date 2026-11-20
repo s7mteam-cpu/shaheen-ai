@@ -421,7 +421,7 @@ function Panel({ m, w, h, area, opacity = 1, words = true, titles = true, boost 
         <circle cx={w * 0.9} cy={h * 0.12} r={Math.min(w, h) * 0.5} fill={m.colors.accent} opacity={0.08} />
         <circle cx={w * 0.05} cy={h * 1.05} r={Math.min(w, h) * 0.45} fill={m.colors.accent} opacity={0.06} />
       </svg>
-      <div style={full ? { position: "absolute", inset: 0 } : { position: "absolute", left: A.x, top: A.y, width: A.w, height: A.h }}>{inner}</div>
+      <div data-sc={g && (m.graphics ?? []).indexOf(g) >= 0 ? `g${(m.graphics ?? []).indexOf(g)}` : undefined} style={full ? { position: "absolute", inset: 0 } : { position: "absolute", left: A.x, top: A.y, width: A.w, height: A.h }}>{inner}</div>
     </div>
   );
 }
@@ -526,7 +526,7 @@ function OverlayGraphics({ m }: { m: MontageSpec }) {
   const out = interpolate(frame - f0, [len - 8, len], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const top = m.captions.pos === "top" ? (height - ch) / 2 : height * 0.07;
   return (
-    <div style={{ position: "absolute", left: (width - cw) / 2, top, width: cw, height: ch, borderRadius: 48 * (width / 1080), overflow: "hidden", background: "rgba(10,16,26,.74)", backdropFilter: "blur(14px)", border: "2px solid rgba(255,255,255,.12)", opacity: q * out, transform: `scale(${0.9 + 0.1 * q})`, boxShadow: "0 30px 80px rgba(0,0,0,.45)" }}>
+    <div data-sc={(m.graphics ?? []).indexOf(g) >= 0 ? `g${(m.graphics ?? []).indexOf(g)}` : undefined} style={{ position: "absolute", left: (width - cw) / 2, top, width: cw, height: ch, borderRadius: 48 * (width / 1080), overflow: "hidden", background: "rgba(10,16,26,.74)", backdropFilter: "blur(14px)", border: "2px solid rgba(255,255,255,.12)", opacity: q * out, transform: `scale(${0.9 + 0.1 * q})`, boxShadow: "0 30px 80px rgba(0,0,0,.45)" }}>
       <GraphicView g={g} m={m} f={frame - f0} len={len} w={cw} h={ch} light={false} />
     </div>
   );

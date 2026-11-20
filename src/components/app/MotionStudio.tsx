@@ -128,7 +128,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
           <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
           <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{spec.seconds} {L("ثانية")}</span>
         </div>
-        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-navy-900 shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 11rem) * 0.5625))" : "100%" }}>
+        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-navy-900 shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 16rem) * 0.5625))" : "100%" }}>
           {mounted ? <Player
             ref={player}
             component={MotionVideo}

@@ -291,7 +291,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
           <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{seconds} {L("ثانية")}</span>
         </div>
-        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 11rem) * 0.5625))" : spec.aspect === "4:5" ? "min(100%, calc((100vh - 11rem) * 0.8))" : "100%" }}>
+        <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 16rem) * 0.5625))" : spec.aspect === "4:5" ? "min(100%, calc((100vh - 11rem) * 0.8))" : "100%" }}>
           {mounted ? (
             <Player ref={player} component={MontageVideo} inputProps={spec} durationInFrames={totalFrames(spec)} fps={MFPS}
               compositionWidth={width} compositionHeight={height} style={{ width: "100%" }} controls acknowledgeRemotionLicense />
