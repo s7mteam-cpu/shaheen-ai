@@ -21,6 +21,13 @@ const PROMPTS: Record<string, string> = {
   "ad-design": "a smartphone held up showing a vibrant social media advertisement design, blurred evening city lights of Kuwait City in the background, bold colours",
   voice: "a professional studio microphone with a pop filter and over-ear headphones inside a warm, soundproofed voice-over booth",
   nasheed: "a crescent moon over calm desert sand dunes at night under a starry sky, soft blue and gold glow, peaceful",
+  "real-scenes": "a film director's monitor and clapperboard on a desk showing cinematic real-life footage of a modern city skyline at golden hour, a mirrorless camera and headphones beside it, warm evening light",
+  "site-video": "a laptop and a smartphone side by side on a clean desk, both screens showing a modern website being scrolled, soft office light, blurred city view through the window",
+  "free-motion": "a designer's desk at night with a large curved monitor showing glowing abstract geometric motion graphics shapes and gold light trails, creative studio, neon purple and gold reflections",
+  presentations: "a modern meeting room with a large screen showing an elegant presentation slide with charts, a laptop and a slide clicker on a wooden table, soft daylight",
+  "business-cards": "a neat stack of premium black and gold blank business cards with embossed texture on a marble desk next to a fountain pen, shallow depth of field",
+  invitations: "an elegant wedding invitation card with gold foil edging and a cream envelope tied with a ribbon, surrounded by white roses and soft candle glow",
+  cv: "a polished professional resume printed on a tidy desk with a pen, reading glasses and a laptop, soft natural window light",
   "product-photo": "a professional product photography set: softbox lights and a camera on a tripod shooting an elegant oud perfume bottle on a stone pedestal",
 };
 const STYLE = "Photorealistic professional photograph, natural colours, high detail, aspect 4:3. Absolutely no text, no letters, no numbers, no logos, no watermark.";
