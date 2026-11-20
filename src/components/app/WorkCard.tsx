@@ -11,6 +11,11 @@ export type Work = { id: string; title: string | null; tool_id: string; toolName
 export function Media({ f, className = "" }: { f: WorkFile; className?: string }) {
   if (f.type.startsWith("video")) return <video src={f.url} controls playsInline className={`w-full bg-black ${className}`} />;
   if (f.type.startsWith("audio")) return <div className={`flex items-center bg-tint p-4 ${className}`}><audio src={f.url} controls className="w-full" /></div>;
+  if (f.type && !f.type.startsWith("image")) {
+    // a document (PDF, PowerPoint, Word…): a file tile instead of a broken picture
+    const ext = f.type.includes("pdf") ? "PDF" : f.type.includes("presentation") ? "PPTX" : f.type.includes("word") ? "DOCX" : f.type.includes("sheet") || f.type.includes("excel") ? "XLSX" : f.type.includes("zip") ? "ZIP" : "FILE";
+    return <div className={`flex flex-col items-center justify-center gap-2 bg-tint p-6 text-ink ${className}`} style={{ minHeight: 160 }}><span className="text-[40px]" aria-hidden>📄</span><b className="text-[15px]">{ext}</b></div>;
+  }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={f.url} alt="" className={`w-full object-cover ${className}`} />;
 }

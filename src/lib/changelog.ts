@@ -3,6 +3,10 @@ export type Change = { version: string; date: string; title: string; items: stri
 
 export const CHANGELOG: Change[] = [
   {
+    version: "v203", date: "2026-11-21", title: "إصلاح: ملفات PDF وPowerPoint بأعمالي",
+    items: ["صفحة «أعمالي»: السيرة الذاتية (PDF) وعروض PowerPoint كانت تظهر كصورة مكسورة، والحين تظهر بطاقة ملف واضحة (PDF / PPTX) وزر التحميل يشتغل مثل قبل."],
+  },
+  {
     version: "v202", date: "2026-11-21", title: "بطاقة التصميم: كل الخيارات ظاهرة مباشرة",
     items: ["شلت زر «المزيد من خيارات التصميم»: الإطار وملصق الزاوية وأسلوب الأيقونات والخط صارت ظاهرة داخل بطاقة التصميم بدون ضغطة إضافية."],
   },
