@@ -23,7 +23,7 @@ import { buildPreview } from "./freepreview.mjs";
 import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
 import { extractTexts, extractColors, applyEdits, applyFont, applyLogo } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
-import { planVideo, geminiHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
+import { planVideo, geminiHtml, geminiEdit, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
@@ -1018,16 +1018,40 @@ async function gemEditJob(job) {
     const hex = {}; for (const [k, v] of Object.entries(inp.hex ?? {})) if (/^#[0-9a-f]{6}$/i.test(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) hex[k] = v;
     let page = applyEdits(before, { texts, hex });
     if (typeof inp.font === "string") page = applyFont(page, inp.font);
+    const instruction = typeof inp.instruction === "string" ? inp.instruction.replace(/\s+/g, " ").trim().slice(0, 600) : "";
+    if (instruction) { // «تعديل بالوصف»: Gemini edits the whole page (logo removed first, put back after), checked like a new design
+      await stage("جيميناي يعدّل التصميم…", 25);
+      const keepLogo = g.logo ?? null;
+      const bare = applyLogo(page, null);
+      const wanted = extractTexts(bare, 200).map((f) => f.value).join(" ");
+      let retry = "", okPage = "";
+      for (let attempt = 1; attempt <= 2 && !okPage; attempt++) {
+        const r = await geminiEdit({ html: bare, instruction, retry, model: src.input.model });
+        const pr = await prepareHtml(r.html);
+        const sts = await htmlStills({ html: pr.html, width: W, height: H, times: [0.1 * seconds, 0.4 * seconds, 0.7 * seconds, 0.95 * seconds], fontCss: htmlFontCss() });
+        const pf = join(workDir, `gep-${job.id}.png`); await writeFile(pf, sts[1]);
+        const blank = await frameIsBlank(pf); await rm(pf, { force: true });
+        const distinct = new Set(sts.map((x) => createHash("md5").update(x).digest("hex"))).size;
+        const missing = missingContacts(pr.html, wanted);
+        if (blank) retry = "The page is blank in the middle of the video.";
+        else if (distinct <= 1) retry = "The video is static: the animation stops. Keep every scene animating on its own time.";
+        else if (missing.length) retry = `These contact details were lost and must stay visible exactly: ${missing.join(" | ")}`;
+        else okPage = pr.html;
+      }
+      if (!okPage) throw new Error("التعديل بالوصف ما طلع بجودة كافية");
+      page = okPage; // the logo (if any) is put back below
+    }
     let logoKeep = null;
-    if (inp.logo === null) page = applyLogo(page, null);
-    else if (inp.logo && own(inp.logo.path)) {
-      const lg = await db.storage.from("uploads").download(inp.logo.path); if (lg.error) throw new Error("download logo");
+    const logoIn = inp.logo === undefined && instruction ? (g.logo ?? undefined) : inp.logo;
+    if (logoIn === null) page = applyLogo(page, null);
+    else if (logoIn && own(logoIn.path)) {
+      const lg = await db.storage.from("uploads").download(logoIn.path); if (lg.error) throw new Error("download logo");
       const buf = Buffer.from(await lg.data.arrayBuffer()); if (buf.length > 3_000_000) throw new Error("الشعار كبير");
       const mime = buf[0] === 0x89 ? "image/png" : buf[0] === 0xff ? "image/jpeg" : buf.slice(8, 12).toString() === "WEBP" ? "image/webp" : "";
       if (!mime) throw new Error("صيغة الشعار غير مدعومة");
-      const b = inp.logo.box ?? {};
+      const b = logoIn.box ?? {};
       page = applyLogo(page, { src: `data:${mime};base64,${buf.toString("base64")}`, x: Number(b.x) || 0.85, y: Number(b.y) || 0.09, w: Number(b.w) || 0.18 });
-      logoKeep = { path: inp.logo.path, box: { x: Number(b.x) || 0.85, y: Number(b.y) || 0.09, w: Number(b.w) || 0.18 } };
+      logoKeep = { path: logoIn.path, box: { x: Number(b.x) || 0.85, y: Number(b.y) || 0.09, w: Number(b.w) || 0.18 } };
     } else logoKeep = g.logo ?? null;
     if (page.length > 400_000) throw new Error("الصفحة كبرت أكثر من اللازم");
     await stage("يرسم الفيديو…", 30);

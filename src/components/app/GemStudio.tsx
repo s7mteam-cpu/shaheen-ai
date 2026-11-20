@@ -24,6 +24,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   const [logo, setLogo] = useState<{ path: string; url: string; box: LogoBox } | null>(data.logo);
   const [musicOff, setMusicOff] = useState(data.musicOff);
   const [cropFile, setCropFile] = useState<File | null>(null);
+  const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [doc, setDoc] = useState<string | null>(null);
@@ -57,7 +58,8 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
     return () => clearTimeout(t);
   }, [raw, vals, hex, font, logo, view]);
 
-  const changed = useMemo(() => fields.some((f) => (vals[f.key] ?? f.value) !== f.value) || colors.some((c) => (hex[c] ?? c) !== c) || font !== baseFont || (logo?.path ?? "") !== (data.logo?.path ?? "") || JSON.stringify(logo?.box ?? null) !== JSON.stringify(data.logo?.box ?? null) || musicOff !== data.musicOff, [fields, colors, vals, hex, font, baseFont, logo, data.logo, musicOff, data.musicOff]);
+  const changed = useMemo(() => fields.some((f) => (vals[f.key] ?? f.value) !== f.value) || colors.some((c) => (hex[c] ?? c) !== c) || font !== baseFont || (logo?.path ?? "") !== (data.logo?.path ?? "") || JSON.stringify(logo?.box ?? null) !== JSON.stringify(data.logo?.box ?? null) || musicOff !== data.musicOff || instruction.trim().length > 2, [fields, colors, vals, hex, font, baseFont, logo, data.logo, musicOff, data.musicOff, instruction]);
+  const cost = instruction.trim().length > 2 ? data.editCost * 2 : data.editCost;
   const textsChanged = fields.some((f) => (vals[f.key] ?? f.value) !== f.value);
 
   async function uploadLogo(f: File) {
@@ -70,7 +72,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
     try {
       const texts = Object.fromEntries(fields.filter((f) => (vals[f.key] ?? f.value) !== f.value).map((f) => [f.key, vals[f.key]]));
       const hx = Object.fromEntries(colors.filter((c) => (hex[c] ?? c) !== c).map((c) => [c, hex[c]]));
-      const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "gemedit", fromJob: jobId, texts, hex: hx, font, logo: logo ? { path: logo.path, box: logo.box } : null, musicOff }) });
+      const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "gemedit", fromJob: jobId, texts, hex: hx, font, logo: logo ? { path: logo.path, box: logo.box } : null, musicOff, instruction: instruction.trim() }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? L("صار خطأ، حاول مرة ثانية."));
       onSent(d.jobId);
@@ -144,6 +146,12 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             </div>
           </Card>
 
+          <Card title={L("تعديل بالوصف (بالذكاء)")} icon="✨">
+            <p className="text-[13px] text-subtle">{L("اوصف اللي تبغاه بكلامك: الخلفية، مكان النص وحركته، إضافة أيقونة، تأثير... والذكاء يعدّل التصميم. توقيت المشاهد والصوت يبقون كما هم.")}</p>
+            <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} maxLength={500} className="field" placeholder={L("مثال: خلّ الخلفية فاتحة، وحرّك العنوان من فوق، وزيد أيقونة واتساب بجنب الرقم")} />
+            {instruction.trim().length > 2 && <p className="text-[12px] text-subtle">{LT(`التعديل بالوصف يكلّف ${data.editCost * 2} ريشة، وممكن ما ينفّذ كل شي بالضبط.`, `AI edit costs ${data.editCost * 2} credits and may not match exactly.`)}</p>}
+          </Card>
+
           {data.hasVoice && (
             <Card more title={L("الصوت والموسيقى")} icon="🎵">
               <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!musicOff} onChange={(e) => setMusicOff(!e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("موسيقى خلفية")}</label>
@@ -152,10 +160,10 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
           )}
 
           {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
-          <button type="button" disabled={busy || !changed || balance < data.editCost} onClick={save} className="btn btn-gold sticky bottom-3 z-30 w-full py-4 text-[17px] shadow-lg disabled:opacity-60">
+          <button type="button" disabled={busy || !changed || balance < cost} onClick={save} className="btn btn-gold sticky bottom-3 z-30 w-full py-4 text-[17px] shadow-lg disabled:opacity-60">
             {busy ? L("جاري الإرسال…") : LT(`🎞 احفظ التعديل كفيديو جديد (${data.editCost} ريشة)`, `🎞 Save as a new video (${data.editCost} credits)`)}
           </button>
-          <p className="text-center text-[12px] text-subtle">{balance < data.editCost ? L("رصيدك ما يكفي للتعديل.") : L("الفيديو المعدّل يستغرق من 7 إلى 10 دقائق، ويضاف لأعمالك والأصلي يبقى.")}</p>
+          <p className="text-center text-[12px] text-subtle">{balance < cost ? L("رصيدك ما يكفي للتعديل.") : L("الفيديو المعدّل يستغرق من 7 إلى 10 دقائق، ويضاف لأعمالك والأصلي يبقى.")}</p>
         </div>
       </div>
     </>

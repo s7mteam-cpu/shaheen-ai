@@ -22,7 +22,8 @@ async function gemEdit(userId: string, b: Record<string, unknown>) {
   if (b.texts && typeof b.texts === "object") for (const [k, v] of Object.entries(b.texts as Record<string, unknown>).slice(0, 120)) if (/^t\d{1,3}$/.test(k) && typeof v === "string") texts[k] = v.replace(/\s+/g, " ").trim().slice(0, 300);
   const hex: Record<string, string> = {};
   if (b.hex && typeof b.hex === "object") for (const [k, v] of Object.entries(b.hex as Record<string, unknown>).slice(0, 12)) if (/^#[0-9a-f]{6}$/i.test(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) hex[k] = v;
-  const blocked = await guardContent(userId, Object.values(texts).join(" "), "free-motion");
+  const instruction = typeof b.instruction === "string" ? b.instruction.replace(/\s+/g, " ").trim().slice(0, 500) : "";
+  const blocked = await guardContent(userId, `${Object.values(texts).join(" ")} ${instruction}`, "free-motion");
   if (blocked) return blocked;
   const font = FONTS.includes(String(b.font)) ? String(b.font) : undefined;
   let logo: unknown = undefined; // undefined = keep, null = remove
@@ -38,10 +39,10 @@ async function gemEdit(userId: string, b: Record<string, unknown>) {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { count: today } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_id", "free-motion").gte("created_at", since).contains("input", { mode: "gemedit" });
   if ((today ?? 0) >= 12) return NextResponse.json({ error: "وصلت الحد اليومي للتعديلات، جرّب بكرة." }, { status: 429 });
-  const input = { ...(src!.input as object), kind: "free", mode: "gemedit", engine: "gemini", fromJob: from, texts, hex, ...(font ? { font } : {}), ...(logo !== undefined ? { logo } : {}), musicOff: b.musicOff === true };
+  const input = { ...(src!.input as object), kind: "free", mode: "gemedit", engine: "gemini", fromJob: from, texts, hex, ...(font ? { font } : {}), ...(logo !== undefined ? { logo } : {}), ...(instruction ? { instruction } : {}), musicOff: b.musicOff === true };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: userId, tool_id: "free-motion", title: "تعديل تصميم مبتكر", status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء التعديل." }, { status: 500 });
-  const { error: payErr } = await admin.rpc("spend_credits", { p_user: userId, p_amount: tool.edit_cost ?? 8, p_job: job.id });
+  const { error: payErr } = await admin.rpc("spend_credits", { p_user: userId, p_amount: (tool.edit_cost ?? 8) * (instruction ? 2 : 1), p_job: job.id });
   if (payErr) { await admin.from("jobs").delete().eq("id", job.id); return NextResponse.json({ error: "رصيدك ما يكفي." }, { status: 402 }); }
   return NextResponse.json({ jobId: job.id });
 }
