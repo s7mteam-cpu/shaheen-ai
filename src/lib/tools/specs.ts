@@ -158,7 +158,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
       { type: "voice", name: "vo_voice", label: "صوت التعليق" },
       { type: "toggle", name: "use_brand", label: "استخدم هويتي التجارية (الشعار، الألوان، الخط، الحساب)", default: true },
       { type: "industry", name: "industry", label: "مجالك", hint: "اختياري: شاهين يستخدم حزمة مجالك (مشاهد وحركات وستايلات وفيديوهات جاهزة). إذا ما اخترت، يعرف مجالك من وصفك." },
-      { type: "toggle", name: "cut_silence", label: "قص الأجزاء الصامتة", default: true },
+      { type: "toggle", name: "cut_silence", label: "قص الأجزاء الصامتة", default: false },
       { type: "toggle", name: "captions", label: "ترجمة عربية متحركة كلمة كلمة", default: true },
       { type: "choice", name: "aspect", label: "المقاس النهائي", default: "9:16", options: [{ value: "9:16", label: "ريلز / تيك توك 9:16 (1080×1920)" }, { value: "1:1", label: "مربع 1:1 (1080×1080)" }, { value: "16:9", label: "يوتيوب عريض 16:9 (1920×1080)" }, { value: "original", label: "كما هو" }] },
       { type: "choice", name: "layout", label: "شكل الفيديو", default: "auto", options: [{ value: "auto", label: "شاهين يختار الأنسب" }, { value: "split", label: "شاشة مقسومة: رسوم متحركة فوق وأنت تحت (للشرح والتعليم)" }, { value: "dynamic", label: "ذكي: ملء الشاشة وتصغر لدائرة لما يطلع رسم" }, { value: "circle", label: "أنت داخل دائرة والرسوم حولك" }, { value: "corner", label: "أنت بمربع صغير بالزاوية" }, { value: "card", label: "أنت ببطاقة بحواف ناعمة" }, { value: "full", label: "ملء الشاشة" }] },

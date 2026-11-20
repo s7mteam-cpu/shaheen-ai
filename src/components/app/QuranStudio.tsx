@@ -1,5 +1,6 @@
 "use client";
 import { L, LT } from "@/lib/i18n/ui";
+import { Card } from "@/components/app/Collapse";
 import "@fontsource/amiri-quran/arabic-400.css";
 import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
@@ -168,8 +169,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
           )}
         </section>
 
-        <section className="card flex flex-col gap-4 p-5">
-          <h2 className="text-[18px] font-bold text-navy-900">🌄 {L("الخلفية")}</h2>
+        <Card more title={L("الخلفية")} icon="🌄">
           <div className="flex flex-wrap gap-2">
             <button type="button" aria-pressed={!spec.bg} onClick={() => set({ bg: null })} className="chip">{L("🌙 سماء ليلية (بدون صورة)")}</button>
             {BG_PRESETS.map(([q, l]) => <button key={q} type="button" disabled={!!busy} onClick={async () => { const d = await post<{ videos: BgHit[] }>("bg", { q }); if (d) setBgHits(d.videos); }} className="chip">{L(l)}</button>)}
@@ -197,10 +197,9 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
             <input type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadBg(f); e.target.value = ""; }} />
           </label>
           <p className="text-[11px] text-subtle">{L("خلفيات طبيعية هادئة من Pixabay (مجانية للاستخدام التجاري)، ونستبعد اللي فيها أشخاص. الفيديو بدون موسيقى.")}</p>
-        </section>
+        </Card>
 
-        <section className="card flex flex-col gap-4 p-5">
-          <h2 className="text-[18px] font-bold text-navy-900">🎨 {L("الشكل")}</h2>
+        <Card more title={L("الشكل")} icon="🎨">
           <div className="flex flex-wrap gap-2">{Q_STYLES.map(([v, l]) => <button key={v} type="button" aria-pressed={spec.style === v} onClick={() => set({ style: v })} className="chip">{L(l)}</button>)}</div>
           <div className="flex flex-wrap gap-2">{([["9:16", "طولي (ريلز)"], ["1:1", "مربع"], ["16:9", "عرضي (يوتيوب)"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={spec.aspect === v} onClick={() => set({ aspect: v })} className="chip">{L(l)}</button>)}</div>
           <div className="flex flex-col gap-1.5">
@@ -226,7 +225,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
             <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-2.5 sm:col-span-2"><span className="font-semibold">{L("🎞 تصدير بجودة 4K")}</span>
               <input type="checkbox" checked={spec.quality === "4k"} onChange={(e) => set({ quality: e.target.checked ? "4k" : "1080" })} className="h-5 w-5" /></label>
           </div>
-        </section>
+        </Card>
       </div>
 
       <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:order-first lg:self-start">

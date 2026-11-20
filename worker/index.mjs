@@ -406,7 +406,7 @@ async function analyzeMontage(job) {
     let keep = (Array.isArray(plan?.keep) && plan.keep.length ? plan.keep.map(fix) : basicKeep).filter((g) => g.e - g.s >= 0.3);
     // with a voice-over the AI orders shots to match the narration; otherwise keep story order
     if (!vo) keep.sort((a, b) => a.s - b.s);
-    if (!vo && job.input.cut_silence !== false && speech) keep = keep.flatMap((g) => speechIslands(g, words));
+    if (!vo && job.input.cut_silence === true && speech) keep = keep.flatMap((g) => speechIslands(g, words));
     if (!keep.length) keep = [{ s: 0, e: meta.duration }];
     const h = plan?.hook && !vo ? fix(plan.hook) : null;
     const hook = h && h.e - h.s >= 1 && h.e - h.s <= 8 ? h : null;
