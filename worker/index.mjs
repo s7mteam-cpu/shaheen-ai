@@ -901,6 +901,25 @@ async function mixAv({ video, voice, music, seconds, out }) {
   await ff([...args, "-filter_complex", fc, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", String(seconds), out]);
 }
 
+/** the studio's mixer: voice + music + the customer's own sound, each with its own volume; own sound can be trimmed, placed on the timeline and faded. */
+async function mixAudio({ video, voice, music, own, voiceVol = 1, musicVol = 0.14, seconds, out }) {
+  const args = ["-i", video]; const chains = []; const labels = [];
+  const num = (v, d, a, b) => Math.min(b, Math.max(a, Number.isFinite(Number(v)) ? Number(v) : d));
+  if (voice) { args.push("-i", voice); chains.push(`[${labels.length + 1}:a]volume=${num(voiceVol, 1, 0, 1.5).toFixed(2)},apad[a${labels.length}]`); labels.push(`[a${labels.length}]`); }
+  if (music) { args.push("-i", music); chains.push(`[${labels.length + 1}:a]volume=${num(musicVol, 0.14, 0, 1).toFixed(2)},afade=t=out:st=${Math.max(0, seconds - 2)}:d=2[a${labels.length}]`); labels.push(`[a${labels.length}]`); }
+  if (own) {
+    const st = num(own.start, 0, 0, 7200), en = own.end == null ? null : num(own.end, 0, st + 0.3, 7200), at = num(own.at, 0, 0, seconds);
+    const clip = Math.max(0.3, Math.min(en == null ? seconds - at : en - st, seconds - at));
+    const fi = num(own.fadeIn, 0, 0, 5), fo = num(own.fadeOut, 0, 0, 5);
+    args.push("-i", own.file);
+    chains.push(`[${labels.length + 1}:a]atrim=start=${st.toFixed(2)}:end=${(st + clip).toFixed(2)},asetpts=PTS-STARTPTS${fi ? `,afade=t=in:st=0:d=${fi}` : ""}${fo ? `,afade=t=out:st=${Math.max(0, clip - fo).toFixed(2)}:d=${fo}` : ""},volume=${(own.volume == null ? 0.6 : num(own.volume, 0.6, 0, 1)).toFixed(2)},adelay=delays=${Math.round(at * 1000)}:all=1[a${labels.length}]`);
+    labels.push(`[a${labels.length}]`);
+  }
+  if (!labels.length) { await ff([...args, "-map", "0:v", "-c:v", "copy", "-an", "-t", String(seconds), out]); return; }
+  const fc = `${chains.join(";")};${labels.join("")}amix=inputs=${labels.length}:normalize=0:dropout_transition=0,apad[a]`;
+  await ff([...args, "-filter_complex", fc, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", String(seconds), out]);
+}
+
 /** «التجربة الكبرى» (للأدمن): Claude يخطط ← Gemini يبني الحركة (HTML) ← فحص بصري ← تسجيل MP4. النتيجة بالتخزين فقط. */
 async function gemFlowJob(job) {
   const inp = job.input ?? {};
@@ -1139,22 +1158,36 @@ async function gemEditJob(job) {
     await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss() });
     let finalFile = outFile; let voicePath = null;
     const useVoice = voiceDone?.path ?? g.voicePath;
-    if (own(useVoice)) {
+    const mixIn = inp.mix && typeof inp.mix === "object" ? inp.mix : (g.mix ?? {});
+    const ownIn = mixIn.own && own(mixIn.own.path) ? mixIn.own : null;
+    const musicOn = inp.musicOff !== true;
+    const mpath = g.musicPath ?? (g.voicePath ? g.voicePath.replace(/\.voice\.mp3$/, ".music.mp3") : null);
+    if (own(useVoice) || ownIn) {
       await stage("يركّب الصوت والموسيقى…", 90);
-      if (newVoiceFile) await writeFile(vf, await readFile(newVoiceFile));
-      else { const v = await db.storage.from("results").download(g.voicePath); if (v.error) throw new Error("download voice"); await writeFile(vf, Buffer.from(await v.data.arrayBuffer())); }
-      const mp = g.musicPath ?? g.voicePath.replace(/\.voice\.mp3$/, ".music.mp3");
-      const m = mp && mp !== g.voicePath ? await db.storage.from("results").download(mp) : { error: true };
-      if (!m.error) await writeFile(mf, Buffer.from(await m.data.arrayBuffer()));
-      await mixAv({ video: outFile, voice: vf, music: m.error || inp.musicOff === true ? null : mf, seconds, out: mixed }); finalFile = mixed;
-      voicePath = useVoice;
+      let haveVoice = false, haveMusic = false, ownFile = null;
+      if (own(useVoice)) {
+        if (newVoiceFile) await writeFile(vf, await readFile(newVoiceFile));
+        else { const v = await db.storage.from("results").download(useVoice); if (v.error) throw new Error("download voice"); await writeFile(vf, Buffer.from(await v.data.arrayBuffer())); }
+        haveVoice = true; voicePath = useVoice;
+      }
+      if (musicOn && mpath && mpath !== g.voicePath) { const m = await db.storage.from("results").download(mpath); if (!m.error) { await writeFile(mf, Buffer.from(await m.data.arrayBuffer())); haveMusic = true; } }
+      if (ownIn) { const o = await db.storage.from("uploads").download(ownIn.path); if (o.error) throw new Error("download own audio"); ownFile = join(workDir, `geo2-${job.id}.bin`); await writeFile(ownFile, Buffer.from(await o.data.arrayBuffer())); }
+      await mixAudio({ video: outFile, voice: haveVoice ? vf : null, music: haveMusic ? mf : null, own: ownIn ? { ...ownIn, file: ownFile } : null, voiceVol: mixIn.voiceVol, musicVol: mixIn.musicVol, seconds, out: mixed }); finalFile = mixed;
+      if (ownFile) await rm(ownFile, { force: true });
+    }
+    const tr = mixIn.trim && Number(mixIn.trim.end) - Number(mixIn.trim.start) >= 1 ? { start: Math.max(0, Number(mixIn.trim.start)), end: Math.min(seconds, Number(mixIn.trim.end)) } : null;
+    if (tr && (tr.start > 0.05 || tr.end < seconds - 0.05)) { // cut the finished video to the chosen part
+      await stage("يقصّ الفيديو…", 96);
+      const cut = join(workDir, `gec-${job.id}.mp4`);
+      await ff(["-ss", tr.start.toFixed(2), "-to", tr.end.toFixed(2), "-i", finalFile, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", cut]);
+      finalFile = cut;
     }
     const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(finalFile), { contentType: "video/mp4", upsert: true });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.html`, Buffer.from(page), { contentType: "text/html", upsert: true });
-    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(src.title ?? "تصميم مبتكر").slice(0, 80), input: { ...src.input, mode: "done", gem: { ...g, usage: editUsage, htmlPath: `${base}.html`, voicePath, ...(voiceDone?.scenes ? { scenes: voiceDone.scenes } : {}), edited: true, logo: logoKeep, musicOff: inp.musicOff === true } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
+    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(src.title ?? "تصميم مبتكر").slice(0, 80), input: { ...src.input, mode: "done", gem: { ...g, usage: editUsage, htmlPath: `${base}.html`, voicePath, ...(voiceDone?.scenes ? { scenes: voiceDone.scenes } : {}), edited: true, logo: logoKeep, musicOff: inp.musicOff === true, mix: mixIn } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
   } catch (e) { console.error("gemini edit failed", e?.message ?? e); await fail(job, e); }
-  finally { for (const f of [outFile, mixed, vf, mf, join(workDir, `gev2-${job.id}.mp3`)]) await rm(f, { force: true }); }
+  finally { for (const f of [outFile, mixed, vf, mf, join(workDir, `gev2-${job.id}.mp3`), join(workDir, `gec-${job.id}.mp4`)]) await rm(f, { force: true }); }
 }
 async function tplPreviewJob(job) {
   const tid = String(job.input?.templateId ?? "");

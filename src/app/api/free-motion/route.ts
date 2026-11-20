@@ -60,6 +60,19 @@ async function gemEdit(userId: string, b: Record<string, unknown>) {
     }
     voiceEdit = { mode: "regen", sentences, rewrite: vb.rewrite === true && !translateTo, ...(translateTo ? { translateTo } : {}) };
   }
+  // the studio mixer: volumes, the customer's own sound (trim / place / fades) and the video cut
+  let mix: Record<string, unknown> | undefined;
+  if (b.mix && typeof b.mix === "object") {
+    const m = b.mix as Record<string, unknown>;
+    const n = (v: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
+    mix = { voiceVol: n(m.voiceVol, 1, 0, 1.5), musicVol: n(m.musicVol, 0.14, 0, 1) };
+    const o = m.own && typeof m.own === "object" ? (m.own as Record<string, unknown>) : null;
+    if (o && typeof o.path === "string" && o.path.startsWith(`${userId}/`) && !o.path.includes("..")) {
+      mix.own = { path: o.path, name: String(o.name ?? "").slice(0, 60), dur: o.dur == null ? null : n(o.dur, 0, 0, 7200), start: n(o.start, 0, 0, 7200), end: o.end == null ? null : n(o.end, 0, 0, 7200), at: n(o.at, 0, 0, 600), volume: o.volume == null ? null : n(o.volume, 0.6, 0, 1), fadeIn: n(o.fadeIn, 0, 0, 5), fadeOut: n(o.fadeOut, 0, 0, 5) };
+    }
+    const t = m.trim && typeof m.trim === "object" ? (m.trim as Record<string, unknown>) : null;
+    if (t) { const a = n(t.start, 0, 0, 600), z = n(t.end, 0, 0, 600); if (z - a >= 1) mix.trim = { start: a, end: z }; }
+  }
   const { data: tool } = await admin.from("tools").select("edit_cost,is_enabled").eq("id", "free-motion").maybeSingle();
   if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
   const { count: waiting } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_id", "free-motion").in("status", ["queued", "running"]);
@@ -67,7 +80,7 @@ async function gemEdit(userId: string, b: Record<string, unknown>) {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { count: today } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_id", "free-motion").gte("created_at", since).contains("input", { mode: "gemedit" });
   if ((today ?? 0) >= 12) return NextResponse.json({ error: "وصلت الحد اليومي للتعديلات، جرّب بكرة." }, { status: 429 });
-  const input = { ...(src!.input as object), kind: "free", mode: "gemedit", engine: "gemini", fromJob: from, texts, hex, ...(font ? { font } : {}), ...(logo !== undefined ? { logo } : {}), ...(instruction ? { instruction } : {}), ...(voiceEdit ? { voiceEdit } : {}), ...(voiceIn ? { voice: voiceIn } : {}), ...(dialectIn ? { dialect: dialectIn, dialectLabel: DIALECT_NAME[dialectIn] } : {}), musicOff: b.musicOff === true };
+  const input = { ...(src!.input as object), kind: "free", mode: "gemedit", engine: "gemini", fromJob: from, texts, hex, ...(font ? { font } : {}), ...(logo !== undefined ? { logo } : {}), ...(instruction ? { instruction } : {}), ...(voiceEdit ? { voiceEdit } : {}), ...(mix ? { mix } : {}), ...(voiceIn ? { voice: voiceIn } : {}), ...(dialectIn ? { dialect: dialectIn, dialectLabel: DIALECT_NAME[dialectIn] } : {}), musicOff: b.musicOff === true };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: userId, tool_id: "free-motion", title: "تعديل تصميم مبتكر", status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء التعديل." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: userId, p_amount: (tool.edit_cost ?? 8) * (1 + (instruction ? 1 : 0) + (voiceEdit?.mode === "regen" ? 1 : 0)), p_job: job.id });
@@ -148,13 +161,18 @@ export async function GET(req: Request) {
     if (!vp.startsWith(`${user.id}/`) || vp.includes("..")) return NextResponse.json({ status: "failed", error: "ما لقينا الفيديو." });
     const play = (await admin.storage.from("results").createSignedUrl(vp, 60 * 60 * 3)).data?.signedUrl ?? "";
     const dl = (await admin.storage.from("results").createSignedUrl(vp, 60 * 60 * 3, { download: `shaheen-${id.slice(0, 6)}.mp4` })).data?.signedUrl ?? "";
-    const gm = ((inp as { gem?: { scenes?: { text?: string }[] | null; htmlPath?: string; voicePath?: string | null; logo?: { path?: string; box?: unknown } | null; musicOff?: boolean } }).gem ?? {});
+    const gm = ((inp as { gem?: { mix?: Record<string, unknown> & { own?: { path?: string } | null }; musicPath?: string | null; scenes?: { text?: string }[] | null; htmlPath?: string; voicePath?: string | null; logo?: { path?: string; box?: unknown } | null; musicOff?: boolean } }).gem ?? {});
     const okp = (x?: string | null) => (x && x.startsWith(`${user.id}/`) && !x.includes("..") ? x : "");
     const htmlUrl = okp(gm.htmlPath) ? (await admin.storage.from("results").createSignedUrl(gm.htmlPath!, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
     const lp = okp(gm.logo?.path);
     const logoUrl = lp ? (await admin.storage.from("uploads").createSignedUrl(lp, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
+    const vpu = okp(gm.voicePath) ? (await admin.storage.from("results").createSignedUrl(gm.voicePath!, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
+    const mpu = okp(gm.musicPath) ? (await admin.storage.from("results").createSignedUrl(gm.musicPath!, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
+    const sm = gm.mix ?? {};
+    const op = okp(sm.own?.path);
+    const ownUrl = op ? (await admin.storage.from("uploads").createSignedUrl(op, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
     const { data: tl } = await admin.from("tools").select("edit_cost").eq("id", "free-motion").maybeSingle();
-    return NextResponse.json({ status: "gemini", title: job.title, aspect: inp.aspect ?? "9:16", videoUrl: play, downloadUrl: dl, htmlUrl, hasVoice: !!okp(gm.voicePath), scenes: Array.isArray(gm.scenes) ? gm.scenes.map((x) => String(x?.text ?? "")) : null, dialect: (inp as { dialect?: string }).dialect ?? "kuwaiti", musicOff: gm.musicOff === true, editCost: tl?.edit_cost ?? 8, logo: logoUrl ? { path: lp, url: logoUrl, box: gm.logo?.box ?? { x: 0.85, y: 0.09, w: 0.18 } } : null });
+    return NextResponse.json({ status: "gemini", seconds: inp.cseconds ?? inp.seconds ?? 30, voiceUrl: vpu, musicUrl: mpu, mix: { ...sm, own: op ? { ...(sm.own as object), url: ownUrl } : null }, title: job.title, aspect: inp.aspect ?? "9:16", videoUrl: play, downloadUrl: dl, htmlUrl, hasVoice: !!okp(gm.voicePath), scenes: Array.isArray(gm.scenes) ? gm.scenes.map((x) => String(x?.text ?? "")) : null, dialect: (inp as { dialect?: string }).dialect ?? "kuwaiti", musicOff: gm.musicOff === true, editCost: tl?.edit_cost ?? 8, logo: logoUrl ? { path: lp, url: logoUrl, box: gm.logo?.box ?? { x: 0.85, y: 0.09, w: 0.18 } } : null });
   }
   if (!out.preview) return NextResponse.json({ status: job.status, progress: job.progress ?? 0 });
   const own = (x?: string) => (x && x.startsWith(`${user.id}/`) && !x.includes("..") ? x : "");
