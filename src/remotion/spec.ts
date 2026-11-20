@@ -13,14 +13,14 @@ export type Scene =
 export type Colors = { bg: string; bg2: string; text: string; accent: string; accent2: string };
 export type Aspect = "9:16" | "1:1" | "16:9" | "4:5";
 
-/** an element the customer moved / resized / hid by clicking it in the studio. sel = scene index then child positions, e.g. "2/1/3" */
+/** an element the customer moved / resized / hid by clicking it in the studio. sel = the marked wrapper (data-sc: a scene index, or a letter + index for montage items) then child positions, e.g. "2/1/3" or "t0/1" */
 export type ElEdit = { sel: string; hide?: boolean; s: number; x: number; y: number };
 export function cleanEls(list: unknown): ElEdit[] {
   const out: ElEdit[] = [];
   const n = (v: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
   for (const e of Array.isArray(list) ? list.slice(0, 40) : []) {
     const o = (e ?? {}) as Record<string, unknown>;
-    if (typeof o.sel !== "string" || !/^\d{1,2}(\/\d{1,3}){1,20}$/.test(o.sel)) continue;
+    if (typeof o.sel !== "string" || !/^[a-z]?\d{1,3}(\/\d{1,3}){1,20}$/.test(o.sel)) continue;
     const it = { sel: o.sel, hide: o.hide === true, s: Math.round(n(o.s, 1, 0.3, 3) * 100) / 100, x: Math.round(n(o.x, 0, -4000, 4000)), y: Math.round(n(o.y, 0, -4000, 4000)) };
     if (it.hide || it.s !== 1 || it.x !== 0 || it.y !== 0) out.push(it);
   }

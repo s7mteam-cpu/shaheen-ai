@@ -43,6 +43,7 @@ export type MontageSpec = {
   sfx?: boolean;                                                  // whoosh on titles/cuts, pop on emojis
   progress?: boolean;                                             // thin progress bar on top
   broll?: BRoll[];                                                // extra shots shown over the speech
+  els?: import("./spec").ElEdit[];                                    // elements moved / resized / hidden by clicking them in the studio
   grain?: number;                                                 // film grain 0 (off) .. 1 (strong)
   stickers?: Sticker[];                                           // animated stickers (arrows, badges, highlight circles…)
   beats?: number[];                                               // music beats, seconds on the whole timeline

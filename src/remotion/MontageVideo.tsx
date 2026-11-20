@@ -2,6 +2,7 @@ import React from "react";
 import { AbsoluteFill, Audio, Easing, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { GraphicView, Words, isLight, panelBackground, themeFor } from "./Graphics";
 import { CAPTION_Y, MFPS, captionLines, cutTimes, faceAt, gradeFilter, introFrames, outroFrames, videoSeconds, type Graphic, type MontageSpec, type Seg } from "./montage";
+import { elsCss } from "./spec";
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 
@@ -18,13 +19,13 @@ function Rise({ text, delay = 0, style }: { text: string; delay?: number; style?
   );
 }
 
-function Card({ title, subtitle, m, u, len }: { title: string; subtitle: string; m: MontageSpec; u: number; len: number }) {
+function Card({ title, subtitle, m, u, len, sc }: { title: string; subtitle: string; m: MontageSpec; u: number; len: number; sc: string }) {
   const frame = useCurrentFrame();
   const out = interpolate(frame, [len - 8, len], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const line = interpolate(frame, [4, 22], [0, 1], { extrapolateRight: "clamp", easing: ease });
   return (
     <AbsoluteFill style={{ background: `radial-gradient(120% 80% at 50% 40%, ${m.colors.bg} 0%, #000 120%)`, alignItems: "center", justifyContent: "center", opacity: out }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 34 * u, width: "84%", textAlign: "center" }}>
+      <div data-sc={sc} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 34 * u, width: "84%", textAlign: "center" }}>
         <div style={{ width: 160 * u * line, height: 6 * u, borderRadius: 9, background: m.colors.accent }} />
         <Rise text={title} delay={4} style={{ color: m.colors.text, fontSize: 96 * u, fontWeight: 800, lineHeight: 1.25 }} />
         {subtitle && <Rise text={subtitle} delay={14} style={{ color: m.colors.accent, fontSize: 52 * u, fontWeight: 600 }} />}
@@ -207,7 +208,7 @@ function Titles({ m, u }: { m: MontageSpec; u: number }) {
         if (!el) return null;
         // one place for all titles: shifts the layer from the style's own default to the chosen height
         const base = ti.pos === "center" ? 0.5 : 0.2;
-        return <div key={i} style={{ position: "absolute", inset: 0, transform: m.titleY == null ? undefined : `translateY(${(m.titleY - base) * 100}%)` }}>{el}</div>;
+        return <div key={i} data-sc={`t${i}`} style={{ position: "absolute", inset: 0, transform: m.titleY == null ? undefined : `translateY(${(m.titleY - base) * 100}%)` }}>{el}</div>;
       })}
     </>
   );
@@ -324,7 +325,7 @@ function Emojis({ m, u }: { m: MontageSpec; u: number }) {
         const out = interpolate(t, [x.at + x.dur, x.at + x.dur + 0.3], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         const top = m.captions.pos === "top" ? "62%" : "30%";
         return (
-          <AbsoluteFill key={i} style={{ alignItems: i % 2 ? "flex-start" : "flex-end", padding: `0 ${70 * u}px` }}>
+          <AbsoluteFill key={i} data-sc={`e${i}`} style={{ alignItems: i % 2 ? "flex-start" : "flex-end", padding: `0 ${70 * u}px` }}>
             <div style={{ position: "absolute", top, fontSize: 140 * u, opacity: Math.min(1, p) * out, transform: `scale(${Math.min(1.15, p)}) rotate(${(1 - Math.min(1, p)) * 25 * (i % 2 ? -1 : 1)}deg)`, filter: `drop-shadow(0 ${10 * u}px ${20 * u}px rgba(0,0,0,.45))` }}>{x.e}</div>
           </AbsoluteFill>
         );
@@ -554,8 +555,9 @@ export function MontageVideo(m: MontageSpec) {
   return (
     <AbsoluteFill dir="rtl" style={{ background: "#000", fontFamily: `"${m.font}", Cairo, sans-serif` }}>
      <BeatWrap m={m} u={u}>
+      {m.els?.length ? <style>{elsCss(m.els)}</style> : null}
       {intro > 0 && m.sfx && <Audio src={staticFile("sfx/ding.mp3")} volume={0.35} endAt={20} />}
-      {intro > 0 && <Sequence durationInFrames={intro}><Card title={m.intro.title} subtitle={m.intro.subtitle} m={m} u={u} len={intro} /></Sequence>}
+      {intro > 0 && <Sequence durationInFrames={intro}><Card sc="i0" title={m.intro.title} subtitle={m.intro.subtitle} m={m} u={u} len={intro} /></Sequence>}
       <Sequence from={intro} durationInFrames={vid}>
         {m.layout === "board" ? <Board m={m} /> : shaped ? <ShapedStage m={m} u={u} /> : split ? (
           <>
@@ -587,7 +589,7 @@ export function MontageVideo(m: MontageSpec) {
         <Sfx m={m} />
         <GraphicSfx m={m} />
       </Sequence>
-      {outro > 0 && <Sequence from={intro + vid} durationInFrames={outro}><Card title={m.outro.title} subtitle={m.outro.subtitle} m={m} u={u} len={outro} /></Sequence>}
+      {outro > 0 && <Sequence from={intro + vid} durationInFrames={outro}><Card sc="o0" title={m.outro.title} subtitle={m.outro.subtitle} m={m} u={u} len={outro} /></Sequence>}
       {/* music ducks under any voice: loud only for silent footage without a voice-over */}
       {m.music?.url && <MusicTrack m={m} total={intro + vid + outro} />}
       <ProgressBar m={m} u={u} frames={intro + vid + outro} />
@@ -674,7 +676,7 @@ function StickerLayer({ m, u }: { m: MontageSpec; u: number }) {
     <>
       {(m.stickers ?? []).map((st, i) => {
         if (t < st.at || t > st.at + st.dur + 0.3) return null;
-        return <StickerView key={i} st={st} f={frame - Math.round(st.at * MFPS)} len={Math.round(st.dur * MFPS)} u={u} accent={m.colors.accent} />;
+        return <div key={i} data-sc={`s${i}`} style={{ position: "absolute", inset: 0 }}><StickerView st={st} f={frame - Math.round(st.at * MFPS)} len={Math.round(st.dur * MFPS)} u={u} accent={m.colors.accent} /></div>;
       })}
     </>
   );

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { resolveTerrain } from "@/lib/server/maptiler";
 import { guardContent } from "@/lib/server/moderation";
 import { box } from "@/design/spec";
+import { cleanEls } from "@/remotion/spec";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson, speechReady } from "@/lib/providers/text";
@@ -112,6 +113,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
       })),
     titleY: typeof s.titleY === "number" && Number.isFinite(s.titleY) ? clamp(s.titleY, 0.05, 0.95) : undefined,
     grain: [0, 0.5, 1].includes(Number(s.grain)) ? Number(s.grain) : base.grain ?? 0,
+    els: cleanEls(s.els),
     stickers: cleanStickers(Array.isArray(s.stickers) ? s.stickers : base.stickers ?? [], len),
     beats: Array.isArray(s.beats) ? cleanBeats(s.beats) : base.beats ?? [],
     beatFx: ok(BEAT_FX, s.beatFx) ?? base.beatFx ?? "none",

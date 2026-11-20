@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MontageVideo } from "@/remotion/MontageVideo";
 import { ILLUS_STYLES } from "@/remotion/styles";
 import { CaptionDrag } from "@/components/app/CaptionDrag";
+import { ElBar, ElPicker, type Picked } from "@/components/app/ElPicker";
 import { MusicEditor } from "@/components/app/MusicEditor";
 import { BeatPanel, GrainPicker, StickerPanel, StockSearch } from "@/components/app/MontageExtras";
 import { SITE_GROUPS, SITE_STYLES, lookFor, siteStyleById } from "@/remotion/siteStyles";
@@ -54,6 +55,9 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   const [perScene, setPerScene] = useState(false);
   const [render, setRender] = useState<{ status: string; progress: number; url?: string }>({ status: "queued", progress: 0 });
   const player = useRef<PlayerRef>(null);
+  const [pick, setPick] = useState(false);
+  const [picked, setPicked] = useState<Picked>(null);
+  const setEls = (els: MontageSpec["els"]) => setSpec((p) => ({ ...p, els }));
 
   // Keep the draft between visits (the video link is always the fresh one from the server).
   useEffect(() => {
@@ -292,17 +296,19 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             <Player ref={player} component={MontageVideo} inputProps={spec} durationInFrames={totalFrames(spec)} fps={MFPS}
               compositionWidth={width} compositionHeight={height} style={{ width: "100%" }} controls acknowledgeRemotionLicense />
           ) : <div style={{ aspectRatio: `${width} / ${height}` }} />}
-          {spec.captions.on && typeof spec.captions.y === "number" && (
+          {pick && mounted && <ElPicker els={spec.els ?? []} picked={picked} onPick={setPicked} onChange={setEls} />}
+          {!pick && spec.captions.on && typeof spec.captions.y === "number" && (
             <div className="pointer-events-none absolute inset-x-0 top-0" style={{ aspectRatio: `${width} / ${height}` }}>
               <CaptionDrag x={spec.captions.x ?? 0.5} y={spec.captions.y} onChange={(p) => setSpec((sp) => ({ ...sp, captions: { ...sp.captions, x: p.x, y: p.y } }))} />
             </div>
           )}
-          {spec.logo?.on && spec.logo.box && (
+          {!pick && spec.logo?.on && spec.logo.box && (
             <div className="pointer-events-none absolute inset-x-0 top-0" style={{ aspectRatio: `${width} / ${height}` }}>
               <LogoDrag box={spec.logo.box} onChange={(b) => setSpec((p) => (p.logo ? { ...p, logo: { ...p.logo, box: b } } : p))} />
             </div>
           )}
         </div>
+        <ElBar on={pick} onToggle={() => { if (pick) setPicked(null); else player.current?.pause(); setPick(!pick); }} els={spec.els ?? []} picked={picked} onPick={setPicked} onChange={setEls} />
         <p className="text-center text-[13px] text-subtle">{L("شاهين قصّ الفيديو وحط الهوك والعناوين. عدّل اللي تبيه وشوف التغيير على طول.")}</p>
       </div>
 
