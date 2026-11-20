@@ -33,7 +33,7 @@ import { designPack } from "@/design/packs";
 import { stylesFor, applyStyle } from "@/design/styles";
 import { EL_LABELS } from "@/design/Design";
 import {
-  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, DFONTS, fontsFor, ICON_IDS, LAYOUTS, layoutsFor, PALETTES, lum, DSIZE, RICH_RE, NOTE_ATS, NOTE_LOOKS, NOTE_AT_LABELS, NOTE_LOOK_LABELS,
+  usedIcons, DECO_IDS, DECO_LABELS, FRAME_IDS, FRAME_LABELS, STICKER_IDS, STICKER_LABELS, fontsFor, ICON_IDS, LAYOUTS, layoutsFor, PALETTES, lum, DSIZE, RICH_RE, NOTE_ATS, NOTE_LOOKS, NOTE_AT_LABELS, NOTE_LOOK_LABELS,
   type DAspect, type DColors, type DImg, type DItem, type DesignSpec, type LayoutId, type Slide,
 } from "@/design/spec";
 

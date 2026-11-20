@@ -3,6 +3,13 @@ export type Change = { version: string; date: string; title: string; items: stri
 
 export const CHANGELOG: Change[] = [
   {
+    version: "v181", date: "2026-11-20", title: "robots وsitemap للفهرسة + تنظيف",
+    items: [
+      "أضفنا robots.txt وsitemap.xml عشان قوقل يفهرس الصفحات العامة ويتجاهل /app و/admin.",
+      "تنظيف استيرادات زايدة.",
+    ],
+  },
+  {
     version: "v180", date: "2026-11-20", title: "المونتاج: قص الصمت صار مطفي افتراضيًا + ترتيب الفيديو القرآني",
     items: [
       "«قص الأجزاء الصامتة» بالمونتاج صار مطفي من الأساس، عشان الوقفات الطبيعية (مثل تلاوة القرآن) تبقى كما هي. اللي يبغاه يفعّله من الخيار.",

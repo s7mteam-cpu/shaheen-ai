@@ -8,7 +8,7 @@ import { guardContent } from "@/lib/server/moderation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson } from "@/lib/providers/text";
-import { music, speakable, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
+import { music, speakable, ttsTimed } from "@/lib/providers/elevenlabs";
 import { saveResult } from "@/lib/providers/storage";
 import { BRANDS } from "@/remotion/brandIcons";
 import { cleanPhotos, importPhotos, importShots, readShots } from "@/lib/server/photos";
