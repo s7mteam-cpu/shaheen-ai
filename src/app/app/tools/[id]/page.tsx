@@ -63,7 +63,7 @@ export default async function ToolPage({ params, searchParams }: P) {
       <div>
         <nav aria-label={L("مسار الصفحة")} className="text-sm text-subtle"><Link href="/app" className="text-navy-700">{L("الرئيسية")}</Link> › <Link href="/app/tools" className="text-navy-700">{L("الأدوات")}</Link> › {tool.name}</nav>
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[28px] font-bold text-navy-900">{tool.name}</h1>
+          <h1 className={job ? "text-[22px] font-bold text-navy-900" : "text-[28px] font-bold text-navy-900"}>{tool.name}</h1>
           <div className="flex flex-wrap gap-2">
             {tool.tutorial_url && (/youtu/.test(tool.tutorial_url)
               ? <a href={tool.tutorial_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline gap-2 px-4 py-2 text-[14px]">▶ {L("علّمني الطريقة")}</a>
@@ -71,8 +71,8 @@ export default async function ToolPage({ params, searchParams }: P) {
             {tool.demo_url && <DemoVideo url={tool.demo_url} title={tool.name} variant="button" />}
           </div>
         </div>
-        <p className="mt-1 text-muted">{tool.description}</p>
-        <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>
+        {!job && <p className="mt-1 text-muted">{tool.description}</p>}
+        {!job && <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>}
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
       {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "free-motion" ? <Suspense><FreeMotionStart costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "site-video" ? <SiteVideoStart costPer15={tools.find((t) => t.id === "motion-video")?.credit_cost ?? tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>

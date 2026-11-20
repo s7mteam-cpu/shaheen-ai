@@ -163,7 +163,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
     } catch (e) { setError((e as Error).message); setBusy(false); }
   }
 
-  const capW = data.aspect === "9:16" ? "lg:max-w-[max(280px,calc((100vh-19rem)*0.5625))]" : "";
+  const capW = data.aspect === "9:16" ? "lg:max-w-[max(220px,calc((100vh-29rem)*0.5625))]" : "";
   return (
     <>
       {cropFile && <LogoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); uploadLogo(f); }} />}
