@@ -15,6 +15,10 @@ const BAD = [
   [/\bdocument\s*\.\s*(cookie|domain|write|location)|localStorage|sessionStorage|indexedDB/, "storage/document"], [/\bwindow\s*\.\s*(open|location|top|parent|opener)|\blocation\s*[.=]|\bparent\s*\.|\btop\s*\./, "navigation"],
   [/<\s*(script|iframe|form|object|embed|link|meta|base)\b/i, "tag"], [/dangerouslySetInnerHTML|innerHTML|outerHTML|insertAdjacent|createElement\s*\(\s*['"`](script|iframe|link|form)/i, "html injection"],
   [/import\.meta|\bprocess\b|globalThis|\[\s*['"`](fetch|eval|location|document|window)['"`]\s*\]/, "global access"], [/\bnew\s+Image\b|\bAudio\s*\(|\bnew\s+Audio\b/, "image/audio constructor"],
+  // second ring: ways to reach the page's globals or run strings without the plain words above
+  [/\b(window|document)\b(?!\s*\.\s*(innerWidth|innerHeight|devicePixelRatio|fonts)\b)/, "global object (window/document)"], [/\b(self|frames|history|navigator)\b/, "global object"],
+  [/\.\s*constructor\b|\bconstructor\s*\[|["'`]constructor["'`]|__proto__|__lookup\w*|__define\w*|\bReflect\b|\bAsyncFunction\b|\bGeneratorFunction\b/, "prototype tricks"],
+  [/\b(setTimeout|setInterval)\s*\(\s*["'`]/, "string timer"], [/javascript\s*:/i, "javascript url"], [/(?:src|href|action|poster|xlinkHref)\s*=\s*[{"'`\s]*["'`]?\s*\/\/[\w.-]/i, "protocol-relative url"], [/["'`]\s*\/\/[\w-]+\.[a-z]{2,}/i, "protocol-relative url"],
   [/https?:\/\//i, "url"], [/@import|url\s*\(\s*['"]?\s*(https?:|\/\/)/i, "css import"],
 ];
 const OK_IMPORT = new Set(["react", "remotion", "./brand"]);

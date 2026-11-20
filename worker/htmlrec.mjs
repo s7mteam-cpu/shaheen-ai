@@ -5,6 +5,9 @@ import { spawn } from "node:child_process";
 import { openBrowser } from "@remotion/renderer";
 
 const CLOCK = `(() => {
+  window.open = () => null; // no popups
+  for (const ev of ["click", "auxclick", "submit"]) window.addEventListener(ev, (e) => { try { const el = e.target && e.target.closest ? e.target.closest("a,form,area") : null; if (el) el.removeAttribute("target"); } catch (x) {} }, true);
+  try { Object.defineProperty(HTMLAnchorElement.prototype, "target", { get() { return "_self"; }, set() {} }); Object.defineProperty(HTMLFormElement.prototype, "target", { get() { return "_self"; }, set() {} }); } catch (x) {}
   let now = 0; const T0 = 1767225600000; let id = 1;
   const raf = new Map(), timers = new Map(); const RealDate = Date;
   performance.now = () => now;
@@ -59,6 +62,15 @@ async function openHtmlPage({ html, width, height, fontCss, browserExecutable })
     await page.evaluateOnNewDocument(CLOCK);
     await cdp.send("Network.enable");
     await cdp.send("Network.setBlockedURLs", { urls: ["http://*", "https://*", "ws://*", "wss://*", "ftp://*"] }).catch(() => {});
+    // every request and every navigation of this page must be data:/blob:/about: — anything else is refused before it leaves the browser
+    await cdp.send("Fetch.enable", { patterns: [{ urlPattern: "*" }] });
+    cdp.on("Fetch.requestPaused", async (ev) => {
+      const e = ev?.params ?? ev; const url = String(e?.request?.url ?? "");
+      try { if (/^(data:|blob:|about:)/i.test(url)) await cdp.send("Fetch.continueRequest", { requestId: e.requestId }); else await cdp.send("Fetch.failRequest", { requestId: e.requestId, errorReason: "BlockedByClient" }); } catch {}
+    });
+    // any new tab/window the page manages to open is closed at once
+    await cdp.send("Target.setDiscoverTargets", { discover: true }).catch(() => {});
+    cdp.on("Target.targetCreated", async (ev) => { const t = (ev?.params ?? ev)?.targetInfo; if (t && t.type === "page" && t.url && !/^about:blank$/.test(t.url)) { try { await cdp.send("Target.closeTarget", { targetId: t.targetId }); } catch {} } });
     await cdp.send("Page.enable");
     await cdp.send("Page.navigate", { url: "about:blank" }); await sleep(200);
     await page.evaluate((h) => { document.open(); document.write(h); document.close(); }, page0);
