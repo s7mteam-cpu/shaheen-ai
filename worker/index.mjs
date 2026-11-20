@@ -21,6 +21,7 @@ import { prepareFree, checkFreeCode, MAX_CODE } from "./free.mjs";
 import { normalizeTemplate, verifyTemplate } from "./ingest.mjs";
 import { buildPreview } from "./freepreview.mjs";
 import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
+import { FONT_LIB, FONT_IDS, freeFontCss } from "./fontlib.mjs";
 import { extractTexts, extractColors, applyEdits, applyFont, applyLogo, applyEls } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
 import { planVideo, geminiHtml, geminiEdit, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
@@ -448,7 +449,7 @@ async function analyzeMontage(job) {
     const aspect = ["9:16", "1:1", "16:9"].includes(job.input.aspect) ? job.input.aspect : meta.width > meta.height ? "16:9" : "9:16";
     const spec = {
       src: "", srcPath: path, srcW: meta.width, srcH: meta.height, aspect,
-      font: ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(kit?.font) ? kit.font : ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(plan?.font) ? plan.font : "Cairo",
+      font: FONT_IDS.includes(kit?.font) ? kit.font : ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(plan?.font) ? plan.font : "Cairo",
       colors: brandColors.length
         ? { text: "#FFFFFF", accent: brandColors[0], bg: brandColors[1] ?? hex(plan?.colors?.bg, "#0B2A4A") }
         : { text: hex(plan?.colors?.text, "#FFFFFF"), accent: hex(plan?.colors?.accent, "#C9A45C"), bg: hex(plan?.colors?.bg, "#0B2A4A") },
@@ -838,7 +839,7 @@ async function tplRenderJob(job) {
       const { data: src } = await db.from("free_templates").select("source_code").eq("id", tid).maybeSingle();
       const html = (await prepareHtml(applyEdits(String(src?.source_code ?? ""), { texts: pr.texts ?? {}, hex: pr.hex ?? {} }))).html;
       const secs = Math.max(8, Math.min(120, Number(pr.seconds) || 30));
-      await recordHtml({ html, width: W, height: H, seconds: secs, outFile, fontCss: htmlFontCss() });
+      await recordHtml({ html, width: W, height: H, seconds: secs, outFile, fontCss: htmlFontCss(html) });
       const path = `templates/${tid}/video-${Date.now()}.mp4`;
       const up = await db.storage.from("results").upload(path, await readFile(outFile), { contentType: "video/mp4" });
       if (up.error) throw new Error(`upload: ${up.error.message}`);
@@ -883,7 +884,7 @@ async function tplFlowJob(job) {
     try { const m = /<!--\s*SCENES:\s*(\[[\s\S]*?\])\s*-->/.exec(tpl.source_code); const arr = m ? JSON.parse(m[1]) : []; const e = Math.max(...arr.map((x) => Number(x.end) || 0)); if (e >= 8 && e <= 180) secs = Math.ceil(e); } catch {}
     const [W, H] = FREE_SIZE[tpl.aspect] ?? FREE_SIZE["9:16"];
     const page = (await prepareHtml(applyEdits(tpl.source_code, { texts }))).html;
-    await recordHtml({ html: page, width: W, height: H, seconds: secs, outFile, fontCss: htmlFontCss() });
+    await recordHtml({ html: page, width: W, height: H, seconds: secs, outFile, fontCss: htmlFontCss(page) });
     const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(outFile), { contentType: "video/mp4", upsert: true });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify({ ...meta, template: tpl.name, seconds: secs, fieldsFound: fields.length, changed, texts: filled.map((f) => ({ label: f.label, value: f.value })) })), { contentType: "application/json", upsert: true });
@@ -962,7 +963,7 @@ async function gemFlowJob(job) {
       meta.attempts.push(rec); lap(`gemini${attempt}`);
       await stage("يفحص الصورة (مراجعة فنية)…", 55 + attempt * 5);
       const times = [0.06, 0.25, 0.45, 0.65, 0.85, 0.97].map((f) => f * seconds);
-      const stills = await htmlStills({ html: prepared.html, width: W, height: H, times, fontCss: htmlFontCss() });
+      const stills = await htmlStills({ html: prepared.html, width: W, height: H, times, fontCss: htmlFontCss(prepared.html) });
       const probe = join(workDir, `gp-${job.id}.png`); await writeFile(probe, stills[2]);
       const blank = await frameIsBlank(probe); await rm(probe, { force: true });
       const errs = (stills.errors ?? []).map((x) => String(x).slice(0, 160));
@@ -976,7 +977,7 @@ async function gemFlowJob(job) {
       else if (!blank) {
         // motion INSIDE scenes: count elements whose look changes within half a second at 8 points of the video
         const pts = Array.from({ length: 8 }, (_, i) => 0.8 + i * ((seconds - 2) / 8));
-        const sg = await htmlStills({ html: prepared.html, width: W, height: H, times: pts.flatMap((t) => [t, t + 0.5]), fontCss: htmlFontCss(), sig: true }).catch(() => null);
+        const sg = await htmlStills({ html: prepared.html, width: W, height: H, times: pts.flatMap((t) => [t, t + 0.5]), fontCss: htmlFontCss(prepared.html), sig: true }).catch(() => null);
         if (sg) {
           const changed = pts.map((_, k) => { const a = sg[2 * k] ?? [], b = sg[2 * k + 1] ?? []; let c = 0; for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) c++; return c; });
           rec.motion = changed; const live = changed.filter((c) => c >= 6).length;
@@ -991,7 +992,7 @@ async function gemFlowJob(job) {
     }
     if (cust && meta.attempts.at(-1)?.hard) throw new Error("التصميم ما طلع بجودة كافية بعد محاولتين"); // a broken design is never delivered: the order is refunded
     await stage("يرسم الفيديو…", 80);
-    await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss() });
+    await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss(page) });
     lap("record");
     let finalFile = outFile;
     if (vo) {
@@ -1121,7 +1122,7 @@ async function gemEditJob(job) {
       for (let attempt = 1; attempt <= 2 && !okPage; attempt++) {
         const r = await geminiEdit({ html: bare, instruction, retry, model: src.input.model });
         const pr = await prepareHtml(r.html);
-        const sts = await htmlStills({ html: pr.html, width: W, height: H, times: [0.1 * seconds, 0.4 * seconds, 0.7 * seconds, 0.95 * seconds], fontCss: htmlFontCss() });
+        const sts = await htmlStills({ html: pr.html, width: W, height: H, times: [0.1 * seconds, 0.4 * seconds, 0.7 * seconds, 0.95 * seconds], fontCss: htmlFontCss(pr.html) });
         const pf = join(workDir, `gep-${job.id}.png`); await writeFile(pf, sts[1]);
         const blank = await frameIsBlank(pf); await rm(pf, { force: true });
         const distinct = new Set(sts.map((x) => createHash("md5").update(x).digest("hex"))).size;
@@ -1152,11 +1153,11 @@ async function gemEditJob(job) {
     if (page.length > 400_000) throw new Error("الصفحة كبرت أكثر من اللازم");
     await stage("يرسم الفيديو…", 30);
     const base = `${job.user_id}/gem-${job.id}`;
-    const stills = await htmlStills({ html: page, width: W, height: H, times: [0.5 * seconds], fontCss: htmlFontCss() });
+    const stills = await htmlStills({ html: page, width: W, height: H, times: [0.5 * seconds], fontCss: htmlFontCss(page) });
     const probe = join(workDir, `gep-${job.id}.png`); await writeFile(probe, stills[0]);
     const blank = await frameIsBlank(probe); await rm(probe, { force: true });
     if (blank) throw new Error("التعديل خرّب الصفحة (طلعت فاضية)");
-    await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss() });
+    await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss(page) });
     let finalFile = outFile; let voicePath = null;
     const useVoice = voiceDone?.path ?? g.voicePath;
     const mixIn = inp.mix && typeof inp.mix === "object" ? inp.mix : (g.mix ?? {});
@@ -1204,8 +1205,14 @@ async function tplPreviewJob(job) {
 }
 /** الرفع المباشر: كود Remotion جاهز (من جيميناي) يُنظَّف تلقائيًا ثم يمرّ بالفحص الحقيقي، بدون Claude وبدون أي تكلفة. */
 /** fonts for original-HTML templates (the page cannot download any): Arabic + Latin parts, embedded as data urls */
-function htmlFontCss() {
+function htmlFontCss(page = "") {
   let css = "";
+  const fam = (f) => String(page).includes(f);
+  // library fonts the page really uses (embedding all 48 every time would be huge)
+  for (const [family, { pkg, weights }] of Object.entries(FONT_LIB)) if (fam(family) && !FONT_FILES.some((x) => x[0] === family)) for (const weight of weights) {
+    const file = [join(here, "node_modules"), join(here, "..", "node_modules")].map((r) => join(r, "@fontsource", pkg, "files", `${pkg}-arabic-${weight}-normal.woff2`)).find((f) => existsSync(f));
+    if (file) css += `@font-face{font-family:"${family}";font-weight:${weight};unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF;src:url(data:font/woff2;base64,${readFileSync(file).toString("base64")}) format("woff2");}`;
+  }
   for (const [family, pkg, weights] of FONT_FILES) for (const weight of [400, ...weights]) for (const [subset, range] of [["arabic", "U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF"], ["latin", "U+0000-00FF,U+2000-206F"]]) {
     for (const root of [join(here, "node_modules"), join(here, "..", "node_modules")]) {
       const file = join(root, "@fontsource", pkg, "files", `${pkg}-${subset}-${weight}-normal.woff2`);
@@ -1223,7 +1230,7 @@ async function ingestHtml(job, row, setRow) {
   if (original.length < 200 || original.length > 600_000) throw new Error("حجم كود الـHTML غير مناسب (من 200 حرف إلى 600 ألف)");
   const [W, H] = FREE_SIZE[row.aspect] ?? FREE_SIZE["9:16"];
   const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
-  const fontCss = htmlFontCss();
+  const fontCss = htmlFontCss(html);
   const times = [1.5, 6, 12, 20];
   const stills = await htmlStills({ html, width: W, height: H, times, fontCss });
   const files = [];
@@ -1323,7 +1330,7 @@ async function freeJob(job) {
   const mode = inp.mode;
   const [W, H] = FREE_SIZE[inp.aspect] ?? FREE_SIZE["9:16"];
   let colors = { bg: hexOk(inp.colors?.bg, "#0B2A4A"), accent: hexOk(inp.colors?.accent, "#E8B44C"), text: hexOk(inp.colors?.text, "#FFFFFF") };
-  const font = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"].includes(inp.font) ? inp.font : "Cairo";
+  const font = FONT_IDS.includes(inp.font) ? inp.font : "Cairo";
   const contact = (Array.isArray(inp.contact) ? inp.contact : []).slice(0, 6).map((c) => ({ icon: String(c.icon ?? "").replace(/[^a-z]/g, ""), handle: String(c.handle ?? "").replace(/[^\w@+.\-]/g, "").slice(0, 40) })).filter((c) => c.icon && c.handle);
   const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
   const base = `${job.user_id}/${job.id}`;
@@ -1337,7 +1344,7 @@ async function freeJob(job) {
     let free = inp.free && inp.free.code ? inp.free : null; // {title, fields, code, vo, previewPath}
     let vo = free?.vo ?? null; // {path, beats, sentences, duration, musicPath, musicSecs}
     const wantVo = inp.voiceover !== false && !!inp.voice?.id;
-    const prepOpts = (chapters) => ({ chapters, width: W, height: H, seconds, workDir, brandFile, fontCss: FREE_FONTS, mediaOrigin });
+    const prepOpts = (chapters) => ({ chapters, width: W, height: H, seconds, workDir, brandFile, fontCss: freeFontCss(FREE_FONTS, font), mediaOrigin });
     const logoBox = inp.logoBox && typeof inp.logoBox === "object" ? { x: Math.min(0.97, Math.max(0.03, +inp.logoBox.x || 0.85)), y: Math.min(0.97, Math.max(0.03, +inp.logoBox.y || 0.09)), w: Math.min(0.7, Math.max(0.06, +inp.logoBox.w || 0.18)) } : { x: 0.85, y: 0.09, w: 0.18 };
     let curAssets = null;
     const propsOf = (fields) => ({ assets: curAssets ?? free?.assets ?? {}, t: Object.fromEntries((fields ?? []).map((f) => [f.key, f.value])), colors, font, contact, logo, logoOn: !!logo && inp.logoOn !== false, logoBox, beats: vo?.beats ?? [], seconds });

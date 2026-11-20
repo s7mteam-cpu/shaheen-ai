@@ -59,8 +59,10 @@ export function applyEdits(html, { texts = {}, hex = {} } = {}) {
   return out;
 }
 
-const FONT_NAMES = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
-/** the first font family the page asks for (only the five fonts the platform embeds count) */
+import { FONT_IDS } from "./fontlib.mjs";
+// longest names first so "Cairo Play" is never mistaken for "Cairo"
+const FONT_NAMES = [...FONT_IDS].sort((a, b) => b.length - a.length);
+/** the first font family the page asks for (only the library fonts the platform embeds count) */
 export function currentFont(html) {
   const m = html.match(/font-family\s*:\s*([^;}]*)/i);
   const hit = m ? FONT_NAMES.find((f) => new RegExp(`\\b${f}\\b`, "i").test(m[1])) : undefined;
