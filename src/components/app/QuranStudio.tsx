@@ -138,7 +138,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
       <div className="flex flex-col gap-5">
         <section className="card flex flex-col gap-4 p-5">
           <h2 className="text-[18px] font-bold text-navy-900">📖 {L("السورة والآيات")}</h2>
@@ -229,7 +229,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
         </section>
       </div>
 
-      <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:order-first lg:self-start">
         {/* the player measures itself left-to-right: inside an Arabic (RTL) page it slid off-screen and looked black */}
         <div dir="ltr" className="mx-auto w-full overflow-hidden rounded-2xl bg-black shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 11rem) * 0.5625))" : "100%" }}>
           {spec.ayahs.length > 0 ? (

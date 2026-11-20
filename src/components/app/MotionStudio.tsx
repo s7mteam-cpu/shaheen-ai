@@ -30,7 +30,6 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
 }) {
   const [spec, setSpec] = useState<MotionSpec>(initial);
   const [tab, setTab] = useState<"lib" | "ai">(tracks.length ? "lib" : "ai");
-  const [advOpen, setAdvOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [musicPrompt, setMusicPrompt] = useState("");
   const [voiceText, setVoiceText] = useState(() => initial.voice?.text ?? narration(initial));
@@ -149,7 +148,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
       </div>
 
       <div className="flex min-w-0 flex-col gap-5">
-        <Card title={L("الشعار")} icon="🏷️">
+        <Card more title={L("الشعار")} icon="🏷️">
           <div className="flex flex-wrap items-center gap-3">
             {spec.logo?.url && <img src={spec.logo.url} alt={L("الشعار")} className="h-12 max-w-[120px] rounded-lg bg-tint object-contain p-1" />}
             <label className="btn btn-outline cursor-pointer px-4 py-2 text-sm">{spec.logo ? L("تغيير الشعار") : L("⬆️ ارفع شعارك")}
@@ -161,7 +160,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
           {busy === "logo" && <p className="text-[14px] text-subtle">{L("جاري الرفع…")}</p>}
         </Card>
 
-        <Card title={L("تعديلات سريعة")} icon="✏️">
+        <Card more title={L("تعديلات سريعة")} icon="✏️">
           <Sub>{L("الألوان")}</Sub>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {(Object.keys(COLOR_LABELS) as (keyof Colors)[]).map((k) => (
@@ -191,20 +190,13 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
           </div>
         </Card>
 
-        <section className="card p-5">
-          <button type="button" aria-expanded={advOpen} onClick={() => setAdvOpen(!advOpen)} className="flex w-full items-center justify-between text-[16px] font-bold text-navy-900">
-            <span>{L("✨ تعديل متقدّم (بالوصف)")}</span><span aria-hidden className={advOpen ? "rotate-180" : ""}>⌄</span>
-          </button>
-          {advOpen && (
-            <div className="mt-4 flex flex-col gap-3">
+        <Card more title={L("تعديل متقدّم (بالوصف)")} icon="✨">
               <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} className="field" placeholder={L("مثال: خلّ الألوان أهدى، وزيد مشهد عن السكر قبل الأخير")} />
               <button type="button" disabled={!instruction.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
                 onClick={async () => { const d = await call<{ spec: MotionSpec }>("revise", { spec, instruction }, "revise"); if (d) { setSpec(d.spec); setInstruction(""); } }}>
                 {busy === "revise" ? L("جاري التعديل…") : LT(`طبّق التعديل (${editCost} ريشة)`, `Apply edit (${editCost} credits)`)}
               </button>
-            </div>
-          )}
-        </section>
+        </Card>
 
         <Card more title={L("موسيقى خلفية")} icon="🎵">
           <div className="flex gap-2">

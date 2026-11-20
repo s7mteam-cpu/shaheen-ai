@@ -6,6 +6,7 @@ import { Progress } from "@/components/app/Progress";
 import { BRANDS, type BrandId } from "@/remotion/brandIcons";
 import { GULF_DIALECTS } from "@/lib/countries";
 import { VOICE_TYPES } from "@/lib/voiceMatch";
+import { Card } from "@/components/app/Collapse";
 import { FreeTimeline, type Trim } from "@/components/app/FreeTimeline";
 import { MusicEditor } from "@/components/app/MusicEditor";
 import type { Music } from "@/remotion/montage";
@@ -215,14 +216,12 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
         {busy && busy.kind === "export" && <p className="rounded-xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">{L("الفيديو يتجهز بآخر تعديلاتك لحظة الضغط. اللوحة مقفلة لين يخلص، وبعدها تقدر تعدّل وتصدّر من جديد.")}</p>}
         <fieldset disabled={!!busy} className={`m-0 flex min-w-0 flex-col gap-4 border-0 p-0 ${busy ? "pointer-events-none opacity-60" : ""}`}>
 
-        <section className={card}>
-          <h3 className="font-bold text-navy-900">{L("النصوص")}</h3>
+        <Card more title={L("النصوص")}>
           {fields.map((f, i) => <label key={f.key} className="flex flex-col gap-1 text-[13px] text-subtle">{f.label}<input value={f.value} maxLength={200} onChange={(e) => setFields(fields.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} className="field text-[15px] text-ink" /></label>)}
-        </section>
+        </Card>
 
         {data.voiceover && (
-          <section className={card}>
-            <h3 className="font-bold text-navy-900">{L("تعليق صوتي")}</h3>
+          <Card more title={L("تعليق صوتي")}>
             {narr.map((n, i) => <textarea key={i} rows={2} maxLength={220} value={n} onChange={(e) => setNarr(narr.map((x, j) => (j === i ? e.target.value : x)))} className="field text-[14px]" aria-label={`${L("نص التعليق")} ${i + 1}`} />)}
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => setDialect(e.target.value)} className="field w-44">{GULF_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
@@ -230,35 +229,31 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
             </div>
             <button type="button" disabled={!!busy} onClick={() => act("revoice")} className="btn btn-outline self-start px-4 py-2 text-[14px]">🎙️ {L("أعد تسجيل التعليق")}</button>
             <span className="text-[12px] text-subtle">{L("إذا غيّرت جملة أو الصوت، التسجيل ياخذ دقيقة تقريباً. عدد الجمل ثابت عشان الصورة تمشي مع الصوت.")}</span>
-          </section>
+          </Card>
         )}
 
         {data.voiceover && (
-          <section className={card}>
-            <h3 className="font-bold text-navy-900">{L("موسيقى خلفية")}</h3>
+          <Card more title={L("موسيقى خلفية")}>
             <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={musicOn} onChange={(e) => setMusicOn(e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("موسيقى هادية بالخلفية")}</label>
             {musicOn && <label className="flex items-center gap-3 text-[14px]">{L("الصوت")}<input type="range" min={0} max={0.5} step={0.02} value={musicVol} onChange={(e) => setMusicVol(Number(e.target.value))} className="flex-1 accent-navy-700" /></label>}
-          </section>
+          </Card>
         )}
 
-        <section className={card}>
-          <h3 className="font-bold text-navy-900">{L("الألوان")}</h3>
+        <Card more title={L("الألوان")}>
           <div className="flex flex-wrap gap-4">
             {([["bg", "الخلفية"], ["accent", "اللون المميّز"], ["text", "الخط"]] as const).map(([k, l]) => (
               <label key={k} className="flex items-center gap-2 text-[14px]"><input type="color" value={colors[k]} onChange={(e) => setColors({ ...colors, [k]: e.target.value })} className="h-9 w-12 cursor-pointer rounded border" />{L(l)}</label>
             ))}
           </div>
           <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{fonts.map((f) => <option key={f}>{f}</option>)}</select></label>
-        </section>
+        </Card>
 
-        <section className={card}>
-          <h3 className="font-bold text-navy-900">🎧 {L("صوتك من جهازك")}</h3>
+        <Card more title={L("صوتك من جهازك")} icon="🎧">
           <p className="text-[13px] text-subtle">{L("ارفع صوت أو موسيقى، وقصّه وحدد مكانه ومستواه. يظهر بالخط الزمني تحت الفيديو.")}</p>
           <MusicEditor music={own} onChange={setOwn} total={data.cseconds} playhead={() => frame / 30} disabled={!!busy} />
-        </section>
+        </Card>
 
-        <section className={card}>
-          <h3 className="font-bold text-navy-900">{L("الشعار")}</h3>
+        <Card more title={L("الشعار")}>
           <div className="flex flex-wrap items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {logo.url && <img src={logo.url} alt={L("الشعار")} className="h-12 max-w-[120px] rounded-lg bg-tint object-contain p-1" />}
@@ -269,10 +264,9 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
           </div>
           {logo.on && logo.url && <LogoSize box={logo.box} onChange={(b) => setLogo({ ...logo, box: b })} />}
           {upBusy && <p className="text-[14px] text-subtle">{L("جاري الرفع…")}</p>}
-        </section>
+        </Card>
 
-        <section className={card}>
-          <h3 className="font-bold text-navy-900">{L("حسابات التواصل")}</h3>
+        <Card more title={L("حسابات التواصل")}>
           {contact.map((c, i) => (
             <div key={i} className="flex gap-2">
               <select value={c.icon} onChange={(e) => setContact(contact.map((x, j) => (j === i ? { ...x, icon: e.target.value as BrandId } : x)))} className="field w-36">{social.map((s) => <option key={s} value={s}>{s}</option>)}</select>
@@ -281,7 +275,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
             </div>
           ))}
           {contact.length < 6 && <button type="button" onClick={() => setContact([...contact, { icon: "instagram", handle: "" }])} className="btn btn-outline self-start px-4 py-2 text-[14px]">+ {L("أضف حساب")}</button>}
-        </section>
+        </Card>
 
         <section className={card}>
           <h3 className="font-bold text-navy-900">{L("⬇️ تصدير الفيديو (MP4)")}</h3>
@@ -291,12 +285,11 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
           <button type="button" onClick={() => router.push("/app/works")} className="btn btn-outline self-start px-4 py-2 text-sm">{L("روح لأعمالي")}</button>
         </section>
 
-        <section className={card}>
-          <h3 className="font-bold text-navy-900">✨ {L("سوّ مثله بفكرة جديدة")}</h3>
+        <Card more title={L("سوّ مثله بفكرة جديدة")} icon="✨">
           <p className="text-[13px] text-subtle">{L("نفس التصميم والحركات، بس بالكلام والمعلومات الجديدة.")}</p>
           <textarea minLength={10} maxLength={1500} rows={3} value={simIdea} onChange={(e) => setSimIdea(e.target.value)} className="field" />
           <button type="button" disabled={simIdea.trim().length < 10 || balance < editCost || !!busy} onClick={async () => { const e = await onSimilar(simIdea, { dialect, vtype, music: musicOn }); if (e) setErr(e); }} className="btn btn-gold py-3">{L("سوّ مثله")} ({editCost} {L("ريشة")})</button>
-        </section>
+        </Card>
         </fieldset>
       </div>
     </div>

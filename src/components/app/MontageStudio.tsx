@@ -307,7 +307,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
       </div>
 
       <div className="flex min-w-0 flex-col gap-5">
-        <Card title={L("الترجمة")} icon="💬">
+        <Card more title={L("الترجمة")} icon="💬">
           <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
             <span className="font-semibold">{L("إظهار الترجمة على الفيديو")}</span>
             <input type="checkbox" checked={spec.captions.on} onChange={(e) => setSpec({ ...spec, captions: { ...spec.captions, on: e.target.checked } })} className="h-5 w-5" />
@@ -326,7 +326,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           {spec.captions.on && <div className="flex flex-wrap gap-2">{styles.map(([s, l]) => <button key={s} type="button" aria-pressed={spec.captions.style === s} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, style: s } })} className="chip">{L(l)}</button>)}</div>}
         </Card>
 
-        <Card title={L("تعديلات سريعة")} icon="✏️">
+        <Card more title={L("تعديلات سريعة")} icon="✏️">
           <Sub>{L("الألوان")}</Sub>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {(Object.keys(colorLabels) as (keyof typeof colorLabels)[]).map((k) => (
@@ -366,7 +366,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           </div>
         </Card>
 
-        <Card title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
+        <Card more title={L("الرسوم المتحركة والشاشة المقسومة")} icon="✨">
           <Sub>{L("شكل الفيديو")}</Sub>
           <div className="flex flex-wrap gap-2">
             {spec.layout === "board" ? <span className="text-[14px] text-subtle">{L("فيديو متحرك: الرسوم تملأ الشاشة مع صوت الشرح.")}</span>
@@ -577,7 +577,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           <div className="flex flex-wrap gap-1.5">{EMOJIS.map((e) => <button key={e} type="button" onClick={() => addEmoji(e)} aria-label={LT(`أضف ${e}`, `Add ${e}`)} className="rounded-xl border border-line bg-white px-2.5 py-1.5 text-[20px] hover:border-gold-500">{e}</button>)}</div>
         </Card>
 
-        <Card title={L("الصورة والصوت")} icon="🎨">
+        <Card more title={L("الصورة والصوت")} icon="🎨">
           <Sub>{L("ستايل الألوان والإضاءة")} {spec.autoBright && spec.autoBright > 1 ? L("(صحّحنا إضاءة الفيديو الغامق تلقائياً)") : ""}</Sub>
           <div className="flex flex-wrap gap-2">{GRADES.map(([g, l]) => <button key={g} type="button" aria-pressed={(spec.grade ?? "none") === g} onClick={() => setSpec({ ...spec, grade: g })} className="chip">{L(l)}</button>)}</div>
           {(spec.face ?? []).length > 0 && (
@@ -593,7 +593,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           {kit && <button type="button" onClick={applyBrand} className="btn border border-gold-500 bg-gold-500/10 py-2.5 text-[14px] font-semibold text-navy-900">{L("🏷️ طبّق هويتي التجارية (الألوان، الخط، الشعار، الحساب)")}</button>}
         </Card>
 
-        <Card title={L("التعليق الصوتي")} icon="🎙️">
+        <Card more title={L("التعليق الصوتي")} icon="🎙️">
           {spec.vo ? (
             /* the voice track: play it, or ✕ to delete and record a new one */
             <div className="flex items-center gap-3 rounded-2xl border border-navy-800/15 bg-navy-800 px-3 py-3 text-white">
