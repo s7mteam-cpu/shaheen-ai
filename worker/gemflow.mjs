@@ -119,6 +119,11 @@ export async function geminiEdit({ html, instruction, retry, model }) {
   return geminiHtml({ model, system: EDIT_RULES, user });
 }
 
+/** code a video page never needs. The recorder is already offline and sandboxed; this is a second wall: such pages are rejected and regenerated. */
+export function unsafeHtml(html) {
+  const bad = [[/\bfetch\s*\(/, "fetch"], [/XMLHttpRequest/, "XMLHttpRequest"], [/WebSocket|EventSource/, "WebSocket"], [/sendBeacon/, "sendBeacon"], [/importScripts|\bimport\s*\(/, "import"], [/<(iframe|object|embed|form|frame)\b/i, "iframe/form"], [/window\.open|document\.cookie|localStorage|sessionStorage|indexedDB/, "storage/open"], [/\beval\s*\(|new\s+Function\s*\(/, "eval"], [/<script[^>]+src\s*=\s*["']?(https?:)?\/\//i, "external script"], [/navigator\.(geolocation|mediaDevices|clipboard)|Notification\.request/, "device access"]];
+  return bad.filter(([re]) => re.test(html)).map(([, n]) => n);
+}
 /** contact details the customer wrote (phones, handles, sites) that must be visible in the video */
 export function contactsOf(text) {
   const t = String(text ?? "");

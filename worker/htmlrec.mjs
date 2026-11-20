@@ -138,9 +138,13 @@ export async function recordHtml({ html, width, height, seconds, fps = 30, outFi
     let ffErr = ""; ff.stderr.on("data", (d) => { ffErr += d; });
     const done = new Promise((res, rej) => { ff.on("close", (c) => (c === 0 ? res() : rej(new Error(`ffmpeg: ${ffErr.slice(0, 300)}`)))); ff.on("error", rej); });
     ff.stdin.on("error", () => {}); done.catch(() => {});
+    // watchdog: a stuck page must never hold the queue. One frame may take at most 2 minutes; the whole recording at most max(15 min, 40 s per video second).
+    const deadline = Date.now() + Math.max(15 * 60_000, seconds * 40_000);
+    const guard = (p, what) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`التسجيل علّق (${what})`)), 120_000).unref())]);
     for (let i = 0; i < frames; i++) {
-      await step(1000 / fps);
-      if (!ff.stdin.write(await shot("jpeg", 94, box))) await new Promise((r) => ff.stdin.once("drain", r));
+      if (Date.now() > deadline) throw new Error("التسجيل أخذ وقتًا أطول من المسموح، تم إيقافه");
+      await guard(step(1000 / fps), "step");
+      if (!ff.stdin.write(await guard(shot("jpeg", 94, box), "shot"))) await new Promise((r) => ff.stdin.once("drain", r));
       if (i % 15 === 0) onProgress(i / frames);
     }
     ff.stdin.end(); await done; ff = null;

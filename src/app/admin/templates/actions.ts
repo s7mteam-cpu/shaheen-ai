@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/server/auth";
 import { DIALECT_NAME, pickVoice, typeToGA, type VoiceItem } from "@/lib/voiceMatch";
 import { INDUSTRIES } from "@/design/industries";
 import { cleanEngine } from "@/lib/server/freeEngine";
+import { applyEdits, applyLogo, extractTexts } from "@/lib/htmlKit";
 
 async function guard() {
   const u = await requireAdmin("templates");
@@ -162,4 +163,31 @@ export async function saveFreeEngine(form: FormData) {
   const value = cleanEngine({ engine: form.get("engine"), model: form.get("model"), plan: form.get("plan"), dailyCap: form.get("dailyCap") });
   await createAdminClient().from("site_content").upsert({ key: "free_engine", value, updated_at: new Date().toISOString() });
   revalidatePath("/admin/ai");
+}
+
+const PHONE = /(\+?\d[\d\s().-]{6,}\d)/, HANDLE = /@[A-Za-z0-9_.]{3,}/, SITE = /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|kw|co|app|io)\b/i;
+/** a customer's finished design becomes a library template WITHOUT his data: the logo is removed and every phone number, handle and website on screen becomes a neutral placeholder. The admin still reviews the rest of the texts before approving. */
+export async function templateFromGem(form: FormData) {
+  const me = await guard();
+  const id = String(form.get("jobId") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+  const admin = createAdminClient();
+  const { data: job } = await admin.from("jobs").select("title,input").eq("id", id).eq("tool_id", "free-motion").eq("status", "done").maybeSingle();
+  const path = (job?.input as { gem?: { htmlPath?: string } } | null)?.gem?.htmlPath;
+  if (!path || path.includes("..")) return;
+  const dl = await admin.storage.from("results").download(path);
+  if (dl.error) return;
+  let html = applyLogo(Buffer.from(await dl.data.arrayBuffer()).toString("utf8"), null);
+  const texts: Record<string, string> = {};
+  for (const f of extractTexts(html, 200)) {
+    if (PHONE.test(f.value) && f.value.replace(/\D/g, "").length >= 7) texts[f.key] = "رقم التواصل";
+    else if (HANDLE.test(f.value)) texts[f.key] = "@حسابك";
+    else if (SITE.test(f.value)) texts[f.key] = "موقعك الإلكتروني";
+  }
+  html = applyEdits(html, { texts });
+  if (html.length < 200 || html.length > 600_000) return;
+  const name = `${clean(job?.title, 40) || "تصميم"} (من تصميم عميل)`;
+  const { data: row } = await admin.from("free_templates").insert({ name, tags: [], source_code: html, created_by: me.id }).select("id").single();
+  if (row) await queue(row.id, me.id, name, "html");
+  refresh();
 }

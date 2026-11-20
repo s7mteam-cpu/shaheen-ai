@@ -23,7 +23,7 @@ import { buildPreview } from "./freepreview.mjs";
 import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
 import { extractTexts, extractColors, applyEdits, applyFont, applyLogo } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
-import { planVideo, geminiHtml, geminiEdit, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
+import { planVideo, geminiHtml, geminiEdit, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
@@ -965,7 +965,8 @@ async function gemFlowJob(job) {
         }
         if (review.ok) review = await reviewFree({ frames: stills, aspect, idea }).catch(() => ({ ok: true, issues: "" }));
       }
-      rec.review = review; rec.hard = !review.ok && (blank || missing.length > 0 || distinct <= 2 || String(review.issues).startsWith("Elements inside")); page = prepared.html;
+      const unsafe = unsafeHtml(g.html); if (unsafe.length) { review = { ok: false, issues: `The page uses forbidden code (${unsafe.join(", ")}). A video page must be self-contained: no network, no storage, no iframes or forms, no eval. Remove all of it.` }; rec.unsafe = unsafe; }
+      rec.review = review; rec.hard = !review.ok && (unsafe.length > 0 || blank || missing.length > 0 || distinct <= 2 || String(review.issues).startsWith("Elements inside")); page = prepared.html;
       if (review.ok) break;
       retry = review.issues;
     }
@@ -1089,6 +1090,7 @@ async function gemEditJob(job) {
     let page = applyEdits(before, { texts, hex });
     if (typeof inp.font === "string") page = applyFont(page, inp.font);
     if (ltr) page = page.replace(/(<html[^>]*?)\sdir=["']rtl["']/i, '$1 dir="ltr"');
+    const editUsage = [];
     const instruction = typeof inp.instruction === "string" ? inp.instruction.replace(/\s+/g, " ").trim().slice(0, 600) : "";
     if (instruction) { // «تعديل بالوصف»: Gemini edits the whole page (logo removed first, put back after), checked like a new design
       await stage("جيميناي يعدّل التصميم…", 25);
@@ -1104,7 +1106,10 @@ async function gemEditJob(job) {
         const blank = await frameIsBlank(pf); await rm(pf, { force: true });
         const distinct = new Set(sts.map((x) => createHash("md5").update(x).digest("hex"))).size;
         const missing = missingContacts(pr.html, wanted);
-        if (blank) retry = "The page is blank in the middle of the video.";
+        const bad = unsafeHtml(r.html);
+        editUsage.push(r.usage ?? null);
+        if (bad.length) retry = `The page uses forbidden code (${bad.join(", ")}). Remove it: no network, no storage, no iframes or forms, no eval.`;
+        else if (blank) retry = "The page is blank in the middle of the video.";
         else if (distinct <= 1) retry = "The video is static: the animation stops. Keep every scene animating on its own time.";
         else if (missing.length) retry = `These contact details were lost and must stay visible exactly: ${missing.join(" | ")}`;
         else okPage = pr.html;
@@ -1147,7 +1152,7 @@ async function gemEditJob(job) {
     const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(finalFile), { contentType: "video/mp4", upsert: true });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.html`, Buffer.from(page), { contentType: "text/html", upsert: true });
-    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(src.title ?? "تصميم مبتكر").slice(0, 80), input: { ...src.input, mode: "done", gem: { ...g, htmlPath: `${base}.html`, voicePath, ...(voiceDone?.scenes ? { scenes: voiceDone.scenes } : {}), edited: true, logo: logoKeep, musicOff: inp.musicOff === true } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
+    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(src.title ?? "تصميم مبتكر").slice(0, 80), input: { ...src.input, mode: "done", gem: { ...g, usage: editUsage, htmlPath: `${base}.html`, voicePath, ...(voiceDone?.scenes ? { scenes: voiceDone.scenes } : {}), edited: true, logo: logoKeep, musicOff: inp.musicOff === true } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
   } catch (e) { console.error("gemini edit failed", e?.message ?? e); await fail(job, e); }
   finally { for (const f of [outFile, mixed, vf, mf, join(workDir, `gev2-${job.id}.mp3`)]) await rm(f, { force: true }); }
 }

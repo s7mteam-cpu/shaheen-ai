@@ -2,6 +2,7 @@ import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { counterResets } from "@/lib/server/overviewReset";
 import { getL, serverT } from "@/lib/server/lang";
+import { gemSpend } from "@/lib/server/gemSpend";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function Overview() {
     admin.from("profiles").select("id").in("role", ["admin", "staff"]),
   ]);
   // The admin team's own (test) subscriptions are not customers, so they never count here.
+  const gem = await gemSpend(admin, monthStart).catch(() => null);
   const teamIds = new Set((team ?? []).map((t) => t.id));
   const subs = (allSubs ?? []).filter((x) => !teamIds.has(x.user_id));
   const subsRev = (allSubsRev ?? []).filter((x) => !teamIds.has(x.user_id));
@@ -40,6 +42,7 @@ export default async function Overview() {
     [L("ريش مستهلكة هذا الشهر"), used.toLocaleString("en")],
     [L("طلبات هذا الشهر"), (jobs ?? 0).toLocaleString("en")],
     [L("طلبات فاشلة هذا الشهر"), (failed ?? 0).toLocaleString("en")],
+    ...(gem ? ([[L("تكلفة جيميناي هذا الشهر (تقدير)"), `$${gem.usd.toFixed(2)}`], [L("فيديوهات جيميناي / تعديلات بالوصف"), `${gem.videos} / ${gem.edits}`]] as [string, string][]) : []),
   ];
   return (
     <div className="flex flex-col gap-6">
@@ -56,6 +59,7 @@ export default async function Overview() {
         <h2 className="mb-3 text-lg font-bold">{L("المشتركون حسب الباقة")}</h2>
         <ul className="flex flex-col gap-2">{byPlan.map((p) => <li key={p.name} className="flex justify-between border-b border-[#EDF1F6] py-2 last:border-0"><span>{p.name}</span><span className="font-latin font-bold">{p.n}</span></li>)}</ul>
       </section>
+      {gem && <p className="text-[13px] text-subtle">{L("تكلفة جيميناي: من عدد التوكنات الفعلي بما فيها توكنات التفكير، ومحسوبة بسعر Neon (3 دولار للمدخل و15 للمخرج لكل مليون)")} · {(gem.inTok / 1e6).toFixed(2)}M {L("مدخل")} · {(gem.outTok / 1e6).toFixed(2)}M {L("مخرج")} ({(gem.thoughtTok / 1e6).toFixed(2)}M {L("تفكير")}){gem.unpriced ? ` · ${gem.unpriced} ${L("طلب بنموذج بدون سعر معروف غير محسوب")}` : ""}. {L("لا تشمل Claude وElevenLabs.")}</p>}
       <p className="text-sm text-subtle">{L("تكلفة المزودين الفعلية تجدها في لوحات fal.ai وElevenLabs وAnthropic. الإيرادات التفصيلية والاستردادات في لوحة Stripe.")}</p>
     </div>
   );
