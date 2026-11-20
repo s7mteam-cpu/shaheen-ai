@@ -10,6 +10,7 @@ import { DocResult } from "@/components/app/DocResult";
 import { CVStart } from "@/components/app/CVStart";
 import { CVStudio } from "@/components/app/CVStudio";
 import { normaliseCV } from "@/cv/spec";
+import { extraPricing } from "@/lib/server/pricing";
 import { RealScenesStart } from "@/components/app/RealScenesStart";
 import { SiteVideoStart } from "@/components/app/SiteVideoStart";
 import { FreeMotionStart } from "@/components/app/FreeMotionStart";
@@ -75,7 +76,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         {!job && <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>}
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "free-motion" ? <Suspense><FreeMotionStart costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "site-video" ? <SiteVideoStart costPer15={tools.find((t) => t.id === "motion-video")?.credit_cost ?? tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "free-motion" ? <Suspense><FreeMotionStart costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "site-video" ? <SiteVideoStart costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -101,7 +102,7 @@ async function presentations(jobId: string | undefined, tool: ToolRow, balance: 
   }
   const { data: kit } = await supabase.from("brand_kits").select("business_name,colors,logo_url").maybeSingle();
   const hasKit = !!(kit && ((kit.colors ?? []).filter(Boolean).length || kit.logo_url));
-  return <PresentationStart cost={tool.credit_cost} balance={balance} hasKit={hasKit} />;
+  return <PresentationStart cost={tool.credit_cost} balance={balance} hasKit={hasKit} autoUnits={(await extraPricing()).pres_auto_units} imgCost={(await extraPricing()).pres_image_cost} />;
 }
 
 /** Motion graphics: idea form, or the live studio for one of the user's drafts. */
@@ -128,7 +129,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
     }
   }
   const { data: kit } = await supabase.from("brand_kits").select("business_name").maybeSingle();
-  if (toolId === "real-scenes") return <RealScenesStart costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
+  if (toolId === "real-scenes") return <RealScenesStart costPer15={tool.credit_cost} aiX={(await extraPricing()).ai_clip_x} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
   return <MotionStart template={template} likeId={likeId} idea={idea} costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
 }
 

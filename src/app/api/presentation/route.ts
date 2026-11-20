@@ -1,3 +1,4 @@
+import { extraPricing } from "@/lib/server/pricing";
 import { NextResponse } from "next/server";
 import JSZip from "jszip";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,10 +13,8 @@ import { buildDeck, type Deck, type Slide } from "@/lib/server/deck";
 export const maxDuration = 300;
 
 const MAX_SLIDES = 200;
-const AUTO_UNITS = 2; // «شاهين يقرر»: 8-20 slides, charged as 20
 const BIG = 25; // above this the deck is written in parts (outline first, then batches)
 const BATCH = 12;
-const IMG_COST = 8; // up to 4 pictures drawn by AI
 const PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const hex = (v: unknown) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : null);
 
@@ -85,7 +84,8 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", "presentations").single();
   if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
-  const cost = tool.credit_cost * (auto ? AUTO_UNITS : Math.ceil(n / 10)) + (pics ? IMG_COST : 0);
+  const ex = await extraPricing();
+  const cost = tool.credit_cost * (auto ? ex.pres_auto_units : Math.ceil(n / 10)) + (pics ? ex.pres_image_cost : 0);
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: "presentations", title: (topic || upload?.name || "عرض").slice(0, 80), status: "running", progress: 5, input: { topic: topic.slice(0, 2000), slides: n, lang } }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });

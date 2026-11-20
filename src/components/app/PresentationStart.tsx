@@ -4,10 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Progress } from "@/components/app/Progress";
 
-const IMG_COST = 8; // same as the server
 
 /** «عروض PowerPoint»: an idea, a full text or a file in; a finished, editable .pptx out. */
-export function PresentationStart({ cost: base, balance, hasKit }: { cost: number; balance: number; hasKit: boolean }) {
+export function PresentationStart({ cost: base, balance, hasKit, autoUnits = 2, imgCost: IMG_COST = 8 }: { cost: number; balance: number; hasKit: boolean; autoUnits?: number; imgCost?: number }) {
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -21,7 +20,7 @@ export function PresentationStart({ cost: base, balance, hasKit }: { cost: numbe
   const [error, setError] = useState<string | null>(null);
   const [pct, setPct] = useState(0);
   const count = Math.min(200, Math.max(3, Math.round(slides) || 10));
-  const cost = base * (auto ? 2 : Math.ceil(count / 10)) + (images ? IMG_COST : 0);
+  const cost = base * (auto ? autoUnits : Math.ceil(count / 10)) + (images ? IMG_COST : 0);
   useEffect(() => {
     if (!busy) return;
     setPct(2);

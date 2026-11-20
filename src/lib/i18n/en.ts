@@ -1888,4 +1888,5 @@ export const EN: Record<string, string> = {
   "اسحب المقبضين الذهبيين لقص بداية الفيديو ونهايته. التصدير يطلع المقطع المحدد فقط.": "Drag the two gold handles to cut the start and end of the video. The export contains only the selected clip.",
   "صوتك من جهازك": "Your own sound",
   "ارفع صوت أو موسيقى، وقصّه وحدد مكانه ومستواه. يظهر بالخط الزمني تحت الفيديو.": "Upload a sound or music, trim it and set its place and level. It shows on the timeline under the video.",
+  "جرّب من جديد": "Try again",
 };

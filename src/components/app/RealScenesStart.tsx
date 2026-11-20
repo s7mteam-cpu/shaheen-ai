@@ -14,7 +14,7 @@ const lengths = [[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"
 const dialects: (readonly [string, string])[] = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const), ["en", "English"]];
 
 /** «مشاهد واقعية»: write the ad / the words, Shaheen reads them aloud over real stock footage that fits each sentence. */
-export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { costPer15: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
+export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 2 }: { costPer15: number; aiX?: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [mine, setMine] = useState(false);
@@ -37,7 +37,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pct, setPct] = useState(0);
-  const cost = Math.max(1, Math.round(seconds / 15)) * costPer15 * (ai ? 2 : 1); // same factor as the server
+  const cost = Math.max(1, Math.round(seconds / 15)) * costPer15 * (ai ? aiX : 1); // same factor as the server
   useEffect(() => {
     if (!busy) return;
     setPct(2);
@@ -103,7 +103,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [] }: { co
       {busy ? <Progress value={pct} label={L("شاهين يكتب ويدوّر على اللقطات ويركّب الفيديو…")} /> : (
         <button disabled={(mine ? spoken.trim().length < 5 : text.trim().length < 5) || balance < cost} className="btn btn-gold py-3.5 text-[16px]">🎬 {L("أنشئ الفيديو")} · {cost} {L("ريشة")}</button>
       )}
-      <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة:")} {costPer15 * (ai ? 2 : 1)} {L("ريشة لكل 15 ثانية.")}</p>
+      <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة:")} {costPer15 * (ai ? aiX : 1)} {L("ريشة لكل 15 ثانية.")}</p>
       {balance < cost && <p className="text-center text-[14px] text-red-700">{L("رصيدك ما يكفي.")} <a href="/app/subscribe" className="underline">{L("زوّد رصيدك")}</a></p>}
       <p className="text-center text-[13px] text-subtle">{L("بعدها يفتح لك الاستوديو: تعدّل النصوص والألوان والصوت، وتغيّر اللي تبيه.")}</p>
     </form>

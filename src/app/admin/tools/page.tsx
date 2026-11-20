@@ -7,6 +7,8 @@ import { getL } from "@/lib/server/lang";
 import { demoThumb } from "@/lib/video";
 import { DemoField } from "@/components/admin/DemoField";
 import { CoversButton } from "@/components/admin/CoversButton";
+import { extraPricing } from "@/lib/server/pricing";
+import { ExtraPricingForm } from "./ExtraPricingForm";
 
 export const dynamic = "force-dynamic";
 const icons = ["sparkles", "camera", "megaphone", "film", "user", "scissors", "mic", "waves"];
@@ -15,6 +17,7 @@ export default async function ToolsAdmin() {
   const L = await getL();
   await guardPage("tools");
   const tools = await getTools(true);
+  const extra = await extraPricing();
   return (
     <div className="flex flex-col gap-5">
       <div><h1 className="text-[26px] font-bold text-navy-900">{L("الأدوات والأسعار")}</h1><p className="mt-1 text-sm text-subtle">{L("السعر بالريشة لكل وحدة. الريشة الواحدة ≈ 0.06 د.ك في باقاتك الحالية. لكل أداة تختار المزوّد اللي يشغّلها — القائمة تعرض فقط المزودين اللي يقدرون على هذي المهمة. لما تغيّر المزوّد، فرّغ خانة النموذج ليستخدم الافتراضي، وتأكد أن مفتاح المزوّد موجود في إعدادات الاستضافة.")}</p></div>
@@ -23,6 +26,7 @@ export default async function ToolsAdmin() {
         <p className="text-[13px] text-subtle">{L("ترسم صور واقعية لكل أداة بالذكاء الاصطناعي (نفس مزوّد أداة «إنشاء صورة»، تقريباً سنتات بسيطة للصورة) وتنحفظ صورة للبطاقة. تقدر بعدين تغيّر أي صورة برفع صورتك.")}</p>
         <CoversButton />
       </div>
+      <ExtraPricingForm s={extra} />
       {tools.map((t) => (
         <form key={t.id} action={saveTool} className="card grid gap-4 p-5 md:grid-cols-2">
           <input type="hidden" name="id" value={t.id} />

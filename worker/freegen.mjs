@@ -138,9 +138,20 @@ export async function writeNarration({ idea, brand, seconds, dialectLabel, count
     if (lines.length < 3) lines = lines.join(" ").split(/(?<=[.!؟?])\s+/); // one paragraph: split it into sentences
     return lines.map((x) => x.replace(/^[\s\-*•\d.)(،:]+/, "").replace(/[<>"“”«»`]/g, "").replace(/\s+/g, " ").trim().slice(0, 220)).filter((x) => x.length >= 6).slice(0, 40);
   };
-  let list = parse(await ask(process.env.FREE_REFILL_MODEL || "claude-haiku-5-5"));
-  if (list.length < 3) list = parse(await ask(process.env.FREE_MODEL || "claude-sonnet-5-5")); // the cheap model gave too little: ask the stronger one once
-  if (list.length < 3) throw new Error("narration: too short");
+  const raws = [];
+  const run = async (model) => { const out = await ask(model); raws.push(String(out ?? "")); return parse(out); };
+  let list = await run(process.env.FREE_REFILL_MODEL || "claude-haiku-5-5");
+  if (list.length < 3) list = await run(process.env.FREE_MODEL || "claude-sonnet-5-5"); // the cheap model gave too little: ask the stronger one once
+  if (list.length < 3) {
+    // last rescue: the model wrote real text but not as separate sentences → cut it into a few even pieces at word boundaries
+    const w = raws.join(" ").replace(/[<>"“”«»`\[\]*#]/g, " ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+    const pieces = w.length >= 14 ? Math.min(Math.max(count || 4, 3), 8) : 0;
+    if (pieces) {
+      const size = Math.ceil(w.length / pieces);
+      list = Array.from({ length: pieces }, (_, i) => w.slice(i * size, (i + 1) * size).join(" ")).filter((x) => x.length >= 6);
+    }
+  }
+  if (list.length < 3) throw new Error(`narration: too short (got ${raws.map((r) => r.length).join("/")} chars: ${raws.join(" ").replace(/\s+/g, " ").slice(0, 140)})`);
   return list;
 }
 

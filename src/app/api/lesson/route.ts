@@ -8,6 +8,7 @@ import { guardContent } from "@/lib/server/moderation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson } from "@/lib/providers/text";
+import { extraPricing } from "@/lib/server/pricing";
 import { music, speakable, ttsTimed } from "@/lib/providers/elevenlabs";
 import { saveResult } from "@/lib/providers/storage";
 import { BRANDS } from "@/remotion/brandIcons";
@@ -108,9 +109,10 @@ export async function POST(req: Request) {
   if (look === "footage" && !ai && !footageReady()) return NextResponse.json({ error: "اللقطات الواقعية مو مفعّلة بعد (تحتاج مفتاح Pixabay أو Pexels من الإدارة)." }, { status: 503 });
   const admin = createAdminClient();
 
-  const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", toolId).single();
+  // «فيديو من موقعك» has its own price (admin → tools); everything else is priced by its own tool.
+  const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", siteData ? "site-video" : toolId).single();
   if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
-  const cost = Math.max(1, Math.round(seconds / 15)) * tool.credit_cost * (ai ? 2 : 1); // AI clips cost the customer double (the price of a 15-second step is the tool's)
+  const cost = Math.max(1, Math.round(seconds / 15)) * tool.credit_cost * (ai ? (await extraPricing()).ai_clip_x : 1); // AI clips cost the customer double (the price of a 15-second step is the tool's)
 
   const { data: job, error } = await admin.from("jobs")
     .insert({ user_id: user.id, tool_id: toolId, title: topic.slice(0, 80), status: "running", progress: 5, input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null, ...(caption ? { caption } : {}) } })

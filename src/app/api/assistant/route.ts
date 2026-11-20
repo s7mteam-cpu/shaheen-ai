@@ -1,3 +1,4 @@
+import { extraPricing, type ExtraPricing } from "@/lib/server/pricing";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dbReady, getContent, getPlans, getTools } from "@/lib/data";
@@ -58,7 +59,7 @@ type Act =
   | { kind: "open"; label: string; href: string };
 const SLIDES = 6;
 /** The model may only SUGGEST an action in its own reply. Only a whitelisted, validated kind survives; the customer still has to press «أكّد». */
-function extractAction(raw: string, c: { signedIn: boolean; credits: number; prefs: PlanPrefs; tools: { id: string; name: string; credit_cost: number }[] }): { text: string; action: Act | null } {
+function extractAction(raw: string, c: { signedIn: boolean; credits: number; prefs: PlanPrefs; tools: { id: string; name: string; credit_cost: number }[]; extra: ExtraPricing }): { text: string; action: Act | null } {
   const marks = [...raw.matchAll(/\[\[ACTION\s+([a-z0-9:_-]+)\s*\|\s*([^\]]{3,1100})\]\]/gi)];
   const text = raw.replace(/\[\[[\s\S]*?\]\]/g, "").trim();
   const m = marks[marks.length - 1];
@@ -89,7 +90,7 @@ function extractAction(raw: string, c: { signedIn: boolean; credits: number; pre
     const ai = srcRaw === "ai";
     const asked2 = Number(secRaw2);
     const seconds = [15, 30, 60].includes(asked2) ? asked2 : 30;
-    const cost = Math.max(1, Math.round(seconds / 15)) * price("real-scenes") * (ai ? 2 : 1);
+    const cost = Math.max(1, Math.round(seconds / 15)) * price("real-scenes") * (ai ? c.extra.ai_clip_x : 1);
     const dialect = c.prefs.dialect || "kuwaiti";
     const body = { tool: "real-scenes", source: ai ? "ai" : "stock", topic: brief, seconds, aspect: "9:16", dialect, voiceover: true, music: true, photos: [] };
     return { text, action: { kind: "make", format: "scenes", label: `مشاهد واقعية ${ai ? "بالذكاء الاصطناعي" : "بلقطات جاهزة"} ${seconds} ثانية`, cost, enough: c.credits >= cost, url: "/api/lesson", body, open: "/app/tools/real-scenes?job=" } };
@@ -114,7 +115,7 @@ function extractAction(raw: string, c: { signedIn: boolean; credits: number; pre
     const auto = parts.includes("auto");
     const n = auto ? 20 : Math.min(30, Math.max(5, Math.round(Number(parts.find((x) => /^\d+$/.test(x)))) || 10));
     const img = parts.includes("img");
-    const cost = price("presentations") * (auto ? 2 : Math.ceil(n / 10)) + (img ? 8 : 0); // same formula as /api/presentation
+    const cost = price("presentations") * (auto ? c.extra.pres_auto_units : Math.ceil(n / 10)) + (img ? c.extra.pres_image_cost : 0); // same formula as /api/presentation
     return { text, action: { kind: "make", format: "deck", label: `عرض تقديمي ${auto ? "(شاهين يقرر عدد الشرائح)" : `${n} شريحة`}${img ? " مع صور" : ""}`, cost, enough: c.credits >= cost, url: "/api/presentation", form: { topic: brief.slice(0, 12000), slides: auto ? "auto" : String(n), lang: parts.includes("en") ? "en" : "ar", images: img ? "1" : "0", kit: "1" }, open: "/app/tools/presentations?job=" } };
   }
   if (kind.startsWith("open:")) {
@@ -217,7 +218,7 @@ ${legalBlock}
 
   try {
     const raw = await aiChat("chat", system, messages, 900);
-    const { text: reply, action } = extractAction(raw, { signedIn: !!uid, credits, prefs: kitPrefs, tools });
+    const { text: reply, action } = extractAction(raw, { signedIn: !!uid, credits, prefs: kitPrefs, tools, extra: await extraPricing() });
     if (uid) {
       // keep the whole thread (not just the 16 messages Claude sees), each message with its own date
       try {
