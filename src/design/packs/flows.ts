@@ -595,3 +595,15 @@ export const PACK_LOOK: Record<string, PackLook> = {
  "laundry": "clean",
  "freelancer": "bold"
 };
+
+/** which style moods (فاخر، ناعم، جريء، عصري، دافئ) each field leans to: used by the style gallery's "المهنة" filter */
+export const PACK_MOODS: Record<string, string[]> = {
+  education: ["عصري", "ناعم"], coach: ["جريء", "فاخر"], teacher: ["دافئ", "ناعم"], kids: ["دافئ", "جريء"],
+  restaurant: ["دافئ", "جريء", "فاخر"], cafe: ["دافئ", "ناعم", "فاخر"], sweets: ["ناعم", "دافئ"], tires: ["جريء", "عصري"], garage: ["جريء", "عصري"], carwash: ["عصري", "جريء"],
+  contracting: ["جريء", "فاخر"], realestate: ["فاخر", "عصري"], interior: ["ناعم", "فاخر"], abaya: ["فاخر", "ناعم"], salon: ["ناعم", "فاخر"], perfume: ["فاخر", "دافئ"], jewelry: ["فاخر", "ناعم"],
+  clinic: ["عصري", "ناعم"], gym: ["جريء", "عصري"], nutrition: ["ناعم", "دافئ"], store: ["عصري", "جريء"], electronics: ["عصري", "جريء"], tech: ["عصري", "فاخر"], cleaning: ["عصري", "ناعم"],
+  travel: ["دافئ", "عصري"], law: ["فاخر", "عصري"], events: ["ناعم", "فاخر"], photography: ["فاخر", "عصري"], other: ["عصري", "ناعم", "دافئ"],
+  dental: ["عصري", "ناعم"], pharmacy: ["عصري", "ناعم"], vet: ["دافئ", "ناعم"], spa: ["ناعم", "فاخر"], barber: ["جريء", "فاخر"], tailor: ["فاخر", "دافئ"], flowers: ["ناعم", "دافئ"], dates: ["دافئ", "فاخر"],
+  catering: ["دافئ", "جريء"], driving: ["جريء", "عصري"], accounting: ["عصري", "فاخر"], moving: ["جريء", "عصري"], ac: ["عصري", "جريء"], carrental: ["جريء", "فاخر", "عصري"],
+  printing: ["جريء", "عصري"], charity: ["دافئ", "ناعم"], laundry: ["عصري", "ناعم"], freelancer: ["جريء", "عصري"],
+};

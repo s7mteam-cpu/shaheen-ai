@@ -1,6 +1,6 @@
 /** Design packs — one file per field in this folder. The designer rotates palettes, layouts, decorations and stickers so no two customers get the same look. */
 import type { DesignPack } from "./types";
-import { CAROUSEL_FLOWS, PACK_LOOK } from "./flows";
+import { CAROUSEL_FLOWS, PACK_LOOK, PACK_MOODS } from "./flows";
 import { RECIPES, RECIPE_IDS } from "../recipes";
 import education from "./education";
 import coach from "./coach";
@@ -69,11 +69,21 @@ export function designReport(p: DesignPack) {
   return { ...c, gaps };
 }
 
-/** design ids (from the 200 library) that suit the field's look: picture-led fields lean to designs with a photo area, calm ones to text-led, bold ones to big headlines */
+/** does this design (recipe) suit a field's look: picture-led fields lean to designs with a photo area, calm ones to text-led, bold ones to big headlines */
+export function recipeSuits(look: string, id: string): boolean {
+  const r = RECIPES[id];
+  if (!r) return false;
+  return look === "photo" ? ["top", "bot", "full", "card", "arch", "circle", "hero", "frame", "tilt", "diag", "wave", "corner", "inset"].includes(r.ph) : look === "bold" ? r.tt === "huge" || r.tt === "boxed" || r.tt === "stack" || r.tt === "idx" || r.pn === "brutal" : r.calm || r.pn === "card";
+}
+/** does a ready style (mood + its cover design) suit this field */
+export function styleSuitsField(st: { cat?: string; r?: string }, fieldId: string): boolean {
+  const moods = PACK_MOODS[fieldId] ?? PACK_MOODS.other;
+  return !!st.cat && moods.includes(st.cat) && (!st.r || recipeSuits(PACK_LOOK[fieldId] ?? "clean", st.r));
+}
+/** design ids from the 200 library that suit the field (a few, picked with the job's seed) */
 export function suggestedDesigns(id: string | undefined, seed: number, n = 6): string[] {
   const look = (id && PACK_LOOK[id]) || "clean";
-  const ok = (x: string) => { const r = RECIPES[x]; return look === "photo" ? ["top", "bot", "full", "card", "arch", "circle", "hero", "frame", "tilt", "diag", "wave", "corner", "inset"].includes(r.ph) : look === "bold" ? r.tt === "huge" || r.tt === "boxed" || r.tt === "stack" || r.tt === "idx" || r.pn === "brutal" : r.calm || r.pn === "card"; };
-  const pool = RECIPE_IDS.filter(ok);
+  const pool = RECIPE_IDS.filter((x) => recipeSuits(look, x));
   const out: string[] = [];
   for (let i = 0; i < n && pool.length; i++) out.push(pool[Math.floor(((seed * 9301 + (i + 1) * 49297) % 233280) / 233280 * pool.length)]);
   return [...new Set(out)];

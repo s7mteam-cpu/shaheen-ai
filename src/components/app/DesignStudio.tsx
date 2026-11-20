@@ -31,7 +31,8 @@ import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag"
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { DIcon, ICONS, ICON_STYLES, iconLabel } from "@/design/icons";
 import { ICON_GROUPS } from "@/design/iconData";
-import { designPack } from "@/design/packs";
+import { designPack, styleSuitsField } from "@/design/packs";
+import { INDUSTRIES, industryById } from "@/design/industries";
 import { stylesFor, applyStyle } from "@/design/styles";
 import { FontPicker } from "./FontPicker";
 import { EL_LABELS } from "@/design/Design";
@@ -408,25 +409,24 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           </Card>
         )}
         <Card more title={L("التصميم")} icon="🎨">
+          {printed && <>
           <Sub>{L("تخطيط")} {spec.slides.length > 1 ? L("هذي الشريحة") : L("التصميم")}</Sub>
           <div className="flex flex-wrap gap-2">
             {layoutsFor(spec.kind).map((id) => <button key={id} type="button" aria-pressed={s.layout === id} onClick={() => setSlide({ layout: id as LayoutId })} className="chip" title={L(LAYOUTS[id].hint)}>{L(LAYOUTS[id].label)}</button>)}
           </div>
-          <More label={L("المزيد من خيارات التصميم (زخرفة، إطار، ملصق، أيقونات، خط)")}>
+          </>}
+          <More label={L(printed ? "المزيد من خيارات التصميم (زخرفة، إطار، ملصق، أيقونات، خط)" : "المزيد من خيارات التصميم (إطار، ملصق، أيقونات، خط)")}>
+          {printed && <>
           <Sub>{L("زخرفة الخلفية")}</Sub>
           <div className="flex flex-wrap gap-2">
             {DECO_IDS.map((id) => <button key={id} type="button" aria-pressed={(spec.deco ?? "circles") === id} onClick={() => setSpec({ ...spec, deco: id })} className="chip">{L(DECO_LABELS[id])}</button>)}
           </div>
+          </>}
           <Sub>{L("الإطار")}</Sub>
           <div className="flex flex-wrap gap-2">
             {FRAME_IDS.map((id) => <button key={id} type="button" aria-pressed={(spec.frame ?? "none") === id} onClick={() => setSpec({ ...spec, frame: id })} className="chip">{L(FRAME_LABELS[id])}</button>)}
           </div>
           {!printed && <>
-          <Sub>{L("الأرقام الكبيرة بالزاوية")}</Sub>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" aria-pressed={spec.bigNum === true} onClick={() => setSpec({ ...spec, bigNum: true })} className="chip">{L("إظهار")}</button>
-            <button type="button" aria-pressed={spec.bigNum !== true} onClick={() => setSpec({ ...spec, bigNum: undefined })} className="chip">{L("إخفاء")}</button>
-          </div>
           <Sub>{L("ملصق بالزاوية")}</Sub>
           <div className="flex flex-wrap gap-2">
             <button type="button" aria-pressed={!s.sticker} onClick={() => setSlide({ sticker: null })} className="chip">{L("بدون")}</button>
@@ -633,15 +633,41 @@ function StyleGallery({ spec, onPick }: { spec: DesignSpec; onPick: (st: ReturnT
   const [group, setGroup] = useState<string>("all");
   const key = (x: (typeof all)[number]) => (posts ? x.cat ?? "" : x.front);
   const groups = Array.from(new Set(all.map(key)));
-  const list = all.filter((x) => group === "all" || key(x) === group);
+  const [field, setField] = useState<string>(spec.industry && industryById(spec.industry) && spec.industry !== "other" ? spec.industry : "all");
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const list = posts ? all.filter((x) => field === "all" || styleSuitsField(x, field)) : all.filter((x) => group === "all" || key(x) === group);
   if (all.length === 0) return null;
   return (
     <Card more title={LT(`ستايلات جاهزة (${all.length})`, `Ready styles (${all.length})`)} icon="✨">
       <p className="text-[13px] text-subtle">{L("اضغط أي ستايل ويتطبق على نصوصك بالضبط، ونصوصك ما تتغير. تقدر تعدّل كل شي بعدها.")}</p>
+      {posts ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button type="button" aria-pressed={field === "all"} onClick={() => { setField("all"); setN(12); setOpen(false); }} className="chip">{L("الكل")}</button>
+            <button type="button" aria-pressed={field !== "all"} aria-expanded={open} onClick={() => setOpen((o) => !o)} className="chip">{field === "all" ? L("المهنة") : L(industryById(field)?.label ?? "")} ▾</button>
+          </div>
+          {open && (
+            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto rounded-2xl border border-line bg-white p-2.5">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={L("ابحث عن مهنتك…")} className="field py-2" aria-label={L("ابحث عن مهنتك")} />
+              {[...new Set(INDUSTRIES.map((i) => i.group))].map((g) => {
+                const items = INDUSTRIES.filter((i) => i.group === g && i.id !== "other" && (!q.trim() || i.label.includes(q.trim())));
+                return items.length ? (
+                  <div key={g} className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-semibold text-subtle">{L(g)}</span>
+                    <div className="flex flex-wrap gap-1.5">{items.map((i) => <button key={i.id} type="button" aria-pressed={field === i.id} onClick={() => { setField(i.id); setN(12); setOpen(false); setQ(""); }} className="chip">{L(i.label)}</button>)}</div>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="flex flex-wrap gap-1.5">
         <button type="button" aria-pressed={group === "all"} onClick={() => { setGroup("all"); setN(12); }} className="chip">{L("الكل")}</button>
-        {groups.map((g) => <button key={g} type="button" aria-pressed={group === g} onClick={() => { setGroup(g); setN(12); }} className="chip">{L(posts ? g : LAYOUTS[g as keyof typeof LAYOUTS].label)}</button>)}
+        {groups.map((g) => <button key={g} type="button" aria-pressed={group === g} onClick={() => { setGroup(g); setN(12); }} className="chip">{L(LAYOUTS[g as keyof typeof LAYOUTS].label)}</button>)}
       </div>
+      )}
       <div className={`grid gap-2.5 ${spec.kind === "carousel" && spec.slides.length > 1 ? "grid-cols-2" : "grid-cols-3"}`}>
         {list.slice(0, n).map((st) => {
           const two = spec.kind === "carousel" && spec.slides.length > 1;
