@@ -21,6 +21,7 @@ export type GemData = {
   status: "gemini"; title: string; aspect: string; seconds: number; videoUrl: string; downloadUrl: string; htmlUrl: string; voiceUrl: string; musicUrl: string;
   hasVoice: boolean; scenes: string[] | null; dialect: string; musicOff: boolean; editCost: number; mix: SavedMix | null; logo: { path: string; url: string; box: LogoBox } | null;
 };
+const SIZES: Record<string, [number, number]> = { "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080], "4:5": [1080, 1350] };
 const FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -57,12 +58,21 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   const [t, setT] = useState(Math.min(2, seconds));
   const [playing, setPlaying] = useState(false);
   const iframe = useRef<HTMLIFrameElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(0);
+  const [PW, PH] = SIZES[data.aspect] ?? SIZES["9:16"];
   const tRef = useRef(t); tRef.current = t;
   const playingRef = useRef(playing); playingRef.current = playing;
   const urlRef = useRef(data.htmlUrl);
   const aV = useRef<HTMLAudioElement | null>(null), aM = useRef<HTMLAudioElement | null>(null), aO = useRef<HTMLAudioElement | null>(null);
   const [w, h] = useMemo(() => (data.aspect || "9:16").split(":").map((x) => Number(x) || 1), [data.aspect]);
 
+  // the page is laid out at the real video size (exactly like the recorder) and only SHOWN smaller
+  useEffect(() => {
+    const el = box.current; if (!el) return;
+    const ro = new ResizeObserver(() => setCw(el.clientWidth)); ro.observe(el); setCw(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
   // the saved page without any logo on it (the logo is drawn from the logo card, so it can be moved or removed)
   useEffect(() => {
     let dead = false;
@@ -157,15 +167,15 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   return (
     <>
       {cropFile && <LogoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); uploadLogo(f); }} />}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:items-start">
+      <div className={`grid grid-cols-1 gap-6 lg:items-start ${data.aspect === "9:16" ? "lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,720px)_minmax(0,1fr)]"}`}>
         <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4">
           <div className="flex items-center justify-between">
             <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
             <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{seconds} {L("ثانية")}</span>
           </div>
-          <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ aspectRatio: `${w} / ${h}`, maxWidth: maxW }}>
+          <div ref={box} dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ aspectRatio: `${w} / ${h}`, maxWidth: maxW }}>
             {srcDoc && !loadErr ? <>
-              <iframe key={`r${rev}`} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={srcDoc} className="absolute inset-0 h-full w-full border-0" />
+              <iframe key={`r${rev}`} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={srcDoc} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${cw ? cw / PW : 0.3})`, transformOrigin: "0 0" }} />
               {logo && <div className="absolute inset-0"><LogoDrag box={logo.box} onChange={(b) => setLogo((p) => (p ? { ...p, box: b } : p))} /></div>}
             </> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
           </div>
