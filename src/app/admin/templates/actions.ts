@@ -116,3 +116,15 @@ export async function renderTemplate(id: string, input: { t: Record<string, stri
   await admin.from("jobs").insert({ user_id: me.id, tool_id: "free-motion", title: `فيديو قالب: ${tpl.name}`.slice(0, 60), status: "queued", progress: 0, input: { kind: "free", mode: "tplrender", templateId: id, props } });
   return { ok: true };
 }
+
+/** المسار الكامل التجريبي: وصف + مجال ← قالب من المكتبة ← فيديو. للأدمن فقط. */
+export async function startFlow(form: FormData) {
+  const me = await guard();
+  const idea = String(form.get("idea") ?? "").replace(/\s+/g, " ").trim().slice(0, 1500);
+  const ind = INDUSTRIES.find((i) => i.id === String(form.get("field") ?? ""));
+  if (idea.length < 10 || !ind) return;
+  const admin = createAdminClient();
+  const { data: busy } = await admin.from("jobs").select("id").eq("tool_id", "free-motion").in("status", ["queued", "running"]).contains("input", { mode: "tplflow" }).limit(1);
+  if (!busy?.length) await admin.from("jobs").insert({ user_id: me.id, tool_id: "free-motion", title: `مسار القالب: ${ind.label}`.slice(0, 60), status: "queued", progress: 0, input: { kind: "free", mode: "tplflow", idea, fieldId: ind.id, groupIds: INDUSTRIES.filter((i) => i.group === ind.group).map((i) => i.id) } });
+  revalidatePath("/admin/templates/flow");
+}

@@ -43,6 +43,7 @@ export default async function TemplatesAdmin({ searchParams }: { searchParams: P
       </form>
       <div className="card flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-2">
+          <Link href="/admin/templates/flow" className="btn btn-gold px-4 py-1.5 text-[13px]">🧪 {L("جرّب المسار الكامل")}</Link>
           <Link href="/admin/templates" className={`rounded-full border px-3 py-1 text-[13px] ${!fid && !gid ? "bg-navy-900 text-white" : ""}`}>{L("الكل")} ({rows?.length ?? 0})</Link>
           <span className="text-[12px] text-subtle">{L("بدون مجال")}: {noField}</span>
         </div>

@@ -856,6 +856,39 @@ async function tplRenderJob(job) {
   } catch (e) { console.error("template render failed", e?.message ?? e); await setAssets(row, { _videoErr: String(e?.message ?? e).slice(0, 300) }); }
   finally { try { await prep?.close?.(); } catch {} await rm(outFile, { force: true }); await db.from("jobs").delete().eq("id", job.id); }
 }
+/** المسار الكامل (تجريبي للأدمن): وصف العميل + مجال ← أنسب قالب معتمد من المكتبة ← نموذج رخيص يعبّي نصوصه ← تسجيل MP4. النتيجة تتخزن بالتخزين فقط (بدون أثر بقاعدة البيانات). */
+async function tplFlowJob(job) {
+  const inp = job.input ?? {};
+  const meta = { idea: String(inp.idea ?? "").slice(0, 1500), at: new Date().toISOString(), field: inp.fieldId ?? "" };
+  const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  const outFile = join(workDir, `flow-${job.id}.mp4`);
+  const base = `templates/flow/${job.id}`;
+  try {
+    const { data: rows } = await db.from("free_templates").select("id,name,aspect,tags,assets,source_code").eq("status", "approved");
+    const html = (rows ?? []).filter((r) => r.assets?._kind === "html" && r.source_code);
+    const group = Array.isArray(inp.groupIds) ? inp.groupIds : [];
+    const tier = (r) => ((r.tags ?? []).includes(inp.fieldId) ? 1 : (r.tags ?? []).some((t) => group.includes(t)) ? 2 : !(r.tags ?? []).length ? 3 : 9);
+    const best = Math.min(...html.map(tier), 9);
+    if (best === 9) throw new Error("ما في قالب معتمد يناسب هذا المجال. اعتمد قالبًا لهذا المجال (أو بدون مجال ليكون عامًا).");
+    const pool = html.filter((r) => tier(r) === best);
+    const tpl = pool[Math.floor(Math.random() * pool.length)];
+    const fields = extractTexts(tpl.source_code);
+    const filled = await refillFields({ idea: meta.idea, fields, brand: { name: "" } });
+    const texts = Object.fromEntries(filled.map((f) => [f.key, f.value]));
+    // length: the end of the last scene written in the page (<!-- SCENES: [...] -->), else 30 s
+    let secs = 30;
+    try { const m = /<!--\s*SCENES:\s*(\[[\s\S]*?\])\s*-->/.exec(tpl.source_code); const arr = m ? JSON.parse(m[1]) : []; const e = Math.max(...arr.map((x) => Number(x.end) || 0)); if (e >= 8 && e <= 180) secs = Math.ceil(e); } catch {}
+    const [W, H] = FREE_SIZE[tpl.aspect] ?? FREE_SIZE["9:16"];
+    const page = (await prepareHtml(applyEdits(tpl.source_code, { texts }))).html;
+    await recordHtml({ html: page, width: W, height: H, seconds: secs, outFile, fontCss: htmlFontCss() });
+    const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(outFile), { contentType: "video/mp4", upsert: true });
+    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify({ ...meta, template: tpl.name, seconds: secs, texts: filled.map((f) => ({ label: f.label, value: f.value })) })), { contentType: "application/json", upsert: true });
+  } catch (e) {
+    console.error("template flow failed", e?.message ?? e);
+    await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify({ ...meta, error: String(e?.message ?? e).slice(0, 300) })), { contentType: "application/json", upsert: true });
+  } finally { await rm(outFile, { force: true }); await db.from("jobs").delete().eq("id", job.id); }
+}
 async function tplPreviewJob(job) {
   const tid = String(job.input?.templateId ?? "");
   try {
@@ -1253,6 +1286,7 @@ for (;;) {
   else if (job.tool_id === "free-motion" && job.input?.mode === "ingest") await ingestJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplpreview") await tplPreviewJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplrender") await tplRenderJob(job);
+  else if (job.tool_id === "free-motion" && job.input?.mode === "tplflow") await tplFlowJob(job);
   else if (job.tool_id === "free-motion") await freeJob(job);
   else if (job.tool_id === "cv") await renderCV(job);
   else if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);
