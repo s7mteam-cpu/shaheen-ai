@@ -204,7 +204,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
         {runErr && <p dir="ltr" role="alert" className="w-full max-w-[360px] rounded-lg bg-red-50 p-2 text-start text-[12px] text-red-800">⚠️ {L("خطأ داخل التصميم")}: {runErr}</p>}
         <div className="flex w-full max-w-[360px] items-center gap-3">
           <button type="button" onClick={toggle} disabled={!ready} className="btn btn-gold h-11 w-11 shrink-0 rounded-full p-0 text-lg" aria-label={playing ? L("إيقاف") : L("تشغيل")}>{playing ? "❚❚" : "▶"}</button>
-          <span className="flex-1" />
+          <input type="range" min={0} max={total - 1} value={Math.min(frame, total - 1)} onChange={(e) => seek(Number(e.target.value))} className="flex-1 accent-navy-700" aria-label={L("الوقت")} />
           <span dir="ltr" className="w-[84px] text-end text-[12px] text-subtle">{mm(frame)} / {mm(total)}</span>
         </div>
         {data.voiceUrl && <audio ref={voice} src={data.voiceUrl} preload="auto" />}

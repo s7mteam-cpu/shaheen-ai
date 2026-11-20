@@ -70,6 +70,16 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId
   const [hex, setHex] = useState<Record<string, string>>({});
   const [font, setFont] = useState("Cairo");
   const [logo, setLogo] = useState<{ path: string; url: string; box: LogoBox } | null>(data.logo);
+  // the sandboxed preview cannot open a blob: or signed web link, so it gets the logo picture itself (data:)
+  const [logoData, setLogoData] = useState<{ url: string; src: string } | null>(null);
+  useEffect(() => {
+    if (!logo?.url || logo.url.startsWith("data:") || logoData?.url === logo.url) return;
+    let dead = false;
+    fetch(logo.url).then((r) => (r.ok ? r.blob() : Promise.reject())).then((b) => new Promise<string>((ok, no) => { const f = new FileReader(); f.onload = () => ok(String(f.result)); f.onerror = () => no(f.error); f.readAsDataURL(b); }))
+      .then((d) => { if (!dead) setLogoData({ url: logo.url, src: d }); }).catch(() => {});
+    return () => { dead = true; };
+  }, [logo?.url, logoData?.url]);
+  const logoSrc = logo ? (logo.url.startsWith("data:") ? logo.url : logoData?.url === logo.url ? logoData.src : "") : "";
   const [musicOff, setMusicOff] = useState(data.musicOff);
   const [voiceVol, setVoiceVol] = useState(saved.voiceVol ?? 1);
   const [musicVol, setMusicVol] = useState(saved.musicVol ?? 0.14);
@@ -143,14 +153,14 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId
         let p = applyEdits(raw, { texts: vals, hex });
         p = applyFont(p, font);
         p = applyEls(p, elList);
-        p = applyLogo(p, logo ? { src: logo.url, ...logo.box } : null);
+        p = applyLogo(p, logo && logoSrc ? { src: logoSrc, ...logo.box } : null);
         setStartAt(tRef.current); setAuto(playingRef.current);
         const extra = ERR_SNIPPET + (fontCss[font] ? `<style>${fontCss[font]}</style>` : "");
         setDoc(/<head[^>]*>/i.test(p) ? p.replace(/<head[^>]*>/i, (m) => m + extra) : extra + p); setRev((x) => x + 1);
       } catch { setError(L("تعذّر تطبيق التعديل")); }
     }, 450);
     return () => clearTimeout(id);
-  }, [raw, vals, hex, font, logo, fontCss, elList]);
+  }, [raw, vals, hex, font, logo, logoSrc, fontCss, elList]);
   const srcDoc = useMemo(() => (doc ? withClock(doc, startAt, auto, seconds) : null), [doc, startAt, auto, seconds]);
 
   // preview sound: voice + music + the customer's own sound follow the page clock
@@ -200,6 +210,7 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId
   const textsChanged = fields.some((f) => (vals[f.key] ?? f.value) !== f.value);
   const regen = vOpen && !!data.scenes;
   const changed = textsChanged || colors.some((c) => (hex[c] ?? c) !== c) || font !== baseFont || (logo?.path ?? "") !== (data.logo?.path ?? "") || JSON.stringify(logo?.box ?? null) !== JSON.stringify(data.logo?.box ?? null) || musicOff !== data.musicOff || instruction.trim().length > 2 || regen || mixChanged || elList.length > 0;
+  const changedLogo = (logo?.path ?? "") !== (data.logo?.path ?? "") || JSON.stringify(logo?.box ?? null) !== JSON.stringify(data.logo?.box ?? null);
   const cost = data.editCost * (1 + (instruction.trim().length > 2 ? 1 : 0) + (regen ? 1 : 0));
 
   async function uploadLogo(f: File) {
@@ -283,6 +294,7 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId
               {logo && <button type="button" className="text-[14px] text-red-700 underline" onClick={() => setLogo(null)}>{L("إزالة الشعار")}</button>}
             </div>
             {logo && <LogoSize box={logo.box} onChange={(b) => setLogo({ ...logo, box: b })} />}
+            {changedLogo && <p className="text-[13px] text-amber-800">{L("الشعار يثبت بعد ما تضغط «احفظ التعديل كفيديو جديد» تحت. إذا حدّثت الصفحة قبلها يختفي.")}</p>}
           </Card>
 
           <Card more title={L("تعديل الألوان")} icon="🎨">
