@@ -21,7 +21,7 @@ import { prepareFree, checkFreeCode, MAX_CODE } from "./free.mjs";
 import { normalizeTemplate, verifyTemplate } from "./ingest.mjs";
 import { buildPreview } from "./freepreview.mjs";
 import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
-import { extractTexts, extractColors, applyEdits } from "./htmlkit.mjs";
+import { extractTexts, extractColors, applyEdits, applyFont, applyLogo } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
 import { planVideo, geminiHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
@@ -997,6 +997,64 @@ async function gemFlowJob(job) {
     await rm(outFile, { force: true }); await rm(join(workDir, `gf-${job.id}.mp4`), { force: true }); await db.from("jobs").delete().eq("id", job.id);
   }
 }
+/** تعديل فيديو جيميناي الجاهز: نفس الصفحة المحفوظة بنصوص/ألوان/خط جديدة، ونفس الصوت والموسيقى. يطلع فيديو جديد بسجل العميل، والأصل يبقى. */
+async function gemEditJob(job) {
+  const inp = job.input ?? {};
+  const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  const outFile = join(workDir, `ge-${job.id}.mp4`), mixed = join(workDir, `gem-${job.id}.mp4`), vf = join(workDir, `gev-${job.id}.mp3`), mf = join(workDir, `gem-${job.id}.mp3`);
+  const stage = async (txt, progress) => { try { await db.from("jobs").update({ title: txt.slice(0, 60), progress }).eq("id", job.id); } catch {} };
+  try {
+    const { data: src } = await db.from("jobs").select("input,title").eq("id", String(inp.fromJob ?? "")).eq("user_id", job.user_id).eq("status", "done").maybeSingle();
+    const g = src?.input?.gem;
+    const own = (p) => typeof p === "string" && p.startsWith(`${job.user_id}/`) && !p.includes("..");
+    if (!own(g?.htmlPath)) throw new Error("الأصل غير موجود");
+    const seconds = Number(src.input.cseconds ?? src.input.seconds ?? 30);
+    const aspect = ["9:16", "16:9", "1:1", "4:5"].includes(src.input.aspect) ? src.input.aspect : "9:16";
+    const [W, H] = FREE_SIZE[aspect];
+    await stage("يطبّق تعديلاتك…", 15);
+    const dl = await db.storage.from("results").download(g.htmlPath); if (dl.error) throw new Error("download html");
+    const before = Buffer.from(await dl.data.arrayBuffer()).toString("utf8");
+    const texts = {}; for (const [k, v] of Object.entries(inp.texts ?? {})) if (/^t\d{1,3}$/.test(k) && typeof v === "string") texts[k] = v.slice(0, 300);
+    const hex = {}; for (const [k, v] of Object.entries(inp.hex ?? {})) if (/^#[0-9a-f]{6}$/i.test(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) hex[k] = v;
+    let page = applyEdits(before, { texts, hex });
+    if (typeof inp.font === "string") page = applyFont(page, inp.font);
+    let logoKeep = null;
+    if (inp.logo === null) page = applyLogo(page, null);
+    else if (inp.logo && own(inp.logo.path)) {
+      const lg = await db.storage.from("uploads").download(inp.logo.path); if (lg.error) throw new Error("download logo");
+      const buf = Buffer.from(await lg.data.arrayBuffer()); if (buf.length > 3_000_000) throw new Error("الشعار كبير");
+      const mime = buf[0] === 0x89 ? "image/png" : buf[0] === 0xff ? "image/jpeg" : buf.slice(8, 12).toString() === "WEBP" ? "image/webp" : "";
+      if (!mime) throw new Error("صيغة الشعار غير مدعومة");
+      const b = inp.logo.box ?? {};
+      page = applyLogo(page, { src: `data:${mime};base64,${buf.toString("base64")}`, x: Number(b.x) || 0.85, y: Number(b.y) || 0.09, w: Number(b.w) || 0.18 });
+      logoKeep = { path: inp.logo.path, box: { x: Number(b.x) || 0.85, y: Number(b.y) || 0.09, w: Number(b.w) || 0.18 } };
+    } else logoKeep = g.logo ?? null;
+    if (page.length > 400_000) throw new Error("الصفحة كبرت أكثر من اللازم");
+    await stage("يرسم الفيديو…", 30);
+    const base = `${job.user_id}/gem-${job.id}`;
+    const stills = await htmlStills({ html: page, width: W, height: H, times: [0.5 * seconds], fontCss: htmlFontCss() });
+    const probe = join(workDir, `gep-${job.id}.png`); await writeFile(probe, stills[0]);
+    const blank = await frameIsBlank(probe); await rm(probe, { force: true });
+    if (blank) throw new Error("التعديل خرّب الصفحة (طلعت فاضية)");
+    await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss() });
+    let finalFile = outFile; let voicePath = null;
+    if (own(g.voicePath)) {
+      await stage("يركّب الصوت والموسيقى…", 90);
+      const v = await db.storage.from("results").download(g.voicePath); if (v.error) throw new Error("download voice");
+      await writeFile(vf, Buffer.from(await v.data.arrayBuffer()));
+      const mp = g.voicePath.replace(/\.voice\.mp3$/, ".music.mp3");
+      const m = mp !== g.voicePath ? await db.storage.from("results").download(mp) : { error: true };
+      if (!m.error) await writeFile(mf, Buffer.from(await m.data.arrayBuffer()));
+      await mixAv({ video: outFile, voice: vf, music: m.error || inp.musicOff === true ? null : mf, seconds, out: mixed }); finalFile = mixed;
+      voicePath = g.voicePath;
+    }
+    const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(finalFile), { contentType: "video/mp4", upsert: true });
+    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    await db.storage.from("results").upload(`${base}.html`, Buffer.from(page), { contentType: "text/html", upsert: true });
+    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(src.title ?? "تصميم مبتكر").slice(0, 80), input: { ...src.input, mode: "done", gem: { ...g, htmlPath: `${base}.html`, voicePath, edited: true, logo: logoKeep, musicOff: inp.musicOff === true } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
+  } catch (e) { console.error("gemini edit failed", e?.message ?? e); await fail(job, e); }
+  finally { for (const f of [outFile, mixed, vf, mf]) await rm(f, { force: true }); }
+}
 async function tplPreviewJob(job) {
   const tid = String(job.input?.templateId ?? "");
   try {
@@ -1396,6 +1454,7 @@ for (;;) {
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplrender") await tplRenderJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplflow") await tplFlowJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "gemflow") await gemFlowJob(job);
+  else if (job.tool_id === "free-motion" && job.input?.engine === "gemini" && job.input?.mode === "gemedit") await gemEditJob(job);
   else if (job.tool_id === "free-motion" && job.input?.engine === "gemini" && job.input?.mode === "new") await gemFlowJob(job);
   else if (job.tool_id === "free-motion") await freeJob(job);
   else if (job.tool_id === "cv") await renderCV(job);

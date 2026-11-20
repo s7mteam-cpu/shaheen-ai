@@ -59,4 +59,28 @@ export function applyEdits(html, { texts = {}, hex = {} } = {}) {
   return out;
 }
 
+const FONT_NAMES = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
+/** the first font family the page asks for (only the five fonts the platform embeds count) */
+export function currentFont(html) {
+  const m = html.match(/font-family\s*:\s*([^;}]*)/i);
+  const hit = m ? FONT_NAMES.find((f) => new RegExp(`\\b${f}\\b`, "i").test(m[1])) : undefined;
+  return hit ?? "Cairo";
+}
+/** switch every use of the page's current font to another embedded font */
+export function applyFont(html, to) {
+  if (!FONT_NAMES.includes(to)) return html;
+  const from = currentFont(html);
+  if (from === to) return html;
+  return html.replace(/font-family\s*:\s*([^;}]*)/gi, (all, v) => (new RegExp(`\\b${from}\\b`, "i").test(v) ? all.replace(new RegExp(`\\b${from}\\b`, "gi"), to) : all));
+}
+
+/** put (or remove, when logo is null) the customer's logo on top of the page. box = centre x,y and width as fractions of the frame. Any earlier logo is replaced. */
+export function applyLogo(html, logo) {
+  const clean = html.replace(/<img id="__shlogo"[^>]*>/gi, "");
+  if (!logo) return clean;
+  const c = (v, a, b) => Math.min(b, Math.max(a, Number(v) || a));
+  const tag = `<img id="__shlogo" alt="" src="${logo.src.replace(/"/g, "")}" style="position:fixed;left:${(c(logo.x, 0.03, 0.97) * 100).toFixed(2)}%;top:${(c(logo.y, 0.03, 0.97) * 100).toFixed(2)}%;width:${(c(logo.w, 0.06, 0.7) * 100).toFixed(2)}%;height:auto;transform:translate(-50%,-50%);z-index:2147483000;pointer-events:none;object-fit:contain">`;
+  return /<\/body>/i.test(clean) ? clean.replace(/<\/body>/i, tag + "</body>") : clean + tag;
+}
+
 export const looksHtml = (s) => /<(!doctype html|html|body|div|svg|style|script)\b/i.test(s) && !/export\s+(const|function)\s+Free\b/.test(s);

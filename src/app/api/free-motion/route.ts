@@ -10,11 +10,48 @@ export const maxDuration = 30;
 const ASPECTS = ["9:16", "16:9", "1:1", "4:5"];
 const FONTS = FREE_FONTS;
 
+const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
+/** edit a finished Gemini video: same page with new texts / colours / font / logo, same voice + music. A new video in his history; the original stays. */
+async function gemEdit(userId: string, b: Record<string, unknown>) {
+  const from = typeof b.fromJob === "string" && /^[0-9a-f-]{36}$/i.test(b.fromJob) ? b.fromJob : "";
+  const admin = createAdminClient();
+  const { data: src } = from ? await admin.from("jobs").select("input").eq("id", from).eq("user_id", userId).eq("tool_id", "free-motion").eq("status", "done").maybeSingle() : { data: null };
+  const sg = (src?.input as { engine?: string; gem?: { htmlPath?: string } } | null);
+  if (sg?.engine !== "gemini" || !sg.gem?.htmlPath) return NextResponse.json({ error: "ما لقينا الفيديو الأصلي." }, { status: 404 });
+  const texts: Record<string, string> = {};
+  if (b.texts && typeof b.texts === "object") for (const [k, v] of Object.entries(b.texts as Record<string, unknown>).slice(0, 120)) if (/^t\d{1,3}$/.test(k) && typeof v === "string") texts[k] = v.replace(/\s+/g, " ").trim().slice(0, 300);
+  const hex: Record<string, string> = {};
+  if (b.hex && typeof b.hex === "object") for (const [k, v] of Object.entries(b.hex as Record<string, unknown>).slice(0, 12)) if (/^#[0-9a-f]{6}$/i.test(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) hex[k] = v;
+  const blocked = await guardContent(userId, Object.values(texts).join(" "), "free-motion");
+  if (blocked) return blocked;
+  const font = FONTS.includes(String(b.font)) ? String(b.font) : undefined;
+  let logo: unknown = undefined; // undefined = keep, null = remove
+  if (b.logo === null) logo = null;
+  else if (b.logo && typeof b.logo === "object") {
+    const l = b.logo as { path?: unknown; box?: { x?: unknown; y?: unknown; w?: unknown } };
+    if (typeof l.path === "string" && l.path.startsWith(`${userId}/`) && !l.path.includes("..")) logo = { path: l.path, box: { x: num(l.box?.x, 0.85), y: num(l.box?.y, 0.09), w: num(l.box?.w, 0.18) } };
+  }
+  const { data: tool } = await admin.from("tools").select("edit_cost,is_enabled").eq("id", "free-motion").maybeSingle();
+  if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  const { count: waiting } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_id", "free-motion").in("status", ["queued", "running"]);
+  if ((waiting ?? 0) >= 2) return NextResponse.json({ error: "عندك تصميمين قيد التنفيذ، انتظر لين يخلصون." }, { status: 429 });
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { count: today } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_id", "free-motion").gte("created_at", since).contains("input", { mode: "gemedit" });
+  if ((today ?? 0) >= 12) return NextResponse.json({ error: "وصلت الحد اليومي للتعديلات، جرّب بكرة." }, { status: 429 });
+  const input = { ...(src!.input as object), kind: "free", mode: "gemedit", engine: "gemini", fromJob: from, texts, hex, ...(font ? { font } : {}), ...(logo !== undefined ? { logo } : {}), musicOff: b.musicOff === true };
+  const { data: job, error } = await admin.from("jobs").insert({ user_id: userId, tool_id: "free-motion", title: "تعديل تصميم مبتكر", status: "queued", progress: 0, input }).select("id").single();
+  if (error || !job) return NextResponse.json({ error: "تعذّر بدء التعديل." }, { status: 500 });
+  const { error: payErr } = await admin.rpc("spend_credits", { p_user: userId, p_amount: tool.edit_cost ?? 8, p_job: job.id });
+  if (payErr) { await admin.from("jobs").delete().eq("id", job.id); return NextResponse.json({ error: "رصيدك ما يكفي." }, { status: 402 }); }
+  return NextResponse.json({ jobId: job.id });
+}
+
 /** «تصميم مبتكر»: the customer's idea becomes a job; the video worker asks the AI to write the design, checks it and renders it. */
 export async function POST(req: Request) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
   const b = ((await req.json().catch(() => null)) ?? {}) as Record<string, unknown>;
+  if (b.mode === "gemedit") return gemEdit(user.id, b);
   const idea = String(b.idea ?? "").replace(/\s+/g, " ").trim().slice(0, 1500);
   if (idea.length < 10) return NextResponse.json({ error: "اكتب فكرتك بتفصيل أكثر (جملتين على الأقل)." }, { status: 400 });
   const blocked = await guardContent(user.id, idea, "free-motion");
@@ -82,7 +119,13 @@ export async function GET(req: Request) {
     if (!vp.startsWith(`${user.id}/`) || vp.includes("..")) return NextResponse.json({ status: "failed", error: "ما لقينا الفيديو." });
     const play = (await admin.storage.from("results").createSignedUrl(vp, 60 * 60 * 3)).data?.signedUrl ?? "";
     const dl = (await admin.storage.from("results").createSignedUrl(vp, 60 * 60 * 3, { download: `shaheen-${id.slice(0, 6)}.mp4` })).data?.signedUrl ?? "";
-    return NextResponse.json({ status: "gemini", title: job.title, aspect: inp.aspect ?? "9:16", videoUrl: play, downloadUrl: dl });
+    const gm = ((inp as { gem?: { htmlPath?: string; voicePath?: string | null; logo?: { path?: string; box?: unknown } | null; musicOff?: boolean } }).gem ?? {});
+    const okp = (x?: string | null) => (x && x.startsWith(`${user.id}/`) && !x.includes("..") ? x : "");
+    const htmlUrl = okp(gm.htmlPath) ? (await admin.storage.from("results").createSignedUrl(gm.htmlPath!, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
+    const lp = okp(gm.logo?.path);
+    const logoUrl = lp ? (await admin.storage.from("uploads").createSignedUrl(lp, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
+    const { data: tl } = await admin.from("tools").select("edit_cost").eq("id", "free-motion").maybeSingle();
+    return NextResponse.json({ status: "gemini", title: job.title, aspect: inp.aspect ?? "9:16", videoUrl: play, downloadUrl: dl, htmlUrl, hasVoice: !!okp(gm.voicePath), musicOff: gm.musicOff === true, editCost: tl?.edit_cost ?? 8, logo: logoUrl ? { path: lp, url: logoUrl, box: gm.logo?.box ?? { x: 0.85, y: 0.09, w: 0.18 } } : null });
   }
   if (!out.preview) return NextResponse.json({ status: job.status, progress: job.progress ?? 0 });
   const own = (x?: string) => (x && x.startsWith(`${user.id}/`) && !x.includes("..") ? x : "");
