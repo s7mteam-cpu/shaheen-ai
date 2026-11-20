@@ -9,13 +9,14 @@ import "@fontsource/changa/arabic-500.css";
 import "@fontsource/changa/arabic-700.css";
 import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
-import { Player } from "@remotion/player";
+import { Player, type PlayerRef } from "@remotion/player";
 import Link from "next/link";
 import { Card } from "@/components/app/Collapse";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MotionVideo } from "@/remotion/MotionVideo";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
+import { ElBar, ElPicker, type Picked } from "@/components/app/ElPicker";
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { uploadImage } from "@/components/app/DesignStart";
 import { COLOR_LABELS, FONTS, FPS, dimensions, narration, setText, textFields, type Colors, type MotionSpec } from "@/remotion/spec";
@@ -65,6 +66,10 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
 
   const { width, height } = dimensions(spec.aspect);
   const fields = useMemo(() => textFields(spec), [spec]);
+  const player = useRef<PlayerRef>(null);
+  const [pick, setPick] = useState(false);
+  const [picked, setPicked] = useState<Picked>(null);
+  const setEls = (els: MotionSpec["els"]) => setSpec((p) => ({ ...p, els }));
 
   async function call<T>(path: string, body: object, label: string): Promise<T | null> {
     if (demo) { setError(L("هذي معاينة تجريبية.")); return null; }
@@ -125,6 +130,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
         </div>
         <div dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-navy-900 shadow-lg" style={{ maxWidth: spec.aspect === "9:16" ? "min(100%, calc((100vh - 11rem) * 0.5625))" : "100%" }}>
           {mounted ? <Player
+            ref={player}
             component={MotionVideo}
             inputProps={spec}
             durationInFrames={Math.round(spec.seconds * FPS)}
@@ -137,13 +143,14 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
             autoPlay
             acknowledgeRemotionLicense
           /> : <div style={{ aspectRatio: `${width} / ${height}` }} />}
-          {spec.logo?.on && (
+          {pick && mounted && <ElPicker els={spec.els ?? []} picked={picked} onPick={setPicked} onChange={setEls} />}
+          {spec.logo?.on && !pick && (
             <div className="pointer-events-none absolute inset-x-0 top-0" style={{ aspectRatio: `${width} / ${height}` }}>
               <LogoDrag box={spec.logo.box} onChange={(b) => setSpec((p) => (p.logo ? { ...p, logo: { ...p.logo, box: b } } : p))} />
             </div>
           )}
         </div>
-        <p className="text-center text-[13px] text-subtle">{L("أي تعديل تسويه يبان بالفيديو على طول.")}</p>
+        <ElBar on={pick} onToggle={() => { if (pick) setPicked(null); else player.current?.pause(); setPick(!pick); }} els={spec.els ?? []} picked={picked} onPick={setPicked} onChange={setEls} />
       </div>
 
       <div className="flex min-w-0 flex-col gap-5">

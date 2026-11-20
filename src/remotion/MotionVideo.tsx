@@ -1,7 +1,7 @@
 import React from "react";
 import { AbsoluteFill, Audio, Easing, Sequence, interpolate, random, spring, useCurrentFrame, useVideoConfig, Img } from "remotion";
 import { MIcon } from "./icons";
-import { timeline, type Colors, type MotionSpec, type Scene } from "./spec";
+import { elsCss, timeline, type Colors, type MotionSpec, type Scene } from "./spec";
 
 type Ctx = { c: Colors; u: number; len: number; brand?: string; wide: boolean };
 
@@ -190,7 +190,7 @@ function Cta({ s, x }: { s: Extract<Scene, { type: "cta" }>; x: Ctx }) {
   );
 }
 
-function SceneView({ s, x }: { s: Scene; x: Ctx }) {
+function SceneView({ s, x, i }: { s: Scene; x: Ctx; i: number }) {
   const frame = useCurrentFrame();
   const out = interpolate(frame, [x.len - 12, x.len], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const { width } = useVideoConfig();
@@ -206,7 +206,7 @@ function SceneView({ s, x }: { s: Scene; x: Ctx }) {
   })();
   return (
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: out, transform: `scale(${0.96 + 0.04 * out})` }}>
-      <div style={{ width: Math.min(width * 0.84, 1400 * x.u), display: "flex", justifyContent: "center", textAlign: "center" }}>{body}</div>
+      <div data-sc={i} style={{ width: Math.min(width * 0.84, 1400 * x.u), display: "flex", justifyContent: "center", textAlign: "center" }}>{body}</div>
     </AbsoluteFill>
   );
 }
@@ -218,9 +218,10 @@ export function MotionVideo(spec: MotionSpec) {
   return (
     <AbsoluteFill dir="rtl" style={{ fontFamily: `"${spec.font}", Cairo, sans-serif` }}>
       <Background c={c} u={u} />
+      {spec.els?.length ? <style>{elsCss(spec.els)}</style> : null}
       {timeline(spec).map(({ scene, from, len }, i) => (
         <Sequence key={i} from={from} durationInFrames={len} layout="none">
-          <SceneView s={scene} x={{ c, u, len, brand: spec.brand, wide: width > height }} />
+          <SceneView i={i} s={scene} x={{ c, u, len, brand: spec.brand, wide: width > height }} />
         </Sequence>
       ))}
       {spec.logo?.on && spec.logo.url && (

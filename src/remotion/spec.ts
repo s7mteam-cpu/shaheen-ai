@@ -13,6 +13,25 @@ export type Scene =
 export type Colors = { bg: string; bg2: string; text: string; accent: string; accent2: string };
 export type Aspect = "9:16" | "1:1" | "16:9" | "4:5";
 
+/** an element the customer moved / resized / hid by clicking it in the studio. sel = scene index then child positions, e.g. "2/1/3" */
+export type ElEdit = { sel: string; hide?: boolean; s: number; x: number; y: number };
+export function cleanEls(list: unknown): ElEdit[] {
+  const out: ElEdit[] = [];
+  const n = (v: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
+  for (const e of Array.isArray(list) ? list.slice(0, 40) : []) {
+    const o = (e ?? {}) as Record<string, unknown>;
+    if (typeof o.sel !== "string" || !/^\d{1,2}(\/\d{1,3}){1,20}$/.test(o.sel)) continue;
+    const it = { sel: o.sel, hide: o.hide === true, s: Math.round(n(o.s, 1, 0.3, 3) * 100) / 100, x: Math.round(n(o.x, 0, -4000, 4000)), y: Math.round(n(o.y, 0, -4000, 4000)) };
+    if (it.hide || it.s !== 1 || it.x !== 0 || it.y !== 0) out.push(it);
+  }
+  return out;
+}
+export const elSelector = (sel: string) => { const [sc, ...path] = sel.split("/"); return `[data-sc="${sc}"]` + path.map((p) => ` > :nth-child(${p})`).join(""); };
+/** the style block of those edits (translate / scale are separate from transform, so each element keeps its own animation) */
+export function elsCss(list: unknown) {
+  return cleanEls(list).map((e) => `${elSelector(e.sel)}{${e.hide ? "visibility:hidden !important" : `translate:${e.x}px ${e.y}px !important;scale:${e.s} !important`}}`).join("");
+}
+
 export type MotionSpec = {
   aspect: Aspect;
   seconds: number;
@@ -23,6 +42,7 @@ export type MotionSpec = {
   music?: { url: string; name: string } | null;
   voice?: { url: string; text: string } | null;
   logo?: { path: string; url: string; on: boolean; box: { x: number; y: number; w: number } } | null;
+  els?: ElEdit[];
 };
 
 export const FPS = 30;
@@ -128,6 +148,7 @@ export function normalise(raw: Partial<MotionSpec>, base: Pick<MotionSpec, "aspe
     scenes: scenes.length ? scenes : SAMPLE.scenes,
     music: null,
     voice: null,
+    els: cleanEls(raw.els),
   };
 }
 
