@@ -415,7 +415,6 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
             {layoutsFor(spec.kind).map((id) => <button key={id} type="button" aria-pressed={s.layout === id} onClick={() => setSlide({ layout: id as LayoutId })} className="chip" title={L(LAYOUTS[id].hint)}>{L(LAYOUTS[id].label)}</button>)}
           </div>
           </>}
-          <More label={L(printed ? "المزيد من خيارات التصميم (زخرفة، إطار، ملصق، أيقونات، خط)" : "المزيد من خيارات التصميم (إطار، ملصق، أيقونات، خط)")}>
           {printed && <>
           <Sub>{L("زخرفة الخلفية")}</Sub>
           <div className="flex flex-wrap gap-2">
@@ -456,7 +455,6 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           <Sub>{L("الخط")}</Sub>
           <FontPicker value={spec.font} onChange={(id) => setSpec({ ...spec, font: id })} />
           </>}
-          </More>
           <Sub>{L("المقاس")}</Sub>
           <div className="flex flex-wrap gap-2">
             {spec.kind !== "bcard" && spec.kind !== "invite" && ASPECTS.map(([a, l]) => <button key={a} type="button" aria-pressed={spec.aspect === a} onClick={() => setSpec({ ...spec, aspect: a })} className="chip">{L(l)}</button>)}
