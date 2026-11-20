@@ -5,7 +5,7 @@ import { getL } from "@/lib/server/lang";
 import { startGemini } from "../actions";
 
 export const dynamic = "force-dynamic";
-type Meta = { idea?: string; seconds?: number; aspect?: string; error?: string; plan_mode?: string; plan?: { title?: string; text?: string }; timings?: Record<string, number>; attempts?: { attempt: number; chars: number; model?: string; usage?: { promptTokenCount?: number; candidatesTokenCount?: number } | null; review?: { ok?: boolean; issues?: string } }[] };
+type Meta = { idea?: string; seconds?: number; aspect?: string; error?: string; plan_mode?: string; plan?: { title?: string; text?: string }; timings?: Record<string, number>; attempts?: { attempt: number; chars: number; model?: string; usage?: { promptTokenCount?: number; candidatesTokenCount?: number } | null; review?: { ok?: boolean; issues?: string }; errors?: string[]; distinctFrames?: number }[] };
 
 /** «التجربة الكبرى» (أدمن فقط): Claude يخطط، Gemini يبني الحركة، شاهين يسجّل الفيديو. */
 export default async function GeminiLab() {
@@ -53,7 +53,7 @@ export default async function GeminiLab() {
             <p dir="auto" className="text-[14px] font-bold">{it.meta.idea}</p>
             <p className="text-subtle">{it.meta.plan?.title} · {it.meta.plan_mode === "scenes" ? "مشاهد" : "نص فقط"} · {it.meta.seconds}s · {it.meta.aspect}{it.meta.timings ? ` · ${Object.entries(it.meta.timings).map(([k, v]) => `${k} ${v}s`).join(" · ")}` : ""}</p>
             {it.meta.error && <p dir="auto" className="rounded-lg bg-red-50 p-2 text-red-800">⚠️ {it.meta.error}</p>}
-            {it.meta.attempts?.map((a) => <p key={a.attempt} className="text-subtle">{L("محاولة")} {a.attempt}: {a.model} · {a.chars} {L("حرف")} · tokens {a.usage?.promptTokenCount ?? "?"}/{a.usage?.candidatesTokenCount ?? "?"} · {a.review?.ok ? "✅" : `⚠️ ${a.review?.issues ?? ""}`}</p>)}
+            {it.meta.attempts?.map((a) => <p key={a.attempt} className="text-subtle">{L("محاولة")} {a.attempt}: {a.model} · {a.chars} {L("حرف")} · tokens {a.usage?.promptTokenCount ?? "?"}/{a.usage?.candidatesTokenCount ?? "?"} · {a.review?.ok ? "✅" : `⚠️ ${a.review?.issues ?? ""}`} · {L("لقطات مختلفة")}: {a.distinctFrames ?? "?"}/6{a.errors?.length ? ` · ${L("أخطاء الصفحة")}: ${a.errors.join(" | ")}` : ""}</p>)}
             <div className="flex flex-wrap gap-2">
               {it.video && <a href={it.video} download className="btn btn-outline px-4 py-2">⬇ {L("الفيديو")}</a>}
               {it.code && <a href={it.code} download className="btn btn-outline px-4 py-2">⬇ HTML</a>}

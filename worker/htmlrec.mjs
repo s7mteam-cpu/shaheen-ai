@@ -25,11 +25,11 @@ const CLOCK = `(() => {
       if (!best) break;
       now = Math.max(now, best.due);
       if (best.every) best.due += best.every; else timers.delete(bk);
-      try { typeof best.cb === "function" && best.cb(...best.a); } catch (e) {}
+      try { typeof best.cb === "function" && best.cb(...best.a); } catch (e) { (window.__errs = window.__errs || []).push("timer: " + String(e && e.message || e)); }
     }
     now = end;
     const list = [...raf]; raf.clear();
-    for (const [, cb] of list) { try { cb(now); } catch (e) {} }
+    for (const [, cb] of list) { try { cb(now); } catch (e) { (window.__errs = window.__errs || []).push("frame: " + String(e && e.message || e)); } }
     try { for (const a of document.getAnimations()) { if (a.__t0 === undefined) { a.__t0 = now - dt; a.pause(); } a.currentTime = now - a.__t0; } } catch (e) {}
   };
 })();`;
@@ -39,7 +39,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src 'none'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
 /** the page as the admin's sandboxed iframe plays it live: no network at all, fonts embedded */
 export function htmlPreviewDoc(html, fontCss = "") {
-  const head = `<meta http-equiv="Content-Security-Policy" content="${CSP}"><style>${fontCss}html,body{margin:0;overflow:hidden}</style>`;
+  const head = `<meta http-equiv="Content-Security-Policy" content="${CSP}"><script>window.__errs=[];addEventListener("error",function(e){__errs.push(String(e.message)+" @"+(e.lineno||""))});addEventListener("unhandledrejection",function(e){__errs.push("rejection: "+String(e.reason))});</script><style>${fontCss}html,body{margin:0;overflow:hidden}</style>`;
   return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + head) : `<!doctype html><html><head>${head}</head><body>${html}</body></html>`;
 }
 /** The page is laid out like on the preview (a phone-sized screen: 432 css px wide for portrait) and drawn at a higher pixel density,
@@ -83,7 +83,8 @@ async function openHtmlPage({ html, width, height, fontCss, browserExecutable })
       return Buffer.from((r.value ?? r).data, "base64");
     };
     const evalIn = (fn, arg) => page.evaluate(fn, arg);
-    return { step, shot, evalIn, browser };
+    const errors = () => page.evaluate(() => (window.__errs || []).slice(0, 8)).catch(() => []);
+    return { step, shot, evalIn, errors, browser };
   } catch (e) { try { await browser.close({ silent: true }); } catch {} throw e; }
 }
 
@@ -112,7 +113,7 @@ export async function findCrop({ html, width, height, fontCss = "", browserExecu
 /** stills at given seconds (PNG buffers), same clock as the recording */
 export async function htmlStills({ html, width, height, times, fontCss = "", browserExecutable, fps = 30, crop = false }) {
   const box = crop ? await findCrop({ html, width, height, fontCss, browserExecutable, fps }) : null;
-  const { step, shot, browser } = await openHtmlPage({ html, width, height, fontCss, browserExecutable });
+  const { step, shot, errors, browser } = await openHtmlPage({ html, width, height, fontCss, browserExecutable });
   try {
     const out = []; let t = 0;
     for (const sec of [...times].sort((a, b) => a - b)) {
@@ -120,6 +121,7 @@ export async function htmlStills({ html, width, height, times, fontCss = "", bro
       while (t < target) { await step(1000 / fps); t++; }
       out.push(await shot("png", 94, box));
     }
+    out.errors = await errors();
     return out;
   } finally { try { await browser.close({ silent: true }); } catch {} }
 }
