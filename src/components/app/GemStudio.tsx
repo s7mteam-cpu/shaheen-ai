@@ -86,6 +86,8 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   const [error, setError] = useState("");
   const [doc, setDoc] = useState<string | null>(null);
   const [rev, setRev] = useState(0);
+  const [big, setBig] = useState(false);
+  useEffect(() => { if (!big) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setBig(false); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [big]);
   const [fontCss, setFontCss] = useState<Record<string, string>>({});
   useEffect(() => { let dead = false; fontCssFor(font).then((css) => { if (!dead && css) setFontCss((p) => (p[font] === css ? p : { ...p, [font]: css })); }); return () => { dead = true; }; }, [font]);
   const [startAt, setStartAt] = useState(Math.min(2, seconds));
@@ -95,7 +97,10 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   const iframe = useRef<HTMLIFrameElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
-  const [PW, PH] = SIZES[data.aspect] ?? SIZES["9:16"];
+  // the recorder lays the page out on a phone-sized screen (432 css px wide for portrait) and draws it denser: the preview must use the very same layout, or designs switch to their large-screen layout
+  const [VW, VH] = SIZES[data.aspect] ?? SIZES["9:16"];
+  const PW = VH > VW ? 432 : VH === VW ? 540 : 960;
+  const PH = Math.round(VH / (VW / PW));
   const tRef = useRef(t); tRef.current = t;
   const playingRef = useRef(playing); playingRef.current = playing;
   const urlRef = useRef(data.htmlUrl);
@@ -199,28 +204,34 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
     } catch (e) { setError((e as Error).message); setBusy(false); }
   }
 
-  const capW = data.aspect === "9:16" ? "lg:max-w-[max(220px,calc((100vh-29rem)*0.5625))]" : "";
+  const capW = data.aspect === "9:16" ? "lg:max-w-[max(240px,calc((100vh-19rem)*0.5625))]" : "";
   return (
     <>
       {cropFile && <LogoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); uploadLogo(f); }} />}
       <div className={`grid grid-cols-1 gap-6 lg:items-start ${data.aspect === "9:16" ? "lg:grid-cols-[minmax(0,500px)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]"}`}>
-        <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
-            <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{seconds} {L("ثانية")}</span>
-          </div>
-          <div ref={box} dir="ltr" className={`relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg ${capW}`} style={{ aspectRatio: `${w} / ${h}` }}>
+        <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-20 lg:self-start">
+          <div className={big ? "fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-black/90 p-4" : "contents"} onClick={(e) => { if (big && e.target === e.currentTarget) setBig(false); }}>
+          <div ref={box} dir="ltr" className={`relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg ${big ? "" : capW}`} style={{ aspectRatio: `${w} / ${h}`, ...(big ? { maxWidth: `min(94vw, calc((100vh - 7rem) * ${w / h}))` } : {}) }}>
             {srcDoc && !loadErr ? <>
               <iframe key={`r${rev}`} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={srcDoc} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${cw ? cw / PW : 0.3})`, transformOrigin: "0 0" }} />
               {logo && <div className="absolute inset-0"><LogoDrag box={logo.box} onChange={(b) => setLogo((p) => (p ? { ...p, box: b } : p))} /></div>}
             </> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
+            <button type="button" onClick={() => setBig(!big)} aria-label={big ? L("إغلاق") : L("تكبير المعاينة")} title={big ? L("إغلاق") : L("تكبير المعاينة")} className="absolute bottom-2 right-2 z-10 grid h-9 w-9 place-items-center rounded-lg bg-black/60 text-[18px] text-white backdrop-blur hover:bg-black/80">{big ? "✕" : "⛶"}</button>
           </div>
-          <div dir="ltr" className="flex w-full items-center gap-3">
+          {big && (
+            <div dir="ltr" className="flex w-full max-w-md items-center gap-3 text-white">
+              <button type="button" onClick={toggle} className="btn btn-gold px-4 py-2 text-sm" aria-label={playing ? L("إيقاف") : L("تشغيل")}>{playing ? "⏸" : "▶"}</button>
+              <input type="range" min={0} max={seconds} step={0.1} value={Math.min(t, seconds)} onChange={(e) => setT(Number(e.target.value))} onPointerUp={(e) => seek(Number((e.target as HTMLInputElement).value))} onKeyUp={(e) => seek(Number((e.target as HTMLInputElement).value))} className="flex-1" aria-label={L("الوقت")} />
+              <span className="whitespace-nowrap text-[13px] tabular-nums">{fmt(t)} / {fmt(seconds)}</span>
+            </div>
+          )}
+          </div>
+          <div dir="ltr" className={`flex w-full items-center gap-3 ${big ? "invisible" : ""}`}>
             <button type="button" onClick={toggle} className="btn btn-gold px-4 py-2 text-sm" aria-label={playing ? L("إيقاف") : L("تشغيل")}>{playing ? "⏸" : "▶"}</button>
             <input type="range" min={0} max={seconds} step={0.1} value={Math.min(t, seconds)} onChange={(e) => setT(Number(e.target.value))} onPointerUp={(e) => seek(Number((e.target as HTMLInputElement).value))} onKeyUp={(e) => seek(Number((e.target as HTMLInputElement).value))} className="flex-1" aria-label={L("الوقت")} />
             <span className="whitespace-nowrap text-end text-[13px] tabular-nums text-subtle">{fmt(t)} / {fmt(seconds)}</span>
           </div>
-          <FreeTimeline total={seconds} playhead={t} trim={trim} onTrim={setTrim} disabled={busy}
+          <FreeTimeline compact total={seconds} playhead={t} trim={trim} onTrim={setTrim} disabled={busy}
             voice={data.hasVoice ? { at: 0, dur: seconds } : null} music={!musicOff && !!data.musicUrl}
             own={own ? { at: own.at ?? 0, len: Math.max(0.5, Math.min((own.end ?? own.dur ?? seconds) - (own.start ?? 0), seconds - (own.at ?? 0))), name: own.name } : null}
             onOwnMove={(at) => own && setOwn({ ...own, at: +at.toFixed(1) })} onSeek={seek} />

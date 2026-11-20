@@ -18,10 +18,10 @@ function useDrag(pps: number, onMove: (dSec: number) => void, onEnd?: () => void
  * The studio timeline: ruler + video (with start/end handles) + voice + music + the customer's own sound (drag to move).
  * Always drawn left-to-right like every video editor.
  */
-export function FreeTimeline({ total, playhead, trim, onTrim, voice, music, own, onOwnMove, onSeek, disabled }: {
+export function FreeTimeline({ total, playhead, trim, onTrim, voice, music, own, onOwnMove, onSeek, disabled, compact }: {
   total: number; playhead: number; trim: Trim; onTrim: (t: Trim) => void;
   voice: { at: number; dur: number } | null; music: boolean; own: { at: number; len: number; name: string } | null;
-  onOwnMove: (at: number) => void; onSeek: (sec: number) => void; disabled?: boolean;
+  onOwnMove: (at: number) => void; onSeek: (sec: number) => void; disabled?: boolean; compact?: boolean;
 }) {
   const [zoom, setZoom] = useState(16); // pixels per second
   const pps = zoom;
@@ -40,7 +40,7 @@ export function FreeTimeline({ total, playhead, trim, onTrim, voice, music, own,
   const row = "relative h-8 border-t border-line/60";
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
   return (
-    <div dir="ltr" className="w-full max-w-[560px] rounded-2xl border border-line bg-white p-3 text-navy-900">
+    <div dir="ltr" className={`w-full rounded-2xl border border-line bg-white p-3 text-navy-900 ${compact ? "" : "max-w-[560px]"}`}>
       <div className="mb-2 flex items-center justify-between text-[12px] text-subtle">
         <span>{L("الخط الزمني")} · {L("المقطع")}: {fmt(trim.start)} → {fmt(trim.end)} ({(trim.end - trim.start).toFixed(1)}s)</span>
         <label className="flex items-center gap-2">{L("تكبير")}<input type="range" min={6} max={60} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-24 accent-navy-700" aria-label={L("تكبير")} /></label>
@@ -62,7 +62,7 @@ export function FreeTimeline({ total, playhead, trim, onTrim, voice, music, own,
           <div className="pointer-events-none absolute top-0 h-full w-px bg-red-500" style={{ left: x(playhead) }} />
         </div>
       </div>
-      <p className="mt-1 text-[12px] text-subtle">{L("اسحب المقبضين الذهبيين لقص بداية الفيديو ونهايته. التصدير يطلع المقطع المحدد فقط.")}</p>
+      {!compact && <p className="mt-1 text-[12px] text-subtle">{L("اسحب المقبضين الذهبيين لقص بداية الفيديو ونهايته. التصدير يطلع المقطع المحدد فقط.")}</p>}
     </div>
   );
 }
