@@ -64,21 +64,40 @@ export async function geminiHtml({ plan, idea, retry, model: pick }) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY غير موجود بإعدادات Railway. أضفه هناك ثم أعد النشر.");
   const model = /^gemini-[a-z0-9.-]{2,40}$/.test(String(pick ?? "")) ? pick : (process.env.GEMINI_MODEL || "gemini-3.8-flash");
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: "POST", signal: AbortSignal.timeout(290_000),
-    headers: { "x-goog-api-key": key, "content-type": "application/json" },
-    body: JSON.stringify({ systemInstruction: { parts: [{ text: RULES }] }, contents: [{ role: "user", parts: [{ text: geminiPrompt(plan, idea, retry) }] }], generationConfig: { temperature: 1, maxOutputTokens: 60000 } }),
-  });
+  // streaming (SSE): the answer arrives in pieces, so a long thinking + long code never hits Node's 5-minute "waiting for headers" limit
+  let res;
+  try {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
+      method: "POST", signal: AbortSignal.timeout(900_000),
+      headers: { "x-goog-api-key": key, "content-type": "application/json" },
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: RULES }] }, contents: [{ role: "user", parts: [{ text: geminiPrompt(plan, idea, retry) }] }], generationConfig: { temperature: 1, maxOutputTokens: 60000 } }),
+    });
+  } catch (e) { throw new Error(`gemini اتصال فشل (النموذج: ${model}): ${String(e?.cause?.code ?? e?.cause?.message ?? e?.message ?? e).slice(0, 160)}`); }
   if (!res.ok) throw new Error(`gemini ${res.status} (النموذج: ${model}): ${(await res.text()).replace(key, "***").slice(0, 220)}`);
-  const j = await res.json();
-  const cand = j.candidates?.[0];
-  const txt = (cand?.content?.parts ?? []).filter((p) => !p.thought).map((p) => p.text ?? "").join("");
-  if (cand?.finishReason === "MAX_TOKENS") throw new Error("gemini: الرد انقطع (طويل أكثر من اللازم)");
+  let txt = "", usage = null, finish = "", buf = "";
+  try {
+    const dec = new TextDecoder();
+    for await (const chunk of res.body) {
+      buf += dec.decode(chunk, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line.startsWith("data:")) continue;
+        let j; try { j = JSON.parse(line.slice(5)); } catch { continue; }
+        const cand = j.candidates?.[0];
+        for (const p of cand?.content?.parts ?? []) if (!p.thought && p.text) txt += p.text;
+        if (cand?.finishReason) finish = cand.finishReason;
+        if (j.usageMetadata) usage = j.usageMetadata;
+        if (txt.length > 900_000) throw new Error("gemini: الرد أطول من المسموح");
+      }
+    }
+  } catch (e) { throw new Error(`gemini انقطع أثناء الاستلام (النموذج: ${model}): ${String(e?.cause?.code ?? e?.message ?? e).slice(0, 160)}`); }
+  if (finish === "MAX_TOKENS") throw new Error("gemini: الرد انقطع (طويل أكثر من اللازم)");
   const fence = /```(?:html)?\s*([\s\S]*?)```/i.exec(txt);
   let html = fence ? fence[1] : txt;
   const s = html.search(/<!doctype html|<html/i); if (s > 0) html = html.slice(s);
   const e = html.toLowerCase().lastIndexOf("</html>"); if (e > 0) html = html.slice(0, e + 7);
   if (!/<html|<body|<div|<section/i.test(html) || html.length < 800) throw new Error("gemini: ما رجع كود HTML صالح");
   if (html.length > 400_000) throw new Error("gemini: الكود أكبر من المسموح");
-  return { html, usage: j.usageMetadata ?? null, model };
+  return { html, usage, model };
 }

@@ -926,7 +926,17 @@ async function gemFlowJob(job) {
       rec.errors = errs; rec.distinctFrames = distinct;
       let review = { ok: !blank, issues: blank ? "الصفحة طلعت فاضية بمنتصف الفيديو" : "" };
       if (!blank && distinct <= 2) review = { ok: false, issues: `The video is almost static: only ${distinct} different frames out of 6 sampled across ${seconds}s. The animation stops after the first moment. Every scene must appear and animate at its own time on the timeline, driven by requestAnimationFrame / performance.now() or CSS animation-delay, never by clicks or events.${errs.length ? " Page errors: " + errs.join(" | ") : ""}` };
-      else if (!blank) review = await reviewFree({ frames: stills, aspect, idea }).catch(() => ({ ok: true, issues: "" }));
+      else if (!blank) {
+        // motion INSIDE scenes: count elements whose look changes within half a second at 8 points of the video
+        const pts = Array.from({ length: 8 }, (_, i) => 0.8 + i * ((seconds - 2) / 8));
+        const sg = await htmlStills({ html: prepared.html, width: W, height: H, times: pts.flatMap((t) => [t, t + 0.5]), fontCss: htmlFontCss(), sig: true }).catch(() => null);
+        if (sg) {
+          const changed = pts.map((_, k) => { const a = sg[2 * k] ?? [], b = sg[2 * k + 1] ?? []; let c = 0; for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) c++; return c; });
+          rec.motion = changed; const live = changed.filter((c) => c >= 6).length;
+          if (live < 3) review = { ok: false, issues: `Elements inside the scenes barely move: in only ${live} of 8 sampled moments did 6 or more elements change within half a second (counts: ${changed.join(", ")}). The video looks like a slideshow of still screens. Every scene needs its own entrance and continuous motion: cards sliding and scaling in, numbers counting up, bars filling, text revealing letter by letter or line by line. Drive all of it from the timeline (requestAnimationFrame with performance.now(), or CSS animations with animation-delay) so it also plays when a scene is already active.` };
+        }
+        if (review.ok) review = await reviewFree({ frames: stills, aspect, idea }).catch(() => ({ ok: true, issues: "" }));
+      }
       rec.review = review; page = prepared.html;
       if (review.ok) break;
       retry = review.issues;

@@ -111,15 +111,16 @@ export async function findCrop({ html, width, height, fontCss = "", browserExecu
 }
 
 /** stills at given seconds (PNG buffers), same clock as the recording */
-export async function htmlStills({ html, width, height, times, fontCss = "", browserExecutable, fps = 30, crop = false }) {
+export async function htmlStills({ html, width, height, times, fontCss = "", browserExecutable, fps = 30, crop = false, sig = false }) {
   const box = crop ? await findCrop({ html, width, height, fontCss, browserExecutable, fps }) : null;
-  const { step, shot, errors, browser } = await openHtmlPage({ html, width, height, fontCss, browserExecutable });
+  const { step, shot, evalIn, errors, browser } = await openHtmlPage({ html, width, height, fontCss, browserExecutable });
   try {
     const out = []; let t = 0;
     for (const sec of [...times].sort((a, b) => a - b)) {
       const target = Math.round(sec * fps);
       while (t < target) { await step(1000 / fps); t++; }
-      out.push(await shot("png", 94, box));
+      if (sig) out.push(await evalIn(() => Array.from(document.querySelectorAll("body *")).slice(0, 2500).map((el) => { const cs = getComputedStyle(el), r = el.getBoundingClientRect(); return cs.opacity + "|" + cs.transform + "|" + Math.round(r.x) + "," + Math.round(r.y) + "," + Math.round(r.width) + "," + Math.round(r.height) + "|" + (el.children.length ? "" : String(el.textContent || "").slice(0, 40)); })));
+      else out.push(await shot("png", 94, box));
     }
     out.errors = await errors();
     return out;
