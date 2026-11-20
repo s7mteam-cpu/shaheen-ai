@@ -9,7 +9,8 @@ import { getLang } from "@/lib/server/lang";
 export async function generateMetadata() { return { title: (await getL())("أعمال صُنعت بشاهين") }; }
 
 /** «معرض شاهين / صُنع بأيادي شاهين»: what the platform can make, uploaded by the admin. */
-export default async function Showcase() {
+export default async function Showcase({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+  const { c } = await searchParams;
   const L = await getL();
   const items = await localize(await getShowcase(), await getLang());
   const templates = await getTemplates();
@@ -21,7 +22,7 @@ export default async function Showcase() {
         <p className="text-[15px] leading-7 text-muted">{L("بوستات، كاروسيل، ريلز وفيديوهات سوّيناها بأدوات المنصة. اضغط على أي عمل عشان تشوفه كامل.")}</p>
       </div>
       {items.length > 0
-        ? <ShowcaseGrid items={items} filter signedIn like={likeOn} />
+        ? <ShowcaseGrid items={items} filter signedIn like={likeOn} initialCat={c} />
         : <p className="card p-10 text-center text-muted">{L("قريباً نضيف هنا نماذج من شغل شاهين.")}</p>}
       <TemplateLibrary templates={templates} signedIn />
       <div className="card flex flex-col items-center gap-3 p-6 text-center sm:flex-row sm:justify-between sm:text-start">

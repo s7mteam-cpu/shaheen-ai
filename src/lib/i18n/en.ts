@@ -1468,6 +1468,8 @@ export const EN: Record<string, string> = {
   "طريق على الخريطة": "Route on a map",
   "علّمني الطريقة": "Show me how",
   "الشرح قريباً": "Tutorial coming soon",
+  "أمثلة": "Examples",
+  "طريقة العمل": "How it works",
   "بطاقة الأداة بصفحة «الأدوات» عند العميل": "Tool card on the customer's «Tools» page",
   "الصورة التوضيحية (مقاس 4:3)": "Card picture (4:3)",
   "إذا ما رفعت صورة، تطلع صورة فيديو المثال، وإذا ما فيه تطلع أيقونة الأداة.": "Without a picture, the demo video's thumbnail shows, or the tool icon.",

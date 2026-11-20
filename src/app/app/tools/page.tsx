@@ -1,5 +1,6 @@
 import { ToolCard } from "@/components/app/ToolCard";
-import { getToolsL } from "@/lib/data";
+import { getToolsL, getShowcase } from "@/lib/data";
+import { exampleCats } from "@/lib/showcase";
 import { getL } from "@/lib/server/lang";
 
 export async function generateMetadata() { return { title: (await getL())("الأدوات") }; }
@@ -10,6 +11,7 @@ const groups = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"
 export default async function ToolsPage() {
   const L = await getL();
   const tools = await getToolsL();
+  const ex = exampleCats(await getShowcase());
   return (
     <div className="flex flex-col gap-7">
       <h1 id="tools-top" className="scroll-mt-24 text-[26px] font-bold text-navy-900 sm:text-[28px]">{L("الأدوات")}</h1>
@@ -20,7 +22,7 @@ export default async function ToolsPage() {
           <section key={g} aria-labelledby={`tg-${g}`} className="flex flex-col gap-3">
             <h2 id={`tg-${g}`} className="text-lg font-bold text-navy-700">{L(label)}</h2>
             <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-              {list.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} /></li>)}
+              {list.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} exampleCat={ex[t.id]} /></li>)}
             </ul>
           </section>
         );

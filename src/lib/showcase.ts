@@ -55,3 +55,17 @@ export const DEFAULT_INTRO: Record<string, string> = {
   other: "أعمال أخرى من شاهين.",
 };
 export const DEFAULT_STEPS = ["اختر الأداة من حسابك", "اكتب فكرتك أو ارفع صورتك", "استلم النتيجة وحمّلها أو انشرها"];
+
+/** which gallery category shows a tool's examples («أمثلة» button on the tool card) */
+export const TOOL_EXAMPLE_CAT: Record<string, string> = {
+  post: "post", carousel: "carousel", "ad-design": "ad", image: "image", "motion-video": "motion", "free-motion": "motion",
+  "site-video": "motion", "real-scenes": "reel", "quran-video": "quran", "video-editing": "video", "product-video": "product-video",
+  "avatar-video": "avatar", voice: "voice", presentations: "slides", "business-cards": "card", invitations: "card", cv: "cv",
+};
+/** tool id → gallery category, only for tools that already have at least one example in the gallery */
+export function exampleCats(items: { category: string }[]): Record<string, string> {
+  const have = new Set(items.map((i) => i.category));
+  const out: Record<string, string> = {};
+  for (const [tool, cat] of Object.entries(TOOL_EXAMPLE_CAT)) if (have.has(cat)) out[tool] = cat;
+  return out;
+}

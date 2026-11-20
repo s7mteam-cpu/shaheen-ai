@@ -8,9 +8,9 @@ import { SHOWCASE_CATS, LIKE_TOOL, isVideo, type ShowcaseItem } from "@/lib/show
 const media = (g: ShowcaseItem) => [g.media_url, ...g.extra_media];
 
 /** «معرض شاهين»: cards + a full-screen viewer (carousels swipe, reels play with sound). */
-export function ShowcaseGrid({ items, filter = false, signedIn = false, like = true }: { items: ShowcaseItem[]; filter?: boolean; signedIn?: boolean; like?: boolean }) {
+export function ShowcaseGrid({ items, filter = false, signedIn = false, like = true, initialCat }: { items: ShowcaseItem[]; filter?: boolean; signedIn?: boolean; like?: boolean; initialCat?: string }) {
   const T = useT();
-  const [cat, setCat] = useState("all");
+  const [cat, setCat] = useState(initialCat && items.some((g) => g.category === initialCat) ? initialCat : "all");
   const [open, setOpen] = useState<ShowcaseItem | null>(null);
   const label = (k: string) => { const c = SHOWCASE_CATS.find((x) => x[0] === k); return c ? T(c[1], c[2]) : k; };
   const cats = SHOWCASE_CATS.filter(([k]) => items.some((g) => g.category === k));

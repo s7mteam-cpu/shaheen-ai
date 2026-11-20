@@ -4,11 +4,14 @@ import { DemoVideo } from "@/components/DemoVideo";
 import { toolCover, youtubeId } from "@/lib/video";
 import type { Tool } from "@/lib/defaults";
 
-/** A tool as a card: picture + name + «ابدأ الإنشاء» / «علّمني الطريقة» (used on «الأدوات» and the dashboard). */
-export function ToolCard({ t, L }: { t: Tool; L: (s: string) => string }) {
+/** A tool as a card: picture + name + «ابدأ الإنشاء» then «أمثلة» + «طريقة العمل» (used on «الأدوات» and the dashboard). */
+export function ToolCard({ t, L, exampleCat }: { t: Tool; L: (s: string) => string; exampleCat?: string }) {
   const pic = toolCover(t);
   const learn = t.tutorial_url?.trim();
   const btn = "flex w-full items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[13px] font-bold sm:text-[14px]";
+  const half = "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-[12px] font-bold sm:text-[13px]";
+  const off = `${half} border border-line text-subtle`;
+  const on = `${half} border border-navy-800 text-navy-800 hover:bg-tint`;
   return (
     <article className="card flex w-full flex-col overflow-hidden rounded-2xl p-0 transition hover:-translate-y-0.5 hover:border-gold-500">
       <Link href={`/app/tools/${t.id}`} className="relative block aspect-[4/3] overflow-hidden bg-navy-800" tabIndex={-1} aria-hidden>
@@ -27,15 +30,18 @@ export function ToolCard({ t, L }: { t: Tool; L: (s: string) => string }) {
         <span className="text-[12px] font-semibold text-navy-700">{t.credit_cost} {L("ريشة /")} {t.cost_unit}</span>
         <div className="mt-auto flex flex-col gap-2 pt-3">
           <Link href={`/app/tools/${t.id}`} className={`${btn} btn-gold`}>{L("ابدأ الإنشاء")}</Link>
-          {!learn ? (
-            <span className={`${btn} border border-line text-subtle`} aria-disabled>{L("الشرح قريباً")}</span>
-          ) : youtubeId(learn) ? (
-            <a href={learn} target="_blank" rel="noopener noreferrer" className={`${btn} border border-navy-800 text-navy-800 hover:bg-tint`}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M8 5v14l11-7z" /></svg>{L("علّمني الطريقة")}
-            </a>
-          ) : (
-            <DemoVideo url={learn} title={t.name} variant="button" label={L("علّمني الطريقة")} className={`${btn} border border-navy-800 text-navy-800 hover:bg-tint`} />
-          )}
+          <div className="flex gap-2">
+            {exampleCat
+              ? <Link href={`/app/showcase?c=${exampleCat}`} className={on}>{L("أمثلة")}</Link>
+              : <span className={off} aria-disabled>{L("أمثلة")}</span>}
+            {!learn ? (
+              <span className={off} aria-disabled>{L("طريقة العمل")}</span>
+            ) : youtubeId(learn) ? (
+              <a href={learn} target="_blank" rel="noopener noreferrer" className={on}>{L("طريقة العمل")}</a>
+            ) : (
+              <DemoVideo url={learn} title={t.name} variant="button" label={L("طريقة العمل")} className={on} />
+            )}
+          </div>
         </div>
       </div>
     </article>

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ToolCard } from "@/components/app/ToolCard";
 import { WorkCard } from "@/components/app/WorkCard";
-import { getToolsL } from "@/lib/data";
+import { getToolsL, getShowcase } from "@/lib/data";
+import { exampleCats } from "@/lib/showcase";
 import { listWorks } from "@/lib/works";
 import { getL } from "@/lib/server/lang";
 
@@ -10,14 +11,15 @@ export async function generateMetadata() { return { title: (await getL())("ال�
 
 export default async function Dashboard() {
   const L = await getL();
-  const [tools, works] = await Promise.all([getToolsL(), listWorks({ limit: 4 })]);
+  const [tools, works, shown] = await Promise.all([getToolsL(), listWorks({ limit: 4 }), getShowcase()]);
+  const ex = exampleCats(shown);
 
   return (
     <div className="flex flex-col gap-8">
       <h2 className="sr-only">{L("الرئيسية")}</h2>
       <section aria-label={L("الأدوات")}>
         <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-          {tools.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} /></li>)}
+          {tools.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} exampleCat={ex[t.id]} /></li>)}
         </ul>
       </section>
 
