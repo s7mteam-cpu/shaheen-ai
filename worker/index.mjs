@@ -912,7 +912,7 @@ async function gemFlowJob(job) {
     let retry = "", page = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
       await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);
-      const g = await geminiHtml({ plan, idea, retry });
+      const g = await geminiHtml({ plan, idea, retry, model: inp.model });
       const prepared = await prepareHtml(g.html);
       const rec = { attempt, model: g.model, usage: g.usage, chars: g.html.length, notes: prepared.notes };
       meta.attempts.push(rec); lap(`gemini${attempt}`);

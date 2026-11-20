@@ -41,6 +41,7 @@ export default async function GeminiLab() {
         <div className="flex flex-wrap gap-3">
           <input name="brand" maxLength={60} dir="auto" className="field w-52" placeholder={L("اسم العلامة (اختياري)")} />
           <select name="plan" defaultValue="full" className="field w-44"><option value="full">{L("خطة كاملة (الأقوى)")}</option><option value="scenes">{L("نص مع مشاهد")}</option><option value="text">{L("نص فقط")}</option></select>
+          <select name="model" defaultValue="" className="field w-44"><option value="">{L("النموذج: الافتراضي")}</option><option value="gemini-3.8-flash">gemini-3.8-flash</option><option value="gemini-4-neon">gemini-4-neon</option></select>
           <select name="seconds" defaultValue="30" className="field w-32"><option value="15">15s</option><option value="30">30s</option><option value="45">45s</option><option value="60">60s</option></select>
           <select name="aspect" defaultValue="9:16" className="field w-32"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select>
         </div>

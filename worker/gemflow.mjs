@@ -60,10 +60,10 @@ export function geminiPrompt(plan, idea, retry) {
 }
 
 /** Calls Gemini (key + model come from Railway variables). Returns { html, usage }. */
-export async function geminiHtml({ plan, idea, retry }) {
+export async function geminiHtml({ plan, idea, retry, model: pick }) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY غير موجود بإعدادات Railway. أضفه هناك ثم أعد النشر.");
-  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  const model = /^gemini-[a-z0-9.-]{2,40}$/.test(String(pick ?? "")) ? pick : (process.env.GEMINI_MODEL || "gemini-3.8-flash");
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: "POST", signal: AbortSignal.timeout(290_000),
     headers: { "x-goog-api-key": key, "content-type": "application/json" },

@@ -128,7 +128,7 @@ export async function startGemini(form: FormData) {
   if (idea.length < 10) return;
   const admin = createAdminClient();
   const { data: busy } = await admin.from("jobs").select("id").eq("tool_id", "free-motion").in("status", ["queued", "running"]).contains("input", { mode: "gemflow" }).limit(1);
-  if (!busy?.length) await admin.from("jobs").insert({ user_id: me.id, tool_id: "free-motion", title: "تجربة جيميناي", status: "queued", progress: 0, input: { kind: "free", mode: "gemflow", idea, seconds, aspect, brand, plan: ["scenes", "full"].includes(String(form.get("plan"))) ? String(form.get("plan")) : "text" } });
+  if (!busy?.length) await admin.from("jobs").insert({ user_id: me.id, tool_id: "free-motion", title: "تجربة جيميناي", status: "queued", progress: 0, input: { kind: "free", mode: "gemflow", idea, seconds, aspect, brand, plan: ["scenes", "full"].includes(String(form.get("plan"))) ? String(form.get("plan")) : "text", model: ["gemini-3.8-flash", "gemini-4-neon"].includes(String(form.get("model"))) ? String(form.get("model")) : "" } });
   revalidatePath("/admin/templates/gemini");
 }
 
