@@ -205,11 +205,9 @@ const filled = (s: Slide, f: (typeof FIELDS)[number]) => { const v = s[f] as unk
 const fits = (s: Slide, l: LayoutId) => FIELDS.every((f) => !filled(s, f) || (LAYOUTS[l].uses as string[]).includes(f));
 /** The style's layout for this slide, or a safe one (classic, bold) when it would hide something; null = keep the slide as it is. */
 export function layoutFor(s: Slide, want: LayoutId): LayoutId | null {
-  for (const l of [want, "classic", "bold"] as LayoutId[]) if (fits(s, l)) return l;
+  for (const l of [want, "classic", "bento", "split", "bold"] as LayoutId[]) if (fits(s, l)) return l;
   return null;
 }
-/** Does this style's own layout suit the slide (the gallery only lists styles that do). */
-export const styleFits = (spec: DesignSpec, st: DStyle) => !!spec.slides[0] && fits(spec.slides[0], st.front);
 
 /** Same design with a style applied: layouts, colours, fonts, decoration. The customer's text is untouched. */
 export function applyStyle(spec: DesignSpec, st: DStyle): DesignSpec {

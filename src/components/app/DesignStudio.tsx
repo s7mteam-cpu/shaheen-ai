@@ -30,7 +30,7 @@ import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag"
 import { LogoCropper } from "@/components/app/LogoCropper";
 import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
 import { designPack } from "@/design/packs";
-import { stylesFor, applyStyle, styleFits } from "@/design/styles";
+import { stylesFor, applyStyle } from "@/design/styles";
 import { FontPicker } from "./FontPicker";
 import { EL_LABELS } from "@/design/Design";
 import {
@@ -588,7 +588,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
 
 function StyleGallery({ spec, cur, onPick }: { spec: DesignSpec; cur: number; onPick: (st: ReturnType<typeof stylesFor>[number]) => void }) {
   const posts = spec.kind !== "bcard" && spec.kind !== "invite";
-  const all = stylesFor(spec.kind).filter((st) => !posts || styleFits(spec, st));
+  const all = stylesFor(spec.kind);
   const [n, setN] = useState(12);
   const [group, setGroup] = useState<string>("all");
   const key = (x: (typeof all)[number]) => (posts ? x.cat ?? "" : x.front);
