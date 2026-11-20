@@ -14,6 +14,7 @@ RUN npm install --omit=dev && node -e "import('@remotion/renderer').then((m) => 
 COPY src/remotion ./src/remotion
 COPY src/design ./src/design
 COPY src/cv ./src/cv
+COPY src/lib/fonts.ts ./src/lib/fonts.ts
 COPY public/sfx ./public/sfx
 COPY worker ./worker
 CMD ["node", "worker/index.mjs"]
