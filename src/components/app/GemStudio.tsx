@@ -163,30 +163,34 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
     } catch (e) { setError((e as Error).message); setBusy(false); }
   }
 
-  const maxW = data.aspect === "9:16" ? "min(100%, calc((100vh - 14rem) * 0.5625))" : "100%";
+  const capW = data.aspect === "9:16" ? "lg:max-w-[max(280px,calc((100vh-19rem)*0.5625))]" : "";
   return (
     <>
       {cropFile && <LogoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); uploadLogo(f); }} />}
-      <div className="flex flex-col gap-6">
-        <div className={`grid grid-cols-1 gap-6 lg:items-start ${data.aspect === "9:16" ? "lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]"}`}>
-          <div className="flex min-w-0 flex-col gap-3">
+      <div className={`grid grid-cols-1 gap-6 lg:items-start ${data.aspect === "9:16" ? "lg:grid-cols-[minmax(0,500px)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]"}`}>
+        <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
           <div className="flex items-center justify-between">
             <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
             <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{seconds} {L("ثانية")}</span>
           </div>
-          <div ref={box} dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ aspectRatio: `${w} / ${h}`, maxWidth: maxW }}>
+          <div ref={box} dir="ltr" className={`relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg ${capW}`} style={{ aspectRatio: `${w} / ${h}` }}>
             {srcDoc && !loadErr ? <>
               <iframe key={`r${rev}`} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={srcDoc} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${cw ? cw / PW : 0.3})`, transformOrigin: "0 0" }} />
               {logo && <div className="absolute inset-0"><LogoDrag box={logo.box} onChange={(b) => setLogo((p) => (p ? { ...p, box: b } : p))} /></div>}
             </> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
           </div>
-          <div dir="ltr" className="mx-auto flex w-full items-center gap-3" style={{ maxWidth: maxW }}>
+          <div dir="ltr" className={`mx-auto flex w-full items-center gap-3 ${capW}`}>
             <button type="button" onClick={toggle} className="btn btn-gold px-4 py-2 text-sm" aria-label={playing ? L("إيقاف") : L("تشغيل")}>{playing ? "⏸" : "▶"}</button>
             <input type="range" min={0} max={seconds} step={0.1} value={Math.min(t, seconds)} onChange={(e) => setT(Number(e.target.value))} onPointerUp={(e) => seek(Number((e.target as HTMLInputElement).value))} onKeyUp={(e) => seek(Number((e.target as HTMLInputElement).value))} className="flex-1" aria-label={L("الوقت")} />
             <span className="w-20 text-end text-[13px] tabular-nums text-subtle">{fmt(t)} / {fmt(seconds)}</span>
           </div>
-          </div>
-          <div className="flex min-w-0 flex-col gap-5">
+          <FreeTimeline total={seconds} playhead={t} trim={trim} onTrim={setTrim} disabled={busy}
+            voice={data.hasVoice ? { at: 0, dur: seconds } : null} music={!musicOff && !!data.musicUrl}
+            own={own ? { at: own.at ?? 0, len: Math.max(0.5, Math.min((own.end ?? own.dur ?? seconds) - (own.start ?? 0), seconds - (own.at ?? 0))), name: own.name } : null}
+            onOwnMove={(at) => own && setOwn({ ...own, at: +at.toFixed(1) })} onSeek={seek} />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-5">
           <Card title={L("الشعار")} icon="🏷️">
             <div className="flex flex-wrap items-center gap-3">
               {logo && <img src={logo.url} alt={L("الشعار")} className="h-12 max-w-[120px] rounded-lg bg-tint object-contain p-1" />}
@@ -227,19 +231,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
               ))}
             </div>
           </Card>
-          </div>
-        </div>
 
-        <section className="rounded-2xl border border-line bg-white p-4 shadow-sm">
-          <h3 className="mb-3 text-[15px] font-bold text-navy-900">{L("الخط الزمني: الصوت والقص")}</h3>
-          <FreeTimeline total={seconds} playhead={t} trim={trim} onTrim={setTrim} disabled={busy}
-            voice={data.hasVoice ? { at: 0, dur: seconds } : null} music={!musicOff && !!data.musicUrl}
-            own={own ? { at: own.at ?? 0, len: Math.max(0.5, Math.min((own.end ?? own.dur ?? seconds) - (own.start ?? 0), seconds - (own.at ?? 0))), name: own.name } : null}
-            onOwnMove={(at) => own && setOwn({ ...own, at: +at.toFixed(1) })} onSeek={seek} />
-        </section>
-
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
-          <div className="flex min-w-0 flex-col gap-5">
           <Card title={L("الصوت")} icon="🎚️">
             {data.hasVoice && (
               <label className="flex flex-col gap-1 text-[13px]"><span className="flex justify-between font-semibold text-subtle"><span>{L("🎙️ علو التعليق الصوتي")}</span><span dir="ltr">{Math.round(voiceVol * 100)}%</span></span>
@@ -254,8 +246,6 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             <Sub>{L("صوتك الخاص (يضاف فوق التعليق والموسيقى)")}</Sub>
             <MusicEditor music={own} onChange={setOwn} total={seconds} playhead={() => tRef.current} disabled={busy} />
           </Card>
-          </div>
-          <div className="flex min-w-0 flex-col gap-5">
           {data.hasVoice && (
             <Card more title={L("تغيير الكلام المنطوق")} icon="🎙️">
               {!data.scenes ? <p className="text-[13px] text-subtle">{L("هذا الفيديو صُمّم قبل تفعيل هذي الميزة. صمّم فيديو جديد وبيفعّل لك تعديل الكلام واللهجة والترجمة.")}</p> : (
@@ -291,8 +281,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} maxLength={500} className="field" placeholder={L("مثال: خلّ الخلفية فاتحة، وحرّك العنوان من فوق، وزيد أيقونة واتساب بجنب الرقم")} />
             {instruction.trim().length > 2 && <p className="text-[12px] text-subtle">{LT(`التعديل بالوصف يكلّف ${data.editCost} ريشة إضافية، وممكن ما ينفّذ كل شي بالضبط.`, `AI edit costs ${data.editCost} extra credits and may not match exactly.`)}</p>}
           </Card>
-          </div>
-        </div>
+
 
         <div className="flex flex-col gap-3">
           {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
@@ -305,6 +294,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             <Link href="/app/tools/free-motion" className="btn btn-outline px-5 py-2.5">{L("تصميم جديد")}</Link>
           </div>
           <details className="rounded-xl border border-line p-3 text-[13px]"><summary className="cursor-pointer font-semibold text-subtle">{L("الفيديو المرسوم (آخر نسخة محفوظة)")}</summary><video src={data.videoUrl} controls playsInline className="mx-auto mt-3 max-h-[60vh] w-full max-w-sm rounded-xl bg-black" /></details>
+        </div>
         </div>
       </div>
     </>

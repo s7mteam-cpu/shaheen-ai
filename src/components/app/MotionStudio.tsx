@@ -120,7 +120,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
     {cropFile && <LogoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); uploadLogo(f); }} />}
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:items-start">
       {/* Live preview */}
-      <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4">
+      <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4 [&>*]:shrink-0">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
           <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{spec.seconds} {L("ثانية")}</span>
