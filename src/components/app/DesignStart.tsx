@@ -7,7 +7,8 @@ import { useEffect, useState } from "react";
 import { Progress } from "@/components/app/Progress";
 import { createClient } from "@/lib/supabase/client";
 import { DIcon } from "@/design/icons";
-import { INDUSTRIES, industryById } from "@/design/industries";
+import { industryById } from "@/design/industries";
+import { IndustryList } from "@/components/app/IndustryPicker";
 import { LikeNote } from "@/components/app/LikeNote";
 
 const aspects = [["4:5", "بوست طولي 4:5"], ["1:1", "مربع 1:1"], ["9:16", "ستوري 9:16"]] as const;
@@ -109,20 +110,7 @@ export function DesignStart({ idea, toolId, cost, balance, industry: savedIndust
             <span className="flex flex-1 justify-end gap-1">{ind.palettes.map((p, i) => <span key={i} className="flex overflow-hidden rounded-full">{[p.bg, p.accent, p.ink].map((c) => <span key={c} className="h-5 w-3" style={{ background: c }} />)}</span>)}</span>
           </div>
         ) : (
-          <div className="flex max-h-[340px] flex-col gap-3 overflow-y-auto rounded-2xl border border-line p-3">
-            {[...new Set(INDUSTRIES.map((i) => i.group))].map((g) => (
-              <div key={g} className="flex flex-col gap-1.5">
-                <span className="text-[13px] font-semibold text-subtle">{L(g)}</span>
-                <div className="flex flex-wrap gap-2">
-                  {INDUSTRIES.filter((i) => i.group === g).map((i) => (
-                    <button key={i.id} type="button" aria-pressed={industry === i.id} onClick={() => { setIndustry(i.id); setPickOpen(false); }} className="chip inline-flex items-center gap-1.5">
-                      <DIcon name={i.icon} size={16} color="currentColor" />{L(i.label)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <IndustryList value={industry} onPick={(id) => { setIndustry(id); setPickOpen(false); }} />
         )}
         <span className="text-[13px] text-subtle">{L("شاهين يصمّم بأسلوب يناسب مجالك: الألوان، التخطيط، الخط، ونوع الصور.")}</span>
       </div>
