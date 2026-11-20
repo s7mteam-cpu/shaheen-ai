@@ -40,7 +40,7 @@ export default async function GeminiLab() {
         <textarea name="idea" required minLength={10} maxLength={1500} rows={4} dir="auto" className="field" />
         <div className="flex flex-wrap gap-3">
           <input name="brand" maxLength={60} dir="auto" className="field w-52" placeholder={L("اسم العلامة (اختياري)")} />
-          <select name="plan" defaultValue="scenes" className="field w-44"><option value="scenes">{L("نص مع مشاهد")}</option><option value="text">{L("نص فقط")}</option></select>
+          <select name="plan" defaultValue="full" className="field w-44"><option value="full">{L("خطة كاملة (الأقوى)")}</option><option value="scenes">{L("نص مع مشاهد")}</option><option value="text">{L("نص فقط")}</option></select>
           <select name="seconds" defaultValue="30" className="field w-32"><option value="15">15s</option><option value="30">30s</option><option value="45">45s</option><option value="60">60s</option></select>
           <select name="aspect" defaultValue="9:16" className="field w-32"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select>
         </div>
@@ -51,7 +51,7 @@ export default async function GeminiLab() {
           {it.play ? <video src={it.play} controls playsInline className="w-full rounded-xl bg-black" /> : <div className="grid h-40 place-items-center rounded-xl bg-neutral-100 text-sm text-subtle">—</div>}
           <div className="flex flex-col gap-2 text-[13px]">
             <p dir="auto" className="text-[14px] font-bold">{it.meta.idea}</p>
-            <p className="text-subtle">{it.meta.plan?.title} · {it.meta.plan_mode === "scenes" ? "مشاهد" : "نص فقط"} · {it.meta.seconds}s · {it.meta.aspect}{it.meta.timings ? ` · ${Object.entries(it.meta.timings).map(([k, v]) => `${k} ${v}s`).join(" · ")}` : ""}</p>
+            <p className="text-subtle">{it.meta.plan?.title} · {it.meta.plan_mode === "full" ? "خطة كاملة" : it.meta.plan_mode === "scenes" ? "مشاهد" : "نص فقط"} · {it.meta.seconds}s · {it.meta.aspect}{it.meta.timings ? ` · ${Object.entries(it.meta.timings).map(([k, v]) => `${k} ${v}s`).join(" · ")}` : ""}</p>
             {it.meta.error && <p dir="auto" className="rounded-lg bg-red-50 p-2 text-red-800">⚠️ {it.meta.error}</p>}
             {it.meta.attempts?.map((a) => <p key={a.attempt} className="text-subtle">{L("محاولة")} {a.attempt}: {a.model} · {a.chars} {L("حرف")} · tokens {a.usage?.promptTokenCount ?? "?"}/{a.usage?.candidatesTokenCount ?? "?"} · {a.review?.ok ? "✅" : `⚠️ ${a.review?.issues ?? ""}`} · {L("لقطات مختلفة")}: {a.distinctFrames ?? "?"}/6{a.errors?.length ? ` · ${L("أخطاء الصفحة")}: ${a.errors.join(" | ")}` : ""}</p>)}
             <div className="flex flex-wrap gap-2">
