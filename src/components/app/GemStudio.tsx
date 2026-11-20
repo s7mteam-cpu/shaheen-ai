@@ -179,10 +179,10 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
               {logo && <div className="absolute inset-0"><LogoDrag box={logo.box} onChange={(b) => setLogo((p) => (p ? { ...p, box: b } : p))} /></div>}
             </> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
           </div>
-          <div dir="ltr" className={`mx-auto flex w-full items-center gap-3 ${capW}`}>
+          <div dir="ltr" className="flex w-full items-center gap-3">
             <button type="button" onClick={toggle} className="btn btn-gold px-4 py-2 text-sm" aria-label={playing ? L("إيقاف") : L("تشغيل")}>{playing ? "⏸" : "▶"}</button>
             <input type="range" min={0} max={seconds} step={0.1} value={Math.min(t, seconds)} onChange={(e) => setT(Number(e.target.value))} onPointerUp={(e) => seek(Number((e.target as HTMLInputElement).value))} onKeyUp={(e) => seek(Number((e.target as HTMLInputElement).value))} className="flex-1" aria-label={L("الوقت")} />
-            <span className="w-20 text-end text-[13px] tabular-nums text-subtle">{fmt(t)} / {fmt(seconds)}</span>
+            <span className="whitespace-nowrap text-end text-[13px] tabular-nums text-subtle">{fmt(t)} / {fmt(seconds)}</span>
           </div>
           <FreeTimeline total={seconds} playhead={t} trim={trim} onTrim={setTrim} disabled={busy}
             voice={data.hasVoice ? { at: 0, dur: seconds } : null} music={!musicOff && !!data.musicUrl}
