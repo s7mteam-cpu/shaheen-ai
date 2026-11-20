@@ -152,14 +152,9 @@ export const layoutsFor = (kind: DKind): LayoutId[] => (Object.keys(LAYOUTS) as 
 });
 export const LAYOUT_IDS = layoutsFor("post");
 
-export const ICON_IDS = [
-  "check", "star", "heart", "sparkles", "zap", "clock", "calendar", "map-pin", "phone", "message", "gift", "bag", "cart", "tag",
-  "percent", "trending", "chart", "shield", "award", "trophy", "users", "user", "graduation", "book", "lightbulb", "target",
-  "rocket", "camera", "image", "video", "mic", "music", "coffee", "utensils", "chef", "pizza", "cake", "leaf", "sun", "moon",
-  "droplet", "flame", "home", "building", "car", "plane", "truck", "scissors", "shirt", "gem", "crown", "smile", "stethoscope",
-  "pill", "dumbbell", "palette", "brush", "laptop", "phone-mobile", "globe", "wifi", "baby", "paw", "flower", "wallet", "headset",
-] as const;
-export type IconId = (typeof ICON_IDS)[number];
+import { ICON_IDS } from "./iconData";
+export { ICON_IDS };
+export type IconId = string;
 
 export const PALETTES: { name: string; colors: DColors }[] = [
   { name: "كحلي وذهبي", colors: { bg: "#0B2A4A", ink: "#FFFFFF", accent: "#C9A45C", soft: "#12385F" } },
@@ -203,7 +198,7 @@ const img = (v: unknown): DImg | null => {
   return o && typeof o.path === "string" && (o.bucket === "uploads" || o.bucket === "results") ? { path: o.path, bucket: o.bucket, url: typeof o.url === "string" ? o.url : "" } : null;
 };
 const items = (v: unknown, max: number): DItem[] =>
-  (Array.isArray(v) ? v : []).map((x) => ({ icon: (ICON_IDS as readonly string[]).includes(x?.icon) ? x.icon : undefined, text: str(x?.text ?? x, 90) })).filter((x) => x.text).slice(0, max);
+  (Array.isArray(v) ? v : []).map((x) => ({ icon: ICON_IDS.includes(x?.icon) ? x.icon : undefined, text: str(x?.text ?? x, 90) })).filter((x) => x.text).slice(0, max);
 
 export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fallback: LayoutId = "classic"): Slide {
   const layout = (Object.keys(LAYOUTS) as string[]).includes(String(raw.layout)) ? (raw.layout as LayoutId) : fallback;
@@ -275,7 +270,7 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
     bigNum: raw.bigNum === true ? true : undefined,
     industry: typeof raw.industry === "string" ? raw.industry.slice(0, 30) : undefined,
     icons: raw.icons === "duo" || raw.icons === "emoji" || raw.icons === "3d" ? raw.icons : "line",
-    icon3d: Object.fromEntries(Object.entries((raw.icon3d ?? {}) as Record<string, unknown>).filter(([k]) => (ICON_IDS as readonly string[]).includes(k)).map(([k, v]) => [k, img(v)]).filter(([, v]) => v)) as Record<string, DImg>,
+    icon3d: Object.fromEntries(Object.entries((raw.icon3d ?? {}) as Record<string, unknown>).filter(([k]) => ICON_IDS.includes(k)).map(([k, v]) => [k, img(v)]).filter(([, v]) => v)) as Record<string, DImg>,
   };
 }
 
@@ -303,5 +298,5 @@ export function usedIcons(s: DesignSpec): string[] {
     for (const it of [...(sl.items ?? []), ...(sl.meta ?? [])]) if (it.icon) ids.add(it.icon);
     if (sl.layout === "point") ids.add(sl.items?.[0]?.icon ?? "lightbulb");
   }
-  return [...ids].slice(0, 9);
+  return [...ids].filter((id) => !id.startsWith("b-")).slice(0, 9); // service logos are drawn from their own paths, never as 3D pictures
 }

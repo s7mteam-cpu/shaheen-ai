@@ -28,7 +28,8 @@ import { uploadImage } from "@/components/app/DesignStart";
 import { Progress } from "@/components/app/Progress";
 import { DEFAULT_LOGO_BOX, LogoDrag, LogoSize } from "@/components/app/LogoDrag";
 import { LogoCropper } from "@/components/app/LogoCropper";
-import { DIcon, ICONS, ICON_STYLES } from "@/design/icons";
+import { DIcon, ICONS, ICON_STYLES, iconLabel } from "@/design/icons";
+import { ICON_GROUPS } from "@/design/iconData";
 import { designPack } from "@/design/packs";
 import { stylesFor, applyStyle } from "@/design/styles";
 import { FontPicker } from "./FontPicker";
@@ -46,19 +47,34 @@ const ASPECTS: [DAspect, string][] = [["4:5", "طولي 4:5"], ["1:1", "مربع
 
 function IconPick({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [grp, setGrp] = useState<string>("all");
+  const ql = q.trim().toLowerCase();
+  const list = ICON_IDS.filter((id) => {
+    const g = id.startsWith("b-") ? "شعارات" : ICONS[id]?.group;
+    if (grp !== "all" && g !== grp) return false;
+    return !ql || id.includes(ql) || iconLabel(id).includes(ql);
+  });
   return (
     <div className="relative">
       <button type="button" onClick={() => setOpen(!open)} aria-label={L("اختر أيقونة")} className="grid h-11 w-11 place-items-center rounded-xl border border-line bg-white">
         <DIcon name={value ?? "check"} size={22} color="#0B2A4A" />
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-20 grid w-[300px] grid-cols-7 gap-1 rounded-2xl border border-line bg-white p-2 shadow-xl">
-          {ICON_IDS.map((id) => (
-            <button key={id} type="button" title={L(ICONS[id].label)} onClick={() => { onChange(id); setOpen(false); }}
-              className={`grid h-9 w-9 place-items-center rounded-lg hover:bg-tint ${value === id ? "bg-tint ring-2 ring-navy-700" : ""}`}>
-              <DIcon name={id} size={19} color="#0B2A4A" />
-            </button>
-          ))}
+        <div className="absolute right-0 top-12 z-20 flex w-[330px] flex-col gap-2 rounded-2xl border border-line bg-white p-2 shadow-xl">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={L(`ابحث بين ${ICON_IDS.length} أيقونة (مثال: قهوة، انستغرام)`)} className="field !py-2 text-[13px]" aria-label={L("بحث عن أيقونة")} />
+          <div className="flex max-h-16 flex-wrap gap-1 overflow-y-auto">
+            {["all", "شعارات", ...ICON_GROUPS].map((g) => <button key={g} type="button" aria-pressed={grp === g} onClick={() => setGrp(g)} className="chip !px-2 !py-1 text-[11px]">{g === "all" ? L("الكل") : L(g)}</button>)}
+          </div>
+          <div className="grid max-h-56 grid-cols-7 gap-1 overflow-y-auto">
+            {list.map((id) => (
+              <button key={id} type="button" title={L(iconLabel(id))} onClick={() => { onChange(id); setOpen(false); }}
+                className={`grid h-9 w-9 place-items-center rounded-lg hover:bg-tint ${value === id ? "bg-tint ring-2 ring-navy-700" : ""}`}>
+                <DIcon name={id} size={19} color="#0B2A4A" />
+              </button>
+            ))}
+            {list.length === 0 && <p className="col-span-7 p-2 text-center text-[12px] text-subtle">{L("ما لقينا أيقونة بهالاسم")}</p>}
+          </div>
         </div>
       )}
     </div>

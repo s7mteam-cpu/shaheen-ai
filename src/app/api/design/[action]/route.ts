@@ -12,12 +12,13 @@ import { falImages, falRun } from "@/lib/providers/fal";
 import { saveFromUrl, saveResult } from "@/lib/providers/storage";
 import { keyFor, splitIconSheet } from "@/lib/providers/iconsheet";
 import { ICON_EN } from "@/design/icon-names";
+import { iconGuide } from "@/design/iconData";
 import { config } from "@/lib/tools/run";
 import { industryBrief, industryById } from "@/design/industries";
 import { designBrief, designPack } from "@/design/packs";
 import { guessIndustry } from "@/lib/server/guessIndustry";
 import { snapshot, trendsFor } from "@/lib/server/trends";
-import { DECOR_FONTS, usedIcons, ICON_IDS, LAYOUTS, LAYOUT_IDS, layoutsFor, DECO_IDS, FRAME_IDS, STICKER_IDS, STICKER_LABELS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
+import { DECOR_FONTS, usedIcons, LAYOUTS, LAYOUT_IDS, layoutsFor, DECO_IDS, FRAME_IDS, STICKER_IDS, STICKER_LABELS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
 
 export const maxDuration = 300;
 
@@ -38,7 +39,7 @@ const INVITE_SYSTEM = `أنت مصمم دعوات مناسبات خليجي مح
 const BCARD_SYSTEM = `أنت مصمم هويات وبطاقات عمل خليجي محترف. تحوّل معلومات العميل إلى بطاقة عمل أنيقة جاهزة للطباعة (وجه + ظهر).
 القواعد:
 - النصوص التي كتبها العميل (الاسم، المسمى، الأرقام، البريد، الموقع، العنوان، اسم الشركة) تنسخ حرفياً كما هي بدون أي تغيير أو ترجمة أو تصحيح. لا تخترع رقم هاتف أو بريد أو موقع أو عنوان أو مسمى وظيفي ما ذكره العميل.
-- الوجه (slides[0]): layout من هذي: ${layoutsFor("bcard").filter((x) => !x.includes("Back")).join(", ")}. title = اسم الشخص (أو اسم الشركة لو بطاقة شركة)، kicker = المسمى الوظيفي (أو المجال)، highlight اختياري (كلمة وحدة من الاسم أو اسم الشركة)، body = عبارة تعريفية قصيرة جداً إن وجدت بكلام العميل، meta = وسائل التواصل بحد أقصى 5 كل واحدة {icon,text} والأيقونة من: phone (جوال/هاتف)، message (بريد إلكتروني)، globe (موقع/حساب)، map-pin (عنوان)، clock (دوام).
+- الوجه (slides[0]): layout من هذي: ${layoutsFor("bcard").filter((x) => !x.includes("Back")).join(", ")}. title = اسم الشخص (أو اسم الشركة لو بطاقة شركة)، kicker = المسمى الوظيفي (أو المجال)، highlight اختياري (كلمة وحدة من الاسم أو اسم الشركة)، body = عبارة تعريفية قصيرة جداً إن وجدت بكلام العميل، meta = وسائل التواصل بحد أقصى 5 كل واحدة {icon,text} والأيقونة من: phone (جوال/هاتف)، message (بريد إلكتروني)، globe (موقع إلكتروني)، map-pin (عنوان)، clock (دوام)، أو شعار الحساب إن ذكر العميل حسابًا: b-instagram، b-whatsapp، b-snapchat، b-tiktok، b-x، b-youtube، b-facebook، b-telegram (النص هو الحساب كما كتبه العميل).
 - الظهر (slides[1]) إن طُلب: layout إما cardBack (لون الهوية كامل مع الشعار + عبارة تعريفية: title اسم الجهة، body العبارة) أو cardBackB (تفاصيل: kicker، title مثل «تواصل معنا» أو «موقعنا»، body، meta بدون تكرار ما في الوجه حرفياً إلا الضروري).
 - نوّع الأسلوب حسب مجال العميل وذوقه: فخم/تقليدي → cardB أو cardE مع Amiri والذهبي أو الكحلي، تقني/عصري → cardD أو cardC، طبي/قانوني/استشاري → cardE أو cardA بألوان هادئة، تجاري عام → cardA. لا تكرر نفس الاختيار دائماً. حدّد finish: "foil" (فويل معدني لامع) إذا كان اللون المميز ذهبياً أو نحاسياً أو فضياً أو وردياً معدنياً، وإلا "flat".
 - الألوان: إذا للعميل ألوان هوية استخدمها بالأدوار: bg خلفية البطاقة (فاتحة غالباً)، ink لون النص (تباين عالٍ مع bg)، accent لون الهوية المميز، soft سطح ثانوي. وإلا اختر ألواناً راقية تناسب المجال.
@@ -55,7 +56,8 @@ const SYSTEM = `أنت مدير فني ومصمم سوشال ميديا خليج
 - لا تزحم التصميم: المزايا 3 كحد أقصى (4 في bold وbento)، كل ميزة 2-5 كلمات. باقي التفاصيل تروح للكابشن.
 - meta للتاريخ والوقت والمكان والهاتف فقط (حتى 3).
 - لا تخترع أبداً أسعار أو تواريخ أو أرقام هواتف أو أسماء أو نسب خصم أو إحصائيات ما ذكرها العميل. إذا ما فيه سعر لا تكتب price.
-- الأيقونات من هذي القائمة فقط: ${ICON_IDS.join(", ")}.
+- الأيقونات من هذي القائمة فقط (مرتبة حسب المجال، اختر الأنسب لنشاط العميل ولا تكرر نفس الأيقونة):
+${iconGuide()}
 - الألوان: إذا للعميل ألوان هوية استخدمها ووزّع الأدوار: bg خلفية، ink لون النص (تباين عالي مع bg)، accent لون مميز للتأكيد والأزرار، soft سطح البطاقات (قريب من bg). إذا ما فيه، اختر لوحة راقية تناسب المجال (مطاعم دافئة، طبي هادئ، فخامة داكن وذهبي، أطفال مبهج...) وتجنّب التدرجات البنفسجية والنيون والكليشيهات.
 - الخط (font) اختر ما يناسب شخصية النشاط، من هذي المكتبة: عصري ونظيف (Cairo, Tajawal, Almarai, IBM Plex Sans Arabic, Readex Pro, Alexandria, Vazirmatn)، عناوين قوية وجريئة (Changa, Baloo Bhaijaan 2, Lalezar, Kufam)، كوفي هندسي (Reem Kufi, Noto Kufi Arabic)، فخم وتراثي (Amiri, Noto Naskh Arabic, El Messiri, Markazi Text)، مرح للأطفال (Marhey, Lemonada, Playpen Sans Arabic). خط واحد للتصميم كله، ونوّع بين العملاء. النص الطويل دائمًا بخط مقروء (عصري أو نسخ)، والخطوط الزخرفية للعنوان فقط وبحدّها.
 - deco زخرفة الخلفية من: ${DECO_IDS.join(", ")}.
