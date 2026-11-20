@@ -1,4 +1,5 @@
 import { loadLike, likeText } from "@/lib/server/like";
+import { imgStylePrompt, isImgStyle, DEFAULT_IMG_STYLE } from "@/design/imgStyles";
 import { cleanColors } from "@/lib/plan";
 import { NextResponse } from "next/server";
 import { safeFetch } from "@/lib/server/safeFetch";
@@ -98,7 +99,7 @@ note (صندوق مميّز بخلفية وإطار، للشهادات والض�
 
 type Body = {
   tool?: string; info?: string; count?: number; aspect?: DAspect; dialect?: string; photos?: string[]; person?: string;
-  useBrand?: boolean; colors?: { bg: string; ink: string; accent: string; soft: string }; bgMode?: "shapes" | "ai"; aiImages?: boolean; industry?: string; ref?: DImg | null; likeWork?: string; jobId?: string; spec?: DesignSpec; instruction?: string; index?: number; prompt?: string;
+  useBrand?: boolean; colors?: { bg: string; ink: string; accent: string; soft: string }; bgMode?: "shapes" | "ai"; aiImages?: boolean; imgStyle?: string; n?: number; industry?: string; ref?: DImg | null; likeWork?: string; jobId?: string; spec?: DesignSpec; instruction?: string; index?: number; prompt?: string;
 };
 type Raw = Partial<DesignSpec> & Record<string, unknown> & { slides?: (Record<string, unknown> & { photo?: unknown; person?: Record<string, unknown> | null })[] };
 
@@ -135,9 +136,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   const mine = (p?: string) => typeof p === "string" && p.startsWith(`${user.id}/`);
 
   /** One AI photo, saved to results. Uses the image provider the admin picked for this tool (Gemini or fal). */
-  async function aiPhoto(toolId: string, jobId: string, prompt: string, aspect: DAspect, refs: string[] = []): Promise<DImg> {
+  async function aiPhoto(toolId: string, jobId: string, prompt: string, aspect: DAspect, refs: string[] = [], style: string = DEFAULT_IMG_STYLE): Promise<DImg> {
     const { provider, model } = await config(toolId);
-    const full = `${prompt}. Professional commercial photography, natural light, high detail, no text, no letters, no logos, no watermark.`;
+    const full = `${prompt}. ${imgStylePrompt(style)}, no text, no letters, no logos, no watermark.`;
     let path: string;
     if (provider === "google") {
       const r = await geminiImage(model, full, refs, aspect === "9:16" ? "9:16" : aspect === "1:1" ? "1:1" : "4:5");
@@ -230,10 +231,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const ind = industryById(body.industry) ?? industryById(await guessIndustry(info));
       const dpack = designPack(ind?.id);
       const dpick = dpack && ind ? designBrief(dpack, ind.label) : null;
+      const imgStyle = isImgStyle(body.imgStyle) ? body.imgStyle : DEFAULT_IMG_STYLE;
       const bgAi = body.bgMode === "ai" && kind === "carousel" && body.aiImages !== false;
       const raw = await claudeVisionJson<Raw>(kind === "invite" ? INVITE_SYSTEM : kind === "bcard" ? BCARD_SYSTEM : SYSTEM,
         `${want}\nالمقاس: ${aspect}\nلهجة النصوص: ${DIALECT[String(body.dialect)] ?? DIALECT.gulf}\n` +
         `الصور المولّدة بالذكاء الاصطناعي: ${body.aiImages === false ? "ممنوعة (استخدم صور العميل أو بدون صورة)" : "مسموحة إذا تفيد التصميم"}\n` +
+        (body.aiImages !== false ? `أسلوب الصور المولّدة اللي اختاره العميل: ${imgStyle} (يُطبّق تلقائياً). اكتب imagePrompt يصف المشهد والعناصر فقط بالإنجليزي، بدون كلمات أسلوب ولا أي نص.\n` : "") +
+        (body.aiImages !== false && !photos.length && (kind === "post" || kind === "ads") ? "العميل ما رفع صور: إذا الموضوع بصري (منتج، أكل، مكان، خدمة، مناسبة) استخدم photo: \"ai\" مع imagePrompt قوي وخلّ التخطيط يعرض الصورة، لأن التصميم بصورة أقوى بكثير من نص بس.\n" : "") +
         (kit ? `هوية العميل: الاسم ${kit.business_name || "غير محدد"}، الألوان ${(kit.colors ?? []).join(", ") || "غير محددة"}، الخط ${kit.font || "اختر أنت"}، الحساب ${kit.handle || kit.instagram || "غير محدد"}${kit.website ? `، الموقع ${kit.website}` : ""}\n` : "") +
         (site ? `من موقع العميل (لتعرف نشاطه وأسلوب كلامه):\n${site}\n` : "") +
         (ind ? `${industryBrief(ind)}\n${dpick?.text ?? ""}\n` : "") +
@@ -250,7 +254,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         const m = ref.match(/^(upload|scene):(\d+)$/);
         const up = m ? ups[Number(m[2])] : undefined;
         const slide = { ...s, photo: up ?? null };
-        if (body.aiImages !== false && s.imagePrompt && aiWanted.length < 4) {
+        if (body.aiImages !== false && s.imagePrompt && aiWanted.length < (kind === "carousel" ? 6 : 4)) {
           if (ref === "ai") aiWanted.push({ i });
           else if (m?.[1] === "scene" && up) aiWanted.push({ i, ref: up.path });
         }
@@ -264,7 +268,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
 
       const gen = await Promise.allSettled(aiWanted.map(async ({ i, ref }) => {
         const p = String(spec.slides[i].imagePrompt);
-        if (!ref) return aiPhoto(toolId, job.id, p, aspect);
+        if (!ref) return aiPhoto(toolId, job.id, p, aspect, [], imgStyle);
         return aiPhoto(toolId, job.id, `Professional advertising photo of the exact same product from the reference image (keep its shape, label, logo, colors and details unchanged). Scene: ${p}`, aspect, [await sign("uploads", ref)]);
       }));
       gen.forEach((g, n) => { if (g.status === "fulfilled") spec.slides[aiWanted[n].i].photo = g.value; else console.error("design ai photo", g.reason); });
@@ -272,7 +276,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       if (bgAi) {
         const style = String((raw as { bgStyle?: unknown }).bgStyle ?? "").slice(0, 320) || `Soft atmospheric abstract background in the colours ${spec.colors.bg} and ${spec.colors.accent}`;
         const n = spec.slides.length;
-        const mkBg = (i: number, ref?: string) => aiPhoto(toolId, job.id, `${style}. A full-bleed ${aspect} background for slide ${i + 1} of ${n} of an Instagram carousel. Abstract and atmospheric, no text, no people, no logos, soft and low-contrast, with a calm empty area in the centre for text.${ref ? " Continue the exact same scene, colours, lighting and style as the reference image, as if the camera moved on to the next part of one long panoramic picture." : ""}`, aspect, ref ? [ref] : []);
+        const mkBg = (i: number, ref?: string) => aiPhoto(toolId, job.id, `${style}. A full-bleed ${aspect} background for slide ${i + 1} of ${n} of an Instagram carousel. Abstract and atmospheric, no text, no people, no logos, soft and low-contrast, with a calm empty area in the centre for text.${ref ? " Continue the exact same scene, colours, lighting and style as the reference image, as if the camera moved on to the next part of one long panoramic picture." : ""}`, aspect, ref ? [ref] : [], imgStyle);
         let ref: string | undefined;
         try { const first = await mkBg(0); spec.slides[0].bg = first; ref = await sign("results", first.path); } catch (e) { console.error("design ai bg 0", e); }
         const rest = spec.slides.map((_, i) => i).slice(1);
@@ -355,17 +359,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (action === "image") {
     const prompt = String(body.prompt ?? "").trim().slice(0, 600);
     if (prompt.length < 3) return NextResponse.json({ error: "اوصف الصورة." }, { status: 400 });
-    const denied = await charge(job.id, editCost);
+    const n = Math.min(3, Math.max(1, Math.floor(Number(body.n) || 1)));
+    const style = isImgStyle(body.imgStyle) ? body.imgStyle : DEFAULT_IMG_STYLE;
+    const denied = await charge(job.id, editCost * n);
     if (denied) return denied;
     try {
       const ref = body.ref && mine(body.ref.path) ? await sign(body.ref.bucket === "results" ? "results" : "uploads", body.ref.path) : "";
-      const img = ref
-        ? await aiPhoto(job.tool_id, job.id, `Professional advertising photo of the exact same product from the reference image (keep its shape, label, logo, colors and details unchanged). Scene: ${prompt}`, (body.spec?.aspect as DAspect) ?? base.aspect, [ref])
-        : await aiPhoto(job.tool_id, job.id, prompt, (body.spec?.aspect as DAspect) ?? base.aspect);
-      return NextResponse.json({ img });
+      const asp = (body.spec?.aspect as DAspect) ?? base.aspect;
+      const one = () => ref
+        ? aiPhoto(job.tool_id, job.id, `Professional advertising photo of the exact same product from the reference image (keep its shape, label, logo, colors and details unchanged). Scene: ${prompt}`, asp, [ref])
+        : aiPhoto(job.tool_id, job.id, prompt, asp, [], style);
+      const got = (await Promise.allSettled(Array.from({ length: n }, one))).flatMap((g) => (g.status === "fulfilled" ? [g.value] : []));
+      if (!got.length) throw new Error("all failed");
+      if (got.length < n) await refund(job.id, editCost * (n - got.length), "image");
+      return NextResponse.json({ img: got[0], imgs: got });
     } catch (e) {
       console.error("design image", e);
-      await refund(job.id, editCost, "image");
+      await refund(job.id, editCost * n, "image");
       const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
       const why = me?.role === "admin" ? ` [${String(e instanceof Error ? e.message : e).slice(0, 220)}]` : "";
       return NextResponse.json({ error: `ما قدرنا نولّد الصورة، ورجّعنا لك الريش.${why}` }, { status: 502 });

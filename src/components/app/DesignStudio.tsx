@@ -1,5 +1,6 @@
 "use client";
 import { L, LT } from "@/lib/i18n/ui";
+import { DESIGN_IMG_STYLES, DEFAULT_IMG_STYLE } from "@/design/imgStyles";
 /* eslint-disable @next/next/no-img-element */
 import "@fontsource/tajawal/arabic-500.css";
 import "@fontsource/tajawal/arabic-800.css";
@@ -115,6 +116,8 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
   const [copied, setCopied] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [useRef_, setUseRef] = useState(true);
+  const [imgStyle, setImgStyle] = useState(DEFAULT_IMG_STYLE);
+  const [variants, setVariants] = useState<DImg[]>([]);
   const [free, setFree] = useState(false);
   const lastF = useRef<{ el: HTMLInputElement | HTMLTextAreaElement; key: string } | null>(null);
   const [colHint, setColHint] = useState("");
@@ -379,7 +382,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
       </div>
 
       <div className="flex min-w-0 flex-col gap-5">
-        <StyleGallery spec={spec} cur={cur} onPick={(st) => setSpec((p) => applyStyle(p, st))} />
+        <StyleGallery spec={spec} onPick={(st) => setSpec((p) => applyStyle(p, st))} />
         {printed && (
           <Card more title={L("الخطوط واللمسة النهائية")} icon="🔤">
             <Sub>{L("خط النص")}</Sub>
@@ -547,10 +550,20 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
                 <span className="text-[14px] font-semibold">{L("أو ولّد صورة بالذكاء الاصطناعي")}</span>
                 {s.photo && <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={useRef_} onChange={(e) => setUseRef(e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("حط منتجي (الصورة الحالية) بمشهد احترافي جديد")}</label>}
                 <textarea rows={2} maxLength={600} value={imgPrompt} onChange={(e) => setImgPrompt(e.target.value)} className="field" placeholder={L("اوصف الصورة: طبق مشاوي على فحم، إضاءة دافئة، لقطة من فوق")} />
-                <button type="button" disabled={!!busy || imgPrompt.trim().length < 3} onClick={async () => {
-                  const d = await call<{ img: DImg }>("image", { index: cur, prompt: imgPrompt, spec: { aspect: spec.aspect }, ref: useRef_ && s.photo ? { path: s.photo.path, bucket: s.photo.bucket } : null }, "image");
-                  if (d) setSlide({ photo: d.img, imagePrompt: imgPrompt });
-                }} className="btn btn-primary self-start px-4 py-2 text-sm">{busy === "image" ? L("جاري التوليد…") : LT(`✨ ولّد الصورة (${editCost} ريشة)`, `✨ Generate image (${editCost} credits)`)}</button>
+                {!(useRef_ && s.photo) && <label className="flex flex-col gap-1.5"><span className="text-[13px] font-semibold">{L("أسلوب الصورة")}</span>
+                  <select value={imgStyle} onChange={(e) => setImgStyle(e.target.value)} className="field py-2 text-sm">{DESIGN_IMG_STYLES.map((x) => <option key={x[0]} value={x[0]}>{L(x[1])}</option>)}</select></label>}
+                <div className="flex flex-wrap gap-2">
+                  {[1, 3].map((n) => (
+                    <button key={n} type="button" disabled={!!busy || imgPrompt.trim().length < 3} onClick={async () => {
+                      const d = await call<{ img: DImg; imgs: DImg[] }>("image", { index: cur, prompt: imgPrompt, n, imgStyle, spec: { aspect: spec.aspect }, ref: useRef_ && s.photo ? { path: s.photo.path, bucket: s.photo.bucket } : null }, "image");
+                      if (!d) return;
+                      if (n === 1 || d.imgs.length < 2) { setVariants([]); setSlide({ photo: d.img, imagePrompt: imgPrompt }); }
+                      else { setVariants(d.imgs); setSlide({ photo: d.imgs[0], imagePrompt: imgPrompt }); }
+                    }} className={`btn ${n === 1 ? "btn-primary" : "btn-outline"} self-start px-4 py-2 text-sm`}>{busy === "image" ? L("جاري التوليد…") : n === 1 ? LT(`✨ ولّد الصورة (${editCost} ريشة)`, `✨ Generate image (${editCost} credits)`) : LT(`٣ خيارات (${editCost * 3} ريشة)`, `3 options (${editCost * 3} credits)`)}</button>
+                  ))}
+                </div>
+                {variants.length > 1 && <div className="flex flex-col gap-1.5"><span className="text-[13px] font-semibold">{L("اختر الأنسب:")}</span>
+                  <div className="flex flex-wrap gap-2">{variants.map((v, k) => (<button key={k} type="button" onClick={() => setSlide({ photo: v, imagePrompt: imgPrompt })} className={`overflow-hidden rounded-xl border-2 ${s.photo?.path === v.path ? "border-navy-700" : "border-transparent"}`}><img src={v.url} alt="" className="h-24 w-20 object-cover" /></button>))}</div></div>}
               </div>
             </div>
           )}
@@ -602,7 +615,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
   );
 }
 
-function StyleGallery({ spec, cur, onPick }: { spec: DesignSpec; cur: number; onPick: (st: ReturnType<typeof stylesFor>[number]) => void }) {
+function StyleGallery({ spec, onPick }: { spec: DesignSpec; onPick: (st: ReturnType<typeof stylesFor>[number]) => void }) {
   const posts = spec.kind !== "bcard" && spec.kind !== "invite";
   const all = stylesFor(spec.kind);
   const [n, setN] = useState(12);

@@ -1,5 +1,6 @@
 "use client";
 import { GULF_DIALECTS, myDialect } from "@/lib/countries";
+import { DESIGN_IMG_STYLES, DEFAULT_IMG_STYLE } from "@/design/imgStyles";
 import { L, LT } from "@/lib/i18n/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -46,6 +47,7 @@ export function DesignStart({ idea, toolId, cost, balance, industry: savedIndust
   const [person, setPerson] = useState<Up | null>(null);
   const [useBrand, setUseBrand] = useState(true);
   const [aiImages, setAiImages] = useState(true);
+  const [imgStyle, setImgStyle] = useState(DEFAULT_IMG_STYLE);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export function DesignStart({ idea, toolId, cost, balance, industry: savedIndust
     setBusy(true); setError(null);
     try {
       const r = await fetch("/api/design/start", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tool: toolId, info, count, aspect, dialect, likeWork: like?.id, bgMode, photos: photos.map((p) => p.path), person: person?.path, useBrand, aiImages, industry }) });
+        body: JSON.stringify({ tool: toolId, info, count, aspect, dialect, likeWork: like?.id, bgMode, photos: photos.map((p) => p.path), person: person?.path, useBrand, aiImages, imgStyle, industry }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -170,6 +172,8 @@ export function DesignStart({ idea, toolId, cost, balance, industry: savedIndust
         {toggle(useBrand, setUseBrand, L("طبّق هويتي"), L("شعارك وألوانك وخطك وحسابك من «هويتي التجارية»."))}
         {toggle(aiImages, setAiImages, L("صور بالذكاء الاصطناعي"), L("إذا التصميم يحتاج صورة وما رفعت، شاهين يولّدها."))}
       </div>
+
+      {aiImages && (toolId === "post" || toolId === "carousel" || toolId === "ad-design") && <div className="flex flex-col gap-2"><span className="font-semibold">{L("أسلوب الصور المولّدة")}</span>{chips(DESIGN_IMG_STYLES.map((x) => [x[0], x[1]] as const), imgStyle, setImgStyle)}</div>}
 
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
       {busy ? <Progress value={pct} label={L(copy.wait)} /> : (
