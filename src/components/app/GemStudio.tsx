@@ -9,6 +9,16 @@ import { LogoCropper } from "@/components/app/LogoCropper";
 import { FreeTimeline, type Trim } from "@/components/app/FreeTimeline";
 import { MusicEditor } from "@/components/app/MusicEditor";
 import { uploadImage } from "@/components/app/DesignStart";
+import "@fontsource/cairo/arabic-400.css";
+import "@fontsource/cairo/arabic-700.css";
+import "@fontsource/tajawal/arabic-400.css";
+import "@fontsource/tajawal/arabic-700.css";
+import "@fontsource/almarai/arabic-400.css";
+import "@fontsource/almarai/arabic-700.css";
+import "@fontsource/changa/arabic-400.css";
+import "@fontsource/changa/arabic-700.css";
+import "@fontsource/amiri/arabic-400.css";
+import "@fontsource/amiri/arabic-700.css";
 import { applyEdits, applyFont, applyLogo, currentFont, extractColors, extractTexts } from "@/lib/htmlKit";
 import { withClock } from "@/lib/gemClock";
 import { ERR_SNIPPET } from "@/lib/freeErrSnippet";
@@ -23,6 +33,29 @@ export type GemData = {
 };
 const SIZES: Record<string, [number, number]> = { "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080], "4:5": [1080, 1350] };
 const FONTS = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
+/** the preview frame is sealed (no origin), so it cannot use the page's fonts: copy the chosen family's @font-face rules into it with the files inlined */
+const fontCache = new Map<string, Promise<string>>();
+function fontCssFor(family: string): Promise<string> {
+  const hit = fontCache.get(family); if (hit) return hit;
+  const job = (async () => {
+    const rules: { weight: string; range: string; url: string }[] = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+      let list: CSSRuleList; try { list = sheet.cssRules; } catch { continue; }
+      for (const r of Array.from(list)) {
+        if (!(r instanceof CSSFontFaceRule)) continue;
+        if (r.style.getPropertyValue("font-family").replace(/["']/g, "").trim().toLowerCase() !== family.toLowerCase()) continue;
+        const m = r.style.getPropertyValue("src").match(/url\(["']?([^"')]+\.woff2[^"')]*)["']?\)/);
+        if (m) rules.push({ weight: r.style.getPropertyValue("font-weight") || "400", range: r.style.getPropertyValue("unicode-range"), url: new URL(m[1], sheet.href ?? location.href).href });
+      }
+    }
+    const parts = await Promise.all(rules.slice(0, 6).map(async (x) => {
+      const buf = new Uint8Array(await (await fetch(x.url)).arrayBuffer()); let bin = ""; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      return `@font-face{font-family:"${family}";font-weight:${x.weight};${x.range ? `unicode-range:${x.range};` : ""}src:url(data:font/woff2;base64,${btoa(bin)}) format("woff2");}`;
+    }));
+    return parts.join("");
+  })().catch(() => "");
+  fontCache.set(family, job); return job;
+}
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -53,6 +86,8 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   const [error, setError] = useState("");
   const [doc, setDoc] = useState<string | null>(null);
   const [rev, setRev] = useState(0);
+  const [fontCss, setFontCss] = useState<Record<string, string>>({});
+  useEffect(() => { let dead = false; fontCssFor(font).then((css) => { if (!dead && css) setFontCss((p) => (p[font] === css ? p : { ...p, [font]: css })); }); return () => { dead = true; }; }, [font]);
   const [startAt, setStartAt] = useState(Math.min(2, seconds));
   const [auto, setAuto] = useState(false);
   const [t, setT] = useState(Math.min(2, seconds));
@@ -93,11 +128,12 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
         p = applyFont(p, font);
         p = applyLogo(p, logo ? { src: logo.url, ...logo.box } : null);
         setStartAt(tRef.current); setAuto(playingRef.current);
-        setDoc(p.replace(/<head[^>]*>/i, (m) => m + ERR_SNIPPET)); setRev((x) => x + 1);
+        const extra = ERR_SNIPPET + (fontCss[font] ? `<style>${fontCss[font]}</style>` : "");
+        setDoc(/<head[^>]*>/i.test(p) ? p.replace(/<head[^>]*>/i, (m) => m + extra) : extra + p); setRev((x) => x + 1);
       } catch { setError(L("تعذّر تطبيق التعديل")); }
     }, 450);
     return () => clearTimeout(id);
-  }, [raw, vals, hex, font, logo]);
+  }, [raw, vals, hex, font, logo, fontCss]);
   const srcDoc = useMemo(() => (doc ? withClock(doc, startAt, auto, seconds) : null), [doc, startAt, auto, seconds]);
 
   // preview sound: voice + music + the customer's own sound follow the page clock
