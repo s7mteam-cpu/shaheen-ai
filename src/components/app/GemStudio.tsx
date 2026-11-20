@@ -191,7 +191,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
-          <Card title={L("الشعار")} icon="🏷️">
+          <Card more title={L("الشعار")} icon="🏷️">
             <div className="flex flex-wrap items-center gap-3">
               {logo && <img src={logo.url} alt={L("الشعار")} className="h-12 max-w-[120px] rounded-lg bg-tint object-contain p-1" />}
               <label className="btn btn-outline cursor-pointer px-4 py-2 text-sm">{logo ? L("تغيير الشعار") : L("⬆️ ارفع شعارك")}
@@ -201,8 +201,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             {logo && <LogoSize box={logo.box} onChange={(b) => setLogo({ ...logo, box: b })} />}
           </Card>
 
-          <Card title={L("تعديلات سريعة")} icon="✏️">
-            <Sub>{L("الألوان")}</Sub>
+          <Card more title={L("تعديل الألوان")} icon="🎨">
             {colors.length === 0 ? <p className="text-[13px] text-subtle">{L("ما لقينا ألوان قابلة للتعديل بهذا التصميم.")}</p> : (
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                 {colors.map((c) => (
@@ -213,7 +212,9 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
                 ))}
               </div>
             )}
-            <Sub>{L("النصوص")}</Sub>
+          </Card>
+
+          <Card more title={L("تعديل النصوص")} icon="✍️">
             <div className="flex flex-col gap-2.5">
               {fields.map((f) => (
                 <label key={f.key} className="flex flex-col gap-1">
@@ -224,7 +225,9 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
               {raw && fields.length === 0 && <p className="text-[13px] text-subtle">{L("ما لقينا نصوص قابلة للتعديل.")}</p>}
             </div>
             {textsChanged && data.hasVoice && !regen && <p className="rounded-xl bg-amber-50 px-3 py-2 text-[13px] text-amber-900">{L("تنبيه: التعليق الصوتي يبقى كما هو، وتغيير النص يغيّر المكتوب على الشاشة فقط. لتغيير الكلام المنطوق فعّل «تغيير الكلام» من بطاقة الصوت.")}</p>}
-            <Sub>{L("الخط")}</Sub>
+          </Card>
+
+          <Card more title={L("تغيير الخط")} icon="🔤">
             <div className="flex flex-wrap gap-2">
               {FONTS.map((f) => (
                 <button key={f} type="button" aria-pressed={font === f} onClick={() => setFont(f)} style={{ fontFamily: f }} className={`rounded-xl border px-4 py-2 text-[16px] ${font === f ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink"}`}>{f}</button>
@@ -232,7 +235,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             </div>
           </Card>
 
-          <Card title={L("الصوت")} icon="🎚️">
+          <Card more title={L("الصوت وإضافة صوت من جوالك")} icon="🎚️">
             {data.hasVoice && (
               <label className="flex flex-col gap-1 text-[13px]"><span className="flex justify-between font-semibold text-subtle"><span>{L("🎙️ علو التعليق الصوتي")}</span><span dir="ltr">{Math.round(voiceVol * 100)}%</span></span>
                 <input type="range" dir="ltr" min={0} max={1.5} step={0.05} value={voiceVol} onChange={(e) => setVoiceVol(Number(e.target.value))} aria-label={L("علو التعليق")} /></label>
