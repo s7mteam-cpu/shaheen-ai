@@ -21,7 +21,7 @@ import { prepareFree, checkFreeCode, MAX_CODE } from "./free.mjs";
 import { normalizeTemplate, verifyTemplate } from "./ingest.mjs";
 import { buildPreview } from "./freepreview.mjs";
 import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
-import { extractTexts, extractColors, applyEdits, applyFont, applyLogo } from "./htmlkit.mjs";
+import { extractTexts, extractColors, applyEdits, applyFont, applyLogo, applyEls } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
 import { planVideo, geminiHtml, geminiEdit, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
@@ -1108,6 +1108,7 @@ async function gemEditJob(job) {
     const hex = {}; for (const [k, v] of Object.entries(inp.hex ?? {})) if (/^#[0-9a-f]{6}$/i.test(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) hex[k] = v;
     let page = applyEdits(before, { texts, hex });
     if (typeof inp.font === "string") page = applyFont(page, inp.font);
+    page = applyEls(page, inp.els);
     if (ltr) page = page.replace(/(<html[^>]*?)\sdir=["']rtl["']/i, '$1 dir="ltr"');
     const editUsage = [];
     const instruction = typeof inp.instruction === "string" ? inp.instruction.replace(/\s+/g, " ").trim().slice(0, 600) : "";

@@ -19,7 +19,7 @@ import "@fontsource/changa/arabic-400.css";
 import "@fontsource/changa/arabic-700.css";
 import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
-import { applyEdits, applyFont, applyLogo, currentFont, extractColors, extractTexts } from "@/lib/htmlKit";
+import { applyEdits, applyEls, applyFont, applyLogo, currentFont, extractColors, extractTexts } from "@/lib/htmlKit";
 import { withClock } from "@/lib/gemClock";
 import { ERR_SNIPPET } from "@/lib/freeErrSnippet";
 import { ARAB_DIALECTS } from "@/lib/countries";
@@ -87,6 +87,15 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   const [doc, setDoc] = useState<string | null>(null);
   const [rev, setRev] = useState(0);
   const [big, setBig] = useState(false);
+  // click-to-edit: pick an element in the video, then drag / resize / hide it
+  const [pick, setPick] = useState(false);
+  const [els, setEls] = useState<Record<string, { hide?: boolean; s: number; x: number; y: number }>>({});
+  const [selEl, setSelEl] = useState<{ sel: string; text: string } | null>(null);
+  const elList = useMemo(() => Object.entries(els).filter(([, e]) => e.hide || e.s !== 1 || e.x !== 0 || e.y !== 0).map(([sel, e]) => ({ sel, ...e })), [els]);
+  const pickRef = useRef({ pick, els, sel: selEl?.sel ?? "" }); pickRef.current = { pick, els, sel: selEl?.sel ?? "" };
+  const sendPick = useCallback(() => { const p = pickRef.current; iframe.current?.contentWindow?.postMessage({ type: "pick", on: p.pick, sel: p.sel, bases: Object.fromEntries(Object.entries(p.els).map(([k, e]) => [k, { x: e.x, y: e.y }])) }, "*"); }, []);
+  useEffect(() => { sendPick(); }, [pick, selEl?.sel, sendPick]);
+  const editEl = (fn: (e: { hide?: boolean; s: number; x: number; y: number }) => { hide?: boolean; s: number; x: number; y: number }) => { if (selEl) setEls((p) => ({ ...p, [selEl.sel]: fn(p[selEl.sel] ?? { s: 1, x: 0, y: 0 }) })); };
   useEffect(() => { if (!big) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setBig(false); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [big]);
   const [fontCss, setFontCss] = useState<Record<string, string>>({});
   useEffect(() => { let dead = false; fontCssFor(font).then((css) => { if (!dead && css) setFontCss((p) => (p[font] === css ? p : { ...p, [font]: css })); }); return () => { dead = true; }; }, [font]);
@@ -131,6 +140,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
       try {
         let p = applyEdits(raw, { texts: vals, hex });
         p = applyFont(p, font);
+        p = applyEls(p, elList);
         p = applyLogo(p, logo ? { src: logo.url, ...logo.box } : null);
         setStartAt(tRef.current); setAuto(playingRef.current);
         const extra = ERR_SNIPPET + (fontCss[font] ? `<style>${fontCss[font]}</style>` : "");
@@ -138,7 +148,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
       } catch { setError(L("تعذّر تطبيق التعديل")); }
     }, 450);
     return () => clearTimeout(id);
-  }, [raw, vals, hex, font, logo, fontCss]);
+  }, [raw, vals, hex, font, logo, fontCss, elList]);
   const srcDoc = useMemo(() => (doc ? withClock(doc, startAt, auto, seconds) : null), [doc, startAt, auto, seconds]);
 
   // preview sound: voice + music + the customer's own sound follow the page clock
@@ -164,7 +174,10 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   useEffect(() => {
     const on = (e: MessageEvent) => {
       if (e.source !== iframe.current?.contentWindow) return;
-      const m = (e.data ?? {}) as { type?: string; t?: number; playing?: boolean };
+      const m = (e.data ?? {}) as { type?: string; t?: number; playing?: boolean; sel?: string; text?: string; x?: number; y?: number };
+      if (m.type === "ready") { sendPick(); return; }
+      if (m.type === "picked" && typeof m.sel === "string") { setSelEl({ sel: m.sel, text: String(m.text ?? "") }); return; }
+      if (m.type === "moved" && typeof m.sel === "string") { const k = m.sel, x = Math.round(Number(m.x) || 0), y = Math.round(Number(m.y) || 0); setEls((p) => ({ ...p, [k]: { ...(p[k] ?? { s: 1 }), x, y } })); return; }
       if (typeof m.t === "number") setT(m.t);
       if (m.type === "state") { setPlaying(!!m.playing); sync(m.t ?? 0, !!m.playing); }
       else if (m.type === "gt" && playingRef.current) sync(m.t ?? 0, true);
@@ -172,7 +185,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
     };
     window.addEventListener("message", on);
     return () => window.removeEventListener("message", on);
-  }, [sync]);
+  }, [sync, sendPick]);
   const post = (type: "play" | "pause") => iframe.current?.contentWindow?.postMessage({ type }, "*");
   const seek = (sec: number) => { const v = Math.max(0, Math.min(seconds - 0.1, sec)); setT(v); setStartAt(v); setAuto(playingRef.current); setRev((x) => x + 1); };
   const toggle = () => { if (playing) post("pause"); else if (t >= seconds - 0.2) seek(0); else post("play"); };
@@ -184,7 +197,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   const mixChanged = JSON.stringify(curMix) !== savedKey;
   const textsChanged = fields.some((f) => (vals[f.key] ?? f.value) !== f.value);
   const regen = vOpen && !!data.scenes;
-  const changed = textsChanged || colors.some((c) => (hex[c] ?? c) !== c) || font !== baseFont || (logo?.path ?? "") !== (data.logo?.path ?? "") || JSON.stringify(logo?.box ?? null) !== JSON.stringify(data.logo?.box ?? null) || musicOff !== data.musicOff || instruction.trim().length > 2 || regen || mixChanged;
+  const changed = textsChanged || colors.some((c) => (hex[c] ?? c) !== c) || font !== baseFont || (logo?.path ?? "") !== (data.logo?.path ?? "") || JSON.stringify(logo?.box ?? null) !== JSON.stringify(data.logo?.box ?? null) || musicOff !== data.musicOff || instruction.trim().length > 2 || regen || mixChanged || elList.length > 0;
   const cost = data.editCost * (1 + (instruction.trim().length > 2 ? 1 : 0) + (regen ? 1 : 0));
 
   async function uploadLogo(f: File) {
@@ -197,7 +210,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
     try {
       const texts = Object.fromEntries(fields.filter((f) => (vals[f.key] ?? f.value) !== f.value).map((f) => [f.key, vals[f.key]]));
       const hx = Object.fromEntries(colors.filter((c) => (hex[c] ?? c) !== c).map((c) => [c, hex[c]]));
-      const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "gemedit", fromJob: jobId, texts, hex: hx, font, logo: logo ? { path: logo.path, box: logo.box } : null, musicOff, mix: curMix, instruction: instruction.trim(), ...(regen ? { voiceEdit: { mode: "regen", sentences: lines, dialect: dialect || undefined, vtype, rewrite, translateTo: lang || undefined } } : {}) }) });
+      const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "gemedit", fromJob: jobId, texts, hex: hx, els: elList, font, logo: logo ? { path: logo.path, box: logo.box } : null, musicOff, mix: curMix, instruction: instruction.trim(), ...(regen ? { voiceEdit: { mode: "regen", sentences: lines, dialect: dialect || undefined, vtype, rewrite, translateTo: lang || undefined } } : {}) }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? L("صار خطأ، حاول مرة ثانية."));
       onSent(d.jobId);
@@ -214,7 +227,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
           <div ref={box} dir="ltr" className={`relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg ${big ? "" : capW}`} style={{ aspectRatio: `${w} / ${h}`, ...(big ? { maxWidth: `min(94vw, calc((100vh - 7rem) * ${w / h}))` } : {}) }}>
             {srcDoc && !loadErr ? <>
               <iframe key={`r${rev}`} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={srcDoc} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${cw ? cw / PW : 0.3})`, transformOrigin: "0 0" }} />
-              {logo && <div className="absolute inset-0"><LogoDrag box={logo.box} onChange={(b) => setLogo((p) => (p ? { ...p, box: b } : p))} /></div>}
+              {logo && !pick && <div className="absolute inset-0"><LogoDrag box={logo.box} onChange={(b) => setLogo((p) => (p ? { ...p, box: b } : p))} /></div>}
             </> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-white/80">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
             <button type="button" onClick={() => setBig(!big)} aria-label={big ? L("إغلاق") : L("تكبير المعاينة")} title={big ? L("إغلاق") : L("تكبير المعاينة")} className="absolute bottom-2 right-2 z-10 grid h-9 w-9 place-items-center rounded-lg bg-black/60 text-[18px] text-white backdrop-blur hover:bg-black/80">{big ? "✕" : "⛶"}</button>
           </div>
@@ -230,6 +243,28 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             <button type="button" onClick={toggle} className="btn btn-gold px-4 py-2 text-sm" aria-label={playing ? L("إيقاف") : L("تشغيل")}>{playing ? "⏸" : "▶"}</button>
             <input type="range" min={0} max={seconds} step={0.1} value={Math.min(t, seconds)} onChange={(e) => setT(Number(e.target.value))} onPointerUp={(e) => seek(Number((e.target as HTMLInputElement).value))} onKeyUp={(e) => seek(Number((e.target as HTMLInputElement).value))} className="flex-1" aria-label={L("الوقت")} />
             <span className="whitespace-nowrap text-end text-[13px] tabular-nums text-subtle">{fmt(t)} / {fmt(seconds)}</span>
+          </div>
+          <div className={`rounded-2xl border p-3 ${pick ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <button type="button" aria-pressed={pick} onClick={() => { if (!pick && playing) post("pause"); if (pick) setSelEl(null); setPick(!pick); }} className={`btn px-4 py-2 text-[14px] ${pick ? "btn-gold" : "btn-outline"}`}>{pick ? L("✓ خلصت تحريك العناصر") : L("✋ حرّك أو امسح عنصر بالفيديو")}</button>
+              {elList.length > 0 && <button type="button" className="text-[13px] text-red-700 underline" onClick={() => { setEls({}); setSelEl(null); }}>{L("رجّع كل العناصر لأصلها")} ({elList.length})</button>}
+            </div>
+            {pick && (
+              <div className="mt-3 flex flex-col gap-2">
+                {!selEl ? <p className="text-[13px] text-subtle">{L("اضغط على أي نص أو شكل داخل الفيديو لتحديده، واسحبه بالماوس أو الإصبع لتغيير مكانه.")}</p> : (
+                  <>
+                    <p className="truncate text-[13px] text-navy-900">{L("العنصر المحدد")}: <b>{selEl.text || L("شكل بدون نص")}</b> · {Math.round((els[selEl.sel] ?? { s: 1, x: 0, y: 0 }).s * 100)}%</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" className="chip" onClick={() => editEl((e) => ({ ...e, s: Math.min(3, +(e.s + 0.1).toFixed(2)) }))}>{L("➕ كبّر")}</button>
+                      <button type="button" className="chip" onClick={() => editEl((e) => ({ ...e, s: Math.max(0.3, +(e.s - 0.1).toFixed(2)) }))}>{L("➖ صغّر")}</button>
+                      <button type="button" className="chip" onClick={() => editEl((e) => ({ ...e, hide: !e.hide }))}>{(els[selEl.sel] ?? { s: 1, x: 0, y: 0 }).hide ? L("👁 رجّعه") : L("🗑 امسحه")}</button>
+                      <button type="button" className="chip" disabled={selEl.sel.split(" > ").length <= 2} onClick={() => setSelEl({ sel: selEl.sel.split(" > ").slice(0, -1).join(" > "), text: "" })}>{L("⬆ حدّد المجموعة الأكبر")}</button>
+                      <button type="button" className="chip" onClick={() => editEl(() => ({ s: 1, x: 0, y: 0 }))}>{L("↺ أصله")}</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <FreeTimeline compact total={seconds} playhead={t} trim={trim} onTrim={setTrim} disabled={busy}
             voice={data.hasVoice ? { at: 0, dur: seconds } : null} music={!musicOff && !!data.musicUrl}

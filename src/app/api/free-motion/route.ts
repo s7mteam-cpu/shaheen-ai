@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cleanEls } from "@/lib/htmlKit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { guardContent } from "@/lib/server/moderation";
@@ -26,6 +27,7 @@ async function gemEdit(userId: string, b: Record<string, unknown>) {
   const blocked = await guardContent(userId, `${Object.values(texts).join(" ")} ${instruction}`, "free-motion");
   if (blocked) return blocked;
   const font = FONTS.includes(String(b.font)) ? String(b.font) : undefined;
+  const els = cleanEls(b.els);
   let logo: unknown = undefined; // undefined = keep, null = remove
   if (b.logo === null) logo = null;
   else if (b.logo && typeof b.logo === "object") {
@@ -80,7 +82,7 @@ async function gemEdit(userId: string, b: Record<string, unknown>) {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { count: today } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_id", "free-motion").gte("created_at", since).contains("input", { mode: "gemedit" });
   if ((today ?? 0) >= 12) return NextResponse.json({ error: "وصلت الحد اليومي للتعديلات، جرّب بكرة." }, { status: 429 });
-  const input = { ...(src!.input as object), kind: "free", mode: "gemedit", engine: "gemini", fromJob: from, texts, hex, ...(font ? { font } : {}), ...(logo !== undefined ? { logo } : {}), ...(instruction ? { instruction } : {}), ...(voiceEdit ? { voiceEdit } : {}), ...(mix ? { mix } : {}), ...(voiceIn ? { voice: voiceIn } : {}), ...(dialectIn ? { dialect: dialectIn, dialectLabel: DIALECT_NAME[dialectIn] } : {}), musicOff: b.musicOff === true };
+  const input = { ...(src!.input as object), kind: "free", mode: "gemedit", engine: "gemini", fromJob: from, texts, hex, els, ...(font ? { font } : {}), ...(logo !== undefined ? { logo } : {}), ...(instruction ? { instruction } : {}), ...(voiceEdit ? { voiceEdit } : {}), ...(mix ? { mix } : {}), ...(voiceIn ? { voice: voiceIn } : {}), ...(dialectIn ? { dialect: dialectIn, dialectLabel: DIALECT_NAME[dialectIn] } : {}), musicOff: b.musicOff === true };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: userId, tool_id: "free-motion", title: "تعديل تصميم مبتكر", status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء التعديل." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: userId, p_amount: (tool.edit_cost ?? 8) * (1 + (instruction ? 1 : 0) + (voiceEdit?.mode === "regen" ? 1 : 0)), p_job: job.id });

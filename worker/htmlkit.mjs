@@ -83,4 +83,25 @@ export function applyLogo(html, logo) {
   return /<\/body>/i.test(clean) ? clean.replace(/<\/body>/i, tag + "</body>") : clean + tag;
 }
 
+const SEL_RE = /^body(?: > :nth-child\(\d{1,3}\)){1,30}$/;
+/** element edits made by clicking in the studio: only a strict structural path and clamped numbers get through */
+export function cleanEls(list) {
+  const out = [];
+  const n = (v, d, lo, hi) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
+  for (const e of Array.isArray(list) ? list.slice(0, 40) : []) {
+    const o = e ?? {};
+    if (typeof o.sel !== "string" || !SEL_RE.test(o.sel)) continue;
+    out.push({ sel: o.sel, hide: o.hide === true, s: Math.round(n(o.s, 1, 0.3, 3) * 100) / 100, x: Math.round(n(o.x, 0, -2000, 2000)), y: Math.round(n(o.y, 0, -2000, 2000)) });
+  }
+  return out;
+}
+/** hide / move / resize the chosen elements with one style block (the page's own animations keep running: translate and scale are separate from transform) */
+export function applyEls(html, list) {
+  const els = cleanEls(list);
+  if (!els.length) return html;
+  const css = els.map((e) => (e.hide ? `${e.sel}{visibility:hidden !important}` : `${e.sel}{translate:${e.x}px ${e.y}px !important;scale:${e.s} !important}`)).join("");
+  const tag = `<style data-shel="1">${css}</style>`;
+  return /<\/head>/i.test(html) ? html.replace(/<\/head>/i, tag + "</head>") : /<body[^>]*>/i.test(html) ? html.replace(/<\/body>/i, tag + "</body>") : tag + html;
+}
+
 export const looksHtml = (s) => /<(!doctype html|html|body|div|svg|style|script)\b/i.test(s) && !/export\s+(const|function)\s+Free\b/.test(s);
