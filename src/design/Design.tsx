@@ -1,8 +1,8 @@
 import React from "react";
 import { Img } from "remotion";
-import { ArrowLeft, ChevronLeft, Quote } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, Quote } from "lucide-react";
 import { DIcon, IconStyleContext } from "./icons";
-import { RECIPES, rcpNeed, type Recipe } from "./recipes";
+import { RECIPES, rcpNeed, isSide, type Recipe } from "./recipes";
 import { DSIZE, mix, onColor, type DImg, type DItem, type DesignSpec, type Slide, RICH_RE, stripRich } from "./spec";
 
 /** One slide of a post / carousel / ad, drawn at full size (1080 wide). Used by the studio preview and the worker. */
@@ -1115,7 +1115,7 @@ function RcpVisual({ c, r, box, shape, quiet }: { c: Ctx; r: Rect; box: Rect; sh
 
 function RcpTitle({ c, r, align, scale }: { c: Ctx; r: Recipe; align: React.CSSProperties["textAlign"]; scale: number }) {
   if (gone(c, "title")) return null;
-  const ts = scale * r.ts;
+  const ts = scale * r.ts * (isSide(r.ph) ? 0.78 : 1);
   const jc = align === "center" ? "center" : align === "end" ? "flex-end" : "flex-start";
   if (r.tt === "stack" && c.s.highlight) {
     const big = fit(c.s.highlight, 128 * c.k * ts, 9, 0.5), small = fit(c.s.title, 64 * c.k * ts, 20, 0.6);
@@ -1127,6 +1127,9 @@ function RcpTitle({ c, r, align, scale }: { c: Ctx; r: Recipe; align: React.CSSP
     );
   }
   const base = (r.tt === "huge" ? 142 : r.tt === "boxed" ? 88 : 104) * ts;
+  if (r.tt === "mark") return <div style={{ background: rgba(c.accent, 0.14), borderInlineStart: `${16 * c.k}px solid ${c.accent}`, padding: `${22 * c.k}px ${34 * c.k}px`, borderRadius: 14 * c.k, textAlign: align }}><Title c={c} base={base * 0.92} align={align === "center" ? "center" : undefined} /></div>;
+  if (r.tt === "quote") return <div style={{ display: "flex", flexDirection: "column", gap: 4 * c.k, alignItems: jc }}><span style={{ fontSize: 200 * c.k, lineHeight: 0.7, height: 100 * c.k, fontWeight: 800, color: c.accent, fontFamily: "Georgia, serif" }}>“</span><Title c={c} base={base} align={align === "center" ? "center" : undefined} /></div>;
+  if (r.tt === "idx") return <div style={{ display: "flex", flexDirection: "column", gap: 6 * c.k, alignItems: jc }}>{c.total > 1 ? <span style={{ fontSize: 190 * c.k, lineHeight: 0.9, fontWeight: 800, color: c.accent, fontVariantNumeric: "tabular-nums" }}>{c.index + 1}</span> : <span style={{ width: 150 * c.k, height: 14 * c.k, background: c.accent, borderRadius: 8 }} />}<Title c={c} base={base * 0.92} align={align === "center" ? "center" : undefined} /></div>;
   const t = <Title c={c} base={base} align={align === "center" ? "center" : undefined} color={r.tt === "boxed" ? c.onAccent : undefined} hcolor={r.tt === "boxed" ? c.onAccent : undefined} />;
   if (r.tt === "boxed") return <div style={{ background: c.accent, padding: `${26 * c.k}px ${36 * c.k}px`, borderRadius: 18 * c.k, textAlign: align, alignSelf: align === "center" ? "center" : undefined }}>{t}</div>;
   if (r.tt === "under") return <div style={{ display: "flex", flexDirection: "column", gap: 18 * c.k, alignItems: jc }}>{t}<span style={{ width: "34%", minWidth: 120, height: 12 * c.k, background: c.accent, borderRadius: 6 }} /></div>;
@@ -1154,6 +1157,39 @@ function RcpItems({ c, r, align }: { c: Ctx; r: Recipe; align: "flex-start" | "c
         <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 10 * k, border: `2.5px solid ${c.accent}`, color: c.ink, borderRadius: 999, padding: `${12 * k}px ${26 * k}px`, fontSize: 28 * k, fontWeight: 700 }}>
           <DIcon name={it.icon ?? "check"} size={30 * k} color={c.accent} />{rich(it.text)}
         </span>
+      ))}
+    </div>
+  );
+  if (r.it === "steps") return (
+    <div {...da("items")} style={{ display: "flex", flexDirection: "column", width: "100%", ...eo(c, "items") }}>
+      {list.map((it, i) => (
+        <div key={i} style={{ display: "flex", gap: 26 * k, alignItems: "stretch" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "none" }}>
+            <span style={{ width: 64 * k, height: 64 * k, borderRadius: "50%", background: c.accent, color: c.onAccent, display: "grid", placeItems: "center", fontSize: 32 * k, fontWeight: 800 }}>{i + 1}</span>
+            {i < list.length - 1 && <span style={{ flex: 1, width: 4 * k, background: c.line, minHeight: 26 * k }} />}
+          </div>
+          <b style={{ fontSize: fit(it.text, 32 * k, 24, 0.7), fontWeight: 700, lineHeight: 1.35, color: c.ink, paddingTop: 12 * k, paddingBottom: 26 * k }}>{rich(it.text)}</b>
+        </div>
+      ))}
+    </div>
+  );
+  if (r.it === "cards") return (
+    <div {...da("items")} style={{ display: "flex", flexDirection: "column", gap: 16 * k, width: "100%", ...eo(c, "items") }}>
+      {list.map((it, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 22 * k, background: c.soft, border: `2px solid ${c.line}`, borderRadius: 26 * k, padding: `${18 * k}px ${26 * k}px` }}>
+          <DIcon name={it.icon ?? "check"} size={46 * k} color={c.accent} />
+          <b style={{ fontSize: fit(it.text, 31 * k, 24, 0.7), fontWeight: 700, lineHeight: 1.35, color: c.ink }}>{rich(it.text)}</b>
+        </div>
+      ))}
+    </div>
+  );
+  if (r.it === "check") return (
+    <div {...da("items")} style={{ display: "flex", flexDirection: "column", gap: 20 * k, width: "100%", ...eo(c, "items") }}>
+      {list.map((it, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 20 * k }}>
+          <Check size={50 * k} color={c.accent} strokeWidth={3.2} style={{ flex: "none" }} />
+          <b style={{ fontSize: fit(it.text, 36 * k, 26, 0.7), fontWeight: 700, lineHeight: 1.3, color: c.ink }}>{rich(it.text)}</b>
+        </div>
       ))}
     </div>
   );
@@ -1197,6 +1233,15 @@ function RecipeLayout(c: Ctx) {
     case "arch": { const w = W * 0.58, h = H * 0.38; photo = { l: (W - w) / 2, t: H * 0.05, w, h }; shape = { borderRadius: `${w / 2}px ${w / 2}px 28px 28px` }; txt = { l: 0, t: H * 0.05 + h + H * 0.02, w: W, h: H - (H * 0.07 + h) }; break; }
     case "card": { const h = H * 0.34; photo = { l: W * 0.07, t: H * 0.05, w: W * 0.86, h }; shape = { borderRadius: 38 * k }; txt = { l: 0, t: H * 0.05 + h + H * 0.015, w: W, h: H - (H * 0.065 + h) }; break; }
     case "band": photo = { l: 0, t: H * 0.34, w: W, h: H * 0.26 }; head = { l: 0, t: 0, w: W, h: H * 0.34 }; txt = { l: 0, t: H * 0.6, w: W, h: H * 0.4 }; break;
+    case "inset": photo = { l: W * 0.07, t: H * 0.3, w: W * 0.86, h: H * 0.28 }; shape = { borderRadius: 44 * k }; head = { l: 0, t: 0, w: W, h: H * 0.3 }; txt = { l: 0, t: H * 0.58, w: W, h: H * 0.42 }; break;
+    case "corner": photo = { l: W * 0.46, t: 0, w: W * 0.54, h: H * 0.3 }; shape = { borderBottomLeftRadius: W * 0.3 }; txt = { l: 0, t: H * 0.32, w: W, h: H * 0.68 }; break;
+    case "tilt": photo = { l: W * 0.14, t: H * 0.07, w: W * 0.72, h: H * 0.32 }; shape = { borderRadius: 30 * k, transform: "rotate(-3deg)", boxShadow: `${14 * k}px ${14 * k}px 0 ${c.accent}` }; txt = { l: 0, t: H * 0.46, w: W, h: H * 0.54 }; break;
+    case "diag": photo = { l: 0, t: 0, w: W, h: H * 0.44 }; shape = { clipPath: "polygon(0 0, 100% 0, 100% 84%, 0 100%)" }; txt = { l: 0, t: H * 0.4, w: W, h: H * 0.6 }; break;
+    case "wave": photo = { l: 0, t: 0, w: W, h: H * 0.42 }; shape = { clipPath: "ellipse(80% 100% at 50% 0%)" }; txt = { l: 0, t: H * 0.42, w: W, h: H * 0.58 }; break;
+    case "hero": photo = { l: 0, t: 0, w: W, h: H * 0.6 }; txt = { l: W * 0.05, t: H * 0.5, w: W * 0.9, h: H * 0.5 }; break;
+    case "frame": photo = { l: 0, t: 0, w: W, h: H }; txt = { l: W * 0.05, t: H * 0.56, w: W * 0.9, h: H * 0.44 }; break;
+    case "split": photo = { l: r.al === "s" ? 0 : W * 0.46, t: 0, w: W * 0.54, h: H }; shape = { clipPath: r.al === "s" ? "polygon(0 0, 100% 0, 84% 100%, 0 100%)" : "polygon(16% 0, 100% 0, 100% 100%, 0 100%)" }; txt = { l: r.al === "s" ? W * 0.46 : 0, t: 0, w: W * 0.54, h: H }; break;
+    case "pill": { const w = W * 0.3; photo = { l: r.al === "s" ? W * 0.04 : W * 0.66, t: H * 0.1, w, h: H * 0.8 }; shape = { borderRadius: w }; txt = { l: r.al === "s" ? W * 0.38 : 0, t: 0, w: W * 0.62, h: H }; break; }
     default: break;
   }
   // text on a full-bleed picture is light, on a dark overlay
@@ -1208,7 +1253,7 @@ function RecipeLayout(c: Ctx) {
   const al: React.CSSProperties["textAlign"] = r.al === "c" ? "center" : r.al === "e" ? "end" : "start";
   const ai: "flex-start" | "center" | "flex-end" = r.al === "c" ? "center" : r.al === "e" ? "flex-end" : "flex-start";
   const jc = r.po === "t" ? "flex-start" : r.po === "b" ? "flex-end" : "center";
-  const barBottom = r.ct === "bar" && (s.cta || s.price) && !full && r.ph !== "bot" && r.ph !== "left" && r.ph !== "right" && r.ph !== "strip";
+  const barBottom = r.ct === "bar" && (s.cta || s.price) && !full && r.ph !== "bot" && !isSide(r.ph) && r.ph !== "hero" && r.ph !== "frame";
   const gap = 24 * ck.k;
   const heading = (
     <>
@@ -1255,7 +1300,7 @@ function RecipeLayout(c: Ctx) {
     </>
   );
   const colStyle: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: ai, textAlign: al, gap };
-  const cardWrap = (r.pn === "card" || r.pn === "brutal" || r.pn === "glass") && (r.pn === "glass" ? full : !full);
+  const cardWrap = (r.pn === "card" || r.pn === "brutal" || r.pn === "glass") && (r.pn === "glass" ? full : !full) || r.ph === "hero" || r.ph === "frame";
   const cardStyle: React.CSSProperties = r.pn === "brutal"
     ? { background: c.soft, border: `${4 * k}px solid ${c.ink}`, boxShadow: `${12 * k}px ${12 * k}px 0 ${c.ink}`, borderRadius: 14 * k, padding: `${34 * ck.k}px ${40 * ck.k}px` }
     : r.pn === "glass"
@@ -1295,6 +1340,35 @@ function RecipeLayout(c: Ctx) {
   );
 }
 
+/** carousel: one long decoration that runs across all the slides, so swiping reads as one picture */
+function Pano({ c }: { c: Ctx }) {
+  const n = c.total, { W, H } = c;
+  const pts: string[] = [];
+  for (let x = 0; x <= n * W; x += W / 10) pts.push(`${x.toFixed(0)},${(H * 0.9 + Math.sin((x / W) * Math.PI * 1.1) * H * 0.045).toFixed(0)}`);
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+      <svg width={n * W} height={H} viewBox={`0 0 ${n * W} ${H}`} style={{ position: "absolute", left: -c.index * W, top: 0 }}>
+        <polygon points={`0,${H} ${pts.join(" ")} ${n * W},${H}`} fill={rgba(c.accent, 0.16)} />
+        {Array.from({ length: n }, (_, j) => <circle key={j} cx={(j + 0.5) * W + (j % 2 ? 190 : -190)} cy={H * (0.17 + (j % 3) * 0.07)} r={W * 0.2} fill="none" stroke={rgba(c.accent, 0.3)} strokeWidth={9} />)}
+        {Array.from({ length: n - 1 }, (_, j) => <circle key={`d${j}`} cx={(j + 1) * W} cy={H * 0.5} r={W * 0.05} fill={rgba(c.accent, 0.5)} />)}
+      </svg>
+    </div>
+  );
+}
+
+/** carousel: where the viewer is in the swipe (dots, or "2 / 5") */
+function CarouselNav({ c }: { c: Ctx }) {
+  const n = c.total, i = c.index, k = c.k, mode = c.spec.nav ?? "dots";
+  if (n < 2 || mode === "none") return null;
+  const pill: React.CSSProperties = { position: "absolute", background: "rgba(10,10,10,.42)", backdropFilter: "blur(6px)", borderRadius: 999, display: "flex", alignItems: "center", gap: 10 * k, padding: `${10 * k}px ${22 * k}px`, pointerEvents: "none" };
+  if (mode === "count") return <div style={{ ...pill, left: 36 * k, top: 36 * k, color: "#fff", fontSize: 26 * k, fontWeight: 800, direction: "ltr" }}>{i + 1} / {n}</div>;
+  return (
+    <div style={{ ...pill, left: "50%", bottom: 26 * k, transform: "translateX(-50%)", gap: 9 * k }}>
+      {Array.from({ length: n }, (_, j) => <span key={j} style={{ width: (j === i ? 34 : 12) * k, height: 12 * k, borderRadius: 999, background: j === i ? c.accent : "rgba(255,255,255,.7)" }} />)}
+    </div>
+  );
+}
+
 const RENDER = { rcp: RecipeLayout, bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout, cardA: CardA, cardB: CardB, cardC: CardC, cardD: CardD, cardE: CardE, cardF: CardF, cardG: CardG, cardH: CardH, cardBack: CardBack, cardBackB: CardBackB, invA: InvA, invB: InvB, invC: InvC, invD: InvD, invE: InvE, invF: InvF, invG: InvG, invH: InvH, invBack: InvBack };
 
 export function DesignSlide({ spec, index, edit }: DesignProps) {
@@ -1318,10 +1392,12 @@ export function DesignSlide({ spec, index, edit }: DesignProps) {
         </>
       )}
       {!s.bg?.url && !["cta", "photo", "split", "bento", "cardC", "cardD", "cardH", "cardBack", "invB", "invD", "invE", "invF", "invG", "invH"].includes(s.layout) && <Deco c={c} />}
+      {spec.kind === "carousel" && spec.pano && !s.bg?.url && spec.slides.length > 1 && <Pano c={c} />}
       <div style={{ position: "absolute", inset: 0 }}>{L(cc)}</div>
       {(spec.kind === "bcard" || spec.kind === "invite") && spec.finish !== "flat" && <Grain />}
       <Ribbon c={c} />
       <FrameLayer c={c} />
+      {spec.kind === "carousel" && <CarouselNav c={c} />}
       <NoteBox c={c} />
       <StickerLayer c={c} />
       {spec.brand.box && spec.brand.showLogo && spec.brand.logo?.url && (

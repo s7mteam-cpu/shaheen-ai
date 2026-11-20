@@ -3,7 +3,7 @@
 import type { DColors, Deco, Frame, LayoutId } from "./spec";
 import { RECIPES, RECIPE_IDS } from "./recipes";
 
-export type PStyle = { id: string; name: string; cat: string; front: LayoutId; mid?: LayoutId; end?: LayoutId; colors: DColors; font: string; deco: Deco; frame: Frame; finish: "flat"; r?: string; rm?: string; re?: string };
+export type PStyle = { id: string; name: string; cat: string; front: LayoutId; mid?: LayoutId; end?: LayoutId; colors: DColors; font: string; deco: Deco; frame: Frame; finish: "flat"; r?: string; rm?: string; re?: string; nav?: "dots" | "count" | "none"; pano?: boolean };
 
 // [name, mood, bg, ink, accent, soft, deco A, deco B, frame]
 type Pal = [string, string, string, string, string, string, Deco, Deco, Frame];
@@ -84,7 +84,7 @@ function build(prefix: string, fams: { front: LayoutId; mid?: LayoutId; n: numbe
       out.push({
         id: `${prefix}${out.length + 1}`,
         name: `${RECIPES[r].name} · ${p[0]}`,
-        r, ...(carousel ? { rm: calm[(idx * 3 + 1) % calm.length], re: calm[(idx * 5 + 2) % calm.length] } : {}),
+        r, ...(carousel ? { nav: (["dots", "count", "dots"] as const)[idx % 3], pano: idx % 5 < 2, rm: calm[(idx * 3 + 1) % calm.length], re: calm[(idx * 5 + 2) % calm.length] } : {}),
         cat: p[1], front: f.front, mid: f.mid, end: f.mid ? "cta" : undefined,
         colors: col(p), font: fonts[(j + fi + (carousel ? 1 : 0)) % fonts.length],
         deco: carousel && !QUIET.includes(d) ? "lines" : d, frame: carousel ? "none" : j % 3 === 0 ? p[8] : "none", finish: "flat",
@@ -96,10 +96,10 @@ function build(prefix: string, fams: { front: LayoutId; mid?: LayoutId; n: numbe
 }
 
 export const POST_STYLES: PStyle[] = build("p", [
-  { front: "classic", n: 18 }, { front: "bold", n: 16 }, { front: "bento", n: 18 }, { front: "minimal", n: 18 },
-  { front: "cover", n: 14 }, { front: "split", n: 8 }, { front: "photo", n: 8 },
+  { front: "classic", n: 36 }, { front: "bold", n: 32 }, { front: "bento", n: 36 }, { front: "minimal", n: 36 },
+  { front: "cover", n: 28 }, { front: "split", n: 16 }, { front: "photo", n: 16 },
 ]);
 export const CAROUSEL_STYLES: PStyle[] = build("c", [
-  { front: "cover", mid: "point", n: 20 }, { front: "minimal", mid: "point", n: 18 }, { front: "classic", mid: "point", n: 16 },
-  { front: "bold", mid: "point", n: 16 }, { front: "cover", mid: "bento", n: 16 }, { front: "minimal", mid: "classic", n: 14 },
+  { front: "cover", mid: "point", n: 40 }, { front: "minimal", mid: "point", n: 36 }, { front: "classic", mid: "point", n: 32 },
+  { front: "bold", mid: "point", n: 32 }, { front: "cover", mid: "bento", n: 32 }, { front: "minimal", mid: "classic", n: 28 },
 ]);

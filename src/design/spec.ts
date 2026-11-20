@@ -66,6 +66,9 @@ export type DesignSpec = {
   caption?: string;
   deco?: Deco;
   frame?: Frame;
+  /** carousel only: slide counter style ("dots" | "count" | "bar" | "none") and a decoration that runs across all slides as one picture */
+  nav?: "dots" | "count" | "none";
+  pano?: boolean;
   bigNum?: boolean;               // true = show the huge outlined slide number on "point" slides (hidden by default)
   industry?: string;
   icons?: "line" | "duo" | "emoji" | "3d";
@@ -115,7 +118,7 @@ export const fontsFor = (): readonly { id: string; label: string }[] => FONT_LIB
 
 /** Which fields each layout shows: the studio offers exactly these, and Claude is told the same. */
 export const LAYOUTS: Record<LayoutId, { label: string; hint: string; uses: (keyof Slide)[] }> = {
-  rcp: { label: "تصميم", hint: "تصميم جاهز من مكتبة الـ100 تصميم (يُختار من معرض التصاميم، ليس من الذكاء الاصطناعي)", uses: ["kicker", "title", "highlight", "body", "items", "meta", "date", "price", "stat", "cta", "badge", "person", "photo"] },
+  rcp: { label: "تصميم", hint: "تصميم جاهز من مكتبة الـ200 تصميم (يُختار من معرض التصاميم، ليس من الذكاء الاصطناعي)", uses: ["kicker", "title", "highlight", "body", "items", "meta", "date", "price", "stat", "cta", "badge", "person", "photo"] },
   classic: { label: "كلاسيكي", hint: "إعلان كامل: عنوان، وصف، حتى 6 مزايا بأيقونات، تفاصيل، سعر وزر", uses: ["kicker", "title", "highlight", "body", "items", "meta", "price", "cta", "badge", "photo"] },
   bold: { label: "جريء", hint: "فعالية أو دورة: تاريخ بارز، عنوان كبير، قائمة مرقّمة، مقدّم، سعر وزر", uses: ["kicker", "title", "highlight", "date", "items", "meta", "person", "price", "cta"] },
   bento: { label: "بينتو", hint: "مربعات عصرية متفاوتة: عنوان، صورة أو ميزة بارزة، مزايا، سعر وزر. مناسب للمنتجات والخدمات والتقنية", uses: ["kicker", "title", "highlight", "body", "items", "meta", "photo", "price", "cta", "badge"] },
@@ -267,6 +270,8 @@ export function normaliseDesign(raw: Partial<DesignSpec> & Record<string, unknow
     aspect: (Object.keys(DSIZE) as DAspect[]).includes(raw.aspect as DAspect) ? (raw.aspect as DAspect) : base.aspect,
     font: ALL_FONT_IDS.includes(String(raw.font)) ? (raw.font as string) : "Cairo",
     titleFont: ALL_FONT_IDS.includes(String(raw.titleFont)) ? (raw.titleFont as string) : undefined,
+    nav: base.kind === "carousel" ? (["dots", "count", "none"] as const).find((x) => x === raw.nav) ?? "dots" : undefined,
+    pano: base.kind === "carousel" ? raw.pano === true : undefined,
     finish: raw.finish === "foil" ? "foil" : raw.finish === "flat" ? "flat" : undefined,
     colors: { bg: hex(c.bg, "#F3ECE2"), ink: hex(c.ink, "#1E1B18"), accent: hex(c.accent, "#B4532F"), soft: hex(c.soft, "#FBF7F1") },
     brand: { name: opt(b?.name, 50), handle: opt(b?.handle, 60), logo: img(b?.logo), showLogo: b?.showLogo !== false, box: box(b?.box) },

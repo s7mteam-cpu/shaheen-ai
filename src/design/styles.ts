@@ -4,7 +4,7 @@ import { RECIPES, RECIPE_IDS, rcpHolds } from "./recipes";
 import { DSIZE, LAYOUTS, type DColors, type Deco, type Frame, type DKind, type DesignSpec, type LayoutId, type Slide } from "./spec";
 import { POST_STYLES, CAROUSEL_STYLES } from "./postStyles";
 
-export type DStyle = { id: string; name: string; cat?: string; mid?: LayoutId; end?: LayoutId; front: LayoutId; back: LayoutId; colors: DColors; font: string; titleFont?: string; deco: Deco; frame: Frame; finish: "flat" | "foil"; r?: string; rm?: string; re?: string };
+export type DStyle = { id: string; name: string; cat?: string; mid?: LayoutId; end?: LayoutId; front: LayoutId; back: LayoutId; colors: DColors; font: string; titleFont?: string; deco: Deco; frame: Frame; finish: "flat" | "foil"; r?: string; rm?: string; re?: string; nav?: "dots" | "count" | "none"; pano?: boolean };
 
 type Pal = [name: string, bg: string, ink: string, accent: string, soft: string];
 const col = (p: Pal): DColors => ({ bg: p[1], ink: p[2], accent: p[3], soft: p[4] });
@@ -218,6 +218,7 @@ export function applyStyle(spec: DesignSpec, st: DStyle): DesignSpec {
   const last = spec.slides.length - 1;
   return {
     ...spec,
+    ...(spec.kind === "carousel" && st.nav ? { nav: st.nav, pano: !!st.pano } : {}),
     colors: st.colors, font: st.font, titleFont: posts ? undefined : st.titleFont, deco: st.deco, frame: st.frame, finish: st.finish,
     slides: spec.slides.map((s, i) => {
       if (!posts) return { ...s, layout: i === 0 ? st.front : st.back, pos: undefined, hide: undefined, col: undefined };

@@ -383,6 +383,17 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
 
       <div className="flex min-w-0 flex-col gap-5">
         <StyleGallery spec={spec} onPick={(st) => setSpec((p) => applyStyle(p, st))} />
+        {spec.kind === "carousel" && spec.slides.length > 1 && (
+          <Card title={L("ربط الشرائح")} icon="🔗">
+            <Sub>{L("مؤشر التقليب")}</Sub>
+            <div className="flex flex-wrap gap-2">
+              {([["dots", "نقاط"], ["count", "رقم (2 / 5)"], ["none", "بدون"]] as const).map(([v, t]) => (
+                <button key={v} type="button" onClick={() => setSpec((p) => ({ ...p, nav: v }))} className={`rounded-full border px-4 py-2 text-[14px] font-semibold ${(spec.nav ?? "dots") === v ? "border-navy-700 bg-navy-700 text-white" : "border-line bg-white text-ink"}`}>{L(t)}</button>
+              ))}
+            </div>
+            <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!spec.pano} onChange={(e) => setSpec((p) => ({ ...p, pano: e.target.checked }))} className="h-4 w-4 accent-navy-700" />{L("زخرفة متّصلة تمتد عبر كل الشرائح (بانوراما)")}</label>
+          </Card>
+        )}
         {printed && (
           <Card more title={L("الخطوط واللمسة النهائية")} icon="🔤">
             <Sub>{L("خط النص")}</Sub>

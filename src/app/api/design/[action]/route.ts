@@ -85,7 +85,7 @@ ${iconGuide()}
 11) اللهجة: اكتب بالمستوى الذي طلبه العميل، قصيرًا وحيويًا، بدون حشو، وبإملاء سليم.
 12) قبل أن تُسلّم: اسأل نفسك: هل أفهم الرسالة خلال ثلاث ثوانٍ؟ هل يصلح هذا التصميم لنشاط العميل بالتحديد وليس لأي نشاط؟ هل فيه عنصر زائد؟
 
-مكتبة التصاميم (design): عندك 100 تصميم جاهز، كل واحد يحدد مكان الصورة ومكان النص وطريقة العنوان والقوائم. اختر واحدًا بمعرّفه dNNN وضعه بحقل "design" (للكاروسيل: {"front":"dNNN","mid":"dNNN","end":"dNNN"} الغلاف والوسط والخاتمة بنفس العائلة البصرية). الألوان والخط والزخرفة تختارها أنت وتبقى لك.
+مكتبة التصاميم (design): عندك 200 تصميم جاهز (d001 إلى d200)، كل واحد يحدد مكان الصورة ومكان النص وطريقة العنوان والقوائم. اختر واحدًا بمعرّفه dNNN وضعه بحقل "design" (للكاروسيل: {"front":"dNNN","mid":"dNNN","end":"dNNN"} الغلاف والوسط والخاتمة بنفس العائلة البصرية). تصاميم «رقم كبير» و«خطوات» و«بطاقات» و«علامات صح» ممتازة لشرائح وسط الكاروسيل. الألوان والخط والزخرفة تختارها أنت وتبقى لك.
 ${designCatalog()}
 
 مهارات المصمم المحترف عند اختيار التصميم (موضة 2025-2026):
@@ -115,6 +115,16 @@ type Body = {
   useBrand?: boolean; colors?: { bg: string; ink: string; accent: string; soft: string }; bgMode?: "shapes" | "ai"; aiImages?: boolean; imgStyle?: string; n?: number; industry?: string; ref?: DImg | null; likeWork?: string; jobId?: string; spec?: DesignSpec; instruction?: string; index?: number; prompt?: string;
 };
 type Raw = Partial<DesignSpec> & Record<string, unknown> & { slides?: (Record<string, unknown> & { photo?: unknown; person?: Record<string, unknown> | null })[] };
+
+/** how a professional carousel is built for any slide count: one story, same structure, a hook on the first slide and one ask on the last */
+function carouselPlan(n: number): string {
+  const skeleton = n <= 3 ? "الهيكل: (1) غلاف بعنوان يشدّ (وعد أو سؤال) (2) الفكرة أو الفائدة الأهم (3) خاتمة بدعوة واحدة."
+    : n === 4 ? "الهيكل: (1) غلاف (2) المشكلة أو السياق (3) الحل أو الفائدة (4) خاتمة بدعوة واحدة."
+    : n === 5 ? "الهيكل: (1) غلاف (2-4) ثلاث نقاط بنفس الترتيب والأسلوب (5) خاتمة بدعوة واحدة."
+    : n <= 7 ? "الهيكل: (1) غلاف (2) سياق قصير (3 إلى " + (n - 2) + ") نقاط بنفس الترتيب، ويمكن شريحة واحدة اقتباس أو رقم يثبت الكلام (" + (n - 1) + ") ملخص (" + n + ") خاتمة بدعوة واحدة."
+    : "الهيكل: (1) غلاف (2) سياق قصير (3 إلى " + (n - 3) + ") نقاط بنفس الترتيب، شريحة منها رقم أو دليل، وواحدة اقتباس (" + (n - 2) + ") تطبيق عملي (" + (n - 1) + ") ملخص (" + n + ") خاتمة بدعوة واحدة.";
+  return skeleton + " قواعد الاتساق: كل شرائح الوسط بنفس النمط (نفس شكل العنوان الصغير kicker مثل «النقطة 1»، نفس عدد العناصر تقريباً، نفس طول النص)، وكل شريحة تقف لحالها وتترك فضولًا للتالية، والعنوان بحد أقصى 8 كلمات، وجملة الغلاف تشدّ خلال ثانيتين، وطلب واحد فقط بالخاتمة. أضف \"nav\": \"dots\" أو \"count\" و\"pano\": true إذا الأجواء تناسب زخرفة متّصلة بين الشرائح (تصميم إبداعي وهادئ).";
+}
 
 async function siteText(url?: string | null) {
   if (!url || !/^https?:\/\//.test(url)) return "";
@@ -236,14 +246,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         : kind === "bcard"
         ? `بطاقة عمل ${count === 2 ? "بوجهين (وجه وظهر)" : "بوجه واحد فقط"}. المقاس 90×50 مم أفقي.`
         : kind === "carousel"
-        ? `كاروسيل من ${count} شرائح: الأولى cover، الأخيرة cta، والوسط فكرة وحدة لكل شريحة (point غالباً، ويمكن quote أو minimal أو bento للتنويع). نفس الألوان والخط لكل الشرائح. caption عام للكاروسيل.`
+        ? `كاروسيل من ${count} شرائح. ${carouselPlan(count)} الأولى cover والأخيرة cta، والوسط فكرة وحدة لكل شريحة (point غالباً، ويمكن quote أو minimal أو bento للتنويع). نفس الألوان والخط لكل الشرائح. caption عام للكاروسيل.`
         : kind === "ads"
           ? `${count} تصاميم إعلانية مختلفة لنفس المنتج، كل واحد بزاوية تسويقية مختلفة (عرض، فائدة، دليل اجتماعي، ندرة...) وبتخطيط مختلف. كل تصميم له caption خاص.`
           : `تصميم بوست واحد. اختر أنسب تخطيط للمحتوى، وحط caption.`;
       // the field: chosen, or read from what the customer wrote; its design pack picks this job's look
       const ind = industryById(body.industry) ?? industryById(await guessIndustry(info));
       const dpack = designPack(ind?.id);
-      const dpick = dpack && ind ? designBrief(dpack, ind.label) : null;
+      const dpick = dpack && ind ? designBrief(dpack, ind.label, Math.random(), ind.id) : null;
       const imgStyle = isImgStyle(body.imgStyle) ? body.imgStyle : DEFAULT_IMG_STYLE;
       const bgAi = body.bgMode === "ai" && kind === "carousel" && body.aiImages !== false;
       const raw = await claudeVisionJson<Raw>(kind === "invite" ? INVITE_SYSTEM : kind === "bcard" ? BCARD_SYSTEM : SYSTEM,
