@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { guardContent } from "@/lib/server/moderation";
 import { FREE_FONTS, cleanColors, cleanContact } from "@/lib/server/freeMotion";
+import { getFreeEngine } from "@/lib/server/freeEngine";
 import { DIALECT_NAME, pickVoice, typeToGA, type VoiceItem } from "@/lib/voiceMatch";
 
 export const maxDuration = 30;
@@ -46,8 +47,16 @@ export async function POST(req: Request) {
     const v = voices.some((x) => x.id === b.voice) ? voices.find((x) => x.id === b.voice) : pickVoice(voices, { dialect, gender, age });
     if (v) voice = { id: v.id, ...(v.model ? { model: v.model } : {}), ...(v.settings ? { settings: v.settings } : {}) };
   }
+  // the admin's switch: new designs may run on the Gemini engine (similar/edit requests of old designs stay classic)
+  const eng = from ? null : await getFreeEngine();
+  const useGem = eng?.engine === "gemini";
+  if (useGem) {
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { count: today } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", "free-motion").gte("created_at", since).contains("input", { engine: "gemini" });
+    if ((today ?? 0) >= eng!.dailyCap) return NextResponse.json({ error: "وصلت الحد اليومي لعدد التصاميم، جرّب بكرة." }, { status: 429 });
+  }
   const cost = from ? tool.edit_cost ?? 8 : Math.max(1, Math.round(seconds / 15)) * tool.credit_cost;
-  const input = { kind: "free", mode: from ? "similar" : "new", voiceover: !!voice, voice, dialect, dialectLabel: DIALECT_NAME[dialect], music: b.music !== false, idea, aspect, seconds, brand: { name: String(b.brand ?? "").slice(0, 60) }, colors: cleanColors(b.colors), ...(b.useIdentity === false && !from ? { autoStyle: true } : {}), font: FONTS.includes(String(b.font)) ? String(b.font) : "Cairo", contact: cleanContact(b.contact), ...(free ? { free } : {}), ...(typeof b.logoPath === "string" && b.logoPath.startsWith(`${user.id}/`) && !b.logoPath.includes("..") ? { logoPath: b.logoPath } : {}) };
+  const input = { kind: "free", mode: from ? "similar" : "new", voiceover: !!voice, voice, dialect, dialectLabel: DIALECT_NAME[dialect], music: b.music !== false, idea, aspect, seconds, brand: { name: String(b.brand ?? "").slice(0, 60) }, colors: cleanColors(b.colors), ...(b.useIdentity === false && !from ? { autoStyle: true } : {}), font: FONTS.includes(String(b.font)) ? String(b.font) : "Cairo", contact: cleanContact(b.contact), ...(useGem ? { engine: "gemini", model: eng!.model, plan: eng!.plan } : {}), ...(free ? { free } : {}), ...(typeof b.logoPath === "string" && b.logoPath.startsWith(`${user.id}/`) && !b.logoPath.includes("..") ? { logoPath: b.logoPath } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: "free-motion", title: idea.slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء التصميم." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
@@ -67,6 +76,14 @@ export async function GET(req: Request) {
   if (job.status === "failed") return NextResponse.json({ status: "failed", error: "ما قدرنا نكمل هذا التصميم. تم إرجاع ريشك، جرّب فكرة أبسط أو القوالب الجاهزة.", reason: String(job.error ?? "").replace(/sk-[\w-]+|eyJ[\w.-]+/g, "").slice(0, 220) }); // the technical reason is shown while the tool is experimental
   const inp = (job.input ?? {}) as { mode?: string; voiceover?: boolean; free?: { assets?: unknown; fields?: unknown[]; title?: string; vo?: { sentences?: string[]; beats?: unknown[]; path?: string; musicPath?: string } }; colors?: unknown; font?: string; contact?: unknown; aspect?: string; cseconds?: number; seconds?: number; idea?: string; editError?: string; brand?: { name?: string }; music?: boolean; musicVol?: number; dialect?: string; logoPath?: string; logoOn?: boolean; logoBox?: { x: number; y: number; w: number }; unlocked?: boolean };
   const out = (job.output ?? {}) as { files?: { path: string }[]; thumb?: string; preview?: string };
+  if ((inp as { engine?: string }).engine === "gemini") { // the Gemini engine delivers a finished video (no live studio yet)
+    if (job.status !== "done") return NextResponse.json({ status: job.status, progress: job.progress ?? 0, engine: "gemini" });
+    const vp = out.files?.[0]?.path ?? "";
+    if (!vp.startsWith(`${user.id}/`) || vp.includes("..")) return NextResponse.json({ status: "failed", error: "ما لقينا الفيديو." });
+    const play = (await admin.storage.from("results").createSignedUrl(vp, 60 * 60 * 3)).data?.signedUrl ?? "";
+    const dl = (await admin.storage.from("results").createSignedUrl(vp, 60 * 60 * 3, { download: `shaheen-${id.slice(0, 6)}.mp4` })).data?.signedUrl ?? "";
+    return NextResponse.json({ status: "gemini", title: job.title, aspect: inp.aspect ?? "9:16", videoUrl: play, downloadUrl: dl });
+  }
   if (!out.preview) return NextResponse.json({ status: job.status, progress: job.progress ?? 0 });
   const own = (x?: string) => (x && x.startsWith(`${user.id}/`) && !x.includes("..") ? x : "");
   const paths = [own(out.preview), own(inp.free?.vo?.path), own(inp.free?.vo?.musicPath), own(out.files?.[0]?.path)].filter(Boolean);

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getContent } from "@/lib/data";
 import { providerInfo, textProviders, toolProviders, type ProviderId } from "@/lib/providers/registry";
 import { saveAi } from "../actions";
+import { saveFreeEngine } from "../templates/actions";
+import { getFreeEngine, GEM_MODELS } from "@/lib/server/freeEngine";
 import { getL } from "@/lib/server/lang";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +26,7 @@ export default async function AiAdmin() {
   const L = await getL();
   await guardPage("ai");
   const { ai } = await getContent();
+  const fe = await getFreeEngine();
   const keys = Object.entries(providerInfo).filter(([id]) => id !== "gemini").map(([id, p]) => ({ id, ...p, ok: Boolean(process.env[p.env]) }));
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -32,6 +35,23 @@ export default async function AiAdmin() {
       <form action={saveAi} className="card flex flex-col gap-5 p-6">
         <Row title={L("«كلّم شاهين» — المساعد الجانبي")} hint={L("يرد على العملاء ويعرف حساباتهم.")} pName="chat_provider" mName="chat_model" p={ai.chat_provider} m={ai.chat_model} />
         <Row title={L("الكتابة — نصوص الإعلانات و«ألهمني»")} hint={L("يكتب الزوايا التسويقية والنصوص والأفكار.")} pName="copy_provider" mName="copy_model" p={ai.copy_provider} m={ai.copy_model} />
+        <button className="btn btn-primary self-start px-6 py-2.5">{L("حفظ")}</button>
+      </form>
+
+      <form action={saveFreeEngine} className="card flex flex-col gap-4 p-6">
+        <div><h2 className="text-lg font-bold">{L("محرك «تصميم مبتكر» عند العملاء")}</h2>
+          <p className="mt-1 text-sm text-subtle">{L("القديم: كلود يكتب كود الموشن (الاستوديو الحي والتعديل المباشر). الجديد (جيميناي): كلود يرتّب النص، الصوت يتسجّل أول، وجيميناي يبني التصميم ويطلع فيديو جاهز بصوت وموسيقى (التعديل المباشر قيد التجهيز، والفيديو ياخذ حتى 15 دقيقة). التغيير ينطبق على الطلبات الجديدة فقط.")}</p></div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="flex flex-col gap-1.5"><label className="label">{L("المحرك")}</label>
+            <select name="engine" defaultValue={fe.engine} className="field"><option value="classic">{L("القديم (مبتكر بالكود)")}</option><option value="gemini">{L("الجديد (جيميناي)")}</option></select></div>
+          <div className="flex flex-col gap-1.5"><label className="label">{L("نموذج جيميناي")}</label>
+            <select name="model" defaultValue={fe.model} className="field">{GEM_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
+          <div className="flex flex-col gap-1.5"><label className="label">{L("وضع التخطيط")}</label>
+            <select name="plan" defaultValue={fe.plan} className="field"><option value="scenes">{L("نص مع مشاهد (أرخص وأسرع)")}</option><option value="full">{L("خطة كاملة (أغنى وأغلى)")}</option></select></div>
+          <div className="flex flex-col gap-1.5"><label className="label">{L("سقف التصاميم لكل عميل بالـ24 ساعة")}</label>
+            <input name="dailyCap" type="number" min={1} max={100} defaultValue={fe.dailyCap} className="field" /></div>
+        </div>
+        <p className="text-sm"><code dir="ltr">GEMINI_API_KEY</code> ({L("بـRailway للـWorker")})</p>
         <button className="btn btn-primary self-start px-6 py-2.5">{L("حفظ")}</button>
       </form>
 

@@ -23,7 +23,7 @@ import { buildPreview } from "./freepreview.mjs";
 import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
 import { extractTexts, extractColors, applyEdits } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
-import { planVideo, geminiHtml } from "./gemflow.mjs";
+import { planVideo, geminiHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
@@ -892,14 +892,29 @@ async function tplFlowJob(job) {
     await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify({ ...meta, error: String(e?.message ?? e).slice(0, 300) })), { contentType: "application/json", upsert: true });
   } finally { await rm(outFile, { force: true }); await db.from("jobs").delete().eq("id", job.id); }
 }
+/** video (silent) + voice + optional quiet music → one MP4 */
+async function mixAv({ video, voice, music, seconds, out }) {
+  const args = ["-i", video, "-i", voice]; if (music) args.push("-i", music);
+  const fc = music
+    ? `[1:a]volume=1.0,apad[v];[2:a]volume=0.14,afade=t=out:st=${Math.max(0, seconds - 2)}:d=2[m];[v][m]amix=inputs=2:duration=first:normalize=0[a]`
+    : "[1:a]volume=1.0,apad[a]";
+  await ff([...args, "-filter_complex", fc, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", String(seconds), out]);
+}
+
 /** «التجربة الكبرى» (للأدمن): Claude يخطط ← Gemini يبني الحركة (HTML) ← فحص بصري ← تسجيل MP4. النتيجة بالتخزين فقط. */
 async function gemFlowJob(job) {
   const inp = job.input ?? {};
   const idea = String(inp.idea ?? "").slice(0, 1500);
-  const seconds = [15, 30, 45, 60].includes(Number(inp.seconds)) ? Number(inp.seconds) : 30;
+  const cust = inp.engine === "gemini" && inp.mode === "new"; // a real customer order (not the admin test): delivered to his own folder, refunded on failure
+  let seconds = cust ? ([15, 30, 45, 60, 75, 90, 105, 120].includes(Number(inp.seconds)) ? Number(inp.seconds) : 30) : ([15, 30, 45, 60].includes(Number(inp.seconds)) ? Number(inp.seconds) : 30);
   const aspect = ["9:16", "16:9", "1:1", "4:5"].includes(inp.aspect) ? inp.aspect : "9:16";
   const [W, H] = FREE_SIZE[aspect];
-  const base = `templates/gem/${job.id}`;
+  const base = cust ? `${job.user_id}/gem-${job.id}` : `templates/gem/${job.id}`;
+  const contactsTxt = (Array.isArray(inp.contact) ? inp.contact : []).map((c) => `${String(c.icon ?? "")}: ${String(c.handle ?? "")}`).join(" | ");
+  const identity = cust && inp.autoStyle !== true && inp.colors ? { bg: inp.colors.bg, accent: inp.colors.accent, text: inp.colors.text, font: inp.font || "Cairo" } : null;
+  const ideaFull = contactsTxt ? `${idea}\nحسابات التواصل (تظهر كما هي): ${contactsTxt}` : idea;
+  const voiceIn = inp.voice && typeof inp.voice.id === "string" ? inp.voice : null;
+  let vo = null, musicBuf = null;
   const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
   const outFile = join(workDir, `gem-${job.id}.mp4`);
   const meta = { idea, aspect, seconds, plan_mode: ["scenes", "full"].includes(inp.plan) ? inp.plan : "text", at: new Date().toISOString(), timings: {}, attempts: [] };
@@ -907,12 +922,22 @@ async function gemFlowJob(job) {
   const t0 = Date.now(), lap = (k) => { meta.timings[k] = Math.round((Date.now() - t0) / 1000); };
   try {
     await stage("يكتب الخطة (Claude)…", 10);
-    const plan = await planVideo({ idea, seconds, brand: inp.brand, mode: ["scenes", "full"].includes(inp.plan) ? inp.plan : "text" });
+    let plan = await planVideo({ idea: ideaFull, seconds, brand: inp.brand, mode: ["scenes", "full"].includes(inp.plan) ? inp.plan : "text", dialectLabel: voiceIn ? inp.dialectLabel : "" });
+    plan = { ...plan, ...(identity ? { identity } : {}), ...(contactsTxt ? { contacts: contactsTxt } : {}) };
     meta.plan = plan; lap("plan");
+    if (voiceIn) { // the voice comes first: its sentences decide when every scene starts and how long the video is
+      await stage("يسجّل الصوت…", 18);
+      const sents = sentencesOf(plan);
+      const spoken = await Promise.all(sents.map((x) => speechReady(x)));
+      vo = await buildVoice(job, cust ? `${job.user_id}/gem` : "templates/gem", spoken, voiceIn);
+      plan = timeScenes(plan, vo.beats, vo.duration); seconds = plan.seconds;
+      meta.plan = plan; meta.voice = { path: vo.path, duration: vo.duration, beats: vo.beats, sentences: spoken }; meta.seconds = seconds; lap("voice");
+      if (inp.music !== false) { try { musicBuf = await makeMusic(String(inp.musicPrompt || "Warm modern upbeat background music, steady light rhythm, polished, suitable for a Gulf promo video"), seconds + 3); lap("music"); } catch (e) { meta.musicError = String(e?.message ?? e).slice(0, 120); } }
+    }
     let retry = "", page = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
       await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);
-      const g = await geminiHtml({ plan, idea, retry, model: inp.model });
+      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model });
       const prepared = await prepareHtml(g.html);
       const rec = { attempt, model: g.model, usage: g.usage, chars: g.html.length, notes: prepared.notes };
       meta.attempts.push(rec); lap(`gemini${attempt}`);
@@ -924,8 +949,11 @@ async function gemFlowJob(job) {
       const errs = (stills.errors ?? []).map((x) => String(x).slice(0, 160));
       const distinct = new Set(stills.map((b) => createHash("md5").update(b).digest("hex"))).size;
       rec.errors = errs; rec.distinctFrames = distinct;
+      const missing = missingContacts(prepared.html, `${ideaFull} ${plan.text}`);
+      rec.missingContacts = missing;
       let review = { ok: !blank, issues: blank ? "الصفحة طلعت فاضية بمنتصف الفيديو" : "" };
-      if (!blank && distinct <= 2) review = { ok: false, issues: `The video is almost static: only ${distinct} different frames out of 6 sampled across ${seconds}s. The animation stops after the first moment. Every scene must appear and animate at its own time on the timeline, driven by requestAnimationFrame / performance.now() or CSS animation-delay, never by clicks or events.${errs.length ? " Page errors: " + errs.join(" | ") : ""}` };
+      if (!blank && missing.length) review = { ok: false, issues: `These contact details from the customer's text are missing from the page and MUST be shown exactly as written, at least in the last scene: ${missing.join(" | ")}` };
+      else if (!blank && distinct <= 2) review = { ok: false, issues: `The video is almost static: only ${distinct} different frames out of 6 sampled across ${seconds}s. The animation stops after the first moment. Every scene must appear and animate at its own time on the timeline, driven by requestAnimationFrame / performance.now() or CSS animation-delay, never by clicks or events.${errs.length ? " Page errors: " + errs.join(" | ") : ""}` };
       else if (!blank) {
         // motion INSIDE scenes: count elements whose look changes within half a second at 8 points of the video
         const pts = Array.from({ length: 8 }, (_, i) => 0.8 + i * ((seconds - 2) / 8));
@@ -937,20 +965,36 @@ async function gemFlowJob(job) {
         }
         if (review.ok) review = await reviewFree({ frames: stills, aspect, idea }).catch(() => ({ ok: true, issues: "" }));
       }
-      rec.review = review; page = prepared.html;
+      rec.review = review; rec.hard = !review.ok && (blank || missing.length > 0 || distinct <= 2 || String(review.issues).startsWith("Elements inside")); page = prepared.html;
       if (review.ok) break;
       retry = review.issues;
     }
+    if (cust && meta.attempts.at(-1)?.hard) throw new Error("التصميم ما طلع بجودة كافية بعد محاولتين"); // a broken design is never delivered: the order is refunded
     await stage("يرسم الفيديو…", 80);
     await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss() });
     lap("record");
-    const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(outFile), { contentType: "video/mp4", upsert: true });
+    let finalFile = outFile;
+    if (vo) {
+      await stage("يركّب الصوت والموسيقى…", 92);
+      const vf = join(workDir, `gv-${job.id}.mp3`), mf = join(workDir, `gm-${job.id}.mp3`); finalFile = join(workDir, `gf-${job.id}.mp4`);
+      const dl = await db.storage.from("results").download(vo.path); await writeFile(vf, Buffer.from(await dl.data.arrayBuffer()));
+      if (musicBuf) await writeFile(mf, musicBuf);
+      await mixAv({ video: outFile, voice: vf, music: musicBuf ? mf : null, seconds, out: finalFile });
+      if (musicBuf) await db.storage.from("results").upload(`${base}.music.mp3`, musicBuf, { contentType: "audio/mpeg", upsert: true });
+      await db.storage.from("results").upload(`${base}.voice.mp3`, await readFile(vf), { contentType: "audio/mpeg", upsert: true });
+      await rm(vf, { force: true }); await rm(mf, { force: true }); lap("mix");
+    }
+    const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(finalFile), { contentType: "video/mp4", upsert: true });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.html`, Buffer.from(page), { contentType: "text/html", upsert: true });
-  } catch (e) { console.error("gemini flow failed", e?.message ?? e); meta.error = String(e?.message ?? e).slice(0, 400); }
+    if (cust) {
+      await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(meta.plan?.title || inp.brand?.name || "تصميم مبتكر").slice(0, 80), input: { ...inp, mode: "done", cseconds: seconds, gem: { htmlPath: `${base}.html`, voicePath: vo?.path ?? null, model: meta.attempts.at(-1)?.model ?? null, usage: meta.attempts.map((a) => a.usage ?? null), timings: meta.timings } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
+    }
+  } catch (e) { console.error("gemini flow failed", e?.message ?? e); meta.error = String(e?.message ?? e).slice(0, 400); if (cust) { await fail(job, e); } }
   finally {
+    if (cust) { await rm(outFile, { force: true }); await rm(join(workDir, `gf-${job.id}.mp4`), { force: true }); return; }
     await db.storage.from("results").upload(`${base}.json`, Buffer.from(JSON.stringify(meta)), { contentType: "application/json", upsert: true });
-    await rm(outFile, { force: true }); await db.from("jobs").delete().eq("id", job.id);
+    await rm(outFile, { force: true }); await rm(join(workDir, `gf-${job.id}.mp4`), { force: true }); await db.from("jobs").delete().eq("id", job.id);
   }
 }
 async function tplPreviewJob(job) {
@@ -1352,6 +1396,7 @@ for (;;) {
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplrender") await tplRenderJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplflow") await tplFlowJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "gemflow") await gemFlowJob(job);
+  else if (job.tool_id === "free-motion" && job.input?.engine === "gemini" && job.input?.mode === "new") await gemFlowJob(job);
   else if (job.tool_id === "free-motion") await freeJob(job);
   else if (job.tool_id === "cv") await renderCV(job);
   else if (DESIGN_TOOLS.includes(job.tool_id)) await renderDesign(job);

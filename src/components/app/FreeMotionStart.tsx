@@ -1,5 +1,6 @@
 "use client";
 import { L } from "@/lib/i18n/ui";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Progress } from "@/components/app/Progress";
@@ -11,7 +12,7 @@ import { FreeSent } from "@/components/app/FreeSent";
 
 type Contact = { icon: BrandId; handle: string };
 type Colors = { bg: string; accent: string; text: string };
-type State = StudioData | { status: "queued" | "running"; progress: number } | { status: "failed"; error: string; reason?: string };
+type State = StudioData | { status: "queued" | "running"; progress: number; engine?: string } | { status: "gemini"; title: string; aspect: string; videoUrl: string; downloadUrl: string } | { status: "failed"; error: string; reason?: string };
 
 const sizes = [["9:16", "📱 ريلز 9:16"], ["16:9", "▶️ يوتيوب 16:9"], ["1:1", "⬜ مربع 1:1"], ["4:5", "🖼️ طولي 4:5"]] as const;
 const fonts = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
@@ -67,7 +68,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
       setBusyNow(d.busy);
       setStudio((p) => (!p || !d.busy ? d : p)); // while something is being recorded/exported the studio keeps its links (they change on every request)
       stopped.current = !d.busy;
-    } else { setState(d); stopped.current = d.status === "failed"; }
+    } else { setState(d); stopped.current = d.status === "failed" || d.status === "gemini"; }
   }, [jobId]);
   useEffect(() => {
     setStudio(null); setBusyNow(null); setState(null); stopped.current = false;
@@ -134,12 +135,26 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
   const showSent = !!studio && !unlockedNow && ((sentLocal && (!!busyNow || !!studio.exportUrl)) || (!!studio.locked && !busyNow));
   if (jobId && studio && showSent) return <FreeSent data={studio} busy={busyNow} editCost={editCost} balance={balance} onUnlock={unlock} />;
   if (jobId && studio) return <FreeStudio key={`${jobId}-${epoch}`} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={(k) => { stopped.current = false; waitBusy.current = Date.now() + 30000; setBusyNow({ kind: k, progress: 3 }); if (k === "export") { setSentLocal(true); setUnlockedNow(false); } poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
+  if (jobId && state?.status === "gemini") {
+    const g = state;
+    return (
+      <div className="card flex max-w-2xl flex-col gap-4 p-5 sm:p-6">
+        <h2 className="text-[20px] font-bold text-navy-900">{g.title}</h2>
+        <video src={g.videoUrl} controls playsInline className="mx-auto max-h-[70vh] w-full max-w-sm rounded-xl bg-black" />
+        <div className="flex flex-wrap gap-2">
+          <a href={g.downloadUrl} download className="btn btn-gold px-5 py-3">⬇ {L("نزّل الفيديو")}</a>
+          <Link href="/app/tools/free-motion" className="btn btn-outline px-5 py-3">{L("تصميم جديد")}</Link>
+        </div>
+        <p className="text-[13px] text-subtle">{L("لتعديل نص أو لون: ابدأ تصميمًا جديدًا بنفس الفكرة وغيّر ما تريد. التعديل المباشر على هذا النوع قيد التجهيز.")}</p>
+      </div>
+    );
+  }
   if (jobId && state?.status === "failed") {
     return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p>{state.reason && <p dir="ltr" className="mt-3 rounded-lg bg-neutral-100 p-3 text-start text-[12px] text-neutral-600">{state.reason}</p>}<button onClick={() => router.replace("/app/tools/free-motion")} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
   }
   if (jobId) {
     const pr = state && "progress" in state ? state.progress : 3;
-    return <div className="card max-w-2xl p-6"><Progress value={pr || 5} label={L("شاهين يصمّم فكرتك… (دقيقتين إلى خمس)")} /><p className="mt-3 text-[13px] text-subtle">{L("بعدها تنفتح لك المعاينة المباشرة وتعدّل عليها قبل التصدير.")} {L("تقدر تطلع من الصفحة، تلقاه بـ«أعمالي» لما يخلص.")}</p></div>;
+    return <div className="card max-w-2xl p-6"><Progress value={pr || 5} label={state && "engine" in state && state.engine === "gemini" ? L("شاهين يصمّم فيديوك بالصوت والموسيقى… (من 8 إلى 15 دقيقة، ممكن تسكّر الصفحة وترجع)") : L("شاهين يصمّم فكرتك… (دقيقتين إلى خمس)")} /><p className="mt-3 text-[13px] text-subtle">{L("بعدها تنفتح لك المعاينة المباشرة وتعدّل عليها قبل التصدير.")} {L("تقدر تطلع من الصفحة، تلقاه بـ«أعمالي» لما يخلص.")}</p></div>;
   }
   return (
     <form onSubmit={start} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">

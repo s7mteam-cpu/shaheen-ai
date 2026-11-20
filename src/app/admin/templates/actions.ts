@@ -2,7 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/server/auth";
+import { DIALECT_NAME, pickVoice, typeToGA, type VoiceItem } from "@/lib/voiceMatch";
 import { INDUSTRIES } from "@/design/industries";
+import { cleanEngine } from "@/lib/server/freeEngine";
 
 async function guard() {
   const u = await requireAdmin("templates");
@@ -128,7 +130,17 @@ export async function startGemini(form: FormData) {
   if (idea.length < 10) return;
   const admin = createAdminClient();
   const { data: busy } = await admin.from("jobs").select("id").eq("tool_id", "free-motion").in("status", ["queued", "running"]).contains("input", { mode: "gemflow" }).limit(1);
-  if (!busy?.length) await admin.from("jobs").insert({ user_id: me.id, tool_id: "free-motion", title: "تجربة جيميناي", status: "queued", progress: 0, input: { kind: "free", mode: "gemflow", idea, seconds, aspect, brand, plan: ["scenes", "full"].includes(String(form.get("plan"))) ? String(form.get("plan")) : "text", model: ["gemini-3.8-flash", "gemini-4-neon"].includes(String(form.get("model"))) ? String(form.get("model")) : "" } });
+  // narrator: the best registered voice for the dialect / type (same choice the customer tool makes)
+  let voice: { id: string; model?: string; settings?: unknown } | null = null;
+  const dialect = String(form.get("dialect") ?? "kuwaiti") in DIALECT_NAME ? String(form.get("dialect")) : "kuwaiti";
+  if (String(form.get("voiceover") ?? "on") !== "off") {
+    const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
+    const voices = ((vc?.value as { items?: VoiceItem[] })?.items ?? []);
+    const { gender, age } = typeToGA(String(form.get("vtype") ?? "auto"));
+    const v = pickVoice(voices, { dialect, gender, age });
+    if (v) voice = { id: v.id, ...(v.model ? { model: v.model } : {}), ...(v.settings ? { settings: v.settings } : {}) };
+  }
+  if (!busy?.length) await admin.from("jobs").insert({ user_id: me.id, tool_id: "free-motion", title: "تجربة جيميناي", status: "queued", progress: 0, input: { kind: "free", mode: "gemflow", idea, seconds, aspect, brand, plan: ["scenes", "full"].includes(String(form.get("plan"))) ? String(form.get("plan")) : "text", model: ["gemini-3.8-flash", "gemini-4-neon"].includes(String(form.get("model"))) ? String(form.get("model")) : "", voice, dialect, dialectLabel: DIALECT_NAME[dialect], music: String(form.get("music") ?? "on") !== "off" } });
   revalidatePath("/admin/templates/gemini");
 }
 
@@ -141,4 +153,13 @@ export async function startFlow(form: FormData) {
   const { data: busy } = await admin.from("jobs").select("id").eq("tool_id", "free-motion").in("status", ["queued", "running"]).contains("input", { mode: "tplflow" }).limit(1);
   if (!busy?.length) await admin.from("jobs").insert({ user_id: me.id, tool_id: "free-motion", title: `مسار القالب: ${ind.label}`.slice(0, 60), status: "queued", progress: 0, input: { kind: "free", mode: "tplflow", idea, fieldId: ind.id, groupIds: INDUSTRIES.filter((i) => i.group === ind.group).map((i) => i.id) } });
   revalidatePath("/admin/templates/flow");
+}
+
+/** لوحة الإدارة ← الذكاء الاصطناعي: أي محرك يشغّل «تصميم مبتكر» عند العملاء، وأي نموذج، وسقف يومي لكل عميل. */
+export async function saveFreeEngine(form: FormData) {
+  const u = await requireAdmin("ai");
+  if (!u) throw new Error("غير مصرّح");
+  const value = cleanEngine({ engine: form.get("engine"), model: form.get("model"), plan: form.get("plan"), dailyCap: form.get("dailyCap") });
+  await createAdminClient().from("site_content").upsert({ key: "free_engine", value, updated_at: new Date().toISOString() });
+  revalidatePath("/admin/ai");
 }

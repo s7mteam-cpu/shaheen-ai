@@ -3,9 +3,10 @@ import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getL } from "@/lib/server/lang";
 import { startGemini } from "../actions";
+import { DIALECT_NAME, VOICE_TYPES } from "@/lib/voiceMatch";
 
 export const dynamic = "force-dynamic";
-type Meta = { idea?: string; seconds?: number; aspect?: string; error?: string; plan_mode?: string; plan?: { title?: string; text?: string }; timings?: Record<string, number>; attempts?: { attempt: number; chars: number; model?: string; usage?: { promptTokenCount?: number; candidatesTokenCount?: number } | null; review?: { ok?: boolean; issues?: string }; errors?: string[]; distinctFrames?: number; motion?: number[] }[] };
+type Meta = { idea?: string; seconds?: number; aspect?: string; error?: string; plan_mode?: string; voice?: { duration?: number; sentences?: string[] }; musicError?: string; plan?: { title?: string; text?: string }; timings?: Record<string, number>; attempts?: { attempt: number; chars: number; model?: string; usage?: { promptTokenCount?: number; candidatesTokenCount?: number } | null; review?: { ok?: boolean; issues?: string }; errors?: string[]; distinctFrames?: number; motion?: number[]; missingContacts?: string[] }[] };
 
 /** «التجربة الكبرى» (أدمن فقط): Claude يخطط، Gemini يبني الحركة، شاهين يسجّل الفيديو. */
 export default async function GeminiLab() {
@@ -31,7 +32,7 @@ export default async function GeminiLab() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-[24px] font-bold text-navy-900">🚀 {L("التجربة الكبرى: جيميناي يبني")}</h1>
-          <p className="mt-1 text-sm text-subtle">{L("اكتب فكرة العميل. كلود يرتّب نص العميل فقط، وجيميناي يقرر كل شي (ألوان ومشاهد وحركة)، وشاهين يسجّله فيديو. بدون صوت بهالمرحلة. للأدمن فقط.")}</p>
+          <p className="mt-1 text-sm text-subtle">{L("اكتب فكرة العميل. كلود يرتّب النص ويكتب التعليق، والصوت يتسجّل أول ويحدد توقيت المشاهد، وجيميناي يبني التصميم على هالتوقيت، وشاهين يسجّله ويركّب الصوت والموسيقى. للأدمن فقط.")}</p>
         </div>
         <Link href="/admin/templates" className="btn btn-outline px-4 py-2">← {L("رجوع للمكتبة")}</Link>
       </div>
@@ -42,6 +43,10 @@ export default async function GeminiLab() {
           <input name="brand" maxLength={60} dir="auto" className="field w-52" placeholder={L("اسم العلامة (اختياري)")} />
           <select name="plan" defaultValue="full" className="field w-44"><option value="full">{L("خطة كاملة (الأقوى)")}</option><option value="scenes">{L("نص مع مشاهد")}</option><option value="text">{L("نص فقط")}</option></select>
           <select name="model" defaultValue="" className="field w-44"><option value="">{L("النموذج: الافتراضي")}</option><option value="gemini-3.8-flash">gemini-3.8-flash</option><option value="gemini-4-neon">gemini-4-neon</option></select>
+          <select name="voiceover" defaultValue="on" className="field w-36"><option value="on">{L("مع صوت")}</option><option value="off">{L("بدون صوت")}</option></select>
+          <select name="dialect" defaultValue="kuwaiti" className="field w-40">{Object.entries(DIALECT_NAME).map(([k, v]) => <option key={k} value={k}>{L(v.replace(" بيضاء واضحة", ""))}</option>)}</select>
+          <select name="vtype" defaultValue="auto" className="field w-32">{VOICE_TYPES.map((v) => <option key={v[0]} value={v[0]}>{L(v[1])}</option>)}</select>
+          <select name="music" defaultValue="on" className="field w-36"><option value="on">{L("مع موسيقى")}</option><option value="off">{L("بدون موسيقى")}</option></select>
           <select name="seconds" defaultValue="30" className="field w-32"><option value="15">15s</option><option value="30">30s</option><option value="45">45s</option><option value="60">60s</option></select>
           <select name="aspect" defaultValue="9:16" className="field w-32"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select>
         </div>
@@ -53,8 +58,9 @@ export default async function GeminiLab() {
           <div className="flex flex-col gap-2 text-[13px]">
             <p dir="auto" className="text-[14px] font-bold">{it.meta.idea}</p>
             <p className="text-subtle">{it.meta.plan?.title} · {it.meta.plan_mode === "full" ? "خطة كاملة" : it.meta.plan_mode === "scenes" ? "مشاهد" : "نص فقط"} · {it.meta.seconds}s · {it.meta.aspect}{it.meta.timings ? ` · ${Object.entries(it.meta.timings).map(([k, v]) => `${k} ${v}s`).join(" · ")}` : ""}</p>
+            {it.meta.voice && <p className="text-subtle">🎙 {L("مدة الصوت")}: {it.meta.voice.duration}s · {it.meta.voice.sentences?.length} {L("جمل")}{it.meta.musicError ? ` · ⚠️ ${L("الموسيقى")}: ${it.meta.musicError}` : ""}</p>}
             {it.meta.error && <p dir="auto" className="rounded-lg bg-red-50 p-2 text-red-800">⚠️ {it.meta.error}</p>}
-            {it.meta.attempts?.map((a) => <p key={a.attempt} className="text-subtle">{L("محاولة")} {a.attempt}: {a.model} · {a.chars} {L("حرف")} · tokens {a.usage?.promptTokenCount ?? "?"}/{a.usage?.candidatesTokenCount ?? "?"} · {a.review?.ok ? "✅" : `⚠️ ${a.review?.issues ?? ""}`} · {L("لقطات مختلفة")}: {a.distinctFrames ?? "?"}/6{a.motion ? ` · ${L("الحركة داخل المشاهد")}: ${a.motion.join(",")}` : ""}{a.errors?.length ? ` · ${L("أخطاء الصفحة")}: ${a.errors.join(" | ")}` : ""}</p>)}
+            {it.meta.attempts?.map((a) => <p key={a.attempt} className="text-subtle">{L("محاولة")} {a.attempt}: {a.model} · {a.chars} {L("حرف")} · tokens {a.usage?.promptTokenCount ?? "?"}/{a.usage?.candidatesTokenCount ?? "?"} · {a.review?.ok ? "✅" : `⚠️ ${a.review?.issues ?? ""}`} · {L("لقطات مختلفة")}: {a.distinctFrames ?? "?"}/6{a.missingContacts?.length ? ` · ⚠️ ${L("بيانات تواصل ناقصة")}: ${a.missingContacts.join(" | ")}` : ""}{a.motion ? ` · ${L("الحركة داخل المشاهد")}: ${a.motion.join(",")}` : ""}{a.errors?.length ? ` · ${L("أخطاء الصفحة")}: ${a.errors.join(" | ")}` : ""}</p>)}
             <div className="flex flex-wrap gap-2">
               {it.video && <a href={it.video} download className="btn btn-outline px-4 py-2">⬇ {L("الفيديو")}</a>}
               {it.code && <a href={it.code} download className="btn btn-outline px-4 py-2">⬇ HTML</a>}
