@@ -1,4 +1,5 @@
 import React, { createContext, useContext } from "react";
+import { COLOR_ICONS } from "./colorIcons";
 import { Img } from "remotion";
 import {
   Accessibility,
@@ -749,6 +750,7 @@ export function DIcon({ name, size, color, stroke = 1.8 }: { name?: string; size
   if (name && name in DESIGN_BRANDS) return <BrandGlyph id={name} size={size} color={color} />;
   const id = (name && name in ICONS ? name : "sparkles") as IconId;
   if (style === "3d" && images?.[id]) return <Img src={images[id]} style={{ width: size * 1.6, height: size * 1.6, objectFit: "contain", flex: "none", margin: -size * 0.3 }} />;
+  if (style === "emoji" && COLOR_ICONS[id]) return <svg viewBox="0 0 32 32" width={size * 1.1} height={size * 1.1} style={{ flex: "none", display: "inline-block", margin: -size * 0.05 }} aria-hidden dangerouslySetInnerHTML={{ __html: COLOR_ICONS[id] }} />;
   if (style === "emoji") return <span style={{ fontSize: size * 0.92, lineHeight: 1, fontFamily: EMOJI_FONT, flex: "none", display: "inline-block", width: size, textAlign: "center" }}>{EMOJI[id]}</span>;
   const C = ICONS[id].C;
   return <C size={size} color={color} strokeWidth={stroke} absoluteStrokeWidth={false} fill={style === "duo" || style === "3d" ? color : "none"} fillOpacity={style === "duo" || style === "3d" ? 0.22 : undefined} style={{ flex: "none" }} />;
