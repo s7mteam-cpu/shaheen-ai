@@ -163,12 +163,13 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
     } catch (e) { setError((e as Error).message); setBusy(false); }
   }
 
-  const maxW = data.aspect === "9:16" ? "min(100%, calc((100vh - 15rem) * 0.5625))" : "100%";
+  const maxW = data.aspect === "9:16" ? "min(100%, calc((100vh - 14rem) * 0.5625))" : "100%";
   return (
     <>
       {cropFile && <LogoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); uploadLogo(f); }} />}
-      <div className={`grid grid-cols-1 gap-6 lg:items-start ${data.aspect === "9:16" ? "lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,720px)_minmax(0,1fr)]"}`}>
-        <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-4">
+      <div className="flex flex-col gap-6">
+        <div className={`grid grid-cols-1 gap-6 lg:items-start ${data.aspect === "9:16" ? "lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]"}`}>
+          <div className="flex min-w-0 flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="text-[17px] font-bold text-navy-900">{L("معاينة مباشرة")}</h2>
             <span className="rounded-full bg-tint px-3 py-1 text-[13px] text-subtle">{seconds} {L("ثانية")}</span>
@@ -184,18 +185,8 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             <input type="range" min={0} max={seconds} step={0.1} value={Math.min(t, seconds)} onChange={(e) => setT(Number(e.target.value))} onPointerUp={(e) => seek(Number((e.target as HTMLInputElement).value))} onKeyUp={(e) => seek(Number((e.target as HTMLInputElement).value))} className="flex-1" aria-label={L("الوقت")} />
             <span className="w-20 text-end text-[13px] tabular-nums text-subtle">{fmt(t)} / {fmt(seconds)}</span>
           </div>
-          <FreeTimeline total={seconds} playhead={t} trim={trim} onTrim={setTrim} disabled={busy}
-            voice={data.hasVoice ? { at: 0, dur: seconds } : null} music={!musicOff && !!data.musicUrl}
-            own={own ? { at: own.at ?? 0, len: Math.max(0.5, Math.min((own.end ?? own.dur ?? seconds) - (own.start ?? 0), seconds - (own.at ?? 0))), name: own.name } : null}
-            onOwnMove={(at) => own && setOwn({ ...own, at: +at.toFixed(1) })} onSeek={seek} />
-          <div className="flex flex-wrap gap-2">
-            <a href={data.downloadUrl} download className="btn btn-gold px-5 py-2.5">⬇ {L("نزّل الفيديو الجاهز")}</a>
-            <Link href="/app/tools/free-motion" className="btn btn-outline px-5 py-2.5">{L("تصميم جديد")}</Link>
           </div>
-          <details className="rounded-xl border border-line p-3 text-[13px]"><summary className="cursor-pointer font-semibold text-subtle">{L("الفيديو المرسوم (آخر نسخة محفوظة)")}</summary><video src={data.videoUrl} controls playsInline className="mx-auto mt-3 max-h-[60vh] w-full max-w-sm rounded-xl bg-black" /></details>
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-5">
           <Card title={L("الشعار")} icon="🏷️">
             <div className="flex flex-wrap items-center gap-3">
               {logo && <img src={logo.url} alt={L("الشعار")} className="h-12 max-w-[120px] rounded-lg bg-tint object-contain p-1" />}
@@ -236,7 +227,19 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
               ))}
             </div>
           </Card>
+          </div>
+        </div>
 
+        <section className="rounded-2xl border border-line bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-[15px] font-bold text-navy-900">{L("الخط الزمني: الصوت والقص")}</h3>
+          <FreeTimeline total={seconds} playhead={t} trim={trim} onTrim={setTrim} disabled={busy}
+            voice={data.hasVoice ? { at: 0, dur: seconds } : null} music={!musicOff && !!data.musicUrl}
+            own={own ? { at: own.at ?? 0, len: Math.max(0.5, Math.min((own.end ?? own.dur ?? seconds) - (own.start ?? 0), seconds - (own.at ?? 0))), name: own.name } : null}
+            onOwnMove={(at) => own && setOwn({ ...own, at: +at.toFixed(1) })} onSeek={seek} />
+        </section>
+
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+          <div className="flex min-w-0 flex-col gap-5">
           <Card title={L("الصوت")} icon="🎚️">
             {data.hasVoice && (
               <label className="flex flex-col gap-1 text-[13px]"><span className="flex justify-between font-semibold text-subtle"><span>{L("🎙️ علو التعليق الصوتي")}</span><span dir="ltr">{Math.round(voiceVol * 100)}%</span></span>
@@ -251,7 +254,8 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             <Sub>{L("صوتك الخاص (يضاف فوق التعليق والموسيقى)")}</Sub>
             <MusicEditor music={own} onChange={setOwn} total={seconds} playhead={() => tRef.current} disabled={busy} />
           </Card>
-
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
           {data.hasVoice && (
             <Card more title={L("تغيير الكلام المنطوق")} icon="🎙️">
               {!data.scenes ? <p className="text-[13px] text-subtle">{L("هذا الفيديو صُمّم قبل تفعيل هذي الميزة. صمّم فيديو جديد وبيفعّل لك تعديل الكلام واللهجة والترجمة.")}</p> : (
@@ -287,12 +291,20 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
             <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={3} maxLength={500} className="field" placeholder={L("مثال: خلّ الخلفية فاتحة، وحرّك العنوان من فوق، وزيد أيقونة واتساب بجنب الرقم")} />
             {instruction.trim().length > 2 && <p className="text-[12px] text-subtle">{LT(`التعديل بالوصف يكلّف ${data.editCost} ريشة إضافية، وممكن ما ينفّذ كل شي بالضبط.`, `AI edit costs ${data.editCost} extra credits and may not match exactly.`)}</p>}
           </Card>
+          </div>
+        </div>
 
+        <div className="flex flex-col gap-3">
           {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
           <button type="button" disabled={busy || !changed || balance < cost} onClick={save} className="btn btn-gold sticky bottom-3 z-30 w-full py-4 text-[17px] shadow-lg disabled:opacity-60">
             {busy ? L("جاري الإرسال…") : LT(`🎞 احفظ التعديل كفيديو جديد (${cost} ريشة)`, `🎞 Save as a new video (${cost} credits)`)}
           </button>
           <p className="text-center text-[12px] text-subtle">{balance < cost ? L("رصيدك ما يكفي للتعديل.") : L("الفيديو المعدّل يستغرق من 7 إلى 10 دقائق، ويضاف لأعمالك والأصلي يبقى.")}</p>
+          <div className="flex flex-wrap gap-2">
+            <a href={data.downloadUrl} download className="btn btn-gold px-5 py-2.5">⬇ {L("نزّل الفيديو الجاهز")}</a>
+            <Link href="/app/tools/free-motion" className="btn btn-outline px-5 py-2.5">{L("تصميم جديد")}</Link>
+          </div>
+          <details className="rounded-xl border border-line p-3 text-[13px]"><summary className="cursor-pointer font-semibold text-subtle">{L("الفيديو المرسوم (آخر نسخة محفوظة)")}</summary><video src={data.videoUrl} controls playsInline className="mx-auto mt-3 max-h-[60vh] w-full max-w-sm rounded-xl bg-black" /></details>
         </div>
       </div>
     </>
