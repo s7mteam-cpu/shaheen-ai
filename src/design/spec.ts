@@ -1,6 +1,7 @@
 // Design studio data model: posts, carousels and ads, rendered by React (live preview) and by the worker (PNG).
 // Claude writes the content and picks a layout per slide; the customer edits everything live.
 import { FONT_LIBRARY, LIB_FONT_IDS } from "../lib/fonts";
+import { isRecipe } from "./recipes";
 
 export type DAspect = "4:5" | "1:1" | "9:16" | "card" | "inv";
 export type DKind = "post" | "carousel" | "ads" | "bcard" | "invite";
@@ -8,12 +9,14 @@ export type DImg = { path: string; bucket: "uploads" | "results"; url: string };
 export type DItem = { icon?: string; text: string };
 export type DColors = { bg: string; ink: string; accent: string; soft: string };
 
-export type LayoutId = "classic" | "bold" | "bento" | "minimal" | "split" | "photo" | "offer" | "quote" | "cover" | "point" | "cta"
+export type LayoutId = "rcp" | "classic" | "bold" | "bento" | "minimal" | "split" | "photo" | "offer" | "quote" | "cover" | "point" | "cta"
   | "cardA" | "cardB" | "cardC" | "cardD" | "cardE" | "cardF" | "cardG" | "cardH" | "cardBack" | "cardBackB"
   | "invA" | "invB" | "invC" | "invD" | "invE" | "invF" | "invG" | "invH" | "invBack";
 
 export type Slide = {
   layout: LayoutId;
+  /** which of the 100 designs (recipes.ts) a layout "rcp" slide uses */
+  rcp?: string;
   kicker?: string;
   title: string;
   highlight?: string;
@@ -112,6 +115,7 @@ export const fontsFor = (): readonly { id: string; label: string }[] => FONT_LIB
 
 /** Which fields each layout shows: the studio offers exactly these, and Claude is told the same. */
 export const LAYOUTS: Record<LayoutId, { label: string; hint: string; uses: (keyof Slide)[] }> = {
+  rcp: { label: "تصميم", hint: "تصميم جاهز من مكتبة الـ100 تصميم (يُختار من معرض التصاميم، ليس من الذكاء الاصطناعي)", uses: ["kicker", "title", "highlight", "body", "items", "meta", "date", "price", "stat", "cta", "badge", "person", "photo"] },
   classic: { label: "كلاسيكي", hint: "إعلان كامل: عنوان، وصف، حتى 6 مزايا بأيقونات، تفاصيل، سعر وزر", uses: ["kicker", "title", "highlight", "body", "items", "meta", "price", "cta", "badge", "photo"] },
   bold: { label: "جريء", hint: "فعالية أو دورة: تاريخ بارز، عنوان كبير، قائمة مرقّمة، مقدّم، سعر وزر", uses: ["kicker", "title", "highlight", "date", "items", "meta", "person", "price", "cta"] },
   bento: { label: "بينتو", hint: "مربعات عصرية متفاوتة: عنوان، صورة أو ميزة بارزة، مزايا، سعر وزر. مناسب للمنتجات والخدمات والتقنية", uses: ["kicker", "title", "highlight", "body", "items", "meta", "photo", "price", "cta", "badge"] },
@@ -147,6 +151,7 @@ export const CARD_LAYOUTS: LayoutId[] = ["cardA", "cardB", "cardC", "cardD", "ca
 export const INVITE_LAYOUTS: LayoutId[] = ["invA", "invB", "invC", "invD", "invE", "invF", "invG", "invH", "invBack"];
 /** Layouts a kind of design offers (posts never get a business-card or invitation layout, and the reverse). */
 export const layoutsFor = (kind: DKind): LayoutId[] => (Object.keys(LAYOUTS) as LayoutId[]).filter((id) => {
+  if (id === "rcp") return false;
   const set = CARD_LAYOUTS.includes(id) ? "bcard" : INVITE_LAYOUTS.includes(id) ? "invite" : "post";
   return kind === "bcard" ? set === "bcard" : kind === "invite" ? set === "invite" : set === "post";
 });
@@ -201,10 +206,12 @@ const items = (v: unknown, max: number): DItem[] =>
   (Array.isArray(v) ? v : []).map((x) => ({ icon: ICON_IDS.includes(x?.icon) ? x.icon : undefined, text: str(x?.text ?? x, 90) })).filter((x) => x.text).slice(0, max);
 
 export function normaliseSlide(raw: Partial<Slide> & Record<string, unknown>, fallback: LayoutId = "classic"): Slide {
-  const layout = (Object.keys(LAYOUTS) as string[]).includes(String(raw.layout)) ? (raw.layout as LayoutId) : fallback;
+  const wantRcp = raw.layout === "rcp" && isRecipe(raw.rcp);
+  const layout = wantRcp ? "rcp" : (Object.keys(LAYOUTS) as string[]).includes(String(raw.layout)) && raw.layout !== "rcp" ? (raw.layout as LayoutId) : fallback;
   const d = raw.date as Slide["date"], p = raw.price as Slide["price"], s = raw.stat as Slide["stat"], per = raw.person as Slide["person"];
   return {
     layout,
+    ...(wantRcp ? { rcp: raw.rcp as string } : {}),
     kicker: opt(raw.kicker, 110),
     title: str(raw.title, 150) || " ",
     highlight: opt(raw.highlight, 110),

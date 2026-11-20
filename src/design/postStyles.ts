@@ -1,8 +1,9 @@
 // Ready-made styles for posts and carousels: layout + colours + font + decoration (+ frame).
 // The studio shows each one on the customer's own text; one click applies it and the text never changes.
 import type { DColors, Deco, Frame, LayoutId } from "./spec";
+import { RECIPES, RECIPE_IDS } from "./recipes";
 
-export type PStyle = { id: string; name: string; cat: string; front: LayoutId; mid?: LayoutId; end?: LayoutId; colors: DColors; font: string; deco: Deco; frame: Frame; finish: "flat" };
+export type PStyle = { id: string; name: string; cat: string; front: LayoutId; mid?: LayoutId; end?: LayoutId; colors: DColors; font: string; deco: Deco; frame: Frame; finish: "flat"; r?: string; rm?: string; re?: string };
 
 // [name, mood, bg, ink, accent, soft, deco A, deco B, frame]
 type Pal = [string, string, string, string, string, string, Deco, Deco, Frame];
@@ -77,9 +78,13 @@ function build(prefix: string, fams: { front: LayoutId; mid?: LayoutId; n: numbe
       const p = POST_PALETTES[(fi * 7 + j * 3 + (carousel ? 11 : 0)) % POST_PALETTES.length];
       const fonts = FONTS[p[1]];
       const d = j % 2 ? p[7] : p[6];
+      const idx = out.length;
+      const calm = RECIPE_IDS.filter((x) => RECIPES[x].calm);
+      const r = RECIPE_IDS[idx % RECIPE_IDS.length];
       out.push({
         id: `${prefix}${out.length + 1}`,
-        name: `${LAB[f.front]} · ${p[0]}`,
+        name: `${RECIPES[r].name} · ${p[0]}`,
+        r, ...(carousel ? { rm: calm[(idx * 3 + 1) % calm.length], re: calm[(idx * 5 + 2) % calm.length] } : {}),
         cat: p[1], front: f.front, mid: f.mid, end: f.mid ? "cta" : undefined,
         colors: col(p), font: fonts[(j + fi + (carousel ? 1 : 0)) % fonts.length],
         deco: carousel && !QUIET.includes(d) ? "lines" : d, frame: carousel ? "none" : j % 3 === 0 ? p[8] : "none", finish: "flat",

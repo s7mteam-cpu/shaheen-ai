@@ -1,4 +1,6 @@
 import { loadLike, likeText } from "@/lib/server/like";
+import { designCatalog } from "@/design/recipes";
+import { applyRecipes } from "@/design/styles";
 import { imgStylePrompt, isImgStyle, DEFAULT_IMG_STYLE } from "@/design/imgStyles";
 import { cleanColors } from "@/lib/plan";
 import { NextResponse } from "next/server";
@@ -82,6 +84,17 @@ ${iconGuide()}
 10) الصدق: لا تكتب ادعاءات (الأفضل، رقم 1، ضمان، خصم) إلا إن ذكرها العميل. مصداقية العميل أهم من أي جملة لامعة.
 11) اللهجة: اكتب بالمستوى الذي طلبه العميل، قصيرًا وحيويًا، بدون حشو، وبإملاء سليم.
 12) قبل أن تُسلّم: اسأل نفسك: هل أفهم الرسالة خلال ثلاث ثوانٍ؟ هل يصلح هذا التصميم لنشاط العميل بالتحديد وليس لأي نشاط؟ هل فيه عنصر زائد؟
+
+مكتبة التصاميم (design): عندك 100 تصميم جاهز، كل واحد يحدد مكان الصورة ومكان النص وطريقة العنوان والقوائم. اختر واحدًا بمعرّفه dNNN وضعه بحقل "design" (للكاروسيل: {"front":"dNNN","mid":"dNNN","end":"dNNN"} الغلاف والوسط والخاتمة بنفس العائلة البصرية). الألوان والخط والزخرفة تختارها أنت وتبقى لك.
+${designCatalog()}
+
+مهارات المصمم المحترف عند اختيار التصميم (موضة 2025-2026):
+- اربط التصميم بالمجال والمزاج: فاخر وعقار وعطور ومجوهرات = مساحات واسعة، عنوان هادئ أو بخط تحته، صورة كاملة أو قوس أو بطاقة صورة، ألوان داكنة أو دافئة وزجاج شفاف. مطاعم وكافيهات = صورة كبيرة (علوية أو كاملة)، دفء وحيوية. تقنية ومتاجر وبرمجة = مربعات (grid) وعنوان ضخم أو بصندوق. تعليم ودورات = قائمة مرقّمة وتاريخ بارز. صحة وعيادات وتجميل = ألوان ناعمة، قوس أو دائرة، عنوان هادئ. شباب وفعاليات وخصومات = عنوان ضخم أو بصندوق، إطار سميك بظل صلب، ألوان جريئة.
+- لو العميل رفع صورة أو ستولّد صورة: اختر تصميمًا فيه منطقة صورة (علوية، سفلية، نصف، كاملة، دائرة، قوس، بطاقة). لو ما في صورة: اختر "بدون منطقة صورة" أو "حزام" أو "شريط جانبي" ليبقى التصميم نظيفًا.
+- نقطة تركيز وحدة بكل تصميم، وتسلسل واضح: عنوان ثم دعم ثم زر. لا تحشر: كلما كثرت الحقول (تاريخ، سعر، قائمة، شخص، تفاصيل) اختر تصميمًا بلا منطقة صورة.
+- تنويع حقيقي: لا تكرر نفس التصميم لكل عميل. غيّر المحاذاة وطريقة العنوان وموضع الصورة حسب الرسالة.
+- الكاروسيل: غلاف بعنوان ضخم أو صورة كاملة، شرائح وسط هادئة بنفس الترتيب ليقرأها العميل بسهولة، وخاتمة بزر ودعوة واضحة. المحاذاة المتّسقة أهم من الفخامة.
+- اللغة العربية من اليمين لليسار: الأهم يبدأ من اليمين والأعلى. لا تحط نصًا مهمًا على صورة مزدحمة.
 
 التخطيطات (layout) وما يستخدمه كل واحد:
 ${LAYOUT_IDS.map((id) => `- ${id}: ${LAYOUTS[id].hint}. الحقول: ${LAYOUTS[id].uses.join(", ")}`).join("\n")}
@@ -243,7 +256,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         (ind ? `${industryBrief(ind)}\n${dpick?.text ?? ""}\n` : "") +
         `${await trendsFor(ind?.id, kind === "ads" ? "ads" : kind === "carousel" ? "carousel" : kind === "bcard" ? "bcard" : kind === "invite" ? "invite" : "post")}\n` +
         `\nمعلومات العميل:\n${info}\n\n` +
-        `أعد JSON: { "font", "deco", "frame", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "caption", ${bgAi ? '"bgStyle": "English, حتى 40 كلمة: أسلوب خلفية واحد موحّد لكل الشرائح (أجواء تجريدية راقية بألوان هوية العميل ومناسبة لمجاله، بدون نص أو أشخاص)", ' : ""}"slides": [ {layout, ...الحقول, "sticker", "photo", "imagePrompt", "caption"} ] }`,
+        `أعد JSON: { "font", "deco", "frame", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "design": "dNNN أو {front,mid,end} للكاروسيل", "caption", ${bgAi ? '"bgStyle": "English, حتى 40 كلمة: أسلوب خلفية واحد موحّد لكل الشرائح (أجواء تجريدية راقية بألوان هوية العميل ومناسبة لمجاله، بدون نص أو أشخاص)", ' : ""}"slides": [ {layout, ...الحقول, "sticker", "photo", "imagePrompt", "caption"} ] }`,
         images, 9000);
 
       // photos: customer uploads by index, AI photos generated in parallel (max 4)
@@ -264,6 +277,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       if (kind === "post" && !raw.slides.length) throw new Error("no slides");
       const brand = { name: (raw.brand as { name?: string })?.name || kit?.business_name || undefined, handle: kit?.handle || kit?.instagram || (raw.brand as { handle?: string })?.handle || undefined, logo: kit?.logo_url ? { path: kit.logo_url, bucket: "uploads" as const, url: "" } : null, showLogo: true };
       let spec = safeColors(normaliseDesign({ ...raw, ...(cleanColors(body.colors) ? { colors: cleanColors(body.colors) as NonNullable<ReturnType<typeof cleanColors>> } : {}), brand, aspect, deco: raw.deco ?? dpick?.pick.deco, frame: ((raw as { frame?: string }).frame ?? dpick?.pick.frame) as DesignSpec["frame"], industry: ind?.id }, { kind, aspect }));
+      spec = applyRecipes(spec, (raw as { design?: unknown }).design);
       await admin.from("jobs").update({ progress: 60 }).eq("id", job.id);
 
       const gen = await Promise.allSettled(aiWanted.map(async ({ i, ref }) => {
@@ -341,6 +355,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       const strip = { ...current, brand: { name: current.brand.name, handle: current.brand.handle }, slides: current.slides.map((s) => ({ ...s, photo: s.photo ? "keep" : null, person: s.person ? { name: s.person.name, role: s.person.role } : null })) };
       const raw = await claudeVisionJson<Raw>(SYSTEM,
         `هذا التصميم الحالي:\n${JSON.stringify(strip)}\n\nطلب العميل: ${instruction}\nطبّق الطلب فقط وحافظ على الباقي. photo: "keep" يعني خلّ الصورة الحالية. أعد JSON كامل بنفس الشكل.`, [], 9000);
+      raw.slides = (raw.slides ?? []).map((sl, i) => (sl.layout === "rcp" && !sl.rcp && current.slides[i]?.rcp ? { ...sl, rcp: current.slides[i].rcp } : sl));
       const next = normaliseDesign({ ...raw, brand: current.brand, aspect: raw.aspect ?? current.aspect }, base);
       next.slides = next.slides.map((s, i) => {
         const old = current.slides[i];

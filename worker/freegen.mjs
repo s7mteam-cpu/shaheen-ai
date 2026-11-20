@@ -26,7 +26,7 @@ DESIGN QUALITY (this is what the customer pays for)
 - Hook in the first 1.5 seconds: big kinetic typography with elastic springs (spring damping 8-12), a punch-in or a wipe.
 - One idea per beat, 2-4 seconds each; rhythm and variety of motion; cursor-less polished motion design: layered depth (gradients, soft blurred blobs, glass cards, rings, shine sweeps), staggered reveals, number counters, animated underline/marker highlights, icon tiles.
 - Palette strictly from p.colors (derive tints with rgba/opacity); contrast must be readable on the background; the accent for the key word.
-- NEVER draw a progress bar, timeline, loading bar, or any thin line that runs, fills or grows along the bottom (or top) edge of the screen, and no scrolling ticker line. The customer rejects it. Keep the bottom edge clean.
+- Number lists and step counters as 1, 2, 3 (never 01, 02, 03: no leading zero). Never draw a progress bar, timeline, loading bar or any thin line that runs, fills or grows along the bottom (or top) edge of the screen, and no scrolling ticker line; keep the bottom edge clean.
 - Clean composition, nothing overflows the screen: long Arabic lines wrap (maxWidth in %), font sizes scale from the shorter screen side (e.g. Math.min(width,height)).
 - Finish with a call to action and, if p.contact has entries, the real brand tiles with the handles (direction ltr for handles).
 - Only claim what the customer's brief says; never invent prices, phone numbers, offers or names: if a number is needed and not given, make it a field with a neutral placeholder the customer can edit.

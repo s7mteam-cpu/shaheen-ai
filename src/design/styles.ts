@@ -1,9 +1,10 @@
 // Ready-made styles for business cards and invitations: each one is a layout + colours + fonts + decoration.
 // The studio shows every style on the customer's own text, and one click applies it (the text never changes).
-import { LAYOUTS, type DColors, type Deco, type Frame, type DKind, type DesignSpec, type LayoutId, type Slide } from "./spec";
+import { RECIPES, RECIPE_IDS, rcpHolds } from "./recipes";
+import { DSIZE, LAYOUTS, type DColors, type Deco, type Frame, type DKind, type DesignSpec, type LayoutId, type Slide } from "./spec";
 import { POST_STYLES, CAROUSEL_STYLES } from "./postStyles";
 
-export type DStyle = { id: string; name: string; cat?: string; mid?: LayoutId; end?: LayoutId; front: LayoutId; back: LayoutId; colors: DColors; font: string; titleFont?: string; deco: Deco; frame: Frame; finish: "flat" | "foil" };
+export type DStyle = { id: string; name: string; cat?: string; mid?: LayoutId; end?: LayoutId; front: LayoutId; back: LayoutId; colors: DColors; font: string; titleFont?: string; deco: Deco; frame: Frame; finish: "flat" | "foil"; r?: string; rm?: string; re?: string };
 
 type Pal = [name: string, bg: string, ink: string, accent: string, soft: string];
 const col = (p: Pal): DColors => ({ bg: p[1], ink: p[2], accent: p[3], soft: p[4] });
@@ -202,6 +203,8 @@ export const stylesFor = (kind: DKind): DStyle[] => pick(kind);
 const FIELDS = ["kicker", "title", "highlight", "body", "items", "meta", "date", "price", "stat", "badge", "cta", "person", "photo"] as const;
 const filled = (s: Slide, f: (typeof FIELDS)[number]) => { const v = s[f] as unknown; return Array.isArray(v) ? v.length > 0 : !!v; };
 /** A layout can show every field this slide has filled in, so a style never hides the customer's text. */
+/** designs with a full-size text area, tried in order when a slide is crowded */
+const ROOMY = RECIPE_IDS.filter((x) => RECIPES[x].ph === "none" || RECIPES[x].ph === "band");
 const fits = (s: Slide, l: LayoutId) => FIELDS.every((f) => !filled(s, f) || (LAYOUTS[l].uses as string[]).includes(f));
 /** The style's layout for this slide, or a safe one (classic, bold) when it would hide something; null = keep the slide as it is. */
 export function layoutFor(s: Slide, want: LayoutId): LayoutId | null {
@@ -218,9 +221,35 @@ export function applyStyle(spec: DesignSpec, st: DStyle): DesignSpec {
     colors: st.colors, font: st.font, titleFont: posts ? undefined : st.titleFont, deco: st.deco, frame: st.frame, finish: st.finish,
     slides: spec.slides.map((s, i) => {
       if (!posts) return { ...s, layout: i === 0 ? st.front : st.back, pos: undefined, hide: undefined, col: undefined };
+      const rid = i === 0 ? st.r : last > 0 && i === last ? st.re ?? st.rm ?? st.r : st.rm ?? st.r;
+      if (rid && fits(s, "rcp")) {
+        const { width: W, height: H } = DSIZE[spec.aspect];
+        const k = H <= 1080 ? 0.86 : 1, has = !!spec.brand.name;
+        // a crowded slide (date + price + person + list...) moves to the roomiest design of the same style family instead of squeezing
+        const at = Math.max(0, RECIPE_IDS.indexOf(rid)), rot = [...ROOMY.slice(at % ROOMY.length), ...ROOMY.slice(0, at % ROOMY.length)];
+        const use = RECIPES[rid] && rcpHolds(s, RECIPES[rid], W, H, k, has) ? rid : rot.find((x) => rcpHolds(s, RECIPES[x], W, H, k, has));
+        if (use) return { ...s, layout: "rcp" as LayoutId, rcp: use, pos: undefined, hide: undefined, col: undefined };
+      }
       const want = i === 0 ? st.front : st.end && i === last && last > 0 ? st.end : st.mid ?? st.front;
       const layout = layoutFor(s, want);
-      return layout ? { ...s, layout, pos: undefined, hide: undefined, col: undefined } : s;
+      return layout ? { ...s, layout, rcp: undefined, pos: undefined, hide: undefined, col: undefined } : s;
+    }),
+  };
+}
+
+/** the designer AI's own pick from the 100 designs: "dNNN" for a post, or {front, mid, end} for a carousel. Anything invalid or too crowded keeps the layout the AI chose. */
+export function applyRecipes(spec: DesignSpec, pick: unknown): DesignSpec {
+  if (spec.kind !== "post" && spec.kind !== "ads" && spec.kind !== "carousel") return spec;
+  const o = (pick && typeof pick === "object" ? pick : { front: pick }) as { front?: unknown; mid?: unknown; end?: unknown };
+  const last = spec.slides.length - 1;
+  const { width: W, height: H } = DSIZE[spec.aspect];
+  const k = H <= 1080 ? 0.86 : 1, has = !!spec.brand.name;
+  return {
+    ...spec,
+    slides: spec.slides.map((s, i) => {
+      const want = i === 0 ? o.front : last > 0 && i === last ? o.end ?? o.mid ?? o.front : o.mid ?? o.front;
+      if (typeof want !== "string" || !RECIPES[want] || !fits(s, "rcp") || !rcpHolds(s, RECIPES[want], W, H, k, has)) return s;
+      return { ...s, layout: "rcp" as LayoutId, rcp: want };
     }),
   };
 }

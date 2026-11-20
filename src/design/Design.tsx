@@ -2,6 +2,7 @@ import React from "react";
 import { Img } from "remotion";
 import { ArrowLeft, ChevronLeft, Quote } from "lucide-react";
 import { DIcon, IconStyleContext } from "./icons";
+import { RECIPES, rcpNeed, type Recipe } from "./recipes";
 import { DSIZE, mix, onColor, type DImg, type DItem, type DesignSpec, type Slide, RICH_RE, stripRich } from "./spec";
 
 /** One slide of a post / carousel / ad, drawn at full size (1080 wide). Used by the studio preview and the worker. */
@@ -356,7 +357,7 @@ function Bold(c: Ctx) {
             <div style={{ borderTop: `2px solid ${c.line}` }}>
               {list.map((it, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 26, padding: `${24 * c.k}px 0`, borderBottom: `2px solid ${c.line}` }}>
-                  <span style={{ fontSize: 30 * c.k, fontWeight: 800, color: c.accent, width: 56 }}>{String(i + 1).padStart(2, "0")}</span>
+                  <span style={{ fontSize: 30 * c.k, fontWeight: 800, color: c.accent, width: 56 }}>{i + 1}</span>
                   <b style={{ fontSize: fit(it.text, 38 * c.k, 28, 0.7), fontWeight: 800, flex: 1 }}>{rich(it.text)}</b>
                   <DIcon name={it.icon ?? "check"} size={40 * c.k} color={c.accent} />
                 </div>
@@ -494,7 +495,7 @@ function Cover(c: Ctx) {
 
 function Point(c: Ctx) {
   const { s } = c;
-  const n = String(Math.max(1, c.spec.kind === "carousel" ? c.index : c.index + 1)).padStart(2, "0");
+  const n = String(Math.max(1, c.spec.kind === "carousel" ? c.index : c.index + 1));
   const icon = s.items?.[0]?.icon;
   const bullets = (s.items ?? []).filter((x) => x.text).slice(0, 4);
   return (
@@ -1090,7 +1091,211 @@ function InvBack(c: Ctx) {
   );
 }
 
-const RENDER = { bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout, cardA: CardA, cardB: CardB, cardC: CardC, cardD: CardD, cardE: CardE, cardF: CardF, cardG: CardG, cardH: CardH, cardBack: CardBack, cardBackB: CardBackB, invA: InvA, invB: InvB, invC: InvC, invD: InvD, invE: InvE, invF: InvF, invG: InvG, invH: InvH, invBack: InvBack };
+// ---------------------------------------------------------------------------------------------
+// The 100 designs (recipes.ts): picture area + text area + how the title, items and button are set.
+// ---------------------------------------------------------------------------------------------
+type Rect = { l: number; t: number; w: number; h: number };
+const RCP_ICON = (c: Ctx) => (c.s.items?.[0]?.icon ?? c.s.meta?.[0]?.icon ?? "sparkles");
+
+/** the picture area: the customer's photo, or a designed colour panel when there is no photo (the structure stays the same). */
+function RcpVisual({ c, r, box, shape, quiet }: { c: Ctx; r: Rect; box: Rect; shape?: React.CSSProperties; quiet?: boolean }) {
+  void r;
+  const st: React.CSSProperties = { position: "absolute", left: box.l, top: box.t, width: box.w, height: box.h, overflow: "hidden", ...shape };
+  if (c.s.photo && !gone(c, "photo")) return <div style={st}><Photo img={c.s.photo} c={c} style={{ width: "100%", height: "100%" }} /></div>;
+  if (gone(c, "photo")) return null;
+  const m = Math.min(box.w, box.h);
+  return (
+    <div style={{ ...st, background: `linear-gradient(145deg, ${c.accent}, ${mix(c.accent, c.ink, 0.45)})` }}>
+      <div style={{ position: "absolute", width: m * 1.1, height: m * 1.1, borderRadius: "50%", border: `${Math.max(3, m * 0.012)}px solid ${rgba(c.onAccent, 0.22)}`, left: -m * 0.25, top: -m * 0.3 }} />
+      <div style={{ position: "absolute", width: m * 0.7, height: m * 0.7, borderRadius: "50%", background: rgba(c.onAccent, 0.1), right: -m * 0.15, bottom: -m * 0.2 }} />
+      {!quiet && <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><DIcon name={RCP_ICON(c)} size={m * 0.36} color={rgba(c.onAccent, 0.9)} stroke={1.4} /></div>}
+    </div>
+  );
+}
+
+function RcpTitle({ c, r, align, scale }: { c: Ctx; r: Recipe; align: React.CSSProperties["textAlign"]; scale: number }) {
+  if (gone(c, "title")) return null;
+  const ts = scale * r.ts;
+  const jc = align === "center" ? "center" : align === "end" ? "flex-end" : "flex-start";
+  if (r.tt === "stack" && c.s.highlight) {
+    const big = fit(c.s.highlight, 128 * c.k * ts, 9, 0.5), small = fit(c.s.title, 64 * c.k * ts, 20, 0.6);
+    return (
+      <h1 {...da("title")} style={{ margin: 0, textAlign: align, lineHeight: 1.1, fontWeight: 800, letterSpacing: -0.5, color: c.ink, ...eo(c, "title") }}>
+        <span style={{ fontSize: small, display: "block" }}>{rich(c.s.title)}</span>
+        <span style={{ fontSize: big, display: "block", color: c.accent, lineHeight: 1.02 }}>{rich(c.s.highlight)}</span>
+      </h1>
+    );
+  }
+  const base = (r.tt === "huge" ? 142 : r.tt === "boxed" ? 88 : 104) * ts;
+  const t = <Title c={c} base={base} align={align === "center" ? "center" : undefined} color={r.tt === "boxed" ? c.onAccent : undefined} hcolor={r.tt === "boxed" ? c.onAccent : undefined} />;
+  if (r.tt === "boxed") return <div style={{ background: c.accent, padding: `${26 * c.k}px ${36 * c.k}px`, borderRadius: 18 * c.k, textAlign: align, alignSelf: align === "center" ? "center" : undefined }}>{t}</div>;
+  if (r.tt === "under") return <div style={{ display: "flex", flexDirection: "column", gap: 18 * c.k, alignItems: jc }}>{t}<span style={{ width: "34%", minWidth: 120, height: 12 * c.k, background: c.accent, borderRadius: 6 }} /></div>;
+  if (r.tt === "bar") return <div style={{ display: "flex", gap: 28 * c.k, alignItems: "stretch", justifyContent: jc }}><span style={{ width: 16 * c.k, background: c.accent, borderRadius: 8, flex: "none" }} />{t}</div>;
+  return t;
+}
+
+function RcpItems({ c, r, align }: { c: Ctx; r: Recipe; align: "flex-start" | "center" | "flex-end" }) {
+  const list = (c.s.items ?? []).slice(0, r.it === "chips" ? 6 : 4);
+  if (!list.length || gone(c, "items")) return null;
+  const k = c.k;
+  if (r.it === "grid") return (
+    <div {...da("items")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 * k, width: "100%", ...eo(c, "items") }}>
+      {list.map((it, i) => (
+        <div key={i} style={{ background: c.soft, border: `2px solid ${c.line}`, borderRadius: 24 * k, padding: `${22 * k}px ${24 * k}px`, display: "flex", flexDirection: "column", gap: 12 * k }}>
+          <DIcon name={it.icon ?? "check"} size={44 * k} color={c.accent} />
+          <b style={{ fontSize: fit(it.text, 30 * k, 18, 0.7), fontWeight: 800, lineHeight: 1.3, color: c.ink }}>{rich(it.text)}</b>
+        </div>
+      ))}
+    </div>
+  );
+  if (r.it === "chips") return (
+    <div {...da("items")} style={{ display: "flex", flexWrap: "wrap", gap: 14 * k, justifyContent: align, ...eo(c, "items") }}>
+      {list.map((it, i) => (
+        <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 10 * k, border: `2.5px solid ${c.accent}`, color: c.ink, borderRadius: 999, padding: `${12 * k}px ${26 * k}px`, fontSize: 28 * k, fontWeight: 700 }}>
+          <DIcon name={it.icon ?? "check"} size={30 * k} color={c.accent} />{rich(it.text)}
+        </span>
+      ))}
+    </div>
+  );
+  if (r.it === "num") return (
+    <div {...da("items")} style={{ display: "flex", flexDirection: "column", width: "100%", ...eo(c, "items") }}>
+      {list.map((it, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 28 * k, padding: `${16 * k}px 0`, borderTop: i ? `2px solid ${c.line}` : undefined }}>
+          <span style={{ fontSize: 62 * k, fontWeight: 800, color: c.accent, lineHeight: 1, minWidth: 90 * k, fontVariantNumeric: "tabular-nums" }}>{i + 1}</span>
+          <b style={{ fontSize: fit(it.text, 32 * k, 24, 0.7), fontWeight: 700, lineHeight: 1.35, color: c.ink }}>{rich(it.text)}</b>
+        </div>
+      ))}
+    </div>
+  );
+  return (
+    <div {...da("items")} style={{ display: "flex", flexDirection: "column", gap: 16 * k, ...eo(c, "items") }}>
+      {list.map((it, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 20 * k }}>
+          <span style={{ width: 62 * k, height: 62 * k, borderRadius: 18 * k, background: c.accent, display: "grid", placeItems: "center", flex: "none" }}><DIcon name={it.icon ?? "check"} size={32 * k} color={c.onAccent} /></span>
+          <b style={{ fontSize: fit(it.text, 32 * k, 26, 0.7), fontWeight: 700, lineHeight: 1.35, color: c.ink }}>{rich(it.text)}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RecipeLayout(c: Ctx) {
+  const { W, H, s } = c;
+  const r = RECIPES[s.rcp ?? ""] ?? RECIPES.d001;
+  const k = c.k, P = PAD * k;
+  const full = r.ph === "full";
+  // regions
+  let photo: Rect | null = null, txt: Rect = { l: 0, t: 0, w: W, h: H }, head: Rect | null = null;
+  let shape: React.CSSProperties | undefined;
+  switch (r.ph) {
+    case "top": photo = { l: 0, t: 0, w: W, h: H * 0.42 }; txt = { l: 0, t: H * 0.42, w: W, h: H * 0.58 }; break;
+    case "bot": photo = { l: 0, t: H * 0.58, w: W, h: H * 0.42 }; txt = { l: 0, t: 0, w: W, h: H * 0.58 }; break;
+    case "left": photo = { l: 0, t: 0, w: W * 0.42, h: H }; txt = { l: W * 0.42, t: 0, w: W * 0.58, h: H }; break;
+    case "right": photo = { l: W * 0.58, t: 0, w: W * 0.42, h: H }; txt = { l: 0, t: 0, w: W * 0.58, h: H }; break;
+    case "strip": photo = { l: r.al === "s" ? 0 : W * 0.78, t: 0, w: W * 0.22, h: H }; txt = { l: r.al === "s" ? W * 0.22 : 0, t: 0, w: W * 0.78, h: H }; break;
+    case "circle": { const d = Math.min(W * 0.5, H * 0.36); photo = { l: (W - d) / 2, t: H * 0.06, w: d, h: d }; shape = { borderRadius: "50%" }; txt = { l: 0, t: H * 0.06 + d + H * 0.02, w: W, h: H - (H * 0.06 + d + H * 0.02) }; break; }
+    case "arch": { const w = W * 0.58, h = H * 0.38; photo = { l: (W - w) / 2, t: H * 0.05, w, h }; shape = { borderRadius: `${w / 2}px ${w / 2}px 28px 28px` }; txt = { l: 0, t: H * 0.05 + h + H * 0.02, w: W, h: H - (H * 0.07 + h) }; break; }
+    case "card": { const h = H * 0.34; photo = { l: W * 0.07, t: H * 0.05, w: W * 0.86, h }; shape = { borderRadius: 38 * k }; txt = { l: 0, t: H * 0.05 + h + H * 0.015, w: W, h: H - (H * 0.065 + h) }; break; }
+    case "band": photo = { l: 0, t: H * 0.34, w: W, h: H * 0.26 }; head = { l: 0, t: 0, w: W, h: H * 0.34 }; txt = { l: 0, t: H * 0.6, w: W, h: H * 0.4 }; break;
+    default: break;
+  }
+  // text on a full-bleed picture is light, on a dark overlay
+  const cc: Ctx = full ? { ...c, ink: "#FFFFFF", muted: "rgba(255,255,255,.84)", line: "rgba(255,255,255,.28)", bg: "#101010" } : c;
+  const region = head ? { ...txt, h: txt.h + head.h } : txt;
+  const need = rcpNeed(s, r, region.w, c.k, !!c.spec.brand.name);
+  const q = Math.max(0.5, Math.min(1, (region.h - P * 1.3) / Math.max(1, need)));
+  const ck: Ctx = { ...cc, k: cc.k * q };
+  const al: React.CSSProperties["textAlign"] = r.al === "c" ? "center" : r.al === "e" ? "end" : "start";
+  const ai: "flex-start" | "center" | "flex-end" = r.al === "c" ? "center" : r.al === "e" ? "flex-end" : "flex-start";
+  const jc = r.po === "t" ? "flex-start" : r.po === "b" ? "flex-end" : "center";
+  const barBottom = r.ct === "bar" && (s.cta || s.price) && !full && r.ph !== "bot" && r.ph !== "left" && r.ph !== "right" && r.ph !== "strip";
+  const gap = 24 * ck.k;
+  const heading = (
+    <>
+      <BrandRow c={ck} />
+      {s.badge && <Badge c={ck} outline={r.pn !== "bar"} />}
+      {s.kicker && (r.pn === "bar"
+        ? <div {...da("kicker")} style={{ background: ck.accent, color: ck.onAccent, padding: `${10 * ck.k}px ${28 * ck.k}px`, borderRadius: 8, fontSize: 30 * ck.k, fontWeight: 800, ...eo(ck, "kicker") }}>{rich(s.kicker)}</div>
+        : <Kicker c={ck} line={r.al !== "c"} />)}
+      <RcpTitle c={ck} r={r} align={al} scale={1} />
+    </>
+  );
+  const rest = (
+    <>
+      <Body c={ck} size={34} align={r.al === "c" ? "center" : undefined} max={W * 0.8} />
+      {(s.date || s.stat) && (
+        <div style={{ display: "flex", gap: 22 * ck.k, alignItems: "stretch", justifyContent: ai, flexWrap: "wrap" }}>
+          {s.date && !gone(c, "date") && (
+            <div {...da("date")} style={{ background: ck.accent, color: onColor(ck.accent), borderRadius: 22 * ck.k, padding: `${14 * ck.k}px ${32 * ck.k}px`, textAlign: "center", ...eo(ck, "date") }}>
+              <div style={{ fontSize: 86 * ck.k, fontWeight: 800, lineHeight: 1 }}>{s.date.day}</div>
+              <div style={{ fontSize: 30 * ck.k, fontWeight: 800 }}>{s.date.month}</div>
+              {s.date.weekday && <div style={{ fontSize: 22 * ck.k, fontWeight: 700, opacity: 0.8 }}>{s.date.weekday}</div>}
+            </div>
+          )}
+          {s.stat && !gone(c, "stat") && (
+            <div {...da("stat")} style={{ display: "flex", flexDirection: "column", justifyContent: "center", ...eo(ck, "stat") }}>
+              <div style={{ fontSize: fit(s.stat.value, 120 * ck.k, 4, 0.5), fontWeight: 800, lineHeight: 0.95, color: ck.accent }}>{s.stat.value}</div>
+              {s.stat.label && <div style={{ fontSize: 28 * ck.k, fontWeight: 700, color: ck.muted }}>{s.stat.label}</div>}
+            </div>
+          )}
+        </div>
+      )}
+      <RcpItems c={ck} r={r} align={ai} />
+      <Meta list={s.meta} c={ck} />
+      {s.person && !gone(c, "avatar") && (
+        <div style={{ display: "flex", alignItems: "center", gap: 20 * ck.k }}>
+          <Avatar c={ck} size={86 * ck.k} ring={ck.accent} />
+          <div><div style={{ fontSize: 32 * ck.k, fontWeight: 800, color: ck.ink }}>{s.person.name}</div>{s.person.role && <div style={{ fontSize: 24 * ck.k, fontWeight: 600, color: ck.muted }}>{s.person.role}</div>}</div>
+        </div>
+      )}
+      {s.price && <Price c={ck} />}
+      {s.cta && !barBottom && (r.ct === "arrow"
+        ? <div {...da("cta")} style={{ display: "flex", alignItems: "center", gap: 14 * ck.k, fontSize: 38 * ck.k, fontWeight: 800, color: ck.accent, borderBottom: `4px solid ${ck.accent}`, paddingBottom: 6, ...eo(ck, "cta") }}>{rich(s.cta)}<ArrowLeft size={40 * ck.k} /></div>
+        : <Cta c={ck} />)}
+    </>
+  );
+  const colStyle: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: ai, textAlign: al, gap };
+  const cardWrap = (r.pn === "card" || r.pn === "brutal" || r.pn === "glass") && (r.pn === "glass" ? full : !full);
+  const cardStyle: React.CSSProperties = r.pn === "brutal"
+    ? { background: c.soft, border: `${4 * k}px solid ${c.ink}`, boxShadow: `${12 * k}px ${12 * k}px 0 ${c.ink}`, borderRadius: 14 * k, padding: `${34 * ck.k}px ${40 * ck.k}px` }
+    : r.pn === "glass"
+      ? { background: "rgba(255,255,255,.13)", backdropFilter: "blur(18px)", border: "1.5px solid rgba(255,255,255,.34)", borderRadius: 40 * k, padding: `${36 * ck.k}px ${40 * ck.k}px` }
+      : { background: c.soft, border: `2px solid ${c.line}`, borderRadius: 34 * k, padding: `${36 * ck.k}px ${40 * ck.k}px` };
+  const box = (rc: Rect, content: React.ReactNode, just: string, extra?: React.CSSProperties) => (
+    <div style={{ position: "absolute", left: rc.l, top: rc.t, width: rc.w, height: rc.h, padding: `${P * 0.8}px ${P}px ${barBottom ? 200 * k : P * 0.8}px`, boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: just, ...extra }}>
+      <div style={{ ...colStyle, ...(cardWrap ? cardStyle : {}) }}>{content}</div>
+    </div>
+  );
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      {full && (
+        <>
+          <RcpVisual c={c} r={txt} box={{ l: 0, t: 0, w: W, h: H }} quiet />
+          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(${r.po === "t" ? 180 : 0}deg, rgba(8,8,8,.78) 0%, rgba(8,8,8,.52) 45%, rgba(8,8,8,.2) 100%)` }} />
+        </>
+      )}
+      {photo && !full && <RcpVisual c={c} r={txt} box={photo} shape={shape} />}
+      {r.dv === "corner" && !full && <div style={{ position: "absolute", right: 0, top: 0, width: 220 * k, height: 220 * k, background: c.accent, borderBottomLeftRadius: 220 * k, opacity: photo && photo.t === 0 && photo.l === 0 && photo.w === W ? 0 : 1 }} />}
+      {r.dv === "ring" && !full && <div style={{ position: "absolute", left: -W * 0.16, bottom: -W * 0.16, width: W * 0.52, height: W * 0.52, borderRadius: "50%", border: `${14 * k}px solid ${rgba(c.accent, 0.35)}` }} />}
+      {r.dv === "dots" && !full && <div style={{ position: "absolute", right: 40 * k, bottom: 40 * k, width: 240 * k, height: 240 * k, opacity: 0.35, backgroundImage: `radial-gradient(${c.accent} 4px, transparent 4.5px)`, backgroundSize: `${34 * k}px ${34 * k}px` }} />}
+      {r.dv === "line" && !full && <div style={{ position: "absolute", inset: 30 * k, border: `2px solid ${c.line}`, pointerEvents: "none" }} />}
+      {head ? (
+        <>
+          {box(head, heading, "flex-end", { paddingBottom: P * 0.4 })}
+          {box(txt, rest, "flex-start", { paddingTop: P * 0.5 })}
+        </>
+      ) : box(txt, <>{heading}{rest}</>, jc)}
+      {barBottom && (
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 170 * k, background: c.ink, display: "flex", alignItems: "center", justifyContent: "space-between", padding: `0 ${PAD}px` }}>
+          {s.price ? <Price c={c} color={c.bg} sub={mix(c.bg, c.ink, 0.45)} cur={mix(c.accent, c.bg, 0.35)} /> : <span />}
+          {s.cta && <Cta c={c} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const RENDER = { rcp: RecipeLayout, bento: Bento, split: Split, minimal: Minimal, classic: Classic, bold: Bold, photo: PhotoLayout, offer: Offer, quote: QuoteLayout, cover: Cover, point: Point, cta: CtaLayout, cardA: CardA, cardB: CardB, cardC: CardC, cardD: CardD, cardE: CardE, cardF: CardF, cardG: CardG, cardH: CardH, cardBack: CardBack, cardBackB: CardBackB, invA: InvA, invB: InvB, invC: InvC, invD: InvD, invE: InvE, invF: InvF, invG: InvG, invH: InvH, invBack: InvBack };
 
 export function DesignSlide({ spec, index, edit }: DesignProps) {
   const s = spec.slides[index] ?? spec.slides[0];
