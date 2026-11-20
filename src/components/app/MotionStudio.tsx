@@ -23,7 +23,6 @@ import { COLOR_LABELS, FONTS, FPS, dimensions, narration, setText, textFields, t
 type Track = { name: string; mood?: string; url: string };
 type Voice = { id: string; name: string; note?: string };
 
-const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[13px] font-semibold text-subtle">{children}</h3>;
 
 export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = false, kitLogo }: {
   jobId: string; initial: MotionSpec; editCost: number; tracks: Track[]; voices: Voice[]; demo?: boolean; kitLogo?: { path: string; url: string } | null;
@@ -160,8 +159,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
           {busy === "logo" && <p className="text-[14px] text-subtle">{L("جاري الرفع…")}</p>}
         </Card>
 
-        <Card more title={L("تعديلات سريعة")} icon="✏️">
-          <Sub>{L("الألوان")}</Sub>
+        <Card more title={L("تعديل الألوان")} icon="🎨">
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {(Object.keys(COLOR_LABELS) as (keyof Colors)[]).map((k) => (
               <label key={k} className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]">
@@ -170,8 +168,9 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
               </label>
             ))}
           </div>
+        </Card>
 
-          <Sub>{L("النصوص")}</Sub>
+        <Card more title={L("تعديل النصوص")} icon="✍️">
           <div className="flex flex-col gap-2.5">
             {fields.map((f) => (
               <label key={f.key} className="flex flex-col gap-1">
@@ -180,8 +179,9 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
               </label>
             ))}
           </div>
+        </Card>
 
-          <Sub>{L("الخط")}</Sub>
+        <Card more title={L("تغيير الخط")} icon="🔤">
           <div className="flex flex-wrap gap-2">
             {FONTS.map((f) => (
               <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} style={{ fontFamily: f.id }}

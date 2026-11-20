@@ -326,8 +326,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           {spec.captions.on && <div className="flex flex-wrap gap-2">{styles.map(([s, l]) => <button key={s} type="button" aria-pressed={spec.captions.style === s} onClick={() => setSpec({ ...spec, captions: { ...spec.captions, style: s } })} className="chip">{L(l)}</button>)}</div>}
         </Card>
 
-        <Card more title={L("تعديلات سريعة")} icon="✏️">
-          <Sub>{L("الألوان")}</Sub>
+        <Card more title={L("تعديل الألوان")} icon="🎨">
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {(Object.keys(colorLabels) as (keyof typeof colorLabels)[]).map((k) => (
               <label key={k} className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]">
@@ -336,8 +335,9 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               </label>
             ))}
           </div>
+        </Card>
 
-          <Sub>{L("النصوص")}</Sub>
+        <Card more title={L("تعديل النصوص")} icon="✍️">
           <div className="flex flex-col gap-2.5">
             {texts.map((f) => (
               <div key={f.key} className="flex items-end gap-2">
@@ -356,8 +356,9 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
             <button type="button" aria-pressed={spec.intro.on} onClick={() => setSpec({ ...spec, intro: { ...spec.intro, on: !spec.intro.on, title: spec.intro.title || L("اسم نشاطك") } })} className="chip">{L("بطاقة البداية")}</button>
             <button type="button" aria-pressed={spec.outro.on} onClick={() => setSpec({ ...spec, outro: { ...spec.outro, on: !spec.outro.on, title: spec.outro.title || L("تابعنا للمزيد") } })} className="chip">{L("بطاقة النهاية")}</button>
           </div>
+        </Card>
 
-          <Sub>{L("الخط")}</Sub>
+        <Card more title={L("تغيير الخط")} icon="🔤">
           <div className="flex flex-wrap gap-2">
             {FONTS.map((f) => (
               <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} style={{ fontFamily: f.id }}
@@ -577,7 +578,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
           <div className="flex flex-wrap gap-1.5">{EMOJIS.map((e) => <button key={e} type="button" onClick={() => addEmoji(e)} aria-label={LT(`أضف ${e}`, `Add ${e}`)} className="rounded-xl border border-line bg-white px-2.5 py-1.5 text-[20px] hover:border-gold-500">{e}</button>)}</div>
         </Card>
 
-        <Card more title={L("الصورة والصوت")} icon="🎨">
+        <Card more title={L("الصورة والصوت")} icon="🎛️">
           <Sub>{L("ستايل الألوان والإضاءة")} {spec.autoBright && spec.autoBright > 1 ? L("(صحّحنا إضاءة الفيديو الغامق تلقائياً)") : ""}</Sub>
           <div className="flex flex-wrap gap-2">{GRADES.map(([g, l]) => <button key={g} type="button" aria-pressed={(spec.grade ?? "none") === g} onClick={() => setSpec({ ...spec, grade: g })} className="chip">{L(l)}</button>)}</div>
           {(spec.face ?? []).length > 0 && (

@@ -216,12 +216,12 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
         {busy && busy.kind === "export" && <p className="rounded-xl bg-amber-50 px-4 py-3 text-[14px] text-amber-900">{L("الفيديو يتجهز بآخر تعديلاتك لحظة الضغط. اللوحة مقفلة لين يخلص، وبعدها تقدر تعدّل وتصدّر من جديد.")}</p>}
         <fieldset disabled={!!busy} className={`m-0 flex min-w-0 flex-col gap-4 border-0 p-0 ${busy ? "pointer-events-none opacity-60" : ""}`}>
 
-        <Card more title={L("النصوص")}>
+        <Card more title={L("النصوص")} icon="✍️">
           {fields.map((f, i) => <label key={f.key} className="flex flex-col gap-1 text-[13px] text-subtle">{f.label}<input value={f.value} maxLength={200} onChange={(e) => setFields(fields.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} className="field text-[15px] text-ink" /></label>)}
         </Card>
 
         {data.voiceover && (
-          <Card more title={L("تعليق صوتي")}>
+          <Card more title={L("تعليق صوتي")} icon="🎙️">
             {narr.map((n, i) => <textarea key={i} rows={2} maxLength={220} value={n} onChange={(e) => setNarr(narr.map((x, j) => (j === i ? e.target.value : x)))} className="field text-[14px]" aria-label={`${L("نص التعليق")} ${i + 1}`} />)}
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => setDialect(e.target.value)} className="field w-44">{GULF_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
@@ -233,13 +233,13 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
         )}
 
         {data.voiceover && (
-          <Card more title={L("موسيقى خلفية")}>
+          <Card more title={L("موسيقى خلفية")} icon="🎵">
             <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={musicOn} onChange={(e) => setMusicOn(e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("موسيقى هادية بالخلفية")}</label>
             {musicOn && <label className="flex items-center gap-3 text-[14px]">{L("الصوت")}<input type="range" min={0} max={0.5} step={0.02} value={musicVol} onChange={(e) => setMusicVol(Number(e.target.value))} className="flex-1 accent-navy-700" /></label>}
           </Card>
         )}
 
-        <Card more title={L("الألوان")}>
+        <Card more title={L("الألوان")} icon="🎨">
           <div className="flex flex-wrap gap-4">
             {([["bg", "الخلفية"], ["accent", "اللون المميّز"], ["text", "الخط"]] as const).map(([k, l]) => (
               <label key={k} className="flex items-center gap-2 text-[14px]"><input type="color" value={colors[k]} onChange={(e) => setColors({ ...colors, [k]: e.target.value })} className="h-9 w-12 cursor-pointer rounded border" />{L(l)}</label>
@@ -253,7 +253,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
           <MusicEditor music={own} onChange={setOwn} total={data.cseconds} playhead={() => frame / 30} disabled={!!busy} />
         </Card>
 
-        <Card more title={L("الشعار")}>
+        <Card more title={L("الشعار")} icon="🏷️">
           <div className="flex flex-wrap items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {logo.url && <img src={logo.url} alt={L("الشعار")} className="h-12 max-w-[120px] rounded-lg bg-tint object-contain p-1" />}
@@ -266,7 +266,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
           {upBusy && <p className="text-[14px] text-subtle">{L("جاري الرفع…")}</p>}
         </Card>
 
-        <Card more title={L("حسابات التواصل")}>
+        <Card more title={L("حسابات التواصل")} icon="📱">
           {contact.map((c, i) => (
             <div key={i} className="flex gap-2">
               <select value={c.icon} onChange={(e) => setContact(contact.map((x, j) => (j === i ? { ...x, icon: e.target.value as BrandId } : x)))} className="field w-36">{social.map((s) => <option key={s} value={s}>{s}</option>)}</select>

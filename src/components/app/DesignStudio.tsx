@@ -364,7 +364,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
       <div className="flex min-w-0 flex-col gap-5">
         {printed && <StyleGallery spec={spec} cur={cur} onPick={(st) => setSpec((p) => applyStyle(p, st))} />}
         {printed && (
-          <Card title={L("الخطوط واللمسة النهائية")} icon="🔤">
+          <Card more title={L("الخطوط واللمسة النهائية")} icon="🔤">
             <Sub>{L("خط النص")}</Sub>
             <div className="flex flex-wrap gap-2">
               {fontsFor(spec.kind).map((f) => <button key={f.id} type="button" aria-pressed={spec.font === f.id} onClick={() => setSpec({ ...spec, font: f.id })} className="chip text-[17px]" style={{ fontFamily: `"${f.id}"` }}>{L(f.label)}</button>)}
@@ -381,7 +381,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
             </div>
           </Card>
         )}
-        <Card title={L("التصميم")} icon="🎨">
+        <Card more title={L("التصميم")} icon="🎨">
           <Sub>{L("تخطيط")} {spec.slides.length > 1 ? L("هذي الشريحة") : L("التصميم")}</Sub>
           <div className="flex flex-wrap gap-2">
             {layoutsFor(spec.kind).map((id) => <button key={id} type="button" aria-pressed={s.layout === id} onClick={() => setSlide({ layout: id as LayoutId })} className="chip" title={L(LAYOUTS[id].hint)}>{L(LAYOUTS[id].label)}</button>)}
@@ -439,7 +439,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           </div>
         </Card>
 
-        <Card title={L("الألوان")} icon="🖌️">
+        <Card more title={L("الألوان")} icon="🖌️">
           <Sub>{L("لوحات جاهزة")}</Sub>
           <div className="flex flex-wrap gap-2">
             {[...(designPack(spec.industry)?.palettes ?? []).map((colors, i) => ({ name: `${L("مجالك")} ${i + 1}`, colors })), ...PALETTES].map((p) => (
@@ -449,7 +449,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
             ))}
           </div>
           {kit && <button type="button" onClick={applyBrand} className="btn btn-outline self-start px-4 py-2 text-sm">{L("✨ طبّق هويتي (ألوان، خط، شعار)")}</button>}
-          <More label={L("المزيد من خيارات الألوان (اختيار لون لكل جزء)")}>
+          <Sub>{L("لون كل جزء")}</Sub>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {(Object.keys(COLOR_LABELS) as (keyof DColors)[]).map((k) => (
               <label key={k} className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]">
@@ -458,10 +458,9 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
               </label>
             ))}
           </div>
-          </More>
         </Card>
 
-        <Card title={L("النصوص")} icon="✏️">
+        <Card more title={L("النصوص")} icon="✏️">
           <div className="flex flex-col gap-2 rounded-2xl bg-tint p-3">
             <Sub>{L("لوّن كلمة: حدّدها داخل أي خانة نص، وبعدين اختر اللون")}</Sub>
             <div className="flex flex-wrap items-center gap-2">
@@ -525,7 +524,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           )}
         </Card>}
 
-        <Card title={L("الصور والشعار")} icon="🖼️">
+        <Card more title={L("الصور والشعار")} icon="🖼️">
           {uses.has("photo") && (
             <div className="flex flex-col gap-3">
               <Sub>{L("صورة")} {spec.slides.length > 1 ? L("الشريحة") : L("التصميم")}</Sub>
@@ -568,7 +567,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
           {busy === "upload" && <p className="text-[14px] text-subtle">{L("جاري الرفع…")}</p>}
         </Card>
 
-        <Card title={L("عدّل بالذكاء الاصطناعي")} icon="🪄">
+        <Card more title={L("عدّل بالذكاء الاصطناعي")} icon="🪄">
           <textarea rows={3} maxLength={800} value={instruction} onChange={(e) => setInstruction(e.target.value)} className="field"
             placeholder={L("مثال: خلّ العنوان أقوى وأقصر، وغيّر الألوان لستايل فخم داكن، وأضف شريحة عن التوصيل")} />
           <button type="button" disabled={!!busy || instruction.trim().length < 3} onClick={async () => {
@@ -600,7 +599,7 @@ function StyleGallery({ spec, cur, onPick }: { spec: DesignSpec; cur: number; on
   const groups = Array.from(new Set(all.map((x) => x.front)));
   const list = all.filter((x) => group === "all" || x.front === group);
   return (
-    <Card title={LT(`ستايلات جاهزة (${all.length})`, `Ready styles (${all.length})`)} icon="✨">
+    <Card more title={LT(`ستايلات جاهزة (${all.length})`, `Ready styles (${all.length})`)} icon="✨">
       <p className="text-[13px] text-subtle">{L("اضغط أي ستايل ويتطبق على نصوصك بالضبط، ونصوصك ما تتغير. تقدر تعدّل كل شي بعدها.")}</p>
       <div className="flex flex-wrap gap-1.5">
         <button type="button" aria-pressed={group === "all"} onClick={() => { setGroup("all"); setN(12); }} className="chip">{L("الكل")}</button>
