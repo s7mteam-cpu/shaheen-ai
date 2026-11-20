@@ -44,6 +44,14 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   const [musicOn, setMusicOn] = useState(data.musicOn);
   const [musicVol, setMusicVol] = useState(data.musicVol);
   const [logo, setLogo] = useState<{ path: string; url: string; on: boolean; box: LogoBox; frameUrl?: string }>({ path: data.logoPath, url: data.logo, on: data.logoOn, box: data.logoBox ?? DEFAULT_LOGO_BOX });
+  // a logo that comes as a web link (brand kit, saved work) is turned into the picture itself: the sandboxed preview then never has to fetch it
+  useEffect(() => {
+    if (!logo.url || logo.frameUrl || !/^https?:/.test(logo.url)) return;
+    let dead = false;
+    fetch(logo.url).then((r) => (r.ok ? r.blob() : Promise.reject())).then((b) => new Promise<string>((ok, no) => { const f = new FileReader(); f.onload = () => ok(String(f.result)); f.onerror = () => no(f.error); f.readAsDataURL(b); }))
+      .then((d) => { if (!dead) setLogo((p) => (p.url === logo.url ? { ...p, frameUrl: d } : p)); }).catch(() => {});
+    return () => { dead = true; };
+  }, [logo.url, logo.frameUrl]);
   const [trim, setTrim] = useState<Trim>(data.trim ?? { start: 0, end: data.cseconds });
   const [own, setOwn] = useState<Music | null>(data.ownAudio ?? null);
   const [narr, setNarr] = useState(data.narration);

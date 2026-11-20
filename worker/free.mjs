@@ -65,7 +65,7 @@ export const Host = (p: any) => {
       const beats = (p.beats || []).slice(B0[i], i < N - 1 ? B0[i + 1] : undefined).map((b: any) => ({ ...b, start: +(b.start - c.from / 30).toFixed(2), end: +(b.end - c.from / 30).toFixed(2) }));
       return <Sequence key={i} from={c.from} durationInFrames={c.frames}><Guard i={i}><F {...p} t={t} assets={assets || {}} beats={beats} seconds={c.frames / 30} /></Guard></Sequence>;
     })}
-    {p.logoOn && p.logo ? <img src={p.logo} style={{ position: "absolute", left: (p.logoBox?.x ?? 0.85) * 100 + "%", top: (p.logoBox?.y ?? 0.09) * 100 + "%", width: (p.logoBox?.w ?? 0.18) * 100 + "%", transform: "translate(-50%, -50%)", objectFit: "contain" }} /> : null}
+    {p.logoOn && p.logo ? <img src={p.logo} style={{ position: "absolute", left: (p.logoBox?.x ?? 0.85) * 100 + "%", top: (p.logoBox?.y ?? 0.09) * 100 + "%", width: (p.logoBox?.w ?? 0.18) * 100 + "%", transform: "translate(-50%, -50%)", objectFit: "contain", zIndex: 2147483000, pointerEvents: "none" }} /> : null}
   </>);
 };
 `;
