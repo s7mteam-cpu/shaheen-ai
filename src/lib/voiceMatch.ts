@@ -18,6 +18,14 @@ export const typeToGA = (t?: string) => { const r = VOICE_TYPES.find((x) => x[0]
 const ageOf = (v: VoiceItem) => (["young", "adult", "senior"].includes(v.age ?? "") ? v.age : /(شاب|شابة|young)/i.test(`${v.name} ${v.note}`) ? "young" : /(كبير|مسن|senior|old)/i.test(`${v.name} ${v.note}`) ? "senior" : undefined);
 const speaks = (v: VoiceItem, d: string) => !v.dialects?.length ? undefined : v.dialects.includes(d) ? "yes" : v.dialects.includes("any") || (v.dialects.includes("levantine") && ["syrian", "jordanian", "levantine"].includes(d)) || (d === "levantine" && v.dialects.some((x) => x === "syrian" || x === "jordanian")) || (v.dialects.includes("gulf") && ["kuwaiti", "saudi", "emirati", "qatari", "bahraini", "omani"].includes(d)) ? "ok" : "no";
 
+/** The named voices that speak a dialect (best matches first). Empty = none registered for it yet. */
+export function voicesFor(voices: VoiceItem[], dialect: string): VoiceItem[] {
+  if (!dialect) return [];
+  const yes = voices.filter((v) => speaks(v, dialect) === "yes");
+  const ok = voices.filter((v) => speaks(v, dialect) === "ok");
+  return [...yes, ...ok];
+}
+
 /** Best voice for what the customer asked: dialect first, then gender, then age. Returns undefined when nothing was registered. */
 export function pickVoice(voices: VoiceItem[], want: { dialect?: string; gender?: string; age?: string }): VoiceItem | undefined {
   if (!voices.length) return undefined;

@@ -53,11 +53,12 @@ async function gemEdit(userId: string, b: Record<string, unknown>) {
     const translateTo = typeof vb.translateTo === "string" && ["en", "fr", "es", "tr", "de", "it"].includes(vb.translateTo) ? vb.translateTo : undefined;
     if (typeof vb.dialect === "string" && vb.dialect in DIALECT_NAME) dialectIn = vb.dialect;
     const vt = typeof vb.vtype === "string" && vb.vtype !== "keep" ? vb.vtype : "";
-    if (dialectIn || vt) {
+    const pickedId = typeof vb.voice === "string" ? vb.voice : "";
+    if (dialectIn || vt || pickedId) {
       const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
       const voices = ((vc?.value as { items?: VoiceItem[] })?.items ?? []);
       const { gender, age } = typeToGA(vt || "auto");
-      const v = pickVoice(voices, { dialect: dialectIn ?? String((src!.input as { dialect?: string }).dialect ?? "kuwaiti"), gender, age });
+      const v = (pickedId && voices.find((x) => x.id === pickedId)) || pickVoice(voices, { dialect: dialectIn ?? String((src!.input as { dialect?: string }).dialect ?? "kuwaiti"), gender, age });
       if (v) voiceIn = { id: v.id, ...(v.model ? { model: v.model } : {}), ...(v.settings ? { settings: v.settings } : {}) };
     }
     voiceEdit = { mode: "regen", sentences, rewrite: vb.rewrite === true && !translateTo, ...(translateTo ? { translateTo } : {}) };

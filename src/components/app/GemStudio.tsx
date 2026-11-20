@@ -23,7 +23,8 @@ import { applyEdits, applyEls, applyFont, applyLogo, currentFont, extractColors,
 import { withClock } from "@/lib/gemClock";
 import { ERR_SNIPPET } from "@/lib/freeErrSnippet";
 import { ARAB_DIALECTS } from "@/lib/countries";
-import { VOICE_TYPES } from "@/lib/voiceMatch";
+import { VOICE_TYPES, voicesFor, type VoiceItem } from "@/lib/voiceMatch";
+import { VoicePick } from "@/components/app/VoicePick";
 import type { Music } from "@/remotion/montage";
 
 type SavedMix = { voiceVol?: number; musicVol?: number; trim?: Trim; own?: (Music & { url: string }) | null };
@@ -60,7 +61,7 @@ const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 /** لوحة استوديو الفيديو الجاهز (محرك جيميناي): مشغّل واحد بإيقاف وتشغيل وشريط وقت، تعديل النصوص والألوان والخط والشعار فوريًا، مازج صوت (التعليق والموسيقى وصوتك)، وقص الفيديو. زر الحفظ يرسم فيديو جديد. */
-export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; data: GemData; balance: number; onSent: (newJob: string) => void }) {
+export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId: string; data: GemData; balance: number; onSent: (newJob: string) => void; voices?: VoiceItem[] }) {
   const seconds = Math.max(5, Math.round(data.seconds || 30));
   const saved = data.mix ?? {};
   const [raw, setRaw] = useState<string | null>(null);
@@ -79,6 +80,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
   const [lines, setLines] = useState<string[]>(data.scenes ?? []);
   const [dialect, setDialect] = useState("");
   const [vtype, setVtype] = useState("keep");
+  const [voiceId, setVoiceId] = useState("");
   const [rewrite, setRewrite] = useState(false);
   const [lang, setLang] = useState("");
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -210,7 +212,7 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
     try {
       const texts = Object.fromEntries(fields.filter((f) => (vals[f.key] ?? f.value) !== f.value).map((f) => [f.key, vals[f.key]]));
       const hx = Object.fromEntries(colors.filter((c) => (hex[c] ?? c) !== c).map((c) => [c, hex[c]]));
-      const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "gemedit", fromJob: jobId, texts, hex: hx, els: elList, font, logo: logo ? { path: logo.path, box: logo.box } : null, musicOff, mix: curMix, instruction: instruction.trim(), ...(regen ? { voiceEdit: { mode: "regen", sentences: lines, dialect: dialect || undefined, vtype, rewrite, translateTo: lang || undefined } } : {}) }) });
+      const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "gemedit", fromJob: jobId, texts, hex: hx, els: elList, font, logo: logo ? { path: logo.path, box: logo.box } : null, musicOff, mix: curMix, instruction: instruction.trim(), ...(regen ? { voiceEdit: { mode: "regen", sentences: lines, dialect: dialect || undefined, vtype, voice: voiceId || undefined, rewrite, translateTo: lang || undefined } } : {}) }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? L("صار خطأ، حاول مرة ثانية."));
       onSent(d.jobId);
@@ -345,10 +347,12 @@ export function GemStudio({ jobId, data, balance, onSent }: { jobId: string; dat
                       ))}
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="flex flex-col gap-1 text-[13px]">{L("اللهجة")}
-                          <select value={dialect} onChange={(e) => setDialect(e.target.value)} className="field"><option value="">{L("كما هي")}</option>{ARAB_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
+                          <select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field"><option value="">{L("كما هي")}</option>{ARAB_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}{voices.length && !voicesFor(voices, v).length ? ` — ${L("قريبًا")}` : ""}</option>)}</select></label>
+                        {voices.length > 0 && dialect ? null : (
                         <label className="flex flex-col gap-1 text-[13px]">{L("نوع الصوت")}
-                          <select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field"><option value="keep">{L("كما هو")}</option>{VOICE_TYPES.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
+                          <select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field"><option value="keep">{L("كما هو")}</option>{VOICE_TYPES.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>)}
                       </div>
+                      {voices.length > 0 && dialect && <VoicePick voices={voices} dialect={dialect} value={voiceId} onChange={setVoiceId} />}
                       <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={rewrite} disabled={!!lang} onChange={(e) => setRewrite(e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("أعد صياغة الجمل باللهجة المختارة (بالذكاء)")}</label>
                       <label className="flex flex-col gap-1 text-[13px]">{L("ترجمة إلى لغة ثانية (الصوت والنصوص)")}
                         <select value={lang} onChange={(e) => setLang(e.target.value)} className="field"><option value="">{L("بدون ترجمة")}</option>{([["en", "English"], ["fr", "Français"], ["es", "Español"], ["tr", "Türkçe"], ["de", "Deutsch"], ["it", "Italiano"]] as const).map(([v, n]) => <option key={v} value={v}>{n}</option>)}</select></label>

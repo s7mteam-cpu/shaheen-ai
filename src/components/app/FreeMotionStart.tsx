@@ -8,6 +8,8 @@ import { GULF_DIALECTS, myDialect } from "@/lib/countries";
 import { VOICE_TYPES } from "@/lib/voiceMatch";
 import { FreeStudio, type StudioData } from "@/components/app/FreeStudio";
 import { FreeSent } from "@/components/app/FreeSent";
+import { VoicePick } from "@/components/app/VoicePick";
+import { voicesFor, type VoiceItem } from "@/lib/voiceMatch";
 import { GemStudio, type GemData } from "@/components/app/GemStudio";
 
 type Contact = { icon: BrandId; handle: string };
@@ -19,7 +21,7 @@ const fonts = ["Cairo", "Tajawal", "Almarai", "Changa", "Amiri"];
 const social = Object.keys(BRANDS) as BrandId[];
 
 /** «تصميم مبتكر ✨»: the customer writes an idea; the AI writes a motion design as code and the worker renders it. Texts and colours can be edited afterwards. */
-export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: { costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null; kit?: { name: string; colors: string[]; font: string } | null }) {
+export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, voices = [] }: { voices?: VoiceItem[]; costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null; kit?: { name: string; colors: string[]; font: string } | null }) {
   const router = useRouter();
   const sp = useSearchParams();
   const jobId = sp.get("job");
@@ -43,6 +45,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
   const [dialect, setDialect] = useState("kuwaiti");
   useEffect(() => { setDialect(myDialect()); }, []);
   const [vtype, setVtype] = useState("auto");
+  const [voiceId, setVoiceId] = useState("");
   const [withMusic, setWithMusic] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +101,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
       return;
     }
     setBusy(true);
-    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds: secs ?? seconds, brand, colors, useIdentity, font, contact, voiceover, dialect, vtype, music: withMusic }) });
+    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds: secs ?? seconds, brand, colors, useIdentity, font, contact, voiceover, dialect, vtype, voice: voiceId || undefined, music: withMusic }) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setError(d.error ?? L("تعذّر البدء.")); return; }
@@ -135,7 +138,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
   const showSent = !!studio && !unlockedNow && ((sentLocal && (!!busyNow || !!studio.exportUrl)) || (!!studio.locked && !busyNow));
   if (jobId && studio && showSent) return <FreeSent data={studio} busy={busyNow} editCost={editCost} balance={balance} onUnlock={unlock} />;
   if (jobId && studio) return <FreeStudio key={`${jobId}-${epoch}`} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={(k) => { stopped.current = false; waitBusy.current = Date.now() + 30000; setBusyNow({ kind: k, progress: 3 }); if (k === "export") { setSentLocal(true); setUnlockedNow(false); } poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
-  if (jobId && state?.status === "gemini") return <GemStudio key={jobId} jobId={jobId} data={state} balance={balance} onSent={(id) => { router.replace(`/app/tools/free-motion?job=${id}`); router.refresh(); }} />;
+  if (jobId && state?.status === "gemini") return <GemStudio key={jobId} jobId={jobId} data={state} balance={balance} voices={voices} onSent={(id) => { router.replace(`/app/tools/free-motion?job=${id}`); router.refresh(); }} />;
   if (jobId && state?.status === "failed") {
     return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p>{state.reason && <p dir="ltr" className="mt-3 rounded-lg bg-neutral-100 p-3 text-start text-[12px] text-neutral-600">{state.reason}</p>}<button onClick={() => router.replace("/app/tools/free-motion")} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
   }
@@ -154,8 +157,10 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit }: 
       <div className="flex flex-col gap-3 rounded-xl border p-4">
         <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} />{L("تعليق صوتي (والصورة تمشي مع الكلام)")}</label>
         {voiceover && (<>
-          <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => setDialect(e.target.value)} className="field w-48">{GULF_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
-          <label className="flex items-center gap-2 text-[14px]">{L("الصوت")}<select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field w-48">{VOICE_TYPES.map(([v, l]) => <option key={v} value={v}>{L(l)}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field w-48">{GULF_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}{voices.length && !voicesFor(voices, v).length ? ` — ${L("قريبًا")}` : ""}</option>)}</select></label>
+          {voices.length > 0
+            ? <VoicePick voices={voices} dialect={dialect} value={voiceId} onChange={setVoiceId} />
+            : <label className="flex items-center gap-2 text-[14px]">{L("الصوت")}<select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field w-48">{VOICE_TYPES.map(([v, l]) => <option key={v} value={v}>{L(l)}</option>)}</select></label>}
           <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} />{L("موسيقى هادية بالخلفية")}</label>
         </>)}
       </div>
