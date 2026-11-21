@@ -103,6 +103,12 @@ async function shoot(browser, url, kind, cache, hostCheck) {
       await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
       await cdp.send("Emulation.setUserAgentOverride", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1" });
     }
+    // second wall (DNS rebinding): the name is checked by us, but Chrome resolves it again by itself. If ANY answer really came from a private / internal address,
+    // the capture is thrown away: nothing of that page is pictured, read or saved.
+    let internal = "";
+    await cdp.send("Network.enable").catch(() => {});
+    cdp.on("Network.responseReceived", (ev) => { try { const r = (ev?.params ?? ev)?.response; const ip = String(r?.remoteIPAddress ?? "").replace(/^\[|\]$/g, ""); if (ip && isPrivateIp(ip) && /^https?:/i.test(String(r?.url ?? ""))) internal = ip; } catch { /* ignore */ } });
+    const guardInternal = () => { if (internal) throw new Error("private address (blocked)"); };
     // every request the page makes is checked first
     await cdp.send("Fetch.enable", { patterns: [{ urlPattern: "*" }] });
     cdp.on("Fetch.requestPaused", async (e) => {
@@ -117,15 +123,18 @@ async function shoot(browser, url, kind, cache, hostCheck) {
     });
     try { await page.goto({ url, timeout: 25000, options: { waitUntil: "load" } }); } catch (e) { if (!String(e?.message ?? e).match(/timeout/i)) throw e; }
     await sleep(1500);
+    guardInternal();
     await page.evaluate(TIDY_JS).catch(() => {});
     const height = Math.max(view.height, Number(await page.evaluate(SCROLL_JS)) || view.height);
     await page.evaluate(TIDY_JS).catch(() => {});
     await sleep(400);
+    guardInternal();
     const info = await page.evaluate(INFO_JS);
     const sections = await page.evaluate(SECTIONS_JS);
     const shot = await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 82, captureBeyondViewport: true, clip: { x: 0, y: 0, width: view.width, height, scale: 1 } });
     const data = shot?.value?.data;
     if (!data) throw new Error("no screenshot");
+    guardInternal();
     return { buf: Buffer.from(data, "base64"), w: view.width, h: height, sc: view.scale, info, sections: Array.isArray(sections) ? sections : [] };
   } finally { await page.close().catch(() => {}); }
 }

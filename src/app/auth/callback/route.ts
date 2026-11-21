@@ -8,7 +8,8 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next") || "/app";
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/app";
+  // only a path inside this site: "//host", "/\\host" (browsers read a backslash as a slash) and control characters would send the visitor to another site
+  const safeNext = /^\/(?![\/\\])[^\\\u0000-\u001f]*$/.test(next) && new URL(next, url.origin).origin === url.origin ? next : "/app";
   if (code) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);

@@ -30,6 +30,9 @@ export async function POST(req: Request) {
   }
   const toolId = parent?.tool_id ?? body?.tool ?? "";
   let input = body?.input ?? {};
+  // SECURITY: keys that start with "_" are internal (set only by the server, e.g. which earlier result an edit starts from). A request can never bring its own.
+  if (input && typeof input === "object") input = Object.fromEntries(Object.entries(input).filter(([k]) => !k.startsWith("_"))) as Values;
+  else input = {};
   if (parent) {
     const built = buildEditInput(parent, body ?? {});
     if ("error" in built) return NextResponse.json({ error: built.error }, { status: 400 });
@@ -58,7 +61,7 @@ export async function POST(req: Request) {
   // Uploaded files must belong to this user
   for (const k of ["images", "video", "sample", "broll"]) {
     const list = Array.isArray(input[k]) ? (input[k] as string[]) : [];
-    if (list.some((p) => !p.startsWith(`${user.id}/`))) return NextResponse.json({ error: "ملف غير مسموح." }, { status: 400 });
+    if (list.some((p) => typeof p !== "string" || !p.startsWith(`${user.id}/`) || p.includes("..") || p.includes("\\"))) return NextResponse.json({ error: "ملف غير مسموح." }, { status: 400 });
   }
 
   // Montage in a chosen field: the worker gets that field's pack (scenes, looks, recipes)

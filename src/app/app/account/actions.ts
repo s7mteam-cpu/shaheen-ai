@@ -21,7 +21,7 @@ async function me() {
   return data!;
 }
 
-export async function ensureCustomer(profile: { id: string; email: string | null; full_name: string | null; stripe_customer_id: string | null }) {
+async function ensureCustomer(profile: { id: string; email: string | null; full_name: string | null; stripe_customer_id: string | null }) {
   if (profile.stripe_customer_id) return profile.stripe_customer_id;
   const c = await stripe().customers.create({ email: profile.email ?? undefined, name: profile.full_name ?? undefined, metadata: { user_id: profile.id } });
   await createAdminClient().from("profiles").update({ stripe_customer_id: c.id }).eq("id", profile.id);

@@ -142,7 +142,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (!body.spec) return NextResponse.json({ error: "ما فيه فيديو." }, { status: 400 });
     const spec = normalise(body.spec, base);
     // audio must be files we produced for this user
-    const own = (u?: string) => !!u && /\/storage\/v1\/object\/sign\/results\//.test(u) && u.includes(`/${user.id}/`);
+    const own = (u?: string) => !!u && u.startsWith(`${(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "")}/storage/v1/object/sign/results/${user.id}/`) && !u.includes("..") && !/[\s\\@]/.test(u); // SECURITY: exactly our storage, this customer's folder (a look-alike address on another host must not pass)
     const lib = await admin.from("site_content").select("value").eq("key", "motion_music").maybeSingle();
     const tracks = ((lib.data?.value as { items?: { url: string }[] })?.items ?? []).map((t) => t.url);
     spec.music = body.spec.music && (own(body.spec.music.url) || tracks.includes(body.spec.music.url)) ? body.spec.music : null;

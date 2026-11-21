@@ -14,7 +14,8 @@ export function LoginForm() {
   const fieldAlign = lang === "en" ? "text-left" : "text-right";
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/app";
+  const rawNext = params.get("next") || "/app";
+  const next = /^\/(?![\/\\])[^\\\u0000-\u001f]*$/.test(rawNext) ? rawNext : "/app"; // a path inside this site only (never another site or a javascript: link)
   const urlError = params.get("error");
   const [error, setError] = useState(
     urlError === "blocked" ? arabicAuthError("EMAIL_BLOCKED", lang)

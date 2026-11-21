@@ -20,7 +20,11 @@ export async function POST(req: Request) {
     const tip = kind === "video" ? " صوّر الفيديو بدقة 1080p بدل 4K، أو صغّر حجمه قبل الرفع." : "";
     return NextResponse.json({ error: `حجم الملف ${Math.round(size / 1048576)} ميجا، والحد الأقصى ${rule.mb} ميجا.${tip}` }, { status: 400 });
   }
-  const ext = (name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5);
+  // SECURITY: the file's ending comes from a short list per kind (never html, svg, js… which a browser would run if the link is opened)
+  const OK_EXT: Record<string, string[]> = { image: ["png", "jpg", "jpeg", "webp"], video: ["mp4", "mov", "webm"], audio: ["mp3", "m4a", "wav", "ogg", "aac", "webm", "mp4", "flac", "opus"] };
+  const asked = String(name ?? "").split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) ?? "";
+  const ext = OK_EXT[kind].includes(asked) ? asked : kind === "image" ? (type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg") : kind === "video" ? "mp4" : "bin";
+  if (typeof size !== "number" || !(size > 0)) return NextResponse.json({ error: "ملف غير صالح." }, { status: 400 });
   const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
   const { data, error } = await createAdminClient().storage.from("uploads").createSignedUploadUrl(path);
   if (error) return NextResponse.json({ error: "تعذّر تجهيز الرفع." }, { status: 500 });

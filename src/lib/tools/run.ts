@@ -74,6 +74,8 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
 
   // «تعديل» on an image result: edit the previous output with the customer's instruction.
   if (typeof v._edit_from === "string" && ["image", "post", "carousel", "product-photo", "ad-design"].includes(job.tool_id)) {
+    // SECURITY: an edit may only start from a file of this same customer
+    if (!v._edit_from.startsWith(`${job.user_id}/`) || v._edit_from.includes("..")) throw new Error("ملف غير مسموح");
     const admin = createAdminClient();
     const { data: signed } = await admin.storage.from("results").createSignedUrl(v._edit_from, 3600);
     const src = signed?.signedUrl ? [signed.signedUrl] : [];

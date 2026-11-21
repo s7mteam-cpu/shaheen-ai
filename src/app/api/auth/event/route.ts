@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
   if (b.kind === "login_failed") {
     const email = String(b.email ?? "").trim().toLowerCase().slice(0, 200);
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return ok;
+    if (!/^[^@\s%_\\*,()]+@[^@\s%_\\*,()]+\.[^@\s%_\\*,()]+$/.test(email)) return ok; // no search wildcards: the address must name exactly one account
     const { data: p } = await admin.from("profiles").select("id,email").ilike("email", email).maybeSingle();
     if (!p) return ok;
     await logEvent(p.id, "login_failed", null, ip);
