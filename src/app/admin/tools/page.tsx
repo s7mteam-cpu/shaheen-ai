@@ -28,7 +28,7 @@ export default async function ToolsAdmin() {
       </div>
       <ExtraPricingForm s={extra} />
       {tools.map((t) => (
-        <form key={t.id} action={saveTool} className="card grid gap-4 p-5 md:grid-cols-2">
+        <form key={t.id} id={`tool-${t.id}`} action={saveTool} className="card grid scroll-mt-24 gap-4 p-5 md:grid-cols-2">
           <input type="hidden" name="id" value={t.id} />
           <div className="flex flex-col gap-1.5"><label className="label">{L("الاسم")}</label><input name="name" defaultValue={t.name} className="field" /></div>
           <div className="flex flex-col gap-1.5"><label className="label">{L("الأيقونة")}</label><select name="icon" defaultValue={t.icon} className="field">{icons.map((i) => <option key={i}>{i}</option>)}</select></div>

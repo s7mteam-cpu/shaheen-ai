@@ -20,17 +20,22 @@ export async function saveModels(_p: Res, form: FormData): Promise<Res> {
     raw[m.id] = v;
   }
   const map = cleanModelMap(raw);
+  // «بوست / كاروسيل مبتكر»: its own writer model (empty = follows the general Sonnet choice)
+  const post = String(form.get("post_model") ?? "").trim();
+  if (post && !validReplacement("claude", post)) return { error: `«${post}» مو اسم نموذج Claude صحيح. الاسم ينكتب بالإنجليزي مثل ما هو بموقع Anthropic، بدون مسافات.` };
   const admin = createAdminClient();
   const { data: before } = await admin.from("site_content").select("value").eq("key", "models").maybeSingle();
-  const { error } = await admin.from("site_content").upsert({ key: "models", value: { map }, updated_at: new Date().toISOString() });
+  const { error } = await admin.from("site_content").upsert({ key: "models", value: { map, ...(post ? { post } : {}) }, updated_at: new Date().toISOString() });
   if (error) return { error: "ما انحفظت. جرّب مرة ثانية." };
   await admin.from("site_content").delete().eq("key", "models_last_error");
   forgetModelMap();
   const old = cleanModelMap((before?.value as { map?: unknown } | null)?.map);
   const changes = MODEL_CATALOG.filter((m) => (old[m.id] ?? m.id) !== (map[m.id] ?? m.id)).map((m) => `${m.id} → ${map[m.id] ?? "الأصلي"}`);
+  const oldPost = String((before?.value as { post?: unknown } | null)?.post ?? "");
+  if (oldPost !== post) changes.push(`كاتب البوست المبتكر → ${post || "الأصلي"}`);
   if (changes.length) await audit(me, "models_changed", undefined, changes.join(" | ").slice(0, 400));
-  revalidatePath("/admin/ai/models");
-  const n = Object.keys(map).length;
+  revalidatePath("/admin/ai");
+  const n = Object.keys(map).length + (post ? 1 : 0);
   return { ok: n ? `انحفظت ✓ ${n} نموذج مبدّل. الموقع يبدأ يستخدمها خلال نص دقيقة، والعامل (Railway) كذلك.` : "انحفظت ✓ كل النماذج على الأصلي." };
 }
 

@@ -15,16 +15,17 @@ export function okReplacement(from, to) {
   return !!f && f[1].test(to);
 }
 
-let db = null, cache = { at: 0, map: {} };
+let db = null, cache = { at: 0, map: {}, post: "" };
 async function load() {
   if (Date.now() - cache.at < 30_000) return cache.map;
   try {
     if (!db && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-    if (!db) { cache = { at: Date.now(), map: {} }; return cache.map; }
+    if (!db) { cache = { at: Date.now(), map: {}, post: "" }; return cache.map; }
     const { data } = await db.from("site_content").select("value").eq("key", "models").maybeSingle();
     const raw = data?.value?.map && typeof data.value.map === "object" ? data.value.map : {};
-    cache = { at: Date.now(), map: Object.fromEntries(Object.entries(raw).filter(([k, v]) => okReplacement(k, v))) };
-  } catch { cache = { at: Date.now(), map: cache.map }; }
+    const post = typeof data?.value?.post === "string" && /^claude-[a-z0-9.-]{2,60}$/.test(data.value.post) ? data.value.post : "";
+    cache = { at: Date.now(), map: Object.fromEntries(Object.entries(raw).filter(([k, v]) => okReplacement(k, v))), post };
+  } catch { cache = { at: Date.now(), map: cache.map, post: cache.post }; }
   return cache.map;
 }
 
@@ -32,4 +33,10 @@ async function load() {
 export async function modelFor(name) {
   if (!name || typeof name !== "string") return name;
   return (await load())[name] ?? name;
+}
+
+/** «بوست / كاروسيل مبتكر» can have its own writer model (set in the admin's «النماذج»); otherwise it follows the general Sonnet choice */
+export async function postWriterModel() {
+  await load();
+  return cache.post || modelFor("claude-sonnet-5-5");
 }

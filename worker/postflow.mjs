@@ -1,7 +1,7 @@
 // «بوست / كاروسيل مبتكر»: Claude writes the design of a still post (or the slides of a carousel) as one self-contained HTML page,
 // Shaheen draws it in the same network-less browser used for videos, and saves one PNG per slide.
 // Customer text only ever reaches the model as fenced data. The page never runs scripts (they are removed before drawing).
-import { modelFor } from "./models.mjs";
+import { postWriterModel } from "./models.mjs";
 
 const clean = (s, n = 400) => String(s ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
 
@@ -85,7 +85,7 @@ async function ask({ system, user, maxTokens }) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal: AbortSignal.timeout(600_000),
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: await modelFor("claude-sonnet-5-5"), max_tokens: maxTokens, stream: true, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({ model: await postWriterModel(), max_tokens: maxTokens, stream: true, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages: [{ role: "user", content: user }] }),
   });
   if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 200)}`);
   let text = "", stop = "", buf = "";
