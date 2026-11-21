@@ -90,7 +90,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (!job || job.user_id !== user.id) return NextResponse.json({ error: "المشروع غير موجود." }, { status: 404 });
   if (job.status !== "draft") return NextResponse.json({ error: "هذا الفيديو انرسل للتصدير، ابدأ فيديو جديد." }, { status: 400 });
   const base = { aspect: job.input.aspect as Aspect, seconds: Number(job.input.seconds) };
-  const keepMedia = (s: MotionSpec, from?: MotionSpec): MotionSpec => ({ ...s, music: from?.music ?? null, voice: from?.voice ?? null, logo: from?.logo ?? null });
+  const keepMedia = (s: MotionSpec, from?: MotionSpec): MotionSpec => ({ ...s, music: from?.music ?? null, voice: from?.voice ?? null, logo: from?.logo && typeof from.logo.path === "string" && from.logo.path.startsWith(`${user.id}/`) && !from.logo.path.includes("..") ? from.logo : null }); // SECURITY: the logo must sit in this customer's own folder (the studio page signs it by path)
 
   if (action === "revise") {
     const instruction = String(body.instruction ?? "").trim().slice(0, 600);
@@ -149,7 +149,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     spec.voice = body.spec.voice && own(body.spec.voice.url) ? body.spec.voice : null;
     // the logo is one of the customer's uploads; the worker signs a fresh link at render time
     const lg = body.spec.logo, lb = box(lg?.box);
-    spec.logo = lg?.on && typeof lg.path === "string" && lg.path.startsWith(`${user.id}/`) && lb ? { path: lg.path, url: "", on: true, box: lb } : null;
+    spec.logo = lg?.on && typeof lg.path === "string" && lg.path.startsWith(`${user.id}/`) && !lg.path.includes("..") && lb ? { path: lg.path, url: "", on: true, box: lb } : null;
     const title = (spec.scenes[0] && "title" in spec.scenes[0] ? spec.scenes[0].title : job.input.idea) as string;
     await admin.from("jobs").update({ status: "queued", title: String(title).slice(0, 80), input: { ...job.input, spec, render: true }, updated_at: new Date().toISOString() }).eq("id", job.id);
     return NextResponse.json({ ok: true });

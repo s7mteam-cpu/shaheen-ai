@@ -110,7 +110,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
   const L = await getL();
   const supabase = await createClient();
   if (jobId) {
-    const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
+    const { data } = await supabase.from("jobs").select("id,user_id,status,input").eq("id", jobId).maybeSingle();
     const spec = (data?.input as { spec?: MotionSpec } | null)?.spec;
     // new motion videos are built on the montage engine (industry packs, 48 scene kinds)
     if (spec && "segments" in (spec as object)) return (await montage(jobId, tool, content, toolId)) ?? <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
@@ -119,7 +119,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
       const admin = createAdminClient();
       const { data: kitRow } = await supabase.from("brand_kits").select("logo_url").maybeSingle();
       const kitLogo = kitRow?.logo_url ? { path: kitRow.logo_url as string, url: (await admin.storage.from("uploads").createSignedUrl(kitRow.logo_url, 60 * 60 * 6)).data?.signedUrl ?? "" } : null;
-      const logo = spec.logo?.path ? { ...spec.logo, url: (await admin.storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" } : spec.logo ?? null;
+      const logo = spec.logo?.path && String(spec.logo.path).startsWith(`${data.user_id}/`) && !String(spec.logo.path).includes("..") ? { ...spec.logo, url: (await admin.storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" } : spec.logo ?? null;
       const cap = (data.input as { caption?: string } | null)?.caption;
       return <><MotionStudio jobId={data.id} initial={{ ...spec, logo }} editCost={tool.edit_cost ?? 3} tracks={tracks} voices={content.voices.items} kitLogo={kitLogo} />{cap ? <CaptionBox text={cap} /> : null}</>;
     }
@@ -137,8 +137,18 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
 async function montage(jobId: string, tool: ToolRow, content: Content, toolId = "video-editing") {
   const L = await getL();
   const supabase = await createClient();
-  const { data } = await supabase.from("jobs").select("id,status,input").eq("id", jobId).maybeSingle();
+  const { data } = await supabase.from("jobs").select("id,user_id,status,input").eq("id", jobId).maybeSingle();
   const spec = (data?.input as { spec?: MontageSpec } | null)?.spec;
+  // SECURITY (second lock after the API checks): nothing outside the owner's own folder is ever signed here
+  const inOwn = (p?: string | null) => typeof p === "string" && !!data && p.startsWith(`${data.user_id}/`) && !p.includes("..");
+  if (spec) {
+    if (spec.srcPath && !inOwn(spec.srcPath)) spec.srcPath = "";
+    if (spec.logo?.path && !inOwn(spec.logo.path)) spec.logo = null;
+    spec.broll = (spec.broll ?? []).filter((b) => inOwn(b.path));
+    if (spec.music?.path && !inOwn(spec.music.path)) spec.music = null;
+    if (spec.vo?.path && !inOwn(spec.vo.path)) spec.vo = null;
+    spec.graphics = (spec.graphics ?? []).map((g) => ({ ...g, img: inOwn(g.img) ? g.img : undefined, img2: inOwn(g.img2) ? g.img2 : undefined }));
+  }
   if (data?.status === "done" && spec?.segments) return await reopen(data.id, toolId, tool);
   if (data && data.status !== "draft" && toolId !== "video-editing") return <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
   if (!data || data.status !== "draft" || !spec) return null;
@@ -172,11 +182,12 @@ async function cv(jobId: string | undefined, tool: ToolRow, balance: number) {
   const L = await getL();
   const supabase = await createClient();
   if (jobId) {
-    const { data } = await supabase.from("jobs").select("id,status,input,output").eq("id", jobId).maybeSingle();
+    const { data } = await supabase.from("jobs").select("id,user_id,status,input,output").eq("id", jobId).maybeSingle();
     const raw = (data?.input as { spec?: unknown } | null)?.spec;
     if (data && raw) {
       if (data.status === "queued" || data.status === "running") return <p className="card p-6 text-center">{L("السيرة قيد التصدير، تلقاها بعد لحظات في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
       const spec = normaliseCV(raw);
+      if (spec.photo?.path && !(spec.photo.path.startsWith(`${data.user_id}/`) && !spec.photo.path.includes(".."))) spec.photo = null;
       if (spec.photo?.path) {
         const { data: sg } = await createAdminClient().storage.from("uploads").createSignedUrl(spec.photo.path, 60 * 60 * 6);
         spec.photo = sg?.signedUrl ? { ...spec.photo, url: sg.signedUrl } : null;
@@ -193,7 +204,7 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number,
   const L = await getL();
   const supabase = await createClient();
   if (jobId) {
-    const { data } = await supabase.from("jobs").select("id,status,input,output").eq("id", jobId).maybeSingle();
+    const { data } = await supabase.from("jobs").select("id,user_id,status,input,output").eq("id", jobId).maybeSingle();
     const spec = (data?.input as { spec?: DesignSpec } | null)?.spec;
     if (data && spec) {
       if (data.status === "queued" || data.status === "running") {
@@ -201,7 +212,8 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number,
       }
       const admin = createAdminClient();
       const urls: Record<string, string> = {};
-      const imgs = designImages(spec);
+      // SECURITY: only files inside the folder of the design's owner are ever signed
+      const imgs = designImages(spec).filter((i) => typeof i.path === "string" && i.path.startsWith(`${data.user_id}/`) && !i.path.includes(".."));
       for (const bucket of ["uploads", "results"] as const) {
         const paths = imgs.filter((i) => i.bucket === bucket).map((i) => i.path);
         if (!paths.length) continue;

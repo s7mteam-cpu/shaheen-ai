@@ -345,7 +345,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   /** Images must be the customer's own files (or results of this job). */
   const clean = (s: DesignSpec): DesignSpec => {
     const ok = (i?: DImg | null) => (i && mine(i.path) ? i : null);
-    return { ...s, icon3d: Object.fromEntries(Object.entries(s.icon3d ?? {}).filter(([, v]) => ok(v))), brand: { ...s.brand, logo: ok(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, photo: ok(sl.photo), person: sl.person ? { ...sl.person, photo: ok(sl.person.photo) } : null })) };
+    return { ...s, icon3d: Object.fromEntries(Object.entries(s.icon3d ?? {}).filter(([, v]) => ok(v))), brand: { ...s.brand, logo: ok(s.brand.logo) }, slides: s.slides.map((sl) => ({ ...sl, bg: ok(sl.bg), photo: ok(sl.photo), person: sl.person ? { ...sl.person, photo: ok(sl.person.photo) } : null })) };
   };
 
   if (action === "save") {

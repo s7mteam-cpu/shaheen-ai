@@ -46,6 +46,8 @@ function cleanMusic(m: Partial<Music> | null | undefined, userId: string): Music
   return { url: String(m.url ?? "").slice(0, 2000), name, ...(rp ? { path: rp } : {}), ...t };
 }
 
+const ourUrl = (u?: string) => typeof u === "string" && !!process.env.NEXT_PUBLIC_SUPABASE_URL && u.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/sign/`) && !/[\s\\@]/.test(u) && !u.includes("..");
+
 const spec0Orientation = (m: MontageSpec) => (m.aspect === "16:9" ? "landscape" : m.aspect === "1:1" ? "square" : "portrait");
 
 function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): MontageSpec {
@@ -80,6 +82,8 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     cstyle: ok(DSTYLES, s.cstyle), // character look
     // pictures must be the customer's own (or already in this project)
     graphics: cleanGraphics(Array.isArray(s.graphics) ? s.graphics : base.graphics ?? [], len)
+      // SECURITY: a picture address is kept only when it is a signed link of our own storage (the renderer re-signs from img anyway)
+      .map((g) => ({ ...g, url: ourUrl(g.url) ? g.url : undefined, url2: ourUrl(g.url2) ? g.url2 : undefined }))
       .map((g) => (g.img && (!g.img.startsWith(`${userId}/`) || g.img.includes("..")) && !(base.graphics ?? []).some((x) => x.img === g.img) ? { ...g, img: undefined, url: undefined } : g))
       .map((g) => (g.img2 && (!g.img2.startsWith(`${userId}/`) || g.img2.includes("..")) && !(base.graphics ?? []).some((x) => x.img2 === g.img2) ? { ...g, img2: undefined, url2: undefined } : g)),
     illus: ILLUS_STYLES.some((x) => x[0] === s.illus) ? s.illus : base.illus,

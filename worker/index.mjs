@@ -632,11 +632,12 @@ async function renderMontage(job) {
   }
   const graphics = [];
   for (const g of spec.graphics ?? []) {
-    if (!g.img) { graphics.push(g); continue; }
+    // SECURITY: a picture/clip address always comes from signing g.img here, never from the saved request (it would let a request make the renderer open any address)
+    if (!g.img) { const { url: _u, url2: _u2, ...rest } = g; graphics.push(rest); continue; }
     const s = await db.storage.from("results").createSignedUrl(g.img, 60 * 60 * 3);
     let url2;
     if (g.img2) { const s2 = await db.storage.from("results").createSignedUrl(g.img2, 60 * 60 * 3); url2 = s2.data?.signedUrl; }
-    if (s.data?.signedUrl) graphics.push({ ...g, url: s.data.signedUrl, ...(url2 ? { url2 } : {}) });
+    if (s.data?.signedUrl) graphics.push({ ...g, url: s.data.signedUrl, url2: url2 || undefined });
   }
   return render(job, "Montage", { ...spec, src: data.signedUrl, logo, broll, music, vo, graphics });
 }
@@ -648,7 +649,7 @@ async function renderDesign(job) {
   try {
     const spec = structuredClone(job.input.spec);
     const sign = async (img) => {
-      if (!img?.path || !String(img.path).startsWith(`${job.user_id}/`)) return null;
+      if (!img?.path || !String(img.path).startsWith(`${job.user_id}/`) || String(img.path).includes("..")) return null;
       const { data } = await db.storage.from(img.bucket === "results" ? "results" : "uploads").createSignedUrl(img.path, 60 * 60);
       return data?.signedUrl ? { ...img, url: data.signedUrl } : null;
     };
@@ -656,6 +657,7 @@ async function renderDesign(job) {
     for (const k of Object.keys(spec.icon3d ?? {})) { const v = await sign(spec.icon3d[k]); if (v) spec.icon3d[k] = v; else delete spec.icon3d[k]; }
     for (const s of spec.slides) {
       s.photo = await sign(s.photo);
+      s.bg = await sign(s.bg); // SECURITY: the background is re-signed from its path like every other picture (never the saved address)
       if (s.person) s.person.photo = await sign(s.person.photo);
     }
     await setProgress(job.id, 5);
@@ -688,7 +690,7 @@ async function renderCV(job) {
   const dir = await mkdtemp(join(tmpdir(), "cv-"));
   try {
     const spec = structuredClone(job.input.spec);
-    if (spec.photo?.path && String(spec.photo.path).startsWith(`${job.user_id}/`)) {
+    if (spec.photo?.path && String(spec.photo.path).startsWith(`${job.user_id}/`) && !String(spec.photo.path).includes("..")) {
       const { data } = await db.storage.from("uploads").createSignedUrl(spec.photo.path, 60 * 60);
       spec.photo = data?.signedUrl ? { ...spec.photo, url: data.signedUrl } : null;
     } else spec.photo = null;
