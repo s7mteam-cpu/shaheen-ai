@@ -41,6 +41,9 @@ export async function startCheckout(planId: string, form?: FormData) {
     const { data: tapSub } = await admin.from("subscriptions").select("id,plan_id,status").eq("id", `tap_${profile.id}`).maybeSingle();
     if (tapSub && ["active", "past_due"].includes(tapSub.status)) {
       // Already subscribed: the new plan starts from the next month (no double charge).
+      // SECURITY: only a plan that is on sale right now can be chosen (a hidden or old plan id must never be accepted from the request)
+      const { data: wanted } = await admin.from("plans").select("id").eq("id", String(planId)).eq("is_active", true).maybeSingle();
+      if (!wanted) redirect("/app/account?error=plan");
       await admin.from("subscriptions").update({ next_plan_id: planId === tapSub.plan_id ? null : planId, cancel_at_period_end: false }).eq("id", tapSub.id);
       revalidatePath("/app/account");
       redirect("/app/account?ok=plan");

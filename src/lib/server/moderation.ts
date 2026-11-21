@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { aiJson } from "@/lib/providers/text";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logEvent } from "@/lib/server/events";
+import { tooMany } from "@/lib/server/throttle";
 
 /**
  * «سياسة المحتوى»: no sexual / indecent / immoral content on Shaheen — ever.
@@ -30,6 +31,8 @@ export async function guardContent(userId: string, body: unknown, where: string)
   collect(body, parts);
   const text = parts.join("\n").slice(0, 4000);
   if (text.length < 3) return null;
+  // every check below costs a small AI call, and it runs before any credit is taken: a script must not be able to loop it
+  if (tooMany(`mod:${userId}`, 40, 60_000)) return NextResponse.json({ error: "طلبات كثيرة، انتظر دقيقة." }, { status: 429 });
   let why = WORDS.test(text) ? "word" : "";
   if (!why) {
     try {
@@ -47,7 +50,7 @@ Answer JSON only: {"ok": true} or {"ok": false, "why": "short reason in Arabic"}
   // let the admins know (bell), without storing the full request text
   const admin = createAdminClient();
   const { data: admins } = await admin.from("profiles").select("id").eq("role", "admin");
-  if (admins?.length) {
+  if (admins?.length && !tooMany(`modbell:${userId}`, 3, 10 * 60_000)) { // the admins' bell is not flooded by one account
     await admin.from("notifications").insert(admins.map((a) => ({
       user_id: a.id, kind: "warn", title: "⚠️ طلب محتوى مخالف انمنع",
       body: `أداة: ${where}${why !== "word" && why !== "ai" ? ` — ${why}` : ""}`, link: `/admin/customers?id=${userId}#manage`,

@@ -16,7 +16,8 @@ export default async function IdentityPage() {
   const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost").eq("id", "brand-identity").maybeSingle();
   const sign = async (p?: string | null, bucket = "uploads") => (p ? (await admin.storage.from(bucket).createSignedUrl(p, 3600)).data?.signedUrl ?? null : null);
   const options = ((kit?.identity_options ?? []) as Concept[]);
-  for (const c of options) if (c.logo?.path) c.logo.url = (await sign(c.logo.path, "results")) ?? undefined;
+  // SECURITY: this row is editable by its owner, so a logo path is signed only when it sits in the owner's own folder
+  for (const c of options) if (c.logo?.path) { if (typeof c.logo.path === "string" && c.logo.path.startsWith(`${user!.id}/`) && !c.logo.path.includes("..")) c.logo.url = (await sign(c.logo.path, "results")) ?? undefined; else c.logo = { ...c.logo, path: undefined, url: undefined } as typeof c.logo; }
   const chosen = (kit?.identity as Concept | null)?.id ?? null;
   return (
     <div className="flex flex-col gap-5">

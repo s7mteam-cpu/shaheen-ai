@@ -43,7 +43,7 @@ export async function chooseIdentity(conceptId: string) {
   if (!c) return { ok: false };
   let logo_url: string | null = kit?.logo_url ?? null;
   const mark = c.logo?.path;
-  if (!logo_url && mark && mark.startsWith(`${user.id}/`)) {
+  if (!logo_url && typeof mark === "string" && mark.startsWith(`${user.id}/`) && !mark.includes("..")) {
     const dl = await admin.storage.from("results").download(mark);
     if (dl.data) {
       const path = `${user.id}/${crypto.randomUUID()}.${mark.split(".").pop() || "png"}`;

@@ -188,8 +188,14 @@ export async function runRenewals() {
 
       const auto = !manual && sub.pay_method === "card" && sub.tap_card_id && sub.tap_customer_id && sub.tap_agreement_id && sub.failed_attempts < MAX_CARD_TRIES;
       if (auto && end <= now) {
-        const planId = sub.next_plan_id || sub.plan_id;
-        const { data: plan } = await admin.from("plans").select("name,price_kwd").eq("id", planId).single();
+        // SECURITY: a requested change of plan counts only if that plan is still on sale; otherwise the current plan renews
+        let planId = sub.plan_id;
+        if (sub.next_plan_id && sub.next_plan_id !== sub.plan_id) {
+          const { data: nx } = await admin.from("plans").select("id").eq("id", sub.next_plan_id).eq("is_active", true).maybeSingle();
+          if (nx) planId = sub.next_plan_id;
+        }
+        const { data: plan } = await admin.from("plans").select("name,price_kwd").eq("id", planId).maybeSingle();
+        if (!plan) { log.push(`${sub.id}: plan missing`); continue; }
         const token = await tokenFromSavedCard(sub.tap_card_id, sub.tap_customer_id);
         const charge = await createCharge({
           amount: Number(plan!.price_kwd), currency: "KWD", customer_initiated: false, save_card: false,
