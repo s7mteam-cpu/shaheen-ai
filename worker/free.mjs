@@ -30,6 +30,11 @@ export function checkFreeCode(code) {
   for (const [re, why] of BAD) if (re.test(c)) return why;
   for (const m of c.matchAll(/(?:^|\n)\s*import\s+[^;'"]*?from\s*['"]([^'"]+)['"]/g)) if (!OK_IMPORT.has(m[1])) return `import ${m[1]}`;
   if ((c.match(/\bimport\b/g) ?? []).length !== [...c.matchAll(/(?:^|\n)\s*import\s+[^;'"]*?from\s*['"][^'"]+['"]/g)].length) return "odd import";
+  // every module name in the file ("from '...'", in imports AND re-exports) must be on the short list: nothing else may be pulled into the bundle
+  // (a re-export such as  export {x} from "!!loader!/some/server/file"  would otherwise copy a file of this server into the picture)
+  for (const m of c.matchAll(/(?:^|[;\n}])\s*(?:import|export)\b[^;]*?\bfrom\s*['"`]([^'"`]*)['"`]/g)) if (!OK_IMPORT.has(m[1])) return `module ${m[1].slice(0, 40)}`;
+  if (/\bexport\s*\*|\bexport\s*\{[^}]*\}\s*from\b/.test(c)) return "re-export";
+  if (/['"`][^'"`\n]*![^'"`\n]*\.(?:[cm]?[jt]sx?|json|env|css)['"`]|['"`](?:\.\.\/|\/(?:proc|etc|app|root|home|tmp|var)\/)/.test(c)) return "file path";
   if (!/export\s+(const|function)\s+Free\b|export\s+default/.test(c)) return "no Free component";
   return "";
 }

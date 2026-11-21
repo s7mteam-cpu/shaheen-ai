@@ -36,11 +36,20 @@ const CLOCK = `(() => {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Puts our security header (the Content-Security-Policy) where the browser reads it BEFORE anything of the page.
+ * Normal pages: right after their real <head>. If the page tries to hide a "<head>" inside a comment, or places a script / tag before its head,
+ * the page is wrapped instead, so the policy is always first and can never be skipped. */
+export function withHead(html, head) {
+  const masked = String(html).replace(/<!--[\s\S]*?-->/g, (c) => " ".repeat(c.length));
+  const m = /<head[^>]*>/i.exec(masked);
+  if (m && !/<!--|<(?:script|style|link|meta|base|iframe|img|svg|object|embed|body)\b/i.test(masked.slice(0, m.index))) { const at = m.index + m[0].length; return html.slice(0, at) + head + html.slice(at); }
+  return `<!doctype html><html><head>${head}</head><body>${html}</body></html>`;
+}
 const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src 'none'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
 /** the page as the admin's sandboxed iframe plays it live: no network at all, fonts embedded */
 export function htmlPreviewDoc(html, fontCss = "") {
   const head = `<meta http-equiv="Content-Security-Policy" content="${CSP}"><script>window.__errs=[];addEventListener("error",function(e){__errs.push(String(e.message)+" @"+(e.lineno||""))});addEventListener("unhandledrejection",function(e){__errs.push("rejection: "+String(e.reason))});</script><style>${fontCss}html,body{margin:0;overflow:hidden}</style>`;
-  return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + head) : `<!doctype html><html><head>${head}</head><body>${html}</body></html>`;
+  return withHead(html, head);
 }
 /** The page is laid out like on the preview (a phone-sized screen: 432 css px wide for portrait) and drawn at a higher pixel density,
  * so the video is exactly what the live preview shows (designs switch to their "mobile" layout on narrow screens). */
@@ -53,7 +62,7 @@ async function openHtmlPage({ html, width, height, fontCss, browserExecutable })
   const { lw, lh, scale } = layoutOf(width, height);
   const csp = `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src 'none'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'`;
   const head = `<meta http-equiv="Content-Security-Policy" content="${csp}"><style>${fontCss}html,body{margin:0;overflow:hidden}</style>`;
-  const page0 = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + head) : `<!doctype html><html><head>${head}</head><body>${html}</body></html>`;
+  const page0 = withHead(html, head);
   const browser = await openBrowser("chrome", { browserExecutable, chromiumOptions: {}, logLevel: "error", forceDeviceScaleFactor: scale });
   try {
     const page = await browser.newPage({ context: { indent: false, logLevel: "error" }, logLevel: "error", indent: false, pageIndex: 0, onBrowserLog: null, onLog: () => {} });

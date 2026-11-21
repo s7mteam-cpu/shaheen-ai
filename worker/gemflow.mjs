@@ -124,7 +124,12 @@ export async function geminiEdit({ html, instruction, retry, model }) {
 
 /** code a video page never needs. The recorder is already offline and sandboxed; this is a second wall: such pages are rejected and regenerated. */
 export function unsafeHtml(html) {
-  const bad = [[/\bfetch\s*\(/, "fetch"], [/XMLHttpRequest/, "XMLHttpRequest"], [/WebSocket|EventSource/, "WebSocket"], [/sendBeacon/, "sendBeacon"], [/importScripts|\bimport\s*\(/, "import"], [/<(iframe|object|embed|form|frame)\b/i, "iframe/form"], [/window\.open|document\.cookie|localStorage|sessionStorage|indexedDB/, "storage/open"], [/\beval\s*\(|new\s+Function\s*\(/, "eval"], [/<script[^>]+src\s*=\s*["']?(https?:)?\/\//i, "external script"], [/navigator\.(geolocation|mediaDevices|clipboard)|Notification\.request/, "device access"]];
+  const bad = [[/\bfetch\s*\(/, "fetch"], [/XMLHttpRequest/, "XMLHttpRequest"], [/WebSocket|EventSource/, "WebSocket"], [/sendBeacon/, "sendBeacon"], [/importScripts|\bimport\s*\(/, "import"], [/<(iframe|object|embed|form|frame)\b/i, "iframe/form"], [/window\.open|document\.cookie|localStorage|sessionStorage|indexedDB/, "storage/open"], [/\beval\s*\(|new\s+Function\s*\(/, "eval"], [/<script[^>]+src\s*=\s*["']?(https?:)?\/\//i, "external script"], [/navigator\.(geolocation|mediaDevices|clipboard)|Notification\.request/, "device access"],
+    [/RTCPeerConnection|RTCDataChannel|WebTransport|\bnew\s+Worker\b|SharedWorker|serviceWorker|BroadcastChannel/, "network/worker"], [/<meta[^>]+http-equiv\s*=\s*["']?\s*(?:refresh|content-security-policy|set-cookie)/i, "meta refresh/policy"], [/<base\b/i, "base tag"],
+    [/<(?:script|link|img|image|source|video|audio|track|embed|object|use|iframe|input)\b[^>]*\s(?:src|href|data|poster|xlink:href|srcset)\s*=\s*["']?\s*(?:https?:|\/\/|file:|ftp:)/i, "external resource"], [/url\(\s*["']?\s*(?:https?:|\/\/|file:)/i, "external css url"], [/@import\b/i, "css import"],
+    [/\[\s*["'`](?:constr|__pro|fet|ev)/, "obfuscated access"], [/\.\s*constructor\b|__proto__/, "prototype tricks"]];
+  // what prepareHtml removes anyway (Google Fonts links, the Tailwind CDN tag) is not a reason to reject a page
+  html = String(html).replace(/<link[^>]*href=["']https?:\/\/fonts\.(?:googleapis|gstatic)\.com[^>]*>/gi, "").replace(/@import\s+url\(["']?https?:\/\/fonts\.googleapis\.com[^)]*\)\s*;?/gi, "").replace(/<script[^>]*src=["'][^"']*cdn\.tailwindcss\.com[^"']*["'][^>]*>\s*<\/script>/gi, "");
   return bad.filter(([re]) => re.test(html)).map(([, n]) => n);
 }
 /** contact details the customer wrote (phones, handles, sites) that must be visible in the video */

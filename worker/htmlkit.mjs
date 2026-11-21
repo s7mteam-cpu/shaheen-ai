@@ -12,7 +12,7 @@ const ATTR_RE = /\b(alt|title|placeholder|aria-label|data-[\w-]+)=("([^"<>]{2,20
 const SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
 const STR_RE = /(["'`])((?:\\.|(?!\1)[^\\\n])*)\1/g;
 const unesc = (s) => s.replace(/\\n/g, " ").replace(/\\(["'`\\])/g, "$1");
-const escq = (s, q) => String(s).replace(/\\/g, "\\\\").replace(/\r?\n/g, " ").split(q).join("\\" + q).replace(q === "`" ? /\$\{/g : /$^/g, "\\${");
+const escq = (s, q) => String(s).replace(/\\/g, "\\\\").replace(/\r?\n/g, " ").split(q).join("\\" + q).replace(q === "`" ? /\$\{/g : /$^/g, "\\${").replace(/</g, "\\x3C");
 
 /** unique visible texts in order of appearance: [{key:"t0", label, value}]. Order: text between tags, then Arabic attribute values, then Arabic string literals inside <script> (designs that write their words from JavaScript). */
 export function extractTexts(html, max = 60) {

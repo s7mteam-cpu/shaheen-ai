@@ -958,6 +958,13 @@ async function gemFlowJob(job) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);
       const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model });
+      // SECURITY: the raw answer is checked BEFORE anything reads or opens it; a page with forbidden code is never prepared, opened or recorded
+      const unsafe0 = unsafeHtml(g.html);
+      if (unsafe0.length) {
+        retry = `The page uses forbidden code (${unsafe0.join(", ")}). A video page must be self-contained: no network, no storage, no iframes or forms, no eval, no external files. Remove all of it.`;
+        meta.attempts.push({ attempt, model: g.model, usage: g.usage, chars: g.html.length, unsafe: unsafe0, hard: true, review: { ok: false, issues: retry } }); lap(`gemini${attempt}`);
+        page = ""; continue;
+      }
       const prepared = await prepareHtml(g.html);
       const rec = { attempt, model: g.model, usage: g.usage, chars: g.html.length, notes: prepared.notes };
       meta.attempts.push(rec); lap(`gemini${attempt}`);
@@ -990,6 +997,7 @@ async function gemFlowJob(job) {
       if (review.ok) break;
       retry = review.issues;
     }
+    if (!page) throw new Error("التصميم رجع بكود غير مسموح بعد محاولتين"); // never recorded, for anyone (the order is refunded)
     if (cust && meta.attempts.at(-1)?.hard) throw new Error("التصميم ما طلع بجودة كافية بعد محاولتين"); // a broken design is never delivered: the order is refunded
     await stage("يرسم الفيديو…", 80);
     await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss(page) });
@@ -1121,6 +1129,8 @@ async function gemEditJob(job) {
       let retry = "", okPage = "";
       for (let attempt = 1; attempt <= 2 && !okPage; attempt++) {
         const r = await geminiEdit({ html: bare, instruction, retry, model: src.input.model });
+        const bad0 = unsafeHtml(r.html); // SECURITY: checked before the page is prepared or opened
+        if (bad0.length) { editUsage.push(r.usage ?? null); retry = `The page uses forbidden code (${bad0.join(", ")}). Remove it: no network, no storage, no iframes or forms, no eval, no external files.`; continue; }
         const pr = await prepareHtml(r.html);
         const sts = await htmlStills({ html: pr.html, width: W, height: H, times: [0.1 * seconds, 0.4 * seconds, 0.7 * seconds, 0.95 * seconds], fontCss: htmlFontCss(pr.html) });
         const pf = join(workDir, `gep-${job.id}.png`); await writeFile(pf, sts[1]);
