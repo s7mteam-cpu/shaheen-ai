@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   if (!type?.startsWith("video/")) return NextResponse.json({ error: "نوع الملف غير مدعوم." }, { status: 400 });
   if (!size || size > MAX) return NextResponse.json({ error: "الفيديو أكبر من 50 ميجا. صغّره وحاول مرة ثانية." }, { status: 413 });
   const ext = (name?.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
+  if (!["mp4", "mov", "webm", "m4v"].includes(ext)) return NextResponse.json({ error: "نوع الملف غير مدعوم." }, { status: 400 });
   const path = `demos/${tool}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
   const admin = createAdminClient();
   const { data, error } = await admin.storage.from("site").createSignedUploadUrl(path);

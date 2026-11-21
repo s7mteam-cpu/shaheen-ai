@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson } from "@/lib/providers/text";
+import { tooMany } from "@/lib/server/throttle";
 
 /** "ألهمني": three ideas that fit the user's business. Free. */
 export async function POST(req: Request) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
-  const { tool } = (await req.json()) as { tool: string };
+  if (tooMany(`inspire:${user.id}`, 12, 10 * 60_000)) return NextResponse.json({ error: "طلبات كثيرة، جرّب بعد شوي." }, { status: 429 });
+  const tool = String(((await req.json().catch(() => null)) as { tool?: unknown } | null)?.tool ?? "");
+  if (!/^[\w-]{1,60}$/.test(tool)) return NextResponse.json({ error: "أداة غير معروفة." }, { status: 400 });
   const admin = createAdminClient();
   const [{ data: p }, { data: b }, { data: t }] = await Promise.all([
     admin.from("profiles").select("instagram").eq("id", user.id).single(),

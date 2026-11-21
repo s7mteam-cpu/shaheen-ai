@@ -54,8 +54,16 @@ async function readFile(f: File): Promise<{ text: string; pdf?: string }> {
     const zip = await JSZip.loadAsync(buf);
     const names = Object.keys(zip.files).filter((k) => (n.endsWith(".docx") ? k === "word/document.xml" : /^ppt\/slides\/slide\d+\.xml$/.test(k))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     const parts: string[] = [];
-    for (const k of names) {
-      const xml = await zip.files[k].async("string");
+    let total = 0;
+    for (const k of names.slice(0, 400)) {
+      // a tiny zip can unpack to gigabytes: stop reading once the text passes 40 MB
+      const xml = await new Promise<string>((ok, no) => {
+        const chunks: Buffer[] = []; let n = 0;
+        const st = zip.files[k].nodeStream() as unknown as import("node:stream").Readable;
+        st.on("data", (c: Buffer) => { n += c.length; total += c.length; if (n > 20_000_000 || total > 40_000_000) { st.destroy(); no(new Error("FILE_TOO_BIG")); } else chunks.push(c); });
+        st.on("end", () => ok(Buffer.concat(chunks).toString("utf8")));
+        st.on("error", no);
+      });
       parts.push(xml.replace(/<\/w:p>|<\/a:p>/g, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"'));
     }
     return { text: parts.join("\n\n") };

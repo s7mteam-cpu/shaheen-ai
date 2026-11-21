@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { tooMany } from "@/lib/server/throttle";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { saveResult, signedResultUrls } from "@/lib/providers/storage";
@@ -70,10 +71,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (action === "bgadd") {
     const url = String(body.url ?? "");
     let host = "";
-    try { host = new URL(url).hostname; } catch { /* invalid */ }
-    if (!["cdn.pixabay.com", "pixabay.com"].includes(host)) return NextResponse.json({ error: "الخلفية مو من المكتبة." }, { status: 400 });
-    const res = await fetch(url);
-    if (!res.ok) return NextResponse.json({ error: "تعذّر تحميل الخلفية." }, { status: 502 });
+    const LIB = ["cdn.pixabay.com", "pixabay.com"];
+    try { const u = new URL(url); host = u.protocol === "https:" ? u.hostname : ""; } catch { /* invalid */ }
+    if (!LIB.includes(host)) return NextResponse.json({ error: "الخلفية مو من المكتبة." }, { status: 400 });
+    if (tooMany(`quranbg:${user.id}`, 15, 10 * 60_000)) return NextResponse.json({ error: "طلبات كثيرة، جرّب بعد شوي." }, { status: 429 });
+    const res = await fetch(url, { signal: AbortSignal.timeout(45_000) });
+    // a redirect must also end inside the library
+    let endHost = ""; try { endHost = new URL(res.url || url).hostname; } catch { /* keep empty */ }
+    if (!res.ok || !LIB.includes(endHost)) return NextResponse.json({ error: "تعذّر تحميل الخلفية." }, { status: 502 });
+    if (Number(res.headers.get("content-length") ?? 0) > 48 * 1024 * 1024) return NextResponse.json({ error: "الخلفية كبيرة، اختر غيرها." }, { status: 400 });
     const buf = await res.arrayBuffer();
     if (buf.byteLength > 48 * 1024 * 1024) return NextResponse.json({ error: "الخلفية كبيرة، اختر غيرها." }, { status: 400 });
     const path = await saveResult(user.id, "quran", buf, "video/mp4", "mp4");

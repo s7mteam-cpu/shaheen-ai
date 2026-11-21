@@ -156,7 +156,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   const refund = (jobId: string, amount: number, why: string) =>
     admin.rpc("grant_credits", { p_user: user.id, p_amount: amount, p_reason: "refund", p_ref: `design-${why}:${jobId}:${Date.now()}` }).then(() => null, () => null);
   const sign = async (bucket: string, path: string) => (await admin.storage.from(bucket).createSignedUrl(path, 60 * 60 * 6)).data?.signedUrl ?? "";
-  const mine = (p?: string) => typeof p === "string" && p.startsWith(`${user.id}/`);
+  const mine = (p?: string) => typeof p === "string" && p.startsWith(`${user.id}/`) && !p.includes("..");
 
   /** One AI photo, saved to results. Uses the image provider the admin picked for this tool (Gemini or fal). */
   async function aiPhoto(toolId: string, jobId: string, prompt: string, aspect: DAspect, refs: string[] = [], style: string = DEFAULT_IMG_STYLE): Promise<DImg> {

@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   if (!deck && (!type || !/^(image|video)\//.test(type))) return NextResponse.json({ error: "الملف لازم يكون صورة أو فيديو أو عرض PowerPoint (.pptx)." }, { status: 400 });
   if (!size || size > MAX) return NextResponse.json({ error: "الملف أكبر من 50 ميجا. صغّره وحاول مرة ثانية." }, { status: 413 });
   const ext = (name?.split(".").pop() || (deck ? "pptx" : type?.startsWith("video") ? "mp4" : "jpg")).toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  if (!["jpg", "jpeg", "png", "webp", "gif", "avif", "mp4", "mov", "webm", "m4v", "pptx"].includes(ext)) return NextResponse.json({ error: "نوع الملف غير مدعوم." }, { status: 400 });
   const path = `gallery/${crypto.randomUUID()}.${ext}`;
   const admin = createAdminClient();
   const { data, error } = await admin.storage.from("site").createSignedUploadUrl(path);

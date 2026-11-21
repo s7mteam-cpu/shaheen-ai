@@ -98,7 +98,7 @@ function sanitize(base: MontageSpec, s: Partial<MontageSpec>, userId = ""): Mont
     transition: ok(TRANSITIONS, s.transition) ?? base.transition ?? "none",
     logo: (() => {
       // the customer may add their own logo in the studio (an upload of theirs), move and resize it
-      const path = s.logo?.path && userId && s.logo.path.startsWith(`${userId}/`) ? s.logo.path : base.logo?.path;
+      const path = typeof s.logo?.path === "string" && userId && s.logo.path.startsWith(`${userId}/`) && !s.logo.path.includes("..") ? s.logo.path : base.logo?.path;
       if (!path) return null;
       const pos = ["tl", "tr", "bl", "br"].includes(String(s.logo?.pos)) ? s.logo!.pos : base.logo?.pos ?? "tr";
       const fb = s.logo && "box" in s.logo ? box(s.logo.box) : base.logo?.box ?? null;

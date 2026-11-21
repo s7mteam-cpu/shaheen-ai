@@ -40,7 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
   const admin = createAdminClient();
-  const mine = (p?: string) => typeof p === "string" && p.startsWith(`${user.id}/`);
+  const mine = (p?: string) => typeof p === "string" && p.startsWith(`${user.id}/`) && !p.includes("..");
   const cleanSpec = (raw: unknown): CVSpec => { const s = normaliseCV(raw); return { ...s, photo: s.photo && mine(s.photo.path) ? s.photo : null }; };
 
   // ---------------- start: the AI builds the CV from what the customer wrote / uploaded ----------------
