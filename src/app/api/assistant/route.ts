@@ -145,6 +145,25 @@ function extractAction(raw: string, c: { signedIn: boolean; credits: number; pre
   return { text, action: null };
 }
 
+/** Signed-in customers: a generous daily ceiling per account, kept in the database, so a script on a free account cannot run the AI without end. */
+const USER_PER_DAY = 200;
+async function userAllowed(uid: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const day = new Date().toISOString().slice(0, 10), key = `chat_users:${day}`;
+    const h = createHash("sha256").update(`${day}:${uid}`).digest("hex").slice(0, 16);
+    const { data, error } = await admin.from("admin_secrets").select("value").eq("key", key).maybeSingle();
+    if (error) return true;
+    const v = (data?.value ?? { users: {} }) as { users: Record<string, number> };
+    if ((v.users[h] ?? 0) >= USER_PER_DAY) return false;
+    const first = !Object.keys(v.users).length;
+    v.users[h] = (v.users[h] ?? 0) + 1;
+    await admin.from("admin_secrets").upsert({ key, value: v, updated_at: new Date().toISOString() });
+    if (first) await admin.from("admin_secrets").delete().like("key", "chat\\_users:%").neq("key", key);
+    return true;
+  } catch { return true; }
+}
+
 /** "كلم شاهين" — the in-app assistant. Knows the platform and (if signed in) the user's account. */
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { messages?: Msg[]; page?: string };
@@ -183,6 +202,7 @@ export async function POST(req: Request) {
   }
   if (limited(key)) return NextResponse.json({ reply: "رسائل كثيرة خلال وقت قصير، جرّب بعد شوي 🙏" });
   if (!uid && dbReady() && !(await visitorAllowed(ip))) return NextResponse.json({ reply: "وصلت حد الرسائل اليومي للزوار 🙏 سجّل حساب مجاني وتكمل معي بدون هالحد، أو ارجع بكرة." });
+  if (uid && !(await userAllowed(uid))) return NextResponse.json({ reply: "وصلت الحد اليومي لرسائل المساعد 🙏 ارجع بكرة، أو تواصل معنا واتساب لو تحتاج شي الحين." });
   if (!uid) messages.splice(0, Math.max(0, messages.length - 8)); // visitors: a shorter history is sent to the model
 
   // Site pages (terms, privacy…) only when the question needs them — they are long and cost tokens.
