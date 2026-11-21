@@ -8,6 +8,7 @@ import { requireAdmin, requireFullAdmin } from "@/lib/server/auth";
 import { OWNER_EMAILS } from "@/lib/admin/sections";
 import { deleteUserCompletely, emptyFolder } from "@/lib/server/deleteUser";
 import { audit } from "@/lib/server/audit";
+import { mailReady, sendMail } from "@/lib/server/mail";
 import { REMEMBER_COOKIE } from "@/lib/supabase/remember";
 import { latestAccess } from "@/lib/server/supportAccess";
 import { stripe } from "@/lib/stripe";
@@ -227,8 +228,17 @@ export async function messageCustomer(_prev: Res, form: FormData): Promise<Res> 
   if (text.length < 5) return { error: L("اكتب الرسالة.") };
   const { error } = await createAdminClient().from("notifications").insert({ user_id: p.id, kind: "info", title: L("رسالة من فريق شاهين"), body: text, link: "/app/account" });
   if (error) return { error: L("ما انرسلت، جرّب مرة ثانية.") };
-  await audit(me, "message", p, text.slice(0, 120));
-  return { ok: L("وصلت الرسالة للعميل بالجرس.") };
+  let mailed = "";
+  if (form.get("mail") === "on") {
+    if (!mailReady()) mailed = L(" (البريد غير مفعّل بعد، انرسلت بالجرس بس.)");
+    else {
+      const { data: pr } = await createAdminClient().from("profiles").select("email").eq("id", p.id).maybeSingle();
+      const r = pr?.email ? await sendMail(String(pr.email), "رسالة من فريق شاهين", text, "/app/account") : { ok: false as const, error: "no_email" };
+      mailed = r.ok ? L(" وانرسلت بالبريد كمان.") : L(" بس البريد ما انرسل، تأكد من الإعدادات.");
+    }
+  }
+  await audit(me, "message", p, `${text.slice(0, 100)}${form.get("mail") === "on" ? " [+بريد]" : ""}`);
+  return { ok: L("وصلت الرسالة للعميل بالجرس.") + mailed };
 }
 
 /** Undo «إيقاف التجديد» for a customer. */

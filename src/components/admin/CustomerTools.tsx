@@ -140,6 +140,7 @@ export function MessageCustomer({ userId, action }: { userId: string; action: Ac
       <input type="hidden" name="user_id" value={userId} />
       <label className="label" htmlFor={`m-${userId}`}>{L("الرسالة (توصله بجرس التنبيهات)")}</label>
       <textarea id={`m-${userId}`} name="text" rows={4} maxLength={600} defaultValue={NOTICE} className="field" />
+      <label className="flex cursor-pointer items-center gap-2 text-[13px]"><input type="checkbox" name="mail" defaultChecked className="h-4 w-4 accent-navy-700" />{L("أرسلها لبريده كمان (من بريد شاهين الرسمي)")}</label>
       {state?.ok && <p role="status" className="text-sm font-semibold text-emerald-700">{state.ok}</p>}
       {state?.error && <p role="alert" className="text-sm font-semibold text-red-700">{state.error}</p>}
       <div className="flex gap-2">

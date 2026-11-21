@@ -94,13 +94,13 @@ export async function POST(req: Request) {
           const { data: who } = await admin.from("profiles").select("email,full_name").eq("id", r.userId).maybeSingle();
           const name = `${who?.full_name || who?.email || r.userId}`;
           if (event.type === "invoice.payment_failed" || sub.status === "past_due") {
-            await notifyUser(r.userId, "payment", "تعذّر سحب اشتراكك ⚠️", "ما انسحب مبلغ الاشتراك من بطاقتك. حدّث بطاقتك أو جدّد الاشتراك عشان ما يتوقف حسابك.");
+            await notifyUser(r.userId, "payment", "تعذّر سحب اشتراكك ⚠️", "ما انسحب مبلغ الاشتراك من بطاقتك. حدّث بطاقتك أو جدّد الاشتراك عشان ما يتوقف حسابك.", "/app/account", true);
             await notifyAdmins("تعذّر سحب اشتراك عميل", `${name}: فشل سحب الاشتراك. تواصل معه قبل ما يوقف.`);
           } else if (event.type === "customer.subscription.deleted" || sub.status === "canceled") {
-            await notifyUser(r.userId, "payment", "انتهى اشتراكك", "توقف اشتراكك. اختر باقة وجدّد عشان ترجع تستخدم الأدوات.");
+            await notifyUser(r.userId, "payment", "انتهى اشتراكك", "توقف اشتراكك. اختر باقة وجدّد عشان ترجع تستخدم الأدوات.", "/app/account", true);
             await notifyAdmins("انتهى اشتراك عميل", `${name}: توقف اشتراكه.`);
           } else if (sub.cancel_at_period_end) {
-            await notifyUser(r.userId, "payment", "اشتراكك بينتهي قريباً", `ما راح يتجدد اشتراكك${endTxt ? ` بعد ${endTxt}` : ""}. إذا تبي تكمل لا تلغي التجديد.`);
+            await notifyUser(r.userId, "payment", "اشتراكك بينتهي قريباً", `ما راح يتجدد اشتراكك${endTxt ? ` بعد ${endTxt}` : ""}. إذا تبي تكمل لا تلغي التجديد.`, "/app/account", true);
             await notifyAdmins("عميل ألغى تجديد اشتراكه", `${name}: ألغى التجديد${endTxt ? ` (ينتهي ${endTxt})` : ""}.`);
           }
         }
