@@ -4,7 +4,7 @@ export type ModelFamily = "claude" | "google" | "elevenlabs" | "fal";
 export type ModelRow = { id: string; family: ModelFamily; use: string; test?: "text" };
 
 export const MODEL_CATALOG: ModelRow[] = [
-  { id: "claude-sonnet-5-5", family: "claude", test: "text", use: "التخطيط الثقيل: خطة المونتاج، الدروس والموشن، السيرة الذاتية، العروض، اختيار اللقطات والصور، ومخرج ومراجع «تصميم مبتكر»" },
+  { id: "claude-sonnet-5-5", family: "claude", test: "text", use: "التخطيط الثقيل: خطة المونتاج، الدروس والموشن، السيرة الذاتية، العروض، اختيار اللقطات والصور، ومخرج ومراجع «تصميم مبتكر»، وكاتب تصميم «بوست مبتكر» و«كاروسيل مبتكر»" },
   { id: "claude-haiku-5-5", family: "claude", test: "text", use: "المهام السريعة: «كلم شاهين»، فحص المحتوى، الترجمة، تجهيز نص الصوت، معرفة المجال، الترندات، النصوص القصيرة" },
   { id: "gemini-4-neon", family: "google", test: "text", use: "كتابة كود «تصميم مبتكر» (النموذج القوي)" },
   { id: "gemini-3.8-flash", family: "google", test: "text", use: "نصوص Gemini السريعة، الترندات، وكود «تصميم مبتكر» (السريع)" },

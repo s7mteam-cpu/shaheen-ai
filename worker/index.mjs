@@ -27,6 +27,7 @@ import { prepareHtml } from "./htmlprep.mjs";
 import { planVideo, geminiHtml, geminiEdit, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { modelFor } from "./models.mjs";
+import { writePost, editPost, stripScripts, slideCount, onlySlide, cssSize } from "./postflow.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
@@ -1576,12 +1577,83 @@ async function freeJob(job) {
 }
 
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
+// ---------- «بوست / كاروسيل مبتكر»: the AI writes the design as a page, we draw one PNG per slide ----------
+const POST_TOOLS = ["free-post", "free-carousel"];
+const POST_SIZE = { "1:1": [1080, 1080], "4:5": [1080, 1350], "9:16": [1080, 1920], "16:9": [1920, 1080] };
+async function postJob(job) {
+  const inp = job.input ?? {};
+  const own = (p) => typeof p === "string" && p.startsWith(`${job.user_id}/`) && !p.includes("..");
+  const workDir = join(here, ".free"); await mkdir(workDir, { recursive: true });
+  const stage = async (txt, progress) => { try { await db.from("jobs").update({ progress, updated_at: now() }).eq("id", job.id); } catch {} void txt; };
+  try {
+    const edit = inp.mode === "edit";
+    let srcIn = null, before = "";
+    if (edit) {
+      const { data: src } = await db.from("jobs").select("input").eq("id", String(inp.fromJob ?? "")).eq("user_id", job.user_id).in("tool_id", POST_TOOLS).eq("status", "done").maybeSingle();
+      srcIn = src?.input ?? null;
+      if (!own(srcIn?.post?.htmlPath)) throw new Error("الأصل غير موجود");
+      const d = await db.storage.from("results").download(srcIn.post.htmlPath); if (d.error) throw new Error("download html");
+      before = Buffer.from(await d.data.arrayBuffer()).toString("utf8");
+    }
+    const from = edit ? srcIn : inp;
+    const aspect = POST_SIZE[from.aspect] ? from.aspect : "4:5";
+    const [W, H] = POST_SIZE[aspect];
+    const [cw, ch] = cssSize(W, H); // the page is written in CSS sizes and drawn at full W × H pixels
+    const n = Math.min(8, Math.max(1, Math.round(Number(from.slides) || 1)));
+    const idea = String(from.idea ?? "").slice(0, 1500);
+    const identity = from.colors ? { bg: hexOk(from.colors.bg, "#0B2A4A"), accent: hexOk(from.colors.accent, "#E8B44C"), text: hexOk(from.colors.text, "#FFFFFF"), font: FONT_IDS.includes(from.font) ? from.font : "Cairo" } : null;
+    let logo = null;
+    if (own(from.logoPath)) {
+      const lg = await db.storage.from("uploads").download(from.logoPath);
+      if (!lg.error) { const buf = Buffer.from(await lg.data.arrayBuffer()); if (buf.length <= 3_000_000) { const png = buf[0] === 0x89, jpg = buf[0] === 0xff && buf[1] === 0xd8, webp = buf.slice(8, 12).toString() === "WEBP"; if (png || jpg || webp) logo = { src: `data:image/${png ? "png" : jpg ? "jpeg" : "webp"};base64,${buf.toString("base64")}`, x: 0.14, y: 0.09, w: 0.18 }; } }
+    }
+    let page = "", retry = "", shots = [];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      await stage("يصمّم…", attempt === 1 ? 15 : 45);
+      const raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry });
+      // SECURITY: scripts and event handlers are removed first, then the page is checked BEFORE anything opens it
+      const html = stripScripts(raw);
+      const unsafe = unsafeHtml(html);
+      if (unsafe.length) { retry = `The page uses forbidden code (${unsafe.join(", ")}). It must be self-contained: no network, no external files, no iframes or forms.`; continue; }
+      if (slideCount(html) < n) { retry = `Only ${slideCount(html)} slide(s) found, ${n} needed. Every slide must be <section class="slide" data-slide="N"> with N from 1 to ${n}.`; continue; }
+      await stage("يرسم…", attempt === 1 ? 55 : 75);
+      const withLogo = logo ? applyLogo(html, logo) : html;
+      shots = []; let blank = 0;
+      for (let i = 1; i <= n; i++) {
+        const [png] = await htmlStills({ html: onlySlide(withLogo, i, cw, ch), width: W, height: H, times: [0.4], fontCss: htmlFontCss(withLogo) });
+        const probe = join(workDir, `pp-${job.id}-${i}.png`); await writeFile(probe, png);
+        if (await frameIsBlank(probe)) blank++;
+        await rm(probe, { force: true });
+        shots.push(png);
+      }
+      if (blank) { retry = `${blank} slide(s) came out empty (one flat colour). Every slide must show its full design at its exact size without any script or animation.`; shots = []; continue; }
+      page = html; break;
+    }
+    if (!page || shots.length !== n) throw new Error(`post: ${retry || "no design"}`.slice(0, 300));
+    await stage("يحفظ…", 92);
+    const base = `${job.user_id}/${job.id}`;
+    const files = [];
+    for (const png of shots) {
+      const dest = `${base}/${crypto.randomUUID()}.png`;
+      const up = await db.storage.from("results").upload(dest, png, { contentType: "image/png" });
+      if (up.error) throw new Error(`upload: ${up.error.message}`);
+      files.push({ path: dest, type: "image/png" });
+    }
+    const htmlPath = `${base}/post.html`;
+    await db.storage.from("results").upload(htmlPath, Buffer.from(page), { contentType: "text/plain", upsert: true });
+    await db.from("jobs").update({ status: "done", progress: 100, error: null, output: { files }, input: { ...inp, ...(edit ? { idea, aspect, slides: n, colors: from.colors ?? null, font: from.font ?? null, logoPath: from.logoPath ?? null, brand: from.brand ?? null } : {}), mode: "done", post: { htmlPath } }, updated_at: now() }).eq("id", job.id);
+    console.log("post drawn", job.id, n);
+  } catch (e) { await fail(job, e); }
+}
+
 async function recoverStale(minutes) {
   const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
   const { data: videos } = await db.from("jobs").select("id,tool_id,input").in("tool_id", ["video-editing", "motion-video", "real-scenes", "lesson-video", "quran-video"]).eq("status", "running").lt("updated_at", cutoff);
   const { data: designs } = await db.from("jobs").select("id,tool_id,input").in("tool_id", DESIGN_TOOLS).eq("input->>render", "true").eq("status", "running").lt("updated_at", cutoff);
   const { data: sites } = await db.from("jobs").select("id").eq("tool_id", "site-video").eq("status", "running").lt("updated_at", cutoff);
   for (const j of sites ?? []) await db.from("jobs").update({ status: "failed", error: "site: worker restarted", updated_at: now() }).eq("id", j.id);
+  const { data: posts } = await db.from("jobs").select("id").in("tool_id", POST_TOOLS).eq("status", "running").lt("updated_at", cutoff);
+  for (const j of posts ?? []) { await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: now() }).eq("id", j.id); await db.rpc("refund_job", { p_job: j.id }); }
   const { data: frees } = await db.from("jobs").select("id,input,output").eq("tool_id", "free-motion").eq("status", "running").lt("updated_at", cutoff);
   for (const j of frees ?? []) { if ((j.input?.mode === "export" || j.input?.mode === "revoice") && j.output?.preview) await db.from("jobs").update({ status: "done", progress: 100, input: { ...j.input, mode: "done" }, updated_at: now() }).eq("id", j.id); else { await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: now() }).eq("id", j.id); await db.rpc("refund_job", { p_job: j.id }); } }
   for (const j of [...(videos ?? []), ...(designs ?? [])]) {
@@ -1606,13 +1678,15 @@ for (;;) {
   const { data: designs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", DESIGN_TOOLS).eq("status", "queued").eq("input->>render", "true").order("updated_at").limit(1);
   const { data: sites } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").eq("tool_id", "site-video").eq("status", "queued").order("created_at").limit(1);
   const { data: frees } = await db.from("jobs").select("id,user_id,tool_id,input,output,created_at").eq("tool_id", "free-motion").eq("status", "queued").order("created_at").limit(1);
+  const { data: posts } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").in("tool_id", POST_TOOLS).eq("status", "queued").order("created_at").limit(1);
   // Website captures and designs are quick: they go first so customers don't wait behind long videos.
-  const job = sites?.[0] ?? designs?.[0] ?? frees?.[0] ?? jobs?.[0];
+  const job = sites?.[0] ?? designs?.[0] ?? posts?.[0] ?? frees?.[0] ?? jobs?.[0];
   if (!job) { await sleep(4000); continue; }
   // claim it (only one worker wins)
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
   if (!claimed?.length) continue;
   if (job.tool_id === "site-video") await captureJob(job);
+  else if (POST_TOOLS.includes(job.tool_id)) await postJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "ingest") await ingestJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplpreview") await tplPreviewJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplrender") await tplRenderJob(job);
