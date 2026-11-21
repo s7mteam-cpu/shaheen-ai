@@ -1,4 +1,4 @@
-import { notifyUser } from "@/lib/server/notify";
+import { notifyUser, notifyAdmins } from "@/lib/server/notify";
 import { NextResponse } from "next/server";
 import { recordPayment } from "@/lib/server/payments";
 import type Stripe from "stripe";
@@ -69,7 +69,6 @@ export async function POST(req: Request) {
       const synced = await syncSubscription(await stripe().subscriptions.retrieve(String(subId)));
       if (synced?.planId && inv.amount_paid > 0) {
         await admin.rpc("renew_credits", { p_user: synced.userId, p_plan: synced.planId, p_invoice: inv.id });
-        await notifyUser(synced.userId, "info", "تم تجديد اشتراكك ✅", "انسحب الاشتراك ونزلت ريشك الشهرية. استمتع بكل الأدوات.");
         // Finance: every paid invoice becomes an income line (once), and the admins get notified.
         const { data: plan } = await admin.from("plans").select("name").eq("id", synced.planId).maybeSingle();
         await recordPayment({
@@ -92,12 +91,18 @@ export async function POST(req: Request) {
         if (r?.userId) {
           const end = (sub.items.data[0]?.current_period_end ?? (sub as unknown as { current_period_end?: number }).current_period_end);
           const endTxt = end ? new Date(end * 1000).toLocaleDateString("ar-KW") : "";
-          if (event.type === "invoice.payment_failed" || sub.status === "past_due")
+          const { data: who } = await admin.from("profiles").select("email,full_name").eq("id", r.userId).maybeSingle();
+          const name = `${who?.full_name || who?.email || r.userId}`;
+          if (event.type === "invoice.payment_failed" || sub.status === "past_due") {
             await notifyUser(r.userId, "payment", "تعذّر سحب اشتراكك ⚠️", "ما انسحب مبلغ الاشتراك من بطاقتك. حدّث بطاقتك أو جدّد الاشتراك عشان ما يتوقف حسابك.");
-          else if (event.type === "customer.subscription.deleted" || sub.status === "canceled")
+            await notifyAdmins("تعذّر سحب اشتراك عميل", `${name}: فشل سحب الاشتراك. تواصل معه قبل ما يوقف.`);
+          } else if (event.type === "customer.subscription.deleted" || sub.status === "canceled") {
             await notifyUser(r.userId, "payment", "انتهى اشتراكك", "توقف اشتراكك. اختر باقة وجدّد عشان ترجع تستخدم الأدوات.");
-          else if (sub.cancel_at_period_end)
+            await notifyAdmins("انتهى اشتراك عميل", `${name}: توقف اشتراكه.`);
+          } else if (sub.cancel_at_period_end) {
             await notifyUser(r.userId, "payment", "اشتراكك بينتهي قريباً", `ما راح يتجدد اشتراكك${endTxt ? ` بعد ${endTxt}` : ""}. إذا تبي تكمل لا تلغي التجديد.`);
+            await notifyAdmins("عميل ألغى تجديد اشتراكه", `${name}: ألغى التجديد${endTxt ? ` (ينتهي ${endTxt})` : ""}.`);
+          }
         }
       }
       break;

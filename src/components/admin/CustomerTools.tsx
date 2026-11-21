@@ -127,3 +127,25 @@ export function CancelSub({ userId, action }: { userId: string; action: Act }) {
     </form>
   );
 }
+
+const NOTICE = "باقتك الحالية بتتوقف قريباً. الرجاء تختار باقة جديدة من صفحة الاشتراك قبل نهاية الشهر عشان ما ينقطع عنك شي.";
+
+/** «إبلاغ العميل»: a written message (starts with a ready sentence about changing the plan) sent to his bell. */
+export function MessageCustomer({ userId, action }: { userId: string; action: Act }) {
+  const [open, setOpen] = useState(false);
+  const [state, run, pending] = useActionState(action, undefined);
+  if (!open) return <button type="button" onClick={() => setOpen(true)} className="btn btn-outline w-full py-2.5 text-sm font-semibold">{L("إبلاغ العميل برسالة")}</button>;
+  return (
+    <form action={run} className="flex flex-col gap-2 rounded-2xl border border-[#EDF1F6] p-3">
+      <input type="hidden" name="user_id" value={userId} />
+      <label className="label" htmlFor={`m-${userId}`}>{L("الرسالة (توصله بجرس التنبيهات)")}</label>
+      <textarea id={`m-${userId}`} name="text" rows={4} maxLength={600} defaultValue={NOTICE} className="field" />
+      {state?.ok && <p role="status" className="text-sm font-semibold text-emerald-700">{state.ok}</p>}
+      {state?.error && <p role="alert" className="text-sm font-semibold text-red-700">{state.error}</p>}
+      <div className="flex gap-2">
+        <button disabled={pending || !!state?.ok} className="btn btn-primary flex-1 py-2.5 text-sm disabled:opacity-40">{pending ? L("جاري الإرسال…") : L("أرسل")}</button>
+        <button type="button" onClick={() => setOpen(false)} className="btn btn-outline flex-1 py-2.5 text-sm">{state?.ok ? L("تمام") : L("تراجع")}</button>
+      </div>
+    </form>
+  );
+}

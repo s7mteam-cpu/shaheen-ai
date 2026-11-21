@@ -217,6 +217,20 @@ export async function cancelCustomerSub(_prev: Res, form: FormData): Promise<Res
   return { ok: now ? L("انلغى الاشتراك الحين، وانشال من الإيراد الشهري.") : L("انوقف التجديد. يكمل لين نهاية شهره، وبعدها ينشال من الإيراد الشهري.") };
 }
 
+/** A written message from the team to one customer: it lands in his bell (and is logged). */
+export async function messageCustomer(_prev: Res, form: FormData): Promise<Res> {
+  const L = await getL();
+  const me = await guard();
+  const p = await target(String(form.get("user_id")));
+  if (!p) return { error: L("العميل غير موجود.") };
+  const text = String(form.get("text") || "").trim().slice(0, 600);
+  if (text.length < 5) return { error: L("اكتب الرسالة.") };
+  const { error } = await createAdminClient().from("notifications").insert({ user_id: p.id, kind: "info", title: L("رسالة من فريق شاهين"), body: text, link: "/app/account" });
+  if (error) return { error: L("ما انرسلت، جرّب مرة ثانية.") };
+  await audit(me, "message", p, text.slice(0, 120));
+  return { ok: L("وصلت الرسالة للعميل بالجرس.") };
+}
+
 /** Undo «إيقاف التجديد» for a customer. */
 export async function resumeCustomerSub(form: FormData) {
   const me = await guard();

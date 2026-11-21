@@ -2,25 +2,31 @@ import { guardPage, adminAccess } from "@/lib/server/auth";
 import Link from "next/link";
 import { waLink } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { setUserFlags, deleteCustomerWork, blockCustomer, unblockEmail, impersonate, requestAccess, cancelCustomerSub, resumeCustomerSub } from "./actions";
+import { setUserFlags, deleteCustomerWork, blockCustomer, unblockEmail, impersonate, requestAccess, cancelCustomerSub, resumeCustomerSub, messageCustomer } from "./actions";
 import { latestAccess } from "@/lib/server/supportAccess";
 import { previousClosed, REASON_AR } from "@/lib/server/archive";
 import { countryOf } from "@/lib/countries";
 import { AUDIT_AR } from "@/lib/server/audit";
-import { CreditsForm, DeleteCustomer, DeleteWork, BlockEmail, Impersonate, RequestAccess, CancelSub } from "@/components/admin/CustomerTools";
+import { CreditsForm, DeleteCustomer, DeleteWork, BlockEmail, Impersonate, RequestAccess, CancelSub, MessageCustomer } from "@/components/admin/CustomerTools";
 import { getL, serverT } from "@/lib/server/lang";
 import { L } from "@/lib/i18n/ui";
 
 export const dynamic = "force-dynamic";
 
-export default async function Customers({ searchParams }: { searchParams: Promise<{ q?: string; id?: string; deleted?: string }> }) {
+export default async function Customers({ searchParams }: { searchParams: Promise<{ q?: string; id?: string; deleted?: string; plan?: string; sort?: string; from?: string; to?: string }> }) {
   const T = await serverT();
   const L = await getL();
   await guardPage("customers");
   const full = !!(await adminAccess())?.full;
-  const { q = "", id, deleted } = await searchParams;
+  const { q = "", id, deleted, plan = "", sort = "new", from = "", to = "" } = await searchParams;
   const admin = createAdminClient();
-  let query = admin.from("profiles").select("*").order("created_at", { ascending: false }).limit(50);
+  let query = admin.from("profiles").select("*").order("created_at", { ascending: sort === "old" }).limit(100);
+  const { data: allPlans } = await admin.from("plans").select("id,name,is_active").order("sort_order");
+  if (plan === "hidden") { const ids = (allPlans ?? []).filter((x) => !x.is_active).map((x) => x.id as string); query = ids.length ? query.in("plan_id", ids) : query.eq("plan_id", "__none__"); }
+  else if (plan === "active") { const ids = (allPlans ?? []).filter((x) => x.is_active).map((x) => x.id as string); query = ids.length ? query.in("plan_id", ids) : query.eq("plan_id", "__none__"); }
+  else if (plan) query = query.eq("plan_id", plan);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(from)) query = query.gte("created_at", `${from}T00:00:00Z`);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(to)) query = query.lte("created_at", `${to}T23:59:59Z`);
   if (q) { const k = q.replace(/[%,()]/g, ""); query = query.or(`email.ilike.%${k}%,full_name.ilike.%${k}%,phone.ilike.%${k.replace(/\D/g, "") || k}%`); }
   const { data: users } = await query;
   const selected = id ? users?.find((u) => u.id === id) ?? (await admin.from("profiles").select("*").eq("id", id).single()).data : null;
@@ -48,6 +54,17 @@ export default async function Customers({ searchParams }: { searchParams: Promis
       </div>
       {deleted && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{L("انحذف حساب العميل وكل بياناته.")}</p>}
       <form className="flex max-w-md gap-2"><label htmlFor="q" className="sr-only">{L("بحث")}</label><input id="q" name="q" defaultValue={q} placeholder={L("ابحث بالاسم أو البريد أو الرقم")} className="field bg-white" /><button className="btn btn-primary px-5">{L("بحث")}</button></form>
+      <form className="card flex flex-wrap items-end gap-3 p-4">
+        <input type="hidden" name="q" value={q} />
+        <div className="flex flex-col gap-1"><label className="label" htmlFor="plan">{L("الباقة")}</label>
+          <select id="plan" name="plan" defaultValue={plan} className="field bg-white"><option value="">{L("كل الباقات")}</option><option value="active">{L("الباقات الحالية (الظاهرة)")}</option><option value="hidden">{L("الباقات القديمة (المخفية)")}</option>{(allPlans ?? []).map((x) => <option key={x.id as string} value={x.id as string}>{x.name as string}</option>)}</select></div>
+        <div className="flex flex-col gap-1"><label className="label" htmlFor="sort">{L("الترتيب")}</label>
+          <select id="sort" name="sort" defaultValue={sort} className="field bg-white"><option value="new">{L("الأحدث تسجيلاً")}</option><option value="old">{L("الأقدم تسجيلاً")}</option></select></div>
+        <div className="flex flex-col gap-1"><label className="label" htmlFor="from">{L("سجّل من تاريخ")}</label><input id="from" name="from" type="date" defaultValue={from} className="field bg-white" /></div>
+        <div className="flex flex-col gap-1"><label className="label" htmlFor="to">{L("إلى تاريخ")}</label><input id="to" name="to" type="date" defaultValue={to} className="field bg-white" /></div>
+        <button className="btn btn-primary px-5 py-2.5 text-sm">{L("تطبيق")}</button>
+        {(plan || from || to || sort !== "new") && <Link href={`/admin/customers${q ? `?q=${encodeURIComponent(q)}` : ""}`} className="btn btn-outline px-4 py-2.5 text-sm">{L("مسح الفلاتر")}</Link>}
+      </form>
       <div className="flex flex-col gap-5 xl:flex-row">
         {/* phones: one card per customer (the wide table hid the «إدارة» button off-screen) */}
         <ul className="flex flex-col gap-2.5 md:hidden">
@@ -110,6 +127,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
                     ? <form action={resumeCustomerSub}><input type="hidden" name="user_id" value={selected.id} /><button className="btn btn-outline w-full py-2.5 text-sm">{L("رجّع التجديد")}</button></form>
                     : null}
                   <CancelSub key={`c-${selected.id}`} userId={selected.id} action={cancelCustomerSub} />
+                  <MessageCustomer key={`m-${selected.id}`} userId={selected.id} action={messageCustomer} />
                 </>
               ) : <p className="text-[13px] text-subtle">{L("ما عنده اشتراك شغّال.")}</p>}
             </div>

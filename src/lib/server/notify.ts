@@ -9,3 +9,10 @@ export async function notifyUser(userId: string, kind: "info" | "payment", title
   if (seen?.length) return;
   await admin.from("notifications").insert({ user_id: userId, kind, title, body, link }).then(() => null, () => null);
 }
+
+/** the same bell message for every admin (e.g. «a customer's payment failed»), not repeated within 6 hours */
+export async function notifyAdmins(title: string, body: string, link = "/admin/customers") {
+  const admin = createAdminClient();
+  const { data: team } = await admin.from("profiles").select("id").in("role", ["admin", "staff"]);
+  for (const t of team ?? []) await notifyUser(t.id as string, "payment", title, body, link);
+}

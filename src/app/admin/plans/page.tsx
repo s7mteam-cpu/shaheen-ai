@@ -31,11 +31,14 @@ async function PlanForm({ p, audience }: { p?: Plan; audience?: "ind" | "biz" })
   );
 }
 
-async function PlanBlock({ p, used }: { p: Plan; used: boolean }) {
+async function PlanBlock({ p, used, who }: { p: Plan; used: boolean; who: string[] }) {
   const L = await getL();
   return (
     <div className="flex flex-col gap-2">
       <PlanForm p={p} />
+      <details className="text-[13px] text-subtle"><summary className="cursor-pointer font-semibold text-navy-800">{L("المشتركون في هالباقة")}: {who.length}</summary>
+        {who.length ? <ul className="mt-2 flex flex-col gap-1">{who.map((w) => <li key={w}>{w}</li>)}</ul> : <p className="mt-1">{L("ما فيها مشتركين.")}</p>}
+      </details>
       {used
         ? <p className="text-[13px] text-subtle">{L("فيها مشتركين، ما تنحذف. لإخفائها ألغِ «ظاهرة للعملاء» واحفظ.")}</p>
         : <form action={deletePlan}><input type="hidden" name="id" value={p.id} /><button className="text-[13px] font-semibold text-red-600 underline">{L("حذف الباقة نهائياً (ما فيها مشتركين)")}</button></form>}
@@ -47,18 +50,24 @@ export default async function PlansAdmin() {
   const L = await getL();
   await guardPage("plans");
   const plans = await getPlans(true);
-  const { data: subs } = await createAdminClient().from("subscriptions").select("plan_id");
+  const adm = createAdminClient();
+  const { data: subs } = await adm.from("subscriptions").select("plan_id,user_id,status");
   const usedIds = new Set((subs ?? []).map((x) => x.plan_id as string));
+  const live = (subs ?? []).filter((x) => ["active", "trialing", "past_due"].includes(String(x.status)));
+  const { data: ppl } = live.length ? await adm.from("profiles").select("id,email,full_name").in("id", live.map((x) => x.user_id as string)) : { data: [] };
+  const nameOf = new Map((ppl ?? []).map((x) => [x.id as string, String(x.full_name || x.email || x.id)]));
+  const whoBy: Record<string, string[]> = {};
+  for (const x of live) (whoBy[x.plan_id as string] ??= []).push(nameOf.get(x.user_id as string) ?? String(x.user_id));
   const biz = plans.filter((p) => p.id.startsWith("biz-")), ind = plans.filter((p) => !p.id.startsWith("biz-"));
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-[26px] font-bold text-navy-900">{L("الباقات")}</h1>
       <TrialCard />
       <h2 className="text-xl font-bold text-navy-900">{L("باقات الأفراد")}</h2>
-      {ind.map((p) => <PlanBlock key={p.id} p={p} used={usedIds.has(p.id)} />)}
+      {ind.map((p) => <PlanBlock key={p.id} p={p} used={usedIds.has(p.id)} who={whoBy[p.id] ?? []} />)}
       <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة للأفراد")}</summary><div className="mt-4"><PlanForm audience="ind" /></div></details>
       <h2 className="mt-4 text-xl font-bold text-navy-900">{L("باقات الشركات")}</h2>
-      {biz.map((p) => <PlanBlock key={p.id} p={p} used={usedIds.has(p.id)} />)}
+      {biz.map((p) => <PlanBlock key={p.id} p={p} used={usedIds.has(p.id)} who={whoBy[p.id] ?? []} />)}
       <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة للشركات")}</summary><div className="mt-4"><PlanForm audience="biz" /></div></details>
       <PriceHistory kind="plan" />
     </div>
