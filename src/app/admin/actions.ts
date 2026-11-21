@@ -22,6 +22,15 @@ export async function saveContent(key: string, value: unknown) {
   return { ok: !error, error: error?.message };
 }
 
+/** «وضع الصيانة»: only the owner-level admin can switch the site off for everyone but the team. */
+export async function setMaintenance(on: boolean) {
+  const L = await getL();
+  const { requireFullAdmin } = await import("@/lib/server/auth");
+  if (!(await requireFullAdmin())) throw new Error(L("غير مصرّح"));
+  const { error } = await createAdminClient().from("site_content").upsert({ key: "maintenance", value: { on }, updated_at: new Date().toISOString() });
+  return { ok: !error, error: error?.message };
+}
+
 export async function saveTool(form: FormData) {
   const me = await guard("tools");
   const id = String(form.get("id"));

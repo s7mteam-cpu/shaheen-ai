@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { MAINTENANCE_KEY, MAINTENANCE_OPEN } from "@/lib/maintenance";
 import { REMEMBER_COOKIE, sessionOnly, wantsRemember } from "@/lib/supabase/remember";
+
+/** the maintenance switch is read at most once every few seconds per server instance */
+let mnt: { on: boolean; at: number } = { on: false, at: 0 };
 
 export async function middleware(request: NextRequest) {
   // Pages and server actions learn which admin section they belong to from this header.
@@ -34,6 +38,26 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
   const isPrivate = path.startsWith("/app") || path.startsWith("/admin");
+
+  // «وضع الصيانة»: everyone except the admin team sees only the «قريباً» page
+  if (Date.now() - mnt.at > 5000) {
+    const { data: row } = await supabase.from("site_content").select("value").eq("key", MAINTENANCE_KEY).maybeSingle();
+    mnt = { on: (row?.value as { on?: boolean } | null)?.on === true, at: Date.now() };
+  }
+  if (mnt.on && !MAINTENANCE_OPEN.some((p) => path === p || path.startsWith(`${p}/`))) {
+    let staff = false;
+    if (user) {
+      const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      staff = me?.role === "admin" || me?.role === "staff";
+    }
+    if (!staff) {
+      if (path.startsWith("/api/")) return NextResponse.json({ error: "الموقع تحت الصيانة حالياً." }, { status: 503 });
+      const url = request.nextUrl.clone();
+      url.pathname = "/maintenance";
+      url.search = "";
+      return NextResponse.rewrite(url);
+    }
+  }
 
   if (isPrivate && !user) {
     const url = request.nextUrl.clone();
