@@ -1,5 +1,6 @@
 import { extraPricing, type ExtraPricing } from "@/lib/server/pricing";
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { dbReady, getContent, getPlans, getTools } from "@/lib/data";
 import { aiChat } from "@/lib/providers/text";
@@ -52,6 +53,25 @@ function limited(key: string) {
   const list = (hits.get(key) ?? []).filter((t) => now - t < 10 * 60_000);
   list.push(now); hits.set(key, list);
   return list.length > 40;
+}
+
+/** Visitors (not signed in): a daily limit kept in the database (so it holds across all servers): a few messages per address, and a ceiling for all visitors together.
+ *  Only a short hash of the address is kept, and yesterday's counters are deleted. If the counter cannot be read, the in-memory limit above still applies. */
+const VISITOR_PER_IP = 10, VISITOR_TOTAL = 400;
+async function visitorAllowed(ip: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const day = new Date().toISOString().slice(0, 10), key = `chat_visitors:${day}`;
+    const h = createHash("sha256").update(`${day}:${ip}`).digest("hex").slice(0, 16);
+    const { data, error } = await admin.from("admin_secrets").select("value").eq("key", key).maybeSingle();
+    if (error) return true;
+    const v = (data?.value ?? { total: 0, ips: {} }) as { total: number; ips: Record<string, number> };
+    if (v.total >= VISITOR_TOTAL || (v.ips[h] ?? 0) >= VISITOR_PER_IP) return false;
+    v.total += 1; v.ips[h] = (v.ips[h] ?? 0) + 1;
+    await admin.from("admin_secrets").upsert({ key, value: v, updated_at: new Date().toISOString() });
+    if (v.total === 1) await admin.from("admin_secrets").delete().like("key", "chat\\_visitors:%").neq("key", key);
+    return true;
+  } catch { return true; }
 }
 
 type Act =
@@ -134,7 +154,8 @@ export async function POST(req: Request) {
 
   const [content, plans, tools, trial] = await Promise.all([getContent(), getPlans(), getTools(), trialSettings().catch(() => null)]);
   let userBlock = "الزائر غير مسجل دخول.";
-  let key = req.headers.get("x-forwarded-for") ?? "anon";
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "anon";
+  let key = ip;
   let uid: string | null = null;
   let credits = 0;
   let kitPrefs: PlanPrefs = {};
@@ -161,6 +182,8 @@ export async function POST(req: Request) {
     }
   }
   if (limited(key)) return NextResponse.json({ reply: "رسائل كثيرة خلال وقت قصير، جرّب بعد شوي 🙏" });
+  if (!uid && dbReady() && !(await visitorAllowed(ip))) return NextResponse.json({ reply: "وصلت حد الرسائل اليومي للزوار 🙏 سجّل حساب مجاني وتكمل معي بدون هالحد، أو ارجع بكرة." });
+  if (!uid) messages.splice(0, Math.max(0, messages.length - 8)); // visitors: a shorter history is sent to the model
 
   // Site pages (terms, privacy…) only when the question needs them — they are long and cost tokens.
   const lastQ = messages[messages.length - 1].content;
