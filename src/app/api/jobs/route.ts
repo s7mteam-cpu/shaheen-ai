@@ -43,6 +43,20 @@ export async function POST(req: Request) {
   if (["post", "carousel", "ad-design"].includes(toolId) && !parent) return NextResponse.json({ error: "استخدم استوديو التصميم." }, { status: 400 });
   const spec = toolSpecs[toolId];
   if (!spec) return NextResponse.json({ error: "أداة غير معروفة." }, { status: 400 });
+  if (!parent) {
+    // SECURITY: tools that have their own studio/page are never started from here (their jobs carry internal instructions for the video worker)
+    if (!spec.fields.length) return NextResponse.json({ error: "استخدم صفحة الأداة." }, { status: 400 });
+    // SECURITY: only the tool's own form fields pass, as plain values. Anything else (render, spec, mode, paths…) is an internal key the video worker trusts, so a request can never bring it.
+    const names = new Map(spec.fields.map((f) => [f.name, f.type] as const));
+    input = Object.fromEntries(Object.entries(input).filter(([k, v]) => {
+      if (k === "duration_seconds") return typeof v === "number" && Number.isFinite(v);
+      if (k === "likeWork") return typeof v === "string" && v.length <= 40;
+      const t = names.get(k);
+      if (!t) return false;
+      if (t === "files") return Array.isArray(v) && v.every((x) => typeof x === "string" && x.length < 300);
+      return v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+    })) as Values;
+  }
 
   const { data: tool } = await admin.from("tools").select("id,name,credit_cost,edit_cost,is_enabled").eq("id", toolId).single();
   if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });

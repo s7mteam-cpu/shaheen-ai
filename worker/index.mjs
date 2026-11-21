@@ -607,6 +607,15 @@ async function renderQuran(job) {
 
 async function renderMontage(job) {
   const spec = job.input.spec;
+  // SECURITY (last lock): every file of a montage must sit in the job owner's own folder, and a sound without a file must be one of our own library links
+  const mineP = (p) => typeof p === "string" && p.startsWith(`${job.user_id}/`) && !p.includes("..");
+  const ourOrigin = new URL(process.env.SUPABASE_URL).origin + "/";
+  if (spec.srcPath && !mineP(spec.srcPath)) return fail(job, new Error("source video not allowed"));
+  if (spec.logo?.path && !mineP(spec.logo.path)) spec.logo = null;
+  spec.broll = (spec.broll ?? []).filter((b) => mineP(b.path));
+  if (spec.music && (spec.music.path ? !mineP(spec.music.path) : !(typeof spec.music.url === "string" && spec.music.url.startsWith(ourOrigin)))) spec.music = null;
+  if (spec.vo?.path && !mineP(spec.vo.path)) spec.vo = null;
+  spec.graphics = (spec.graphics ?? []).map((g) => ({ ...g, img: mineP(g.img) ? g.img : undefined, img2: mineP(g.img2) ? g.img2 : undefined }));
   // animated lessons (layout "board") have no source footage
   const { data } = spec.srcPath ? await db.storage.from("uploads").createSignedUrl(spec.srcPath, 60 * 60 * 3) : { data: { signedUrl: "" } };
   if (spec.srcPath && !data?.signedUrl) return fail(job, new Error("source video missing"));
