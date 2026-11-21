@@ -3,6 +3,7 @@ import { getMoney } from "@/lib/server/money";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { Circuit } from "@/components/Circuit";
+import { PricingTabs } from "@/components/site/PricingTabs";
 import { ManagedService } from "@/components/site/ManagedService";
 import { DemoVideo } from "@/components/DemoVideo";
 import { toolCover } from "@/lib/video";
@@ -27,6 +28,26 @@ export default async function Home() {
   const T = (ar: string, en: string) => tr(lang, ar, en);
   const { money } = await getMoney();
 
+  const isBiz = (p: { id: string }) => p.id.startsWith("biz-");
+  const ind = plans.filter((p) => !isBiz(p)), biz = plans.filter(isBiz);
+  const renderPlan = (p: (typeof plans)[number]) => (
+              <div key={p.id} className={p.is_featured
+                ? "relative flex flex-col gap-5 rounded-3xl border-2 border-gold-500 bg-navy-800 p-8 text-white"
+                : "card flex flex-col gap-5 rounded-3xl p-8"}>
+                {p.is_featured && <span className="absolute -top-3.5 end-8 rounded-full bg-gold-500 px-3 py-1 text-[13px] font-bold text-navy-900">{T("الأكثر اختياراً", "Most popular")}</span>}
+                <div><div className={`text-lg font-bold ${p.is_featured ? "text-gold-500" : ""}`}>{p.name}</div><div className={`mt-1 text-sm ${p.is_featured ? "text-white/75" : "text-subtle"}`}>{p.subtitle}</div></div>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-baseline gap-2">{money(p.price_kwd).approx && <span className={`text-2xl ${p.is_featured ? "text-white/70" : "text-subtle"}`}>≈</span>}<span className="font-latin text-5xl font-bold">{money(p.price_kwd).number}</span><span className="font-semibold">{money(p.price_kwd).symbol}</span><span className={p.is_featured ? "text-white/75" : "text-subtle"}>{T("/ شهرياً", "/ month")}</span></div>
+                  {money(p.price_kwd).approx && <span className={`text-[12px] ${p.is_featured ? "text-white/65" : "text-subtle"}`}>{T(`الدفع بالدينار الكويتي: ${money(p.price_kwd).kwd}`, `Charged in Kuwaiti dinars: ${money(p.price_kwd).kwd}`)}</span>}
+                </div>
+                <ul className="flex flex-col gap-2.5 text-[15px]">
+                  <li className="flex items-center gap-2"><Icon name="feather" size={16} className="text-gold-500" />{p.credits.toLocaleString("en")} {T("ريشة كل شهر", "credits every month")}</li>
+                  {(p.bonus_credits ?? 0) > 0 && <li className={`flex items-center gap-2 font-bold ${p.is_featured ? "text-gold-500" : "text-[#9A7A35]"}`}><span aria-hidden="true" className="w-4 text-center text-[15px]">🎁</span>+ {p.bonus_credits!.toLocaleString("en")} {T("ريشة هدية كل شهر", "bonus credits every month")}</li>}
+                  {p.features.map((f) => <li key={f} className="flex items-center gap-2"><Icon name="check" size={16} className={p.is_featured ? "text-gold-500" : "text-navy-700"} strokeWidth={2.2} />{f}</li>)}
+                </ul>
+                <Link href={`/signup?plan=${p.id}`} className={`btn mt-auto py-3.5 ${p.is_featured ? "btn-gold" : "btn-outline"}`}>{T(`اشترك في ${p.name}`, `Get ${p.name}`)}</Link>
+              </div>
+  );
   return (
     <main>
       {/* Hero */}
@@ -170,26 +191,18 @@ export default async function Home() {
       <section id="pricing">
         <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24">
           <div className="text-center"><h2 className="text-3xl font-bold text-navy-900 md:text-4xl">{c.pricing.title}</h2><p className="mt-2.5 text-[17px] text-muted">{c.pricing.subtitle}</p></div>
+          {biz.length ? (
+            <PricingTabs
+              labels={{ ind: T("اشتراك الأفراد", "Individual plans"), biz: T("اشتراك الشركات", "Business plans"), indSub: T("لصنّاع المحتوى وأصحاب المشاريع الصغيرة", "For creators and small businesses"), bizSub: T("للشركات والوكالات والفرق", "For companies and agencies"), from: T("ابتداءً من", "From"), all: T("عرض جميع الاشتراكات", "Show all plans"), hide: T("إخفاء الاشتراكات", "Hide plans"), count: [ind.length, biz.length] }}
+              minInd={`${money(Math.min(...ind.map((p) => p.price_kwd))).number} ${money(Math.min(...ind.map((p) => p.price_kwd))).symbol}`} minBiz={`${money(Math.min(...biz.map((p) => p.price_kwd))).number} ${money(Math.min(...biz.map((p) => p.price_kwd))).symbol}`}
+              individuals={<div className={`grid items-stretch gap-5 md:grid-cols-2 ${ind.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>{ind.map(renderPlan)}</div>}
+              companies={<div className="grid items-stretch gap-5 md:grid-cols-3">{biz.map(renderPlan)}</div>}
+            />
+          ) : (
           <div className="grid items-stretch gap-5 md:grid-cols-3">
-            {plans.map((p) => (
-              <div key={p.id} className={p.is_featured
-                ? "relative flex flex-col gap-5 rounded-3xl border-2 border-gold-500 bg-navy-800 p-8 text-white"
-                : "card flex flex-col gap-5 rounded-3xl p-8"}>
-                {p.is_featured && <span className="absolute -top-3.5 end-8 rounded-full bg-gold-500 px-3 py-1 text-[13px] font-bold text-navy-900">{T("الأكثر اختياراً", "Most popular")}</span>}
-                <div><div className={`text-lg font-bold ${p.is_featured ? "text-gold-500" : ""}`}>{p.name}</div><div className={`mt-1 text-sm ${p.is_featured ? "text-white/75" : "text-subtle"}`}>{p.subtitle}</div></div>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-baseline gap-2">{money(p.price_kwd).approx && <span className={`text-2xl ${p.is_featured ? "text-white/70" : "text-subtle"}`}>≈</span>}<span className="font-latin text-5xl font-bold">{money(p.price_kwd).number}</span><span className="font-semibold">{money(p.price_kwd).symbol}</span><span className={p.is_featured ? "text-white/75" : "text-subtle"}>{T("/ شهرياً", "/ month")}</span></div>
-                  {money(p.price_kwd).approx && <span className={`text-[12px] ${p.is_featured ? "text-white/65" : "text-subtle"}`}>{T(`الدفع بالدينار الكويتي: ${money(p.price_kwd).kwd}`, `Charged in Kuwaiti dinars: ${money(p.price_kwd).kwd}`)}</span>}
-                </div>
-                <ul className="flex flex-col gap-2.5 text-[15px]">
-                  <li className="flex items-center gap-2"><Icon name="feather" size={16} className="text-gold-500" />{p.credits.toLocaleString("en")} {T("ريشة كل شهر", "credits every month")}</li>
-                  {(p.bonus_credits ?? 0) > 0 && <li className={`flex items-center gap-2 font-bold ${p.is_featured ? "text-gold-500" : "text-[#9A7A35]"}`}><span aria-hidden="true" className="w-4 text-center text-[15px]">🎁</span>+ {p.bonus_credits!.toLocaleString("en")} {T("ريشة هدية كل شهر", "bonus credits every month")}</li>}
-                  {p.features.map((f) => <li key={f} className="flex items-center gap-2"><Icon name="check" size={16} className={p.is_featured ? "text-gold-500" : "text-navy-700"} strokeWidth={2.2} />{f}</li>)}
-                </ul>
-                <Link href={`/signup?plan=${p.id}`} className={`btn mt-auto py-3.5 ${p.is_featured ? "btn-gold" : "btn-outline"}`}>{T(`اشترك في ${p.name}`, `Get ${p.name}`)}</Link>
-              </div>
-            ))}
+            {plans.map(renderPlan)}
           </div>
+          )}
           <ManagedService s={c.managed_service} lang={lang} price={money(Number(c.managed_service?.price_kwd || 0))} />
         </div>
       </section>

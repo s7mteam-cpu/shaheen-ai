@@ -15,7 +15,7 @@ async function PlanForm({ p }: { p?: Plan }) {
   const L = await getL();
   return (
     <form action={savePlan} className="card grid gap-4 p-5 md:grid-cols-2">
-      <div className="flex flex-col gap-1.5"><label className="label">{L("المعرّف (بالإنجليزي)")}</label><input name="id" defaultValue={p?.id} readOnly={Boolean(p)} required dir="ltr" className="field text-right" /></div>
+      <div className="flex flex-col gap-1.5"><label className="label">{L("المعرّف (بالإنجليزي). لباقات الشركات ابدأه بـ biz- مثل biz-team")}</label><input name="id" defaultValue={p?.id} readOnly={Boolean(p)} required dir="ltr" className="field text-right" /></div>
       <div className="flex flex-col gap-1.5"><label className="label">{L("الاسم")}</label><input name="name" defaultValue={p?.name} required className="field" /></div>
       <div className="flex flex-col gap-1.5"><label className="label">{L("الوصف القصير")}</label><input name="subtitle" defaultValue={p?.subtitle ?? ""} className="field" /></div>
       <div className="flex flex-col gap-1.5"><label className="label">{L("السعر الشهري (د.ك)")}</label><input name="price_kwd" type="number" step="0.001" defaultValue={p?.price_kwd} required className="field" /></div>
