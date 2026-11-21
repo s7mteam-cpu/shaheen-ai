@@ -115,12 +115,12 @@ export async function deleteAccount(_prev: { error?: string } | undefined, form:
 }
 
 /** «ادفع الحين»: renew this month (KNET link / failed card) or pay the managed package. */
-export async function payNow(kind: "renew" | "managed") {
+export async function payNow(kind: "renew" | "managed", pkg?: string) {
   if (await isImpersonating()) redirect("/app/account?error=support");
   const profile = await me();
   if (!tapOpenFor(profile.role)) redirect("/app/account?error=plan");
   let url: string;
-  try { url = await startTapPayment(profile.id, kind, undefined, await getLang()); } catch (e) { console.error(e); redirect("/app/account?error=payment"); }
+  try { url = await startTapPayment(profile.id, kind, kind === "managed" ? pkg || undefined : undefined, await getLang()); } catch (e) { console.error(e); redirect("/app/account?error=payment"); }
   redirect(url);
 }
 

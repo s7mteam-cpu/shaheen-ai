@@ -5,7 +5,7 @@ import type { SiteContent } from "@/lib/defaults";
 import { tr, type Lang } from "@/lib/i18n";
 
 export type ShownPrice = { approx: boolean; number: string; symbol: string; kwd: string };
-export function ManagedService({ s, lang = "ar", price }: { s: SiteContent["managed_service"]; lang?: Lang; price?: ShownPrice }) {
+export function ManagedService({ s, lang = "ar", price }: { s: Omit<SiteContent["managed_service"], "packages">; lang?: Lang; price?: ShownPrice }) {
   const T = (ar: string, en: string) => tr(lang, ar, en);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"pick" | "form" | "done">("pick");
@@ -16,7 +16,8 @@ export function ManagedService({ s, lang = "ar", price }: { s: SiteContent["mana
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setSending(true); setError("");
-    const f = Object.fromEntries(new FormData(e.currentTarget));
+    const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+    f.message = `[${s.title}] ${f.message ?? ""}`.trim();
     const r = await fetch("/api/leads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(f) });
     const d = await r.json(); setSending(false);
     if (!r.ok) return setError(d.error);

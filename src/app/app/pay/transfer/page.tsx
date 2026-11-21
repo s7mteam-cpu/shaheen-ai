@@ -59,5 +59,5 @@ export default async function PayByTransfer({ searchParams }: { searchParams: Pr
   });
   const name = await localize(base.label, lang);
   const title = kind === "managed" ? name : kind === "renew" ? T(`تجديد ${name}`, `Renew ${name}`) : T(`اشتراك ${name}`, `${name} plan`);
-  return shell(<TransferForm kind={kind} plan={base.planId ?? ""} title={title} methods={methods.map((m) => ({ id: m.id, name: m.name, details: m.details }))} prices={prices} />);
+  return shell(<TransferForm kind={kind} plan={kind === "managed" ? plan : base.planId ?? ""} title={title} methods={methods.map((m) => ({ id: m.id, name: m.name, details: m.details }))} prices={prices} />);
 }

@@ -1,3 +1,4 @@
+import { managedPackage } from "@/lib/managed";
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordPayment } from "@/lib/server/payments";
@@ -40,8 +41,9 @@ export async function startTapPayment(userId: string, kind: Kind, wantedPlan?: s
   let amount: number, planId: string | null = null, description: string;
   if (kind === "managed") {
     const c = await getContent();
-    amount = Number(c.managed_service?.price_kwd || 0);
-    description = c.managed_service?.title || "باقة الإدارة الكاملة";
+    const pk = managedPackage(c.managed_service, wantedPlan);
+    amount = Number(pk.price_kwd || 0);
+    description = pk.title || "باقة الإدارة الكاملة";
   } else {
     planId = kind === "renew" ? (sub?.next_plan_id || sub?.plan_id || wantedPlan || null) : (wantedPlan || null);
     const { data: plan } = await admin.from("plans").select("id,name,price_kwd").eq("id", planId ?? "").eq("is_active", true).maybeSingle();

@@ -22,21 +22,43 @@ export async function saveContent(key: string, value: unknown) {
   return { ok: !error, error: error?.message };
 }
 
-/** «باقة الإدارة الكاملة للسوشال ميديا»: edited from the plans page, stored with the site content (key managed_service). */
-export async function saveManaged(form: FormData) {
-  await guard("plans");
+/** «باقات الإدارة الكاملة»: a list kept with the site content (managed_service.packages). The first package also fills the old single fields, which the legal pages and the assistant read. */
+async function readManaged() {
   const admin = createAdminClient();
   const { data: cur } = await admin.from("site_content").select("value").eq("key", "managed_service").maybeSingle();
+  const { defaultContent } = await import("@/lib/defaults");
+  const { managedPackages } = await import("@/lib/managed");
+  const ms = { ...defaultContent.managed_service, ...((cur?.value as object | null) ?? {}) } as typeof defaultContent.managed_service;
+  return { admin, ms, list: managedPackages(ms) };
+}
+async function writeManaged(admin: ReturnType<typeof createAdminClient>, ms: object, list: { enabled: boolean; title: string; price_kwd: string; period: string; features: string[]; cta: string; whatsapp: string; whatsapp_message: string; thanks: string }[]) {
+  const f = list[0];
+  const value = { ...ms, packages: list, ...(f ? { enabled: list.some((x) => x.enabled), title: f.title, price_kwd: f.price_kwd, period: f.period, features: f.features, cta: f.cta, whatsapp: f.whatsapp, whatsapp_message: f.whatsapp_message, thanks: f.thanks } : { enabled: false }) };
+  await admin.from("site_content").upsert({ key: "managed_service", value, updated_at: new Date().toISOString() });
+  refresh();
+}
+export async function saveManaged(form: FormData) {
+  await guard("plans");
+  const { admin, ms, list } = await readManaged();
   const str = (k: string) => String(form.get(k) ?? "").trim();
-  const value = {
-    ...((cur?.value as object | null) ?? {}),
-    enabled: form.get("enabled") === "on",
+  let id = str("id").toLowerCase().replace(/[^a-z0-9-]/g, "");
+  if (!id) id = `pkg-${Math.random().toString(36).slice(2, 7)}`;
+  const row = {
+    id, enabled: form.get("enabled") === "on",
     title: str("title"), price_kwd: str("price_kwd"), period: str("period"), cta: str("cta"),
     features: String(form.get("features") ?? "").split("\n").map((x) => x.trim()).filter(Boolean),
     whatsapp: str("whatsapp"), whatsapp_message: str("whatsapp_message"), thanks: str("thanks"),
   };
-  await admin.from("site_content").upsert({ key: "managed_service", value, updated_at: new Date().toISOString() });
-  refresh();
+  const i = list.findIndex((x) => x.id === id);
+  if (i >= 0) list[i] = row; else list.push(row);
+  await writeManaged(admin, ms, list);
+}
+export async function deleteManagedPkg(form: FormData) {
+  await guard("plans");
+  const { admin, ms, list } = await readManaged();
+  const id = String(form.get("id") ?? "");
+  if (list.length <= 1) return; // the last package stays: hide it instead
+  await writeManaged(admin, ms, list.filter((x) => x.id !== id));
 }
 
 /** «وضع الصيانة»: only the owner-level admin can switch the site off for everyone but the team. */

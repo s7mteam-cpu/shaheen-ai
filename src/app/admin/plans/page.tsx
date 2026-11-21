@@ -1,7 +1,8 @@
 import { guardPage } from "@/lib/server/auth";
 import { getPlans, getContent } from "@/lib/data";
 import type { Plan } from "@/lib/defaults";
-import { savePlan, deletePlan, saveManaged } from "../actions";
+import { savePlan, deletePlan, saveManaged, deleteManagedPkg } from "../actions";
+import { managedPackages, type ManagedPkg } from "@/lib/managed";
 import { getL } from "@/lib/server/lang";
 import { PriceHistory } from "@/components/admin/PriceHistory";
 import { L } from "@/lib/i18n/ui";
@@ -46,22 +47,36 @@ async function PlanBlock({ p, used, who }: { p: Plan; used: boolean; who: string
   );
 }
 
-async function ManagedForm({ ms }: { ms: Awaited<ReturnType<typeof getContent>>["managed_service"] }) {
+async function ManagedForm({ pkg }: { pkg?: ManagedPkg }) {
   const L = await getL();
   const f = (label: string, name: string, v: string, dir?: "ltr") => <div className="flex flex-col gap-1.5"><label className="label">{label}</label><input name={name} defaultValue={v} dir={dir} className={dir ? "field text-right" : "field"} /></div>;
   return (
-    <form action={saveManaged} className="grid gap-4 md:grid-cols-2">
-      {f(L("العنوان"), "title", ms.title)}
-      {f(L("السعر (د.ك)"), "price_kwd", ms.price_kwd)}
-      {f(L("الفترة (مثل: شهرياً)"), "period", ms.period)}
-      {f(L("نص الزر"), "cta", ms.cta)}
-      {f(L("رقم واتساب الطلبات"), "whatsapp", ms.whatsapp, "ltr")}
-      {f(L("الرسالة الجاهزة للواتساب"), "whatsapp_message", ms.whatsapp_message)}
-      <div className="flex flex-col gap-1.5 md:col-span-2"><label className="label">{L("المميزات (كل سطر ميزة)")}</label><textarea name="features" rows={5} defaultValue={ms.features.join("\n")} className="field" /></div>
-      <div className="flex flex-col gap-1.5 md:col-span-2"><label className="label">{L("رسالة الشكر بعد الطلب")}</label><input name="thanks" defaultValue={ms.thanks} className="field" /></div>
-      <label className="flex items-center gap-2"><input type="checkbox" name="enabled" defaultChecked={ms.enabled} className="h-5 w-5 accent-navy-700" />{L("ظاهرة للعملاء")}</label>
-      <button className="btn btn-primary justify-self-start px-6 py-2.5">{L("حفظ")}</button>
+    <form action={saveManaged} className="card grid gap-4 p-5 md:grid-cols-2">
+      {pkg && <input type="hidden" name="id" value={pkg.id} />}
+      {f(L("العنوان"), "title", pkg?.title ?? "")}
+      {f(L("السعر (د.ك)"), "price_kwd", pkg?.price_kwd ?? "")}
+      {f(L("الفترة (مثل: شهرياً)"), "period", pkg?.period ?? "شهرياً")}
+      {f(L("نص الزر"), "cta", pkg?.cta ?? "اشترك الآن")}
+      {f(L("رقم واتساب الطلبات"), "whatsapp", pkg?.whatsapp ?? "", "ltr")}
+      {f(L("الرسالة الجاهزة للواتساب"), "whatsapp_message", pkg?.whatsapp_message ?? "")}
+      <div className="flex flex-col gap-1.5 md:col-span-2"><label className="label">{L("المميزات (كل سطر ميزة)")}</label><textarea name="features" rows={5} defaultValue={(pkg?.features ?? []).join("\n")} className="field" /></div>
+      <div className="flex flex-col gap-1.5 md:col-span-2"><label className="label">{L("رسالة الشكر بعد الطلب")}</label><input name="thanks" defaultValue={pkg?.thanks ?? "وصلنا طلبك ✓ سيتم التواصل معكم في أسرع وقت."} className="field" /></div>
+      {pkg && <div className="flex flex-col gap-1.5 md:col-span-2"><label className="label">{L("رابط الدفع (ترسله للعميل)")}</label><input readOnly dir="ltr" value={`/app/pay?kind=managed&pkg=${pkg.id}`} className="field text-right" /></div>}
+      <label className="flex items-center gap-2"><input type="checkbox" name="enabled" defaultChecked={pkg ? pkg.enabled : true} className="h-5 w-5 accent-navy-700" />{L("ظاهرة للعملاء")}</label>
+      <button className="btn btn-primary justify-self-start px-6 py-2.5">{pkg ? L("حفظ") : L("إضافة الباقة")}</button>
     </form>
+  );
+}
+
+async function ManagedBlock({ pkg, only }: { pkg: ManagedPkg; only: boolean }) {
+  const L = await getL();
+  return (
+    <div className="flex flex-col gap-2">
+      <ManagedForm pkg={pkg} />
+      {only
+        ? <p className="text-[13px] text-subtle">{L("هذي آخر باقة إدارة، ما تنحذف. لإخفائها ألغِ «ظاهرة للعملاء» واحفظ.")}</p>
+        : <form action={deleteManagedPkg}><input type="hidden" name="id" value={pkg.id} /><button className="text-[13px] font-semibold text-red-600 underline">{L("حذف الباقة")}</button></form>}
+    </div>
   );
 }
 
@@ -77,7 +92,7 @@ export default async function PlansAdmin() {
   const nameOf = new Map((ppl ?? []).map((x) => [x.id as string, String(x.full_name || x.email || x.id)]));
   const whoBy: Record<string, string[]> = {};
   for (const x of live) (whoBy[x.plan_id as string] ??= []).push(nameOf.get(x.user_id as string) ?? String(x.user_id));
-  const ms = (await getContent()).managed_service;
+  const mp = managedPackages((await getContent()).managed_service);
   const biz = plans.filter((p) => p.id.startsWith("biz-")), ind = plans.filter((p) => !p.id.startsWith("biz-"));
   return (
     <div className="flex flex-col gap-5">
@@ -93,8 +108,11 @@ export default async function PlansAdmin() {
       {biz.map((p) => <PlanBlock key={p.id} p={p} used={usedIds.has(p.id)} who={whoBy[p.id] ?? []} />)}
       <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة للشركات")}</summary><div className="mt-4"><PlanForm audience="biz" /></div></details>
         </div></details>
-      <details className="card p-5"><summary className="cursor-pointer text-xl font-bold text-navy-900">{L("باقة الإدارة الكاملة")} <span className="text-sm font-normal text-subtle">({ms.enabled ? L("ظاهرة") : L("مخفية")})</span></summary>
-        <div className="mt-4"><ManagedForm ms={ms} /></div></details>
+      <details className="card p-5"><summary className="cursor-pointer text-xl font-bold text-navy-900">{L("باقة الإدارة الكاملة")} <span className="text-sm font-normal text-subtle">({mp.length})</span></summary>
+        <div className="mt-4 flex flex-col gap-5">
+          {mp.map((x) => <ManagedBlock key={x.id} pkg={x} only={mp.length <= 1} />)}
+          <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة إدارة")}</summary><div className="mt-4"><ManagedForm /></div></details>
+        </div></details>
       <PriceHistory kind="plan" />
     </div>
   );

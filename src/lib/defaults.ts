@@ -52,7 +52,7 @@ export type SiteContent = {
   motion_music: { items: { name: string; mood?: string; url: string }[] };
   quran_reciters: { items: { id: string; name: string; folder: string }[] };
   ai: { copy_provider: string; copy_model: string; chat_provider: string; chat_model: string };
-  managed_service: { enabled: boolean; title: string; price_kwd: string; period: string; features: string[]; cta: string; whatsapp: string; whatsapp_message: string; thanks: string };
+  managed_service: { enabled: boolean; title: string; price_kwd: string; period: string; features: string[]; cta: string; whatsapp: string; whatsapp_message: string; thanks: string; packages?: { id: string; enabled: boolean; title: string; price_kwd: string; period: string; features: string[]; cta: string; whatsapp: string; whatsapp_message: string; thanks: string }[] };
 };
 
 export const defaultPlans: Plan[] = [

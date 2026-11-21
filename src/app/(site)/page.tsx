@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { Circuit } from "@/components/Circuit";
 import { PricingTabs } from "@/components/site/PricingTabs";
+import { managedPackages } from "@/lib/managed";
 import { ManagedService } from "@/components/site/ManagedService";
 import { DemoVideo } from "@/components/DemoVideo";
 import { toolCover } from "@/lib/video";
@@ -203,7 +204,10 @@ export default async function Home() {
             {plans.map(renderPlan)}
           </div>
           )}
-          <ManagedService s={c.managed_service} lang={lang} price={money(Number(c.managed_service?.price_kwd || 0))} />
+          {(() => {
+            const pkgs = managedPackages(c.managed_service).filter((x) => x.enabled);
+            return pkgs.length ? <div className={pkgs.length > 1 ? "grid items-stretch gap-5 lg:grid-cols-2" : ""}>{pkgs.map((x) => <ManagedService key={x.id} s={x} lang={lang} price={money(Number(x.price_kwd || 0))} />)}</div> : null;
+          })()}
         </div>
       </section>
 

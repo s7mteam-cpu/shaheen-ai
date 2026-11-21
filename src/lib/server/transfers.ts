@@ -1,3 +1,4 @@
+import { managedPackage } from "@/lib/managed";
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordPayment } from "@/lib/server/payments";
@@ -38,9 +39,10 @@ export async function priceOf(userId: string, kind: "subscribe" | "renew" | "man
   const admin = createAdminClient();
   if (kind === "managed") {
     const c = await getContent();
-    const amount = Number(c.managed_service?.price_kwd || 0);
+    const pk = managedPackage(c.managed_service, planId);
+    const amount = Number(pk.price_kwd || 0);
     if (!(amount > 0)) throw new Error("managed price");
-    return { planId: null, months: 1, amount, label: c.managed_service?.title || "باقة الإدارة الكاملة" };
+    return { planId: null, months: 1, amount, label: pk.title || "باقة الإدارة الكاملة" };
   }
   let id = planId;
   if (kind === "renew") {

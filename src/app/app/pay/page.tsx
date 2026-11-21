@@ -1,3 +1,4 @@
+import { managedPackage } from "@/lib/managed";
 import { getMoney } from "@/lib/server/money";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -11,8 +12,8 @@ import { tr } from "@/lib/i18n";
 import { methodsFor } from "@/lib/server/transfers";
 
 /** The link in the monthly reminder (KNET) and in «باقة الإدارة الكاملة»: shows what will be paid, then goes to Tap. */
-export default async function Pay({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
-  const { kind = "renew" } = await searchParams;
+export default async function Pay({ searchParams }: { searchParams: Promise<{ kind?: string; pkg?: string }> }) {
+  const { kind = "renew", pkg = "" } = await searchParams;
   const [profile, lang] = await Promise.all([getSessionProfile(), getLang()]);
   const T = (ar: string, en: string) => tr(lang, ar, en);
   const { money } = await getMoney();
@@ -24,8 +25,9 @@ export default async function Pay({ searchParams }: { searchParams: Promise<{ ki
   let title: string, amount: number, note: string;
   if (kind === "managed") {
     const c = await getContent();
-    title = (await localize(c.managed_service?.title || "", lang)) || T("باقة الإدارة الكاملة", "Full social media management");
-    amount = Number(c.managed_service?.price_kwd || 0);
+    const pk = managedPackage(c.managed_service, pkg);
+    title = (await localize(pk.title || "", lang)) || T("باقة الإدارة الكاملة", "Full social media management");
+    amount = Number(pk.price_kwd || 0);
     note = T("دفعة لمرة وحدة لهذا الشهر. فريقنا يتواصل معك على الواتساب بعد الدفع.", "One-time payment for this month. Our team will contact you on WhatsApp after payment.");
   } else {
     const { data: sub } = await admin.from("subscriptions").select("*").eq("id", `tap_${profile.id}`).maybeSingle();
@@ -41,7 +43,7 @@ export default async function Pay({ searchParams }: { searchParams: Promise<{ ki
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 py-8">
       <h1 className="text-[26px] font-bold text-navy-900">{T("الدفع", "Payment")}</h1>
-      <form action={payNow.bind(null, kind === "managed" ? "managed" : "renew")} className="card flex flex-col gap-3 p-6">
+      <form action={payNow.bind(null, kind === "managed" ? "managed" : "renew", pkg)} className="card flex flex-col gap-3 p-6">
         <span className="text-lg font-bold">{title}</span>
         <span className="text-2xl font-bold text-navy-900">{amount} {T("د.ك", "KWD")}</span>
         {money(amount).approx && <span className="text-sm text-subtle">{T(`≈ ${money(amount).number} ${money(amount).symbol} (المبلغ يندفع بالدينار الكويتي، وبنكك يحوّله)`, `≈ ${money(amount).number} ${money(amount).symbol} (charged in Kuwaiti dinars; your bank converts it)`)}</span>}
@@ -49,7 +51,7 @@ export default async function Pay({ searchParams }: { searchParams: Promise<{ ki
         <p className="rounded-xl bg-tint p-3 text-[13px] leading-6 text-navy-900">{lang === "en" ? <>You can pay with <b>KNET</b>, <b>Visa / Mastercard</b> or <b>Apple Pay</b> on the secure payment page. Your card details stay with the payment provider and are never stored by us.</> : <>تقدر تدفع بـ<b>كي نت</b> أو <b>فيزا / ماستر كارد</b> أو <b>Apple Pay</b> من صفحة الدفع الآمنة. بيانات بطاقتك عند بوابة الدفع، وما تنحفظ عندنا.</>}</p>
         {tapTestMode() && <p className="rounded-xl bg-amber-50 p-3 text-[13px] font-semibold text-amber-900">{T("🧪 وضع التجربة: الدفع هنا تجريبي ببطاقات Tap التجريبية، وما ينخصم أي مبلغ حقيقي.", "🧪 Test mode: payments here use Tap test cards — no real money is charged.")}</p>}
         <button className="btn btn-gold py-3">{T("كمّل للدفع الآمن", "Continue to secure payment")}</button>
-        {transfer.length > 0 && <Link href={`/app/pay/transfer?kind=${kind === "managed" ? "managed" : "renew"}`} className="btn btn-outline py-3">🏦 {T("أو ادفع بالتحويل", "Or pay by transfer")}</Link>}
+        {transfer.length > 0 && <Link href={`/app/pay/transfer?kind=${kind === "managed" ? `managed&plan=${encodeURIComponent(pkg)}` : "renew"}`} className="btn btn-outline py-3">🏦 {T("أو ادفع بالتحويل", "Or pay by transfer")}</Link>}
         <Link href="/app/account" className="text-center text-sm text-subtle">{T("رجوع", "Back")}</Link>
       </form>
     </div>
