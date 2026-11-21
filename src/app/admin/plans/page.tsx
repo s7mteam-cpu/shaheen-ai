@@ -11,11 +11,11 @@ import { TrialForm } from "./TrialForm";
 
 export const dynamic = "force-dynamic";
 
-async function PlanForm({ p }: { p?: Plan }) {
+async function PlanForm({ p, audience }: { p?: Plan; audience?: "ind" | "biz" }) {
   const L = await getL();
   return (
     <form action={savePlan} className="card grid gap-4 p-5 md:grid-cols-2">
-      <div className="flex flex-col gap-1.5"><label className="label">{L("المعرّف (بالإنجليزي). لباقات الشركات ابدأه بـ biz- مثل biz-team")}</label><input name="id" defaultValue={p?.id} readOnly={Boolean(p)} required dir="ltr" className="field text-right" /></div>
+      {p ? <input type="hidden" name="id" value={p.id} /> : <input type="hidden" name="audience" value={audience ?? "ind"} />}
       <div className="flex flex-col gap-1.5"><label className="label">{L("الاسم")}</label><input name="name" defaultValue={p?.name} required className="field" /></div>
       <div className="flex flex-col gap-1.5"><label className="label">{L("الوصف القصير")}</label><input name="subtitle" defaultValue={p?.subtitle ?? ""} className="field" /></div>
       <div className="flex flex-col gap-1.5"><label className="label">{L("السعر الشهري (د.ك)")}</label><input name="price_kwd" type="number" step="0.001" defaultValue={p?.price_kwd} required className="field" /></div>
@@ -35,13 +35,17 @@ export default async function PlansAdmin() {
   const L = await getL();
   await guardPage("plans");
   const plans = await getPlans(true);
+  const biz = plans.filter((p) => p.id.startsWith("biz-")), ind = plans.filter((p) => !p.id.startsWith("biz-"));
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-[26px] font-bold text-navy-900">{L("الباقات")}</h1>
       <TrialCard />
-      {plans.map((p) => <PlanForm key={p.id} p={p} />)}
-      <h2 className="text-lg font-bold">{L("باقة جديدة")}</h2>
-      <PlanForm />
+      <h2 className="text-xl font-bold text-navy-900">{L("باقات الأفراد")}</h2>
+      {ind.map((p) => <PlanForm key={p.id} p={p} />)}
+      <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة للأفراد")}</summary><div className="mt-4"><PlanForm audience="ind" /></div></details>
+      <h2 className="mt-4 text-xl font-bold text-navy-900">{L("باقات الشركات")}</h2>
+      {biz.map((p) => <PlanForm key={p.id} p={p} />)}
+      <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة للشركات")}</summary><div className="mt-4"><PlanForm audience="biz" /></div></details>
       <PriceHistory kind="plan" />
     </div>
   );

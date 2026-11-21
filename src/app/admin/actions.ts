@@ -81,7 +81,10 @@ async function saveToolDemo(id: string, form: FormData) {
 
 export async function savePlan(form: FormData) {
   const me = await guard("plans");
-  const id = String(form.get("id")).trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+  let raw = String(form.get("id") || "");
+  // a new plan has no id field: it gets one by itself, and company plans always start with «biz-» (that is how the site tells them apart)
+  if (!raw.trim()) raw = `${form.get("audience") === "biz" ? "biz-" : "plan-"}${Math.random().toString(36).slice(2, 8)}`;
+  const id = raw.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
   if (!id) return;
   const { data: before } = await createAdminClient().from("plans").select("name,price_kwd,credits,bonus_credits,is_active").eq("id", id).maybeSingle();
   const row = {
