@@ -20,7 +20,7 @@ import "@fontsource/changa/arabic-400.css";
 import "@fontsource/changa/arabic-700.css";
 import "@fontsource/amiri/arabic-400.css";
 import "@fontsource/amiri/arabic-700.css";
-import { applyEdits, applyEls, applyFont, applyLogo, currentFont, extractColors, extractTexts } from "@/lib/htmlKit";
+import { applyEdits, applyEls, applyFont, applyLogo, currentFont, extractColors, extractTexts, injectShots } from "@/lib/htmlKit";
 import { withClock } from "@/lib/gemClock";
 import { ERR_SNIPPET } from "@/lib/freeErrSnippet";
 import { ARAB_DIALECTS } from "@/lib/countries";
@@ -31,7 +31,7 @@ import { FontPicker } from "./FontPicker";
 
 type SavedMix = { voiceVol?: number; musicVol?: number; trim?: Trim; own?: (Music & { url: string }) | null };
 export type GemData = {
-  status: "gemini"; title: string; aspect: string; seconds: number; videoUrl: string; downloadUrl: string; htmlUrl: string; voiceUrl: string; musicUrl: string;
+  status: "gemini"; title: string; aspect: string; seconds: number; videoUrl: string; downloadUrl: string; htmlUrl: string; shotUrls?: { mobile?: string; desktop?: string }; voiceUrl: string; musicUrl: string;
   hasVoice: boolean; scenes: string[] | null; dialect: string; musicOff: boolean; editCost: number; mix: SavedMix | null; logo: { path: string; url: string; box: LogoBox } | null;
 };
 const SIZES: Record<string, [number, number]> = { "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080], "4:5": [1080, 1350] };
@@ -141,6 +141,16 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId
     fetch(urlRef.current).then((r) => (r.ok ? r.text() : Promise.reject())).then((x) => { if (!dead) setRaw(applyLogo(x, null)); }).catch(() => { if (!dead) setLoadErr(true); });
     return () => { dead = true; };
   }, []);
+  // «فيديو مبتكر من موقعك»: the website pictures are put into the preview only (the saved page keeps empty marks)
+  const [shotData, setShotData] = useState<{ mobile?: string; desktop?: string } | null>(null);
+  const shotRef = useRef(data.shotUrls);
+  useEffect(() => {
+    const u = shotRef.current; if (!u || (!u.mobile && !u.desktop)) return;
+    let dead = false;
+    const one = (url?: string) => (url ? fetch(url).then((r) => (r.ok ? r.blob() : Promise.reject())).then((bl) => new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(bl); })).catch(() => "") : Promise.resolve(""));
+    Promise.all([one(u.mobile), one(u.desktop)]).then(([m, d]) => { if (!dead && (m || d)) setShotData({ ...(m ? { mobile: m } : {}), ...(d ? { desktop: d } : {}) }); });
+    return () => { dead = true; };
+  }, []);
   const fields = useMemo(() => (raw ? extractTexts(raw) : []), [raw]);
   const colors = useMemo(() => (raw ? extractColors(raw) : []), [raw]);
   const baseFont = useMemo(() => (raw ? currentFont(raw) : "Cairo"), [raw]);
@@ -155,13 +165,14 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId
         p = applyFont(p, font);
         p = applyEls(p, elList);
         p = applyLogo(p, logo && logoSrc ? { src: logoSrc, ...logo.box } : null);
+        p = injectShots(p, shotData);
         setStartAt(tRef.current); setAuto(playingRef.current);
         const extra = ERR_SNIPPET + (fontCss[font] ? `<style>${fontCss[font]}</style>` : "");
         setDoc(/<head[^>]*>/i.test(p) ? p.replace(/<head[^>]*>/i, (m) => m + extra) : extra + p); setRev((x) => x + 1);
       } catch { setError(L("تعذّر تطبيق التعديل")); }
     }, 450);
     return () => clearTimeout(id);
-  }, [raw, vals, hex, font, logo, logoSrc, fontCss, elList]);
+  }, [raw, vals, hex, font, logo, logoSrc, fontCss, elList, shotData]);
   const srcDoc = useMemo(() => (doc ? withClock(doc, startAt, auto, seconds) : null), [doc, startAt, auto, seconds]);
 
   // preview sound: voice + music + the customer's own sound follow the page clock

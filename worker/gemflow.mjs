@@ -28,7 +28,7 @@ export async function planVideo({ idea, seconds, brand, mode, dialectLabel }) {
   const withScenes = mode === "scenes" || mode === "full";
   const out = await claude({
     system: (mode === "full" ? EDITOR_FULL : withScenes ? EDITOR_SCENES : EDITOR) + (dialectLabel ? `\nThe spoken narration (and the "text") must be written in this Arabic dialect, simple and clear, in clean "white" spelling close to standard Arabic: ${dialectLabel}.` : ""),
-    user: `<brief>\n${String(idea).slice(0, 1500)}\n</brief>\nVideo length: ${seconds} seconds.\nBusiness name: ${brand || "not given"}`,
+    user: `<brief>\n${String(idea).slice(0, 2600)}\n</brief>\nVideo length: ${seconds} seconds.\nBusiness name: ${brand || "not given"}`,
     maxTokens: mode === "full" ? 5000 : withScenes ? 3500 : 1500, model: process.env.GEM_DIRECTOR_MODEL || process.env.FREE_MODEL || "claude-sonnet-5-5", signal: AbortSignal.timeout(120_000),
   });
   const a = out.indexOf("{"), b = out.lastIndexOf("}");

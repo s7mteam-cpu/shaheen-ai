@@ -21,7 +21,7 @@ const SWATCH: Record<SBg, string> = {
 type Site = { host: string; title: string; desc: string; text: string; sections: string[]; mobileUrl: string; desktopUrl: string };
 
 /** «فيديو من موقعك»: the customer pastes his website; Shaheen opens it, reads it, and makes a video that browses it and explains what it offers. */
-export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15: number; balance: number; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
+export function SiteVideoStart({ costPer15, balance, voices = [], freeCost = 0 }: { costPer15: number; balance: number; freeCost?: number; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -45,7 +45,11 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pct, setPct] = useState(0);
-  const cost = Math.max(1, Math.round(seconds / 15)) * costPer15;
+  // two ways: "browse" (the video scrolls through the real website) or "new" (a fresh design drawn from scratch every time, with the website's pictures inside it)
+  const [kind, setKind] = useState<"browse" | "new">("browse");
+  const fresh = kind === "new" && freeCost > 0;
+  const per15 = fresh ? freeCost : costPer15;
+  const cost = Math.max(1, Math.round(seconds / 15)) * per15;
   const stop = useRef(false);
   useEffect(() => () => { stop.current = true; }, []);
 
@@ -78,6 +82,17 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
   async function make() {
     if (!jobId) return;
     setBusy(true); setError(null);
+    if (fresh) {
+      try {
+        const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+          siteJob: jobId, idea: topic, seconds, aspect, dialect, voiceover, vgender, vage, music: withMusic, useIdentity: false }) });
+        const d = await r.json();
+        if (!r.ok) throw new Error(L(d.error));
+        setPct(100);
+        router.push(`/app/tools/free-motion?job=${d.jobId}`);
+      } catch (err) { setError((err as Error).message || L("صار خطأ.")); setBusy(false); }
+      return;
+    }
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
         siteJob: jobId, siteStyle: style, readShots: readImgs, shots: shots.map((x) => ({ path: x.path, bucket: x.bucket, label: x.label })), topic, seconds, aspect, dialect, voiceover, vgender, vage, tone, music: withMusic, brand: site?.title ?? "" }) });
@@ -122,13 +137,24 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); make(); }} className="card flex flex-col gap-5 p-5 sm:p-6">
+        {freeCost > 0 && (
+          <div className="flex flex-col gap-2"><span className="font-semibold">{L("نوع الفيديو")}</span>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button type="button" aria-pressed={kind === "browse"} onClick={() => setKind("browse")} className={`rounded-2xl border p-4 text-start ${kind === "browse" ? "border-gold-500 bg-gold-50" : "border-line"}`}><span className="block font-semibold">🖥️ {L("تصفّح الموقع")}</span><span className="block text-[13px] text-subtle">{L("الفيديو يتصفّح موقعك الحقيقي ويشرحه، بستايلات جاهزة.")}</span></button>
+              <button type="button" aria-pressed={kind === "new"} onClick={() => setKind("new")} className={`rounded-2xl border p-4 text-start ${kind === "new" ? "border-gold-500 bg-gold-50" : "border-line"}`}><span className="block font-semibold">✨ {L("مبتكر")}</span><span className="block text-[13px] text-subtle">{L("تصميم جديد يُرسم من الصفر كل مرة: عناوين ورسومات متحركة، ولقطات موقعك داخل جوال ولابتوب.")}</span></button>
+            </div>
+          </div>
+        )}
         <label className="flex flex-col gap-2"><span className="font-semibold">{L("شنو تبي الفيديو يركّز عليه؟")}</span>
           <textarea required minLength={5} maxLength={800} rows={3} value={topic} onChange={(e) => setTopic(e.target.value)} className="field" />
           <span className="text-[13px] text-subtle">{L("شاهين يشرح الموقع من محتواه الفعلي (ما يخترع أسعار ولا خدمات). تقدر تضيف: ركّز على الخدمات، أو على العروض، أو على التواصل.")}</span></label>
+        {!fresh && <>
         <PhotoPicker photos={shots} onChange={setShots} max={6} title="صفحات من داخل موقعك (لقطات شاشة)" hint="لو موقعك فيه صفحات ما تنفتح إلا بتسجيل دخول (لوحة تحكم، حجوزات، طلبات)، صوّرها بنفسك وارفعها هنا، واكتب تحت كل صورة وش هي. ما نطلب منك يوزر ولا كلمة سر أبداً." />
         {shots.length > 0 && <label className="flex items-start gap-3 rounded-2xl border border-line p-3"><input type="checkbox" checked={readImgs} onChange={(e) => setReadImgs(e.target.checked)} className="mt-1 h-5 w-5" /><span>{L("خلّ شاهين يقرأ محتوى الصور ويشرح ميزاتها")}<span className="block text-[13px] text-subtle">{L("يقرأ النص والأقسام الظاهرة بكل لقطة، ويتكلم عنها بالتعليق حتى لو ما كتبت وصف.")}</span></span></label>}
+        </>}
         <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(sizes, aspect, setAspect)}</div>
         <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span>{chips(lengths, seconds, setSeconds)}</div>
+        {!fresh && <>
         <div className="flex flex-col gap-2">
           <span className="font-semibold">{L("الستايل")}</span>
           <div className="flex flex-wrap gap-2"><button type="button" aria-pressed={style === "auto"} onClick={() => setStyle("auto")} className="chip">✨ {L("تلقائي (شاهين يختار الأنسب لموقعك)")}</button></div>
@@ -143,6 +169,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
             ))}
           </More>
         </div>
+        </>}
         <div className="flex flex-col gap-2"><span className="font-semibold">{L("اللهجة")}</span>{chips(voiceover && availD ? dialects.filter(([v]) => availD.has(v)) : dialects, dialect, setDialect)}</div>
         <label className="flex items-center gap-3"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} className="h-5 w-5" /><span>{L("تعليق صوتي يشرح")}</span></label>
         <More label={L("خيارات إضافية (الصوت، الموسيقى)")}>
@@ -150,14 +177,14 @@ export function SiteVideoStart({ costPer15, balance, voices = [] }: { costPer15:
             <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">
               <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("رجل أو امرأة")}</span>{chips([["", "أي صوت"], ["m", "رجل"], ["f", "امرأة"]] as readonly (readonly [string, string])[], vgender, setVgender)}</div>
               <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("العمر")}</span>{chips([["", "أي عمر"], ...VOICE_AGES] as readonly (readonly [string, string])[], vage, setVage)}</div>
-              <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("نبرة الصوت")}</span>{chips(TONES as readonly (readonly [string, string])[], tone, setTone)}</div>
+              {!fresh && <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("نبرة الصوت")}</span>{chips(TONES as readonly (readonly [string, string])[], tone, setTone)}</div>}
             </div>
           )}
           <label className="flex items-center gap-3"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} className="h-5 w-5" /><span>{L("موسيقى خلفية")}</span></label>
         </More>
         {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
-        {busy ? <Progress value={pct} label={L("شاهين يكتب السيناريو ويركّب فيديو تصفّح موقعك…")} /> : <button disabled={topic.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">🎬 {L("أنشئ الفيديو")} · {cost} {L("ريشة")}</button>}
-        <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة:")} {costPer15} {L("ريشة لكل 15 ثانية.")}</p>
+        {busy ? <Progress value={pct} label={fresh ? L("شاهين يجهّز الطلب…") : L("شاهين يكتب السيناريو ويركّب فيديو تصفّح موقعك…")} /> : <button disabled={topic.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">🎬 {L("أنشئ الفيديو")} · {cost} {L("ريشة")}</button>}
+        <p className="text-center text-[13px] text-subtle">{L("السعر يعتمد على المدة:")} {per15} {L("ريشة لكل 15 ثانية.")}</p>
         {balance < cost && <p className="text-center text-[14px] text-red-700">{L("رصيدك ما يكفي.")} <a href="/app/subscribe" className="underline">{L("زوّد رصيدك")}</a></p>}
         <p className="text-center text-[13px] text-subtle">{L("بعدها يفتح لك الاستوديو: تعدّل النصوص والألوان والصوت، وتغيّر اللي تبيه.")}</p>
       </form>

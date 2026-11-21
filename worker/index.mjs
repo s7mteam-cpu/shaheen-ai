@@ -22,12 +22,12 @@ import { normalizeTemplate, verifyTemplate } from "./ingest.mjs";
 import { buildPreview } from "./freepreview.mjs";
 import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
 import { FONT_LIB, FONT_IDS, freeFontCss } from "./fontlib.mjs";
-import { extractTexts, extractColors, applyEdits, applyFont, applyLogo, applyEls } from "./htmlkit.mjs";
+import { extractTexts, extractColors, applyEdits, applyFont, applyLogo, applyEls, injectShots } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
-import { planVideo, geminiHtml, geminiEdit, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
+import { planVideo, geminiHtml, geminiEdit, geminiPrompt, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { modelFor } from "./models.mjs";
-import { writePost, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE } from "./postflow.mjs";
+import { writePost, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE, withIcons } from "./postflow.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
@@ -935,6 +935,43 @@ async function mixAudio({ video, voice, music, own, voiceVol = 1, musicVol = 0.1
 }
 
 /** «التجربة الكبرى» (للأدمن): Claude يخطط ← Gemini يبني الحركة (HTML) ← فحص بصري ← تسجيل MP4. النتيجة بالتخزين فقط. */
+const SHOT_NOTE = `
+
+لقطات حقيقية من موقع العميل (استثناء من القاعدتين 2 و 11 لهذا الفيديو فقط؛ استخدمها، هذا فيديو عن موقعه): عندك صورتان جاهزتان: لقطة الجوال (نسبة العرض للارتفاع 9:19) ولقطة الكمبيوتر (نسبة 16:10). لعرض لقطة اكتب بالضبط <img data-shot="mobile" alt=""> أو <img data-shot="desktop" alt=""> بدون src وبدون أي رابط (المنصة تضع الصورة مكانها). حط كل لقطة داخل إطار ترسمه أنت بـCSS (إطار جوال للأولى، ونافذة متصفح أو لابتوب للثانية) بحجم محدد بالـCSS و object-fit:cover و object-position:top. هذا الإطار عنصر داخل المشهد (مسموح)، وليس حاوية للفيديو كله. اعرض كل لقطة في مشهد أو مشهدين مناسبين مع حركة (دخول، ميلان خفيف، تكبير بسيط، تمرير ببطء داخل الإطار)، وباقي المشاهد نصوص ورسومات عن خدمات الموقع.`;
+/** the two website pictures of a «فيديو مبتكر من موقعك» order: the top of each page, cut to a light JPEG, kept beside the video for later edits. Returns data: links for the page (or null). */
+async function siteShots(job, site, base, workDir) {
+  const own = (p) => typeof p === "string" && p.startsWith(`${job.user_id}/`) && !p.includes("..");
+  const out = {}, paths = {};
+  for (const [k, w, h] of [["mobile", 540, 1140], ["desktop", 1280, 800]]) {
+    try {
+      const src = site?.shots?.[k];
+      if (!own(src)) continue;
+      const d = await db.storage.from("results").download(src); if (d.error) continue;
+      const inF = join(workDir, `ss-${job.id}-${k}.in`), outF = join(workDir, `ss-${job.id}-${k}.jpg`);
+      await writeFile(inF, Buffer.from(await d.data.arrayBuffer()));
+      await ff(["-i", inF, "-vf", `scale=${w}:-2,crop=${w}:min(ih\\,${h}):0:0`, "-frames:v", "1", "-q:v", "5", outF]);
+      const buf = await readFile(outF); await rm(inF, { force: true }); await rm(outF, { force: true });
+      if (buf.length < 2000 || buf.length > 1_500_000) continue;
+      const dest = `${base}.shot-${k}.jpg`;
+      const up = await db.storage.from("results").upload(dest, buf, { contentType: "image/jpeg", upsert: true });
+      if (up.error) continue;
+      out[k] = `data:image/jpeg;base64,${buf.toString("base64")}`; paths[k] = dest;
+    } catch (e) { console.error("site shot skipped", k, e?.message ?? e); }
+  }
+  return out.mobile || out.desktop ? { data: out, paths } : null;
+}
+/** the saved pictures of an earlier «فيديو مبتكر من موقعك» (for an edit of that video) */
+async function savedShots(userId, paths) {
+  const own = (p) => typeof p === "string" && p.startsWith(`${userId}/`) && !p.includes("..");
+  const out = {};
+  for (const k of ["mobile", "desktop"]) {
+    if (!own(paths?.[k])) continue;
+    const d = await db.storage.from("results").download(paths[k]); if (d.error) continue;
+    const buf = Buffer.from(await d.data.arrayBuffer());
+    if (buf.length <= 1_500_000) out[k] = `data:image/jpeg;base64,${buf.toString("base64")}`;
+  }
+  return out.mobile || out.desktop ? out : null;
+}
 async function gemFlowJob(job) {
   const inp = job.input ?? {};
   const idea = String(inp.idea ?? "").slice(0, 1500);
@@ -967,10 +1004,14 @@ async function gemFlowJob(job) {
       meta.plan = plan; meta.voice = { path: vo.path, duration: vo.duration, beats: vo.beats, sentences: spoken }; meta.seconds = seconds; lap("voice");
       if (inp.music !== false) { try { musicBuf = await makeMusic(String(inp.musicPrompt || "Warm modern upbeat background music, steady light rhythm, polished, suitable for a Gulf promo video"), seconds + 3); lap("music"); } catch (e) { meta.musicError = String(e?.message ?? e).slice(0, 120); } }
     }
+    // «فيديو مبتكر من موقعك»: the real pictures of the customer's website (optional: the video is still made if they cannot be read)
+    const shots = cust && inp.site?.shots ? await siteShots(job, inp.site, base, workDir).catch(() => null) : null;
+    const view = (h) => (shots ? injectShots(h, shots.data) : h);
+    if (shots) meta.shots = Object.keys(shots.paths);
     let retry = "", page = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
       await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);
-      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model });
+      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model, ...(shots ? { user: geminiPrompt(plan, ideaFull, retry) + SHOT_NOTE } : {}) });
       // SECURITY: the raw answer is checked BEFORE anything reads or opens it; a page with forbidden code is never prepared, opened or recorded
       const unsafe0 = unsafeHtml(g.html);
       if (unsafe0.length) {
@@ -983,7 +1024,7 @@ async function gemFlowJob(job) {
       meta.attempts.push(rec); lap(`gemini${attempt}`);
       await stage("يفحص الصورة (مراجعة فنية)…", 55 + attempt * 5);
       const times = [0.06, 0.25, 0.45, 0.65, 0.85, 0.97].map((f) => f * seconds);
-      const stills = await htmlStills({ html: prepared.html, width: W, height: H, times, fontCss: htmlFontCss(prepared.html) });
+      const stills = await htmlStills({ html: view(prepared.html), width: W, height: H, times, fontCss: htmlFontCss(prepared.html) });
       const probe = join(workDir, `gp-${job.id}.png`); await writeFile(probe, stills[2]);
       const blank = await frameIsBlank(probe); await rm(probe, { force: true });
       const errs = (stills.errors ?? []).map((x) => String(x).slice(0, 160));
@@ -997,7 +1038,7 @@ async function gemFlowJob(job) {
       else if (!blank) {
         // motion INSIDE scenes: count elements whose look changes within half a second at 8 points of the video
         const pts = Array.from({ length: 8 }, (_, i) => 0.8 + i * ((seconds - 2) / 8));
-        const sg = await htmlStills({ html: prepared.html, width: W, height: H, times: pts.flatMap((t) => [t, t + 0.5]), fontCss: htmlFontCss(prepared.html), sig: true }).catch(() => null);
+        const sg = await htmlStills({ html: view(prepared.html), width: W, height: H, times: pts.flatMap((t) => [t, t + 0.5]), fontCss: htmlFontCss(prepared.html), sig: true }).catch(() => null);
         if (sg) {
           const changed = pts.map((_, k) => { const a = sg[2 * k] ?? [], b = sg[2 * k + 1] ?? []; let c = 0; for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) c++; return c; });
           rec.motion = changed; const live = changed.filter((c) => c >= 6).length;
@@ -1013,7 +1054,7 @@ async function gemFlowJob(job) {
     if (!page) throw new Error("التصميم رجع بكود غير مسموح بعد محاولتين"); // never recorded, for anyone (the order is refunded)
     if (cust && meta.attempts.at(-1)?.hard) throw new Error("التصميم ما طلع بجودة كافية بعد محاولتين"); // a broken design is never delivered: the order is refunded
     await stage("يرسم الفيديو…", 80);
-    await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss(page) });
+    await recordHtml({ html: view(page), width: W, height: H, seconds, outFile, fontCss: htmlFontCss(page) });
     lap("record");
     let finalFile = outFile;
     if (vo) {
@@ -1030,7 +1071,7 @@ async function gemFlowJob(job) {
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.html`, Buffer.from(page), { contentType: "text/html", upsert: true });
     if (cust) {
-      await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(meta.plan?.title || inp.brand?.name || "تصميم مبتكر").slice(0, 80), input: { ...inp, mode: "done", cseconds: seconds, gem: { htmlPath: `${base}.html`, voicePath: vo?.path ?? null, musicPath: musicBuf ? `${base}.music.mp3` : null, scenes: vo ? (meta.plan?.scenes ?? []).map((x, i) => ({ start: x.start, end: x.end, text: String(sentsOrig[i] ?? x.narration ?? "").slice(0, 300) })) : null, model: meta.attempts.at(-1)?.model ?? null, usage: meta.attempts.map((a) => a.usage ?? null), timings: meta.timings } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
+      await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(meta.plan?.title || inp.brand?.name || "تصميم مبتكر").slice(0, 80), input: { ...inp, mode: "done", cseconds: seconds, gem: { htmlPath: `${base}.html`, voicePath: vo?.path ?? null, musicPath: musicBuf ? `${base}.music.mp3` : null, scenes: vo ? (meta.plan?.scenes ?? []).map((x, i) => ({ start: x.start, end: x.end, text: String(sentsOrig[i] ?? x.narration ?? "").slice(0, 300) })) : null, model: meta.attempts.at(-1)?.model ?? null, usage: meta.attempts.map((a) => a.usage ?? null), timings: meta.timings, ...(shots ? { shots: shots.paths } : {}) } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: now() }).eq("id", job.id);
     }
   } catch (e) { console.error("gemini flow failed", e?.message ?? e); meta.error = String(e?.message ?? e).slice(0, 400); if (cust) { await fail(job, e); } }
   finally {
@@ -1128,6 +1169,7 @@ async function gemEditJob(job) {
       voiceDone = { path: vp, own: true };
     }
     const hex = {}; for (const [k, v] of Object.entries(inp.hex ?? {})) if (/^#[0-9a-f]{6}$/i.test(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) hex[k] = v;
+    const shotData = g.shots ? await savedShots(job.user_id, g.shots).catch(() => null) : null; // website pictures of a «فيديو مبتكر من موقعك»
     let page = applyEdits(before, { texts, hex });
     if (typeof inp.font === "string") page = applyFont(page, inp.font);
     page = applyEls(page, inp.els);
@@ -1145,7 +1187,7 @@ async function gemEditJob(job) {
         const bad0 = unsafeHtml(r.html); // SECURITY: checked before the page is prepared or opened
         if (bad0.length) { editUsage.push(r.usage ?? null); retry = `The page uses forbidden code (${bad0.join(", ")}). Remove it: no network, no storage, no iframes or forms, no eval, no external files.`; continue; }
         const pr = await prepareHtml(r.html);
-        const sts = await htmlStills({ html: pr.html, width: W, height: H, times: [0.1 * seconds, 0.4 * seconds, 0.7 * seconds, 0.95 * seconds], fontCss: htmlFontCss(pr.html) });
+        const sts = await htmlStills({ html: injectShots(pr.html, shotData), width: W, height: H, times: [0.1 * seconds, 0.4 * seconds, 0.7 * seconds, 0.95 * seconds], fontCss: htmlFontCss(pr.html) });
         const pf = join(workDir, `gep-${job.id}.png`); await writeFile(pf, sts[1]);
         const blank = await frameIsBlank(pf); await rm(pf, { force: true });
         const distinct = new Set(sts.map((x) => createHash("md5").update(x).digest("hex"))).size;
@@ -1176,11 +1218,11 @@ async function gemEditJob(job) {
     if (page.length > 400_000) throw new Error("الصفحة كبرت أكثر من اللازم");
     await stage("يرسم الفيديو…", 30);
     const base = `${job.user_id}/gem-${job.id}`;
-    const stills = await htmlStills({ html: page, width: W, height: H, times: [0.5 * seconds], fontCss: htmlFontCss(page) });
+    const stills = await htmlStills({ html: injectShots(page, shotData), width: W, height: H, times: [0.5 * seconds], fontCss: htmlFontCss(page) });
     const probe = join(workDir, `gep-${job.id}.png`); await writeFile(probe, stills[0]);
     const blank = await frameIsBlank(probe); await rm(probe, { force: true });
     if (blank) throw new Error("التعديل خرّب الصفحة (طلعت فاضية)");
-    await recordHtml({ html: page, width: W, height: H, seconds, outFile, fontCss: htmlFontCss(page) });
+    await recordHtml({ html: injectShots(page, shotData), width: W, height: H, seconds, outFile, fontCss: htmlFontCss(page) });
     let finalFile = outFile; let voicePath = null;
     const useVoice = voiceDone?.path ?? g.voicePath;
     const mixIn = inp.mix && typeof inp.mix === "object" ? inp.mix : (g.mix ?? {});
@@ -1658,7 +1700,7 @@ async function postJob(job) {
         catch (e) { if (attempt === 2) throw e; retry = e?.cut ? CUT_NOTE : `The last answer was not a usable page (${String(e?.message ?? e).slice(0, 120)}). Return the full HTML page in one html block.`; continue; }
         finally { clearInterval(creep); }
         // SECURITY: scripts and event handlers are removed first, then the page is checked BEFORE anything opens it
-        const html = applyLogo(stripScripts(raw), null);
+        const html = withIcons(applyLogo(stripScripts(raw), null)); // the real platform icons the page asked for are put in by us
         const unsafe = unsafeHtml(html);
         if (unsafe.length) { retry = `The page uses forbidden code (${unsafe.join(", ")}). It must be self-contained: no network, no external files, no iframes or forms.`; continue; }
         if (slideCount(html) < n) { retry = `Only ${slideCount(html)} slide(s) found, ${n} needed. Every slide must be <section class="slide" data-slide="N"> with N from 1 to ${n}.`; continue; }
