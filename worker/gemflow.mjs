@@ -1,6 +1,7 @@
 // «التجربة الكبرى»: Claude directs (plan + words + timing), Gemini builds the motion design as one HTML page, Shaheen records it.
 // Customer text only ever reaches the models as fenced data; the page Gemini returns runs only inside the network-less recorder.
 import { claude } from "./freegen.mjs";
+import { modelFor } from "./models.mjs";
 
 const clean = (s, n = 400) => String(s ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
 
@@ -68,7 +69,7 @@ export function geminiPrompt(plan, idea, retry) {
 export async function geminiHtml({ plan, idea, retry, model: pick, system, user }) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY غير موجود بإعدادات Railway. أضفه هناك ثم أعد النشر.");
-  const model = /^gemini-[a-z0-9.-]{2,40}$/.test(String(pick ?? "")) ? pick : (process.env.GEMINI_MODEL || "gemini-3.8-flash");
+  const model = await modelFor(/^gemini-[a-z0-9.-]{2,40}$/.test(String(pick ?? "")) ? pick : (process.env.GEMINI_MODEL || "gemini-3.8-flash"));
   // streaming (SSE): the answer arrives in pieces, so a long thinking + long code never hits Node's 5-minute "waiting for headers" limit
   let res;
   try {

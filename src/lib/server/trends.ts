@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { modelFor } from "@/lib/server/models";
 import { cachedSystem } from "@/lib/providers/text";
 import { INDUSTRIES } from "@/design/industries";
 
@@ -54,7 +55,7 @@ async function viaClaude(system: string, ask: string) {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: process.env.TRENDS_MODEL || "claude-haiku-5-5", max_tokens: 4000, system: cachedSystem(system),
+      model: await modelFor(process.env.TRENDS_MODEL || "claude-haiku-5-5"), max_tokens: 4000, system: cachedSystem(system),
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
       messages: [{ role: "user", content: ask }],
     }),
@@ -66,7 +67,7 @@ async function viaClaude(system: string, ask: string) {
 
 async function viaGemini(system: string, ask: string) {
   if (!process.env.GEMINI_API_KEY) throw new Error("no AI key for trends (ANTHROPIC_API_KEY or GEMINI_API_KEY)");
-  const model = process.env.TRENDS_GEMINI_MODEL || "gemini-3.8-flash";
+  const model = await modelFor(process.env.TRENDS_GEMINI_MODEL || "gemini-3.8-flash");
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
     body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: ask }] }], tools: [{ google_search: {} }] }),

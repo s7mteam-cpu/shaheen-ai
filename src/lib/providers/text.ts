@@ -1,4 +1,5 @@
 import "server-only";
+import { modelFor, noteModelFailure, looksLikeBadModel } from "@/lib/server/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { defaultContent } from "@/lib/defaults";
 import { geminiText } from "@/lib/providers/google";
@@ -37,11 +38,16 @@ export async function aiChat(purpose: Purpose | { provider: string; model: strin
       throw e;
     }
   }
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const written = model || "claude-haiku-5-5";
+  const use = await modelFor(written);
+  const ask = (m: string) => fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: model || "claude-haiku-5-5", max_tokens: maxTokens, system: cachedSystem(system), messages }),
+    body: JSON.stringify({ model: m, max_tokens: maxTokens, system: cachedSystem(system), messages }),
   });
+  let res = await ask(use);
+  // a model chosen in «النماذج» that Anthropic does not know → the built-in one answers, and the page shows the problem
+  if (!res.ok && use !== written) { const why = await res.clone().text(); if (looksLikeBadModel(res.status, why)) { await noteModelFailure(written, use, why); res = await ask(written); } }
   if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as { content: { text?: string }[] };
   return data.content.map((c) => c.text ?? "").join("").trim();
@@ -87,11 +93,14 @@ export async function claudeVisionJson<T>(system: string, text: string, images: 
   for (const data of pdfs) content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data } });
   for (const im of images) { content.push({ type: "text", text: im.label }); const m = /^data:([^;]+);base64,(.+)$/.exec(im.url); content.push({ type: "image", source: m ? { type: "base64", media_type: m[1], data: m[2] } : { type: "url", url: im.url } }); }
   content.push({ type: "text", text });
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const use = await modelFor(model);
+  const ask = (m: string) => fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system: cachedSystem(`${system}\nأجب بـ JSON صالح فقط بدون أي نص آخر.`), messages: [{ role: "user", content }] }),
+    body: JSON.stringify({ model: m, max_tokens: maxTokens, system: cachedSystem(`${system}\nأجب بـ JSON صالح فقط بدون أي نص آخر.`), messages: [{ role: "user", content }] }),
   });
+  let res = await ask(use);
+  if (!res.ok && use !== model) { const why = await res.clone().text(); if (looksLikeBadModel(res.status, why)) { await noteModelFailure(model, use, why); res = await ask(model); } }
   if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as { content: { text?: string }[] };
   const out = data.content.map((c) => c.text ?? "").join("");

@@ -1,4 +1,5 @@
 import "server-only";
+import { modelFor } from "@/lib/server/models";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
 const key = () => process.env.GEMINI_API_KEY ?? "";
@@ -22,6 +23,7 @@ type GenResp = { candidates?: { content?: { parts?: Part[] } }[] };
 
 /** Text / chat with Gemini. */
 export async function geminiText(model: string, system: string, contents: Content[], maxTokens = 1200) {
+  model = await modelFor(model);
   const r = await post<GenResp>(`models/${model}:generateContent`, {
     systemInstruction: { parts: [{ text: system }] },
     contents,
@@ -37,6 +39,7 @@ export async function geminiText(model: string, system: string, contents: Conten
 
 /** Nano Banana image generation / editing. Returns image bytes. */
 export async function geminiImage(model: string, prompt: string, imageUrls: string[], aspect: string) {
+  model = await modelFor(model);
   const parts: Part[] = [{ text: prompt }, ...(await Promise.all(imageUrls.map(toInline)))];
   const r = await post<GenResp>(`models/${model}:generateContent`, {
     contents: [{ role: "user", parts }],
@@ -49,6 +52,7 @@ export async function geminiImage(model: string, prompt: string, imageUrls: stri
 
 /** Gemini text-to-speech → WAV bytes. */
 export async function geminiSpeech(model: string, text: string, voiceName: string) {
+  model = await modelFor(model);
   const r = await post<GenResp>(`models/${model}:generateContent`, {
     contents: [{ role: "user", parts: [{ text }] }],
     generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } },
@@ -68,6 +72,7 @@ function pcmToWav(pcm: Buffer, rate: number) {
 
 /** Start a Veo video. Returns the operation name (we poll it). */
 export async function veoStart(model: string, prompt: string, imageUrl: string | undefined, aspect: string, seconds: number) {
+  model = await modelFor(model);
   const instance: Record<string, unknown> = { prompt };
   if (imageUrl) {
     const p = await toInline(imageUrl);
@@ -109,6 +114,7 @@ function findVideo(o: unknown): { uri?: string; data?: string } | null {
  * Returns either the finished video bytes (when the model answers inline) or a file id to poll.
  */
 export async function omniStart(model: string, prompt: string, imageUrl: string, aspect: "9:16" | "16:9", seconds: number, resolution = "1080p") {
+  model = await modelFor(model);
   const img = await toInline(imageUrl);
   const r = await post<Record<string, unknown>>("interactions", {
     model,

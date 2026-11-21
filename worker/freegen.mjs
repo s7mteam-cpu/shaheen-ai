@@ -1,3 +1,4 @@
+import { modelFor } from "./models.mjs";
 // Asks Claude to write the motion-graphics component («تصميم مبتكر»), and to refill its texts for «سوّ مثله».
 const SYSTEM = `You are a senior motion-graphics designer who writes Remotion (React) code. You design ONE scene-by-scene motion video for a Gulf (Kuwaiti) business, Arabic RTL, premium look.
 
@@ -43,7 +44,7 @@ export async function claude({ system, user, maxTokens = 20000, model, signal })
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal,
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: model || process.env.FREE_MODEL || "claude-sonnet-5-5", max_tokens: maxTokens, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({ model: await modelFor(model || process.env.FREE_MODEL || "claude-sonnet-5-5"), max_tokens: maxTokens, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages: [{ role: "user", content: user }] }),
   });
   if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return text(await res.json());
@@ -165,7 +166,7 @@ export async function reviewFree({ frames, aspect, idea }) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal: AbortSignal.timeout(120_000),
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: process.env.FREE_REVIEW_MODEL || "claude-sonnet-5-5", max_tokens: 600, messages: [{ role: "user", content }] }),
+    body: JSON.stringify({ model: await modelFor(process.env.FREE_REVIEW_MODEL || "claude-sonnet-5-5"), max_tokens: 600, messages: [{ role: "user", content }] }),
   });
   if (!res.ok) throw new Error(`review ${res.status}`);
   const out = text(await res.json());

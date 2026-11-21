@@ -1,4 +1,5 @@
 import "server-only";
+import { modelFor } from "@/lib/server/models";
 import { fal } from "@fal-ai/client";
 
 fal.config({ credentials: process.env.FAL_KEY });
@@ -7,12 +8,14 @@ type FalImage = { url: string };
 
 /** Wait for the result (used for images, ~5–40 s). */
 export async function falRun<T = Record<string, unknown>>(model: string, input: Record<string, unknown>) {
+  model = await modelFor(model);
   const r = await fal.subscribe(model, { input, logs: false });
   return r.data as T;
 }
 
 /** Queue a long job (videos); fal calls our webhook when it finishes. */
 export async function falQueue(model: string, input: Record<string, unknown>, webhookUrl: string) {
+  model = await modelFor(model);
   const { request_id } = await fal.queue.submit(model, { input, webhookUrl });
   return request_id;
 }

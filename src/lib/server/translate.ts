@@ -1,4 +1,5 @@
 import "server-only";
+import { modelFor } from "@/lib/server/models";
 import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cachedSystem } from "@/lib/providers/text";
@@ -16,7 +17,7 @@ async function translateBatch(texts: string[]): Promise<string[]> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: "claude-haiku-5-5", max_tokens: 8000, system: cachedSystem(PROMPT), messages: [{ role: "user", content: JSON.stringify(texts) }] }),
+    body: JSON.stringify({ model: await modelFor("claude-haiku-5-5"), max_tokens: 8000, system: cachedSystem(PROMPT), messages: [{ role: "user", content: JSON.stringify(texts) }] }),
   });
   if (!res.ok) throw new Error(`translate ${res.status}`);
   const data = (await res.json()) as { content: { text?: string }[] };

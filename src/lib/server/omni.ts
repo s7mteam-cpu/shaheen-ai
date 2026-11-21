@@ -1,4 +1,5 @@
 import { saveResult } from "@/lib/providers/storage";
+import { modelFor } from "@/lib/server/models";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 const MODEL = "gemini-omni-1.1-flash"; // Google's current video model (Veo 3.1 was retired)
@@ -38,7 +39,7 @@ export async function generateClip(desc: string, aspect: string, userId: string,
   try {
     const r = await fetch(`${BASE}/interactions`, {
       method: "POST", headers: { "x-goog-api-key": key, "content-type": "application/json" },
-      body: JSON.stringify({ model: MODEL, input: prompt, background: true, store: true, response_format: { type: "video", aspect_ratio: aspect === "16:9" ? "16:9" : "9:16", resolution: "720p" } }),
+      body: JSON.stringify({ model: await modelFor(MODEL), input: prompt, background: true, store: true, response_format: { type: "video", aspect_ratio: aspect === "16:9" ? "16:9" : "9:16", resolution: "720p" } }),
     });
     let d = (await r.json().catch(() => ({}))) as Record<string, unknown> & { id?: string; name?: string; status?: string; error?: { message?: string } };
     if (!r.ok) { lastErr = `Google ${r.status}: ${d.error?.message ?? ""}`.slice(0, 200); return null; }

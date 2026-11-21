@@ -26,6 +26,7 @@ import { extractTexts, extractColors, applyEdits, applyFont, applyLogo, applyEls
 import { prepareHtml } from "./htmlprep.mjs";
 import { planVideo, geminiHtml, geminiEdit, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
+import { modelFor } from "./models.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
@@ -58,7 +59,7 @@ async function transcribe(video, dir) {
   const audio = join(dir, "audio.mp3");
   await ff(["-i", video, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "64k", audio]);
   const form = new FormData();
-  form.append("model_id", "scribe_v1");
+  form.append("model_id", await modelFor("scribe_v1"));
   form.append("timestamps_granularity", "word");
   form.append("file", new Blob([await readFile(audio)]), "audio.mp3");
   const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", { method: "POST", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "" }, body: form });
@@ -127,7 +128,7 @@ async function speechReady(text) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-haiku-5-5", max_tokens: 1500, system: SPEECH_PROMPT, messages: [{ role: "user", content: text }] }),
+      body: JSON.stringify({ model: await modelFor("claude-haiku-5-5"), max_tokens: 1500, system: SPEECH_PROMPT, messages: [{ role: "user", content: text }] }),
     });
     if (!res.ok) throw new Error(`claude ${res.status}`);
     const out = ((await res.json()).content?.[0]?.text ?? "").trim();
@@ -138,10 +139,10 @@ async function speechReady(text) {
 async function voiceOver(text, voiceId, model = "eleven_v4", s = null) {
   const n = (v, d) => (typeof v === "number" && v >= 0 && v <= 2 ? v : d);
   const vs = s ? { stability: n(s.stability, 0.5), similarity_boost: n(s.similarity, 0.75), style: n(s.style, 0), speed: n(s.speed, 1), use_speaker_boost: s.speaker_boost ?? true } : null;
-  const call = (model) => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(String(voiceId))}/with-timestamps?output_format=mp3_44100_128`, {
+  const call = async (written) => { const model = await modelFor(written); return fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(String(voiceId))}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "", "content-type": "application/json" },
-    body: JSON.stringify({ text: speakable(text), model_id: model, ...(/^eleven_(v3|v4|flash_v2_5|turbo_v2_5)/.test(model) ? { language_code: "ar" } : {}), ...(vs ? { voice_settings: vs } : {}) }),
-  });
+    body: JSON.stringify({ text: speakable(text), model_id: model, ...(/^eleven_(v3|v4|v5|flash_v2_5|turbo_v2_5)/.test(model) ? { language_code: "ar" } : {}), ...(vs ? { voice_settings: vs } : {}) }),
+  }); };
   // Eleven v4 + Arabic (like the ElevenLabs site); fallback Multilingual v2
   let res = await call(model);
   if (!res.ok) res = await call(model === "eleven_multilingual_v2" ? "eleven_v4" : "eleven_multilingual_v2");
@@ -163,7 +164,7 @@ async function writeScript(shots, notes, seconds, brand) {
   if (!process.env.ANTHROPIC_API_KEY) return "";
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: process.env.MONTAGE_MODEL || "claude-sonnet-5-5", max_tokens: 1200,
+    body: JSON.stringify({ model: await modelFor(process.env.MONTAGE_MODEL || "claude-sonnet-5-5"), max_tokens: 1200,
       system: "أنت كاتب إعلانات خليجي. تكتب تعليق صوتي قصير بلهجة خليجية طبيعية لفيديو سوشال ميديا، بجمل قصيرة واضحة تنقرأ بسلاسة (فقرة واحدة، فواصل ونقاط فقط، بدون نقاط ثلاث أو أسطر جديدة، وبإملاء خليجي مبسّط: كاف المخاطب ك وليس ج)، يوصف اللي يبين باللقطات بدون مبالغة أو معلومات مخترعة (لا أسعار ولا عروض إلا إذا ذكرها العميل)، ويبدأ بجملة تشد وينتهي بدعوة. أعد النص فقط بدون أي شرح.",
       messages: [{ role: "user", content: [
         ...shots.flatMap((f) => [{ type: "text", text: `[لقطة عند ${f.t}s]` }, { type: "image", source: { type: "base64", media_type: "image/jpeg", data: f.data } }]),
@@ -248,7 +249,7 @@ async function claudePlan(user, shots = []) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: process.env.MONTAGE_MODEL || "claude-sonnet-5-5", max_tokens: 6000, system: [{ type: "text", text: PLAN_SYSTEM() + "\nأجب بـ JSON صالح فقط.", cache_control: { type: "ephemeral" } }], // cached 5 min: ~10% price on repeats
+    body: JSON.stringify({ model: await modelFor(process.env.MONTAGE_MODEL || "claude-sonnet-5-5"), max_tokens: 6000, system: [{ type: "text", text: PLAN_SYSTEM() + "\nأجب بـ JSON صالح فقط.", cache_control: { type: "ephemeral" } }], // cached 5 min: ~10% price on repeats
       messages: [{ role: "user", content: [
         ...shots.flatMap((f) => [{ type: "text", text: `[صورة من الفيديو عند ${f.t}s]` }, { type: "image", source: { type: "base64", media_type: "image/jpeg", data: f.data } }]),
         { type: "text", text: user },

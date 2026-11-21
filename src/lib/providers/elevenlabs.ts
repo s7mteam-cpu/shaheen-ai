@@ -1,4 +1,5 @@
 import "server-only";
+import { modelFor } from "@/lib/server/models";
 
 const API = "https://api.elevenlabs.io/v1";
 const key = () => process.env.ELEVENLABS_API_KEY ?? "";
@@ -33,11 +34,11 @@ export function voiceSettings(s?: VoiceSettings) {
 }
 
 export async function tts(text: string, voiceId: string, model = DEFAULT_TTS, settings?: VoiceSettings) {
-  const call = (m: string) => fetch(`${API}/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+  const call = async (m0: string) => { const m = await modelFor(m0); return fetch(`${API}/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": key(), "content-type": "application/json" },
     body: JSON.stringify({ text: speakable(text), model_id: m, ...(takesLanguage(m) ? { language_code: "ar" } : {}), ...(voiceSettings(settings) ? { voice_settings: voiceSettings(settings) } : {}) }),
-  }).then(check);
+  }).then(check); };
   // Some voices/plans don't support every model: fall back to the multilingual model.
   try { return (await call(model)).arrayBuffer(); }
   catch (e) { const alt = model === FALLBACK_TTS ? DEFAULT_TTS : FALLBACK_TTS; console.error("tts fallback", e); return (await call(alt)).arrayBuffer(); }
@@ -45,10 +46,10 @@ export async function tts(text: string, voiceId: string, model = DEFAULT_TTS, se
 
 /** Speech + word timings (seconds), for captions that follow the voice. */
 export async function ttsTimed(text: string, voiceId: string, model = DEFAULT_TTS, settings?: VoiceSettings) {
-  const call = (m: string) => fetch(`${API}/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
+  const call = async (m0: string) => { const m = await modelFor(m0); return fetch(`${API}/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST", headers: { "xi-api-key": key(), "content-type": "application/json" },
     body: JSON.stringify({ text: speakable(text), model_id: m, ...(takesLanguage(m) ? { language_code: "ar" } : {}), ...(voiceSettings(settings) ? { voice_settings: voiceSettings(settings) } : {}) }),
-  });
+  }); };
   let res = await call(model);
   if (!res.ok) res = await call(model === FALLBACK_TTS ? DEFAULT_TTS : FALLBACK_TTS);
   await check(res);
@@ -93,7 +94,7 @@ export async function music(prompt: string, seconds: number) {
 /** Speech → text with ElevenLabs Scribe (Arabic, Gulf dialect included). Used by the mic in «كلّم شاهين». */
 export async function transcribe(audio: Blob, filename: string) {
   const form = new FormData();
-  form.append("model_id", "scribe_v2");
+  form.append("model_id", await modelFor("scribe_v2"));
   form.append("language_code", "ara");
   form.append("tag_audio_events", "false");
   form.append("file", audio, filename);
@@ -104,7 +105,7 @@ export async function transcribe(audio: Blob, filename: string) {
 
 /** Voice Design: describe a voice in words (accent, gender, age, style) and get previews to listen to. */
 export async function designVoice(description: string, text?: string) {
-  const body: Record<string, unknown> = { voice_description: description.slice(0, 1000), model_id: "eleven_multilingual_ttv_v2" };
+  const body: Record<string, unknown> = { voice_description: description.slice(0, 1000), model_id: await modelFor("eleven_multilingual_ttv_v2") };
   if (text && text.trim().length >= 100) body.text = text.trim().slice(0, 1000); else body.auto_generate_text = true;
   const res = await fetch(`${API}/text-to-voice/design?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": key(), "content-type": "application/json" }, body: JSON.stringify(body) }).then(check);
   const d = (await res.json()) as { previews?: { generated_voice_id: string; audio_base_64: string }[] };

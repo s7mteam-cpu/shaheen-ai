@@ -30,7 +30,7 @@ export default async function AiAdmin() {
   const keys = Object.entries(providerInfo).filter(([id]) => id !== "gemini").map(([id, p]) => ({ id, ...p, ok: Boolean(process.env[p.env]) }));
   return (
     <div className="flex max-w-3xl flex-col gap-6">
-      <div><h1 className="text-[26px] font-bold text-navy-900">{L("الذكاء الاصطناعي")}</h1><p className="mt-1 text-sm text-subtle">{L("اختر مين يشغّل كل جزء. مزودو الصور والفيديو والصوت تختارهم لكل أداة من")} <Link href="/admin/tools" className="font-semibold text-navy-700">{L("الأدوات والأسعار")}</Link>.</p></div>
+      <div><h1 className="text-[26px] font-bold text-navy-900">{L("الذكاء الاصطناعي")}</h1><Link href="/admin/ai/models" className="chip mt-2 inline-flex">{L("🧠 النماذج: بدّل أي نموذج لأحدث إصدار")}</Link><p className="mt-1 text-sm text-subtle">{L("اختر مين يشغّل كل جزء. مزودو الصور والفيديو والصوت تختارهم لكل أداة من")} <Link href="/admin/tools" className="font-semibold text-navy-700">{L("الأدوات والأسعار")}</Link>.</p></div>
 
       <form action={saveAi} className="card flex flex-col gap-5 p-6">
         <Row title={L("«كلّم شاهين» — المساعد الجانبي")} hint={L("يرد على العملاء ويعرف حساباتهم.")} pName="chat_provider" mName="chat_model" p={ai.chat_provider} m={ai.chat_model} />
