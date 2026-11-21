@@ -2,6 +2,7 @@ import { managedPackage } from "@/lib/managed";
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordPayment } from "@/lib/server/payments";
+import { notifyUser, paidNotice } from "@/lib/server/notify";
 import { getContent } from "@/lib/data";
 
 /**
@@ -102,6 +103,7 @@ export async function approveTransfer(id: string, by: string | null): Promise<{ 
   const { data: plan } = await admin.from("plans").select("name").eq("id", t.plan_id).maybeSingle();
   const what = `${t.kind === "renew" ? "تجديد" : "اشتراك"} ${plan?.name ?? t.plan_id}${months > 1 ? ` (${months} أشهر)` : ""}`;
   await recordPayment({ ref: `transfer:${t.id}`, source: "transfer", description: what, customerId: t.user_id, amount: Number(t.amount), currency: "KWD", method: t.method_name, receivedOn: when });
+  await paidNotice(t.user_id, t.kind === "renew" ? "renew" : running && sub?.plan_id && sub.plan_id !== t.plan_id ? "change" : "new", plan?.name ?? String(t.plan_id), periodEnd);
   return {};
 }
 
@@ -111,10 +113,7 @@ export async function rejectTransfer(id: string, by: string | null, reason: stri
     .eq("id", id).eq("status", "pending").select("user_id,method_name");
   const t = data?.[0];
   if (!t) return { error: "هالتحويل انراجع من قبل." };
-  await admin.from("notifications").insert({
-    user_id: t.user_id, kind: "payment", title: "ما قدرنا نأكد تحويلك",
-    body: `${t.method_name}: ${reason}. تقدر ترسل الإيصال الصحيح مرة ثانية.`, link: "/app/account",
-  }).then(() => null, () => null);
+  await notifyUser(t.user_id, "payment", "ما قدرنا نأكد تحويلك", `${t.method_name}: ${reason}. تقدر ترسل الإيصال الصحيح مرة ثانية.`, "/app/account", true);
   return {};
 }
 

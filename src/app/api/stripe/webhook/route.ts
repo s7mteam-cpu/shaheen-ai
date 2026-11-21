@@ -1,4 +1,4 @@
-import { notifyUser, notifyAdmins } from "@/lib/server/notify";
+import { notifyUser, notifyAdmins, paidNotice } from "@/lib/server/notify";
 import { NextResponse } from "next/server";
 import { recordPayment } from "@/lib/server/payments";
 import type Stripe from "stripe";
@@ -76,6 +76,8 @@ export async function POST(req: Request) {
           amount: inv.amount_paid / (inv.currency === "kwd" ? 1000 : 100), currency: inv.currency === "kwd" ? "KWD" : "USD", method: "بطاقة",
           receivedOn: new Date((inv.status_transitions?.paid_at ?? inv.created) * 1000).toISOString().slice(0, 10),
         });
+        const why = inv.billing_reason;
+        await paidNotice(synced.userId, why === "subscription_create" ? "new" : why === "subscription_update" ? "change" : "renew", plan?.name ?? synced.planId);
       }
       break;
     }

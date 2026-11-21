@@ -22,3 +22,15 @@ export async function notifyAdmins(title: string, body: string, link = "/admin/c
   const { data: team } = await admin.from("profiles").select("id").in("role", ["admin", "staff"]);
   for (const t of team ?? []) await notifyUser(t.id as string, "payment", title, body, link);
 }
+
+/** «تم الاشتراك / التجديد / تغيير الباقة»: a bell message plus a mail to the customer. */
+export async function paidNotice(userId: string, what: "new" | "renew" | "change", planName: string, end?: Date | string | null) {
+  const until = end ? new Date(end).toLocaleDateString("ar-KW") : "";
+  const tail = until ? ` وتنتهي الفترة الحالية بتاريخ ${until}` : "";
+  const [title, body] = what === "new"
+    ? ["تم تفعيل اشتراكك ✓", `أهلاً فيك بشاهين. تم تفعيل باقة ${planName}${tail}. استمتع بأدواتك.`]
+    : what === "renew"
+      ? ["تم تجديد اشتراكك ✓", `تم تجديد باقة ${planName}${tail}. شكراً لثقتك.`]
+      : ["تم تغيير باقتك ✓", `صارت باقتك الحالية ${planName}${tail}.`];
+  await notifyUser(userId, "payment", title, body, "/app/account", true);
+}

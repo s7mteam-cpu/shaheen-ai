@@ -2,6 +2,7 @@ import { managedPackage } from "@/lib/managed";
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordPayment } from "@/lib/server/payments";
+import { notifyUser, paidNotice } from "@/lib/server/notify";
 import { createCharge, getCharge, methodOf, tapPhone, tapTestMode, tokenFromSavedCard, type TapCharge } from "@/lib/tap";
 import { getContent } from "@/lib/data";
 import { rollPrepaidMonth } from "@/lib/server/transfers";
@@ -25,8 +26,9 @@ const METHOD_AR: Record<string, string> = { KNET: "كي نت", APPLE_PAY: "Apple
 
 const addMonth = (d: Date) => { const n = new Date(d); n.setMonth(n.getMonth() + 1); return n; };
 
+/** bell message + mail to the customer (the events here are all ones he must not miss) */
 async function notify(userId: string, title: string, body: string, link: string) {
-  await createAdminClient().from("notifications").insert({ user_id: userId, kind: "payment", title, body, link }).then(() => null, () => null);
+  await notifyUser(userId, "payment", title, body, link, true);
 }
 
 /** Starts a payment and returns the Tap page to send the customer to. */
@@ -143,6 +145,7 @@ export async function processTapCharge(chargeId: string, known?: TapCharge) {
     ref: `tap:${c.id}`, source: "tap", description: `${test}${kind === "renew" ? "تجديد" : "اشتراك"} ${plan?.name ?? meta.plan_id}`,
     customerId: userId, amount: c.amount, currency: "KWD", method: METHOD_AR[method] ?? method, receivedOn: when,
   });
+  await paidNotice(userId, kind === "renew" ? "renew" : running && sub?.plan_id && sub.plan_id !== meta.plan_id ? "change" : "new", plan?.name ?? String(meta.plan_id), end);
   return { kind, status: c.status, userId };
 }
 
