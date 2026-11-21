@@ -22,6 +22,27 @@ const CSS_SIZE: Record<string, [number, number]> = { "4:5": [432, 540], "1:1": [
 /** a still post never needs code: scripts and inline handlers are dropped before the page is shown (the worker does the same before drawing) */
 const noScripts = (h: string) => h.replace(/<script\b[\s\S]*?<\/script\s*>/gi, "").replace(/<script\b[^>]*>/gi, "").replace(/\son[a-z]{3,20}\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/javascript\s*:/gi, "");
 const slideCss = (i: number, W: number, H: number) => `<style>html,body{margin:0!important;padding:0!important;width:${W}px!important;height:${H}px!important;overflow:hidden!important;background:#fff}section.slide:not([data-slide="${i}"]){display:none!important}section.slide[data-slide="${i}"]{position:fixed!important;left:0!important;top:0!important;width:${W}px!important;height:${H}px!important;margin:0!important}*,*::before,*::after{animation:none!important;transition:none!important}</style>`;
+/** what a colour is used for, in the customer's words, read from the name the design gave it in :root (--bg, --accent, --text…) */
+const COLOR_NAMES: [RegExp, string, string][] = [
+  [/shadow/, "الظل", "Shadow"], [/line|border|stroke|divider/, "الخطوط والحدود", "Lines and borders"], [/card|panel|box|bubble/, "لون البطاقات", "Cards"],
+  [/(bg|background|surface|base|paper)[-_]?(2|alt|soft|light|dark|deep|sec)/, "الخلفية الثانية", "Second background"], [/bg|background|surface|base|paper/, "الخلفية", "Background"],
+  [/(text|ink|fg|title|heading|font)[-_]?(2|soft|muted|light|sub|sec)|muted|subtle/, "لون النص الخفيف", "Soft text"], [/text|ink|fg|title|heading|font/, "لون النص", "Text"],
+  [/accent|highlight|cta|pop|gold/, "اللون المميّز", "Accent"], [/primary|main|brand/, "اللون الأساسي", "Main colour"], [/second/, "اللون الثانوي", "Second colour"],
+  [/dark|deep|night/, "اللون الغامق", "Dark"], [/light|cream|white|pale/, "اللون الفاتح", "Light"],
+];
+function colorLabels(html: string, colors: string[]): Record<string, [string, string]> {
+  const names = new Map<string, string>();
+  for (const m of html.matchAll(/--([a-z0-9_-]{1,30})\s*:\s*(#[0-9a-f]{6})\b/gi)) if (!names.has(m[2].toLowerCase())) names.set(m[2].toLowerCase(), m[1].toLowerCase());
+  const used = new Map<string, number>(); const out: Record<string, [string, string]> = {};
+  colors.forEach((c, i) => {
+    const v = names.get(c) ?? "";
+    const hit = v ? COLOR_NAMES.find(([re]) => re.test(v)) : undefined;
+    const [ar, en] = hit ? [hit[1], hit[2]] : [`لون ${i + 1}`, `Colour ${i + 1}`];
+    const k = (used.get(ar) ?? 0) + 1; used.set(ar, k);
+    out[c] = k > 1 ? [`${ar} ${k}`, `${en} ${k}`] : [ar, en];
+  });
+  return out;
+}
 const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text-[15px] font-bold text-navy-900">{children}</h3>;
 
 /** «استوديو البوست المبتكر»: edit the texts, colours and font, put / move the logo, move / resize / hide any element by hand. Saving is free: the same design is drawn again. */
@@ -71,6 +92,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
     return fields.filter((f) => here.has(f.value));
   }, [raw, fields, slide, data.slides]);
   const colors = useMemo(() => (raw ? extractColors(raw) : []), [raw]);
+  const colorName = useMemo(() => (raw ? colorLabels(raw, colors) : {}), [raw, colors]);
   // start from the design as it was last saved (texts, colours, font, moved elements)
   useEffect(() => {
     if (!raw) return;
@@ -209,9 +231,9 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
             <Sub>{L("الألوان")}</Sub>
             <div className="flex flex-wrap gap-3">
               {colors.map((c) => (
-                <label key={c} className="flex items-center gap-2 rounded-xl border border-line px-2 py-1.5 text-[12px] text-subtle" dir="ltr">
-                  <input type="color" value={hex[c] ?? c} onChange={(e) => { setHex((p) => ({ ...p, [c]: e.target.value })); touch(); }} className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0" aria-label={`${L("لون")} ${c}`} />
-                  {(hex[c] ?? c).toUpperCase()}
+                <label key={c} className="flex items-center gap-2 rounded-xl border border-line px-2.5 py-1.5 text-[13px] font-semibold text-navy-900">
+                  <input type="color" value={hex[c] ?? c} onChange={(e) => { setHex((p) => ({ ...p, [c]: e.target.value })); touch(); }} className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0" aria-label={LT(colorName[c]?.[0] ?? "لون", colorName[c]?.[1] ?? "Colour")} />
+                  {LT(colorName[c]?.[0] ?? "لون", colorName[c]?.[1] ?? "Colour")}
                 </label>
               ))}
             </div>
