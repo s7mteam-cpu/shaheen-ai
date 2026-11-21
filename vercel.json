@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/weekly-posts",
       "schedule": "30 6 * * 6"
+    },
+    {
+      "path": "/api/cron/retention",
+      "schedule": "20 2 * * *"
     }
   ]
 }

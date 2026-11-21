@@ -1,5 +1,6 @@
 "use client";
 import { L, LT } from "@/lib/i18n/ui";
+import { RetentionNote } from "@/components/app/RetentionNote";
 /* eslint-disable @next/next/no-img-element */
 import "@fontsource/tajawal/arabic-500.css";
 import "@fontsource/tajawal/arabic-800.css";
@@ -101,6 +102,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
             <h2 className="text-[22px] font-bold text-emerald-900">{L("✓ الفيديو جاهز")}</h2>
             <video src={render.url} controls playsInline className="max-h-[60vh] w-full rounded-2xl bg-black" />
             <a href={render.url} download className="btn btn-gold w-full py-3.5">{L("⬇️ تحميل الفيديو")}</a>
+            <RetentionNote />
           </>
         ) : render.status === "failed" ? (
           <p className="font-semibold text-red-800">{L("ما نجح التصدير، ورجّعنا لك الريش. حاول مرة ثانية.")}</p>

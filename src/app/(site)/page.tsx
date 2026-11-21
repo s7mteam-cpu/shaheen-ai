@@ -14,6 +14,7 @@ import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
 import { LazyVideo } from "@/components/LazyVideo";
+import { cleanRetention } from "@/lib/retention";
 
 export const revalidate = 60;
 
@@ -32,6 +33,7 @@ export default async function Home() {
 
   const isBiz = (p: { id: string }) => p.id.startsWith("biz-");
   const ind = plans.filter((p) => !isBiz(p)), biz = plans.filter(isBiz);
+  const keepFiles = cleanRetention((content as unknown as { retention?: unknown }).retention);
   const renderPlan = (p: (typeof plans)[number]) => (
               <div key={p.id} className={p.is_featured
                 ? "relative flex flex-col gap-5 rounded-3xl border-2 border-gold-500 bg-navy-800 p-8 text-white"
@@ -192,7 +194,7 @@ export default async function Home() {
       {/* Pricing */}
       <section id="pricing">
         <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24">
-          <div className="text-center"><h2 className="text-3xl font-bold text-navy-900 md:text-4xl">{c.pricing.title}</h2><p className="mt-2.5 text-[17px] text-muted">{c.pricing.subtitle}</p></div>
+          <div className="text-center"><h2 className="text-3xl font-bold text-navy-900 md:text-4xl">{c.pricing.title}</h2><p className="mt-2.5 text-[17px] text-muted">{c.pricing.subtitle}</p>{keepFiles.enabled && <p className="mt-2 text-[13.5px] text-subtle">🕒 {T(`حفظ الأعمال: ${keepFiles.days} يوماً من تاريخ إنشائها ثم تُحذف تلقائياً، ونرسل لك تنبيهاً قبل الحذف.`, `Your files are kept for ${keepFiles.days} days after they are made, then deleted automatically, and we warn you before.`)}</p>}</div>
           {biz.length ? (
             <PricingTabs
               labels={{ ind: T("اشتراك الأفراد", "Individual plans"), biz: T("اشتراك الشركات", "Business plans"), indSub: T("لصنّاع المحتوى وأصحاب المشاريع الصغيرة", "For creators and small businesses"), bizSub: T("للشركات والوكالات والفرق", "For companies and agencies"), from: T("ابتداءً من", "From"), all: T("عرض جميع الاشتراكات", "Show all plans"), hide: T("إخفاء الاشتراكات", "Hide plans"), count: [ind.length, biz.length] }}

@@ -6,7 +6,7 @@ import { Progress } from "@/components/app/Progress";
 import { Icon } from "@/components/Icon";
 
 export type WorkFile = { url: string; type: string; caption?: string };
-export type Work = { id: string; title: string | null; tool_id: string; toolName: string; status: string; created_at: string; files: WorkFile[]; error?: string | null; progress?: number; plan?: { day: string; date: string; format: string } };
+export type Work = { id: string; title: string | null; tool_id: string; toolName: string; status: string; created_at: string; files: WorkFile[]; error?: string | null; progress?: number; plan?: { day: string; date: string; format: string }; expired?: boolean; daysLeft?: number };
 
 export function Media({ f, className = "" }: { f: WorkFile; className?: string }) {
   if (f.type.startsWith("video")) return <video src={f.url} controls playsInline preload="none" className={`w-full bg-black ${className}`} />;
@@ -47,16 +47,17 @@ export function WorkCard({ w: initial, onDelete }: { w: Work; onDelete?: (id: st
   return (
     <article className="card flex flex-col overflow-hidden">
       <div className="relative aspect-square bg-tint">
-        {first ? <Media f={first} className="h-full" /> : pending ? <div className="flex h-full items-center p-5"><Progress value={w.progress ?? 0} label={w.status === "queued" && !w.progress ? L("في الطابور…") : L("جاري المعالجة…")} /></div> : <div className="flex h-full items-center justify-center text-sm text-subtle">{L(label)}…</div>}
+        {w.expired ? <div className="flex h-full flex-col items-center justify-center gap-2 p-5 text-center text-sm text-subtle"><span className="text-[34px]" aria-hidden>🕒</span>{L("انتهت مدة حفظ هذا الملف وتم حذفه")}</div> : first ? <Media f={first} className="h-full" /> : pending ? <div className="flex h-full items-center p-5"><Progress value={w.progress ?? 0} label={w.status === "queued" && !w.progress ? L("في الطابور…") : L("جاري المعالجة…")} /></div> : <div className="flex h-full items-center justify-center text-sm text-subtle">{L(label)}…</div>}
         <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold ${cls}`}>{L(label)}</span>
       </div>
       <div className="flex flex-col gap-1.5 p-3.5">
         {w.plan && <span className="w-fit rounded-full bg-gold-100 px-2.5 py-0.5 text-[12px] font-bold text-navy-900">📅 {w.plan.day} {w.plan.date}</span>}
         <h3 className="line-clamp-1 text-[15px] font-bold text-navy-900">{w.title || w.toolName}</h3>
         <span className="text-[13px] text-subtle">{w.toolName} · {new Date(w.created_at).toLocaleDateString(LT("ar-KW", "en-GB"))}{w.files.length > 1 ? LT(` · ${w.files.length} ملفات`, ` · ${w.files.length} files`) : ""}</span>
+        {w.daysLeft !== undefined && <span className={`w-fit rounded-full px-2.5 py-0.5 text-[12px] font-bold ${w.daysLeft <= 7 ? "bg-red-50 text-red-800" : "bg-tint text-navy-700"}`}>🕒 {w.daysLeft <= 0 ? L("بيتحذف قريباً") : LT(`يتبقى ${w.daysLeft} يوم`, `${w.daysLeft} days left`)}</span>}
         <div className="mt-1.5 flex gap-1.5">
           {first && <a href={first.url} download className="btn btn-primary flex-1 py-2 text-[13px]"><Icon name="download" size={14} />{L("تحميل")}</a>}
-          {w.status === "failed"
+          {w.expired ? null : w.status === "failed"
             ? <Link href={`/app/tools/${w.tool_id}`} className="btn btn-outline flex-1 py-2 text-[13px] font-semibold">{L("جرّب من جديد")}</Link>
             : <Link href={`/app/tools/${w.tool_id}?job=${w.id}`} className="btn btn-outline flex-1 py-2 text-[13px] font-semibold">{L("فتح وتعديل")}</Link>}
           {onDelete && <button type="button" aria-label={L("حذف")} onClick={() => onDelete(w.id)} className="btn btn-outline px-2.5 py-2 text-red-700"><Icon name="trash" size={14} /></button>}

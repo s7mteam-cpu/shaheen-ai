@@ -1,5 +1,6 @@
 "use client";
 import { L, LT } from "@/lib/i18n/ui";
+import { RetentionNote } from "@/components/app/RetentionNote";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -26,6 +27,7 @@ export function ReopenCard({ jobId, url, cost, toolId }: { jobId: string; url?: 
         {url && <a href={url} download className="btn btn-gold flex-1 py-3">{L("⬇️ تحميل")}</a>}
         <button type="button" disabled={busy} onClick={reopen} className="btn btn-primary flex-1 py-3">{busy ? L("جاري الفتح…") : LT(`✏️ عدّل الفيديو (${cost} ريشة)`, `✏️ Edit video (${cost} credits)`)}</button>
       </div>
+      <RetentionNote />
       <p className="text-[13px] text-subtle">{L("يرجع الفيديو للاستوديو بكل تعديلاتك، تعدّل اللي تبيه وتصدّره من جديد.")}</p>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
       <Link href={`/app/tools/${toolId}`} className="text-[14px] text-navy-700 underline">{L("إنشاء فيديو جديد")}</Link>

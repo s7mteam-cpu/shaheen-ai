@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 import { L, LT } from "@/lib/i18n/ui";
+import { RetentionNote } from "@/components/app/RetentionNote";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/app/Collapse";
@@ -390,6 +391,7 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId
             <a href={data.downloadUrl} download className="btn btn-gold px-5 py-2.5">⬇ {L("نزّل الفيديو الجاهز")}</a>
             <Link href="/app/tools/free-motion" className="btn btn-outline px-5 py-2.5">{L("تصميم جديد")}</Link>
           </div>
+          <RetentionNote />
           <details className="rounded-xl border border-line p-3 text-[13px]"><summary className="cursor-pointer font-semibold text-subtle">{L("الفيديو المرسوم (آخر نسخة محفوظة)")}</summary><video src={data.videoUrl} controls playsInline className="mx-auto mt-3 max-h-[60vh] w-full max-w-sm rounded-xl bg-black" /></details>
         </div>
         </div>

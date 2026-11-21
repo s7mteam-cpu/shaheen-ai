@@ -1,5 +1,6 @@
 "use client";
 import { L } from "@/lib/i18n/ui";
+import { RetentionNote } from "@/components/app/RetentionNote";
 import Link from "next/link";
 import { useState } from "react";
 import { Progress } from "@/components/app/Progress";
@@ -24,6 +25,7 @@ export function FreeSent({ data, busy, editCost, balance, onUnlock }: { data: St
           <h2 className="text-[22px] font-bold text-emerald-900">{L("✓ الفيديو جاهز")}</h2>
           <video src={data.exportUrl} controls playsInline className="max-h-[60vh] w-full rounded-2xl bg-black" />
           <a href={data.exportUrl} download className="btn btn-gold w-full py-3.5">{L("⬇️ تحميل الفيديو")}</a>
+          <RetentionNote />
         </>
       )}
       {err && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{err}</p>}

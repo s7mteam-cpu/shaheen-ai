@@ -1,5 +1,6 @@
 "use client";
 import { voiceDialects } from "@/lib/voiceMatch";
+import { RetentionNote } from "@/components/app/RetentionNote";
 import { myDialect } from "@/lib/countries";
 import { IndustryPicker } from "@/components/app/IndustryPicker";
 import { L, LT } from "@/lib/i18n/ui";
@@ -289,6 +290,8 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
           )}
           {job?.status === "failed" && <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{L("ما نجح الطلب، ورجّعنا لك الريش. جرّب مرة ثانية أو عدّل الوصف.")}</p>}
           {job?.status === "done" && (
+            <div>
+            <RetentionNote className="mb-2" />
             <div className="grid gap-3 sm:grid-cols-2">
               {job.files.map((f, i) => (
                 <figure key={i} className="overflow-hidden rounded-2xl border border-line">
@@ -319,6 +322,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
                   )}
                 </figure>
               ))}
+            </div>
             </div>
           )}
           <p className="text-[13px] text-subtle">{L("كل النتائج تُحفظ تلقائياً في أعمالي.")}</p>

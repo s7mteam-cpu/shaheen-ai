@@ -18,7 +18,7 @@ export default async function Jobs({ searchParams }: { searchParams: Promise<{ s
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-[26px] font-bold text-navy-900">{L("الطلبات")}</h1>
-      <div className="flex flex-wrap gap-2">{[["", L("الكل")], ["failed", L("الفاشلة")], ["running", L("قيد التنفيذ")], ["queued", L("في الانتظار")], ["done", L("الجاهزة")]].map(([v, l]) => <Link key={v} href={v ? `/admin/jobs?s=${v}` : "/admin/jobs"} aria-pressed={s === v} className="chip">{l}</Link>)}</div>
+      <div className="flex flex-wrap gap-2"><Link href="/admin/jobs/retention" className="chip">{L("🕒 مدة حفظ الملفات")}</Link>{[["", L("الكل")], ["failed", L("الفاشلة")], ["running", L("قيد التنفيذ")], ["queued", L("في الانتظار")], ["done", L("الجاهزة")]].map(([v, l]) => <Link key={v} href={v ? `/admin/jobs?s=${v}` : "/admin/jobs"} aria-pressed={s === v} className="chip">{l}</Link>)}</div>
       <section className="card overflow-x-auto p-2">
         <table className="w-full min-w-[760px] text-sm">
           <thead><tr className="text-right text-[13px] text-subtle"><th className="p-3 font-semibold">{L("التاريخ")}</th><th className="p-3 font-semibold">{L("العميل")}</th><th className="p-3 font-semibold">{L("الأداة")}</th><th className="p-3 font-semibold">{L("الحالة")}</th><th className="p-3 font-semibold">{L("الريش")}</th><th className="p-3 font-semibold">{L("الخطأ")}</th><th className="p-3"><span className="sr-only">{L("إجراء")}</span></th></tr></thead>

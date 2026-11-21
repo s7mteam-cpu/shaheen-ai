@@ -1,5 +1,6 @@
 "use client";
 import { L, LT } from "@/lib/i18n/ui";
+import { RetentionNote } from "@/components/app/RetentionNote";
 import { Card } from "@/components/app/Collapse";
 import "@fontsource/amiri-quran/arabic-400.css";
 import "@fontsource/amiri/arabic-400.css";
@@ -120,6 +121,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
             <h2 className="text-[22px] font-bold text-emerald-900">{L("✓ الفيديو جاهز")}</h2>
             <video src={job.url} controls playsInline className="max-h-[60vh] w-full rounded-2xl bg-black" />
             <a href={job.url} download className="btn btn-gold w-full py-3.5">{L("⬇️ تحميل الفيديو")}</a>
+            <RetentionNote />
             <button type="button" onClick={() => setJob(null)} className="btn border border-line bg-white px-6 py-3">{L("فيديو قرآني جديد")}</button>
           </>
         ) : job.status === "failed" ? (
