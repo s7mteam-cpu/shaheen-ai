@@ -44,6 +44,8 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
   const [selEl, setSelEl] = useState<{ sel: string; text: string } | null>(null);
   const [doc, setDoc] = useState<string | null>(null);
   const [rev, setRev] = useState(0);
+  const [front, setFront] = useState(0); // the page on screen; a newer one loads behind it and takes its place when ready
+  const [pages, setPages] = useState<{ rev: number; html: string }[]>([]);
   const [fontCss, setFontCss] = useState<Record<string, string>>({});
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
@@ -58,7 +60,16 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
     fetch(data.htmlUrl).then((r) => (r.ok ? r.text() : Promise.reject())).then((x) => { if (!dead) setRaw(applyLogo(noScripts(x), null)); }).catch(() => { if (!dead) setLoadErr(true); });
     return () => { dead = true; };
   }, [data.htmlUrl]);
-  const fields = useMemo(() => (raw ? extractTexts(raw) : []), [raw]);
+  const fields = useMemo(() => (raw ? extractTexts(raw, 200) : []), [raw]);
+  // the texts of the slide on screen only (editing a text of another slide would change nothing you can see)
+  const slideFields = useMemo(() => {
+    if (!raw || data.slides <= 1) return fields;
+    const starts = [...raw.matchAll(/<section\b[^>]*\bdata-slide\s*=\s*["']?(\d{1,2})/gi)].map((m) => ({ n: Number(m[1]), at: m.index ?? 0 })).sort((a, b) => a.at - b.at);
+    const i = starts.findIndex((x) => x.n === slide);
+    if (i < 0) return fields;
+    const here = new Set(extractTexts(raw.slice(starts[i].at, starts[i + 1]?.at ?? raw.length), 200).map((f) => f.value));
+    return fields.filter((f) => here.has(f.value));
+  }, [raw, fields, slide, data.slides]);
   const colors = useMemo(() => (raw ? extractColors(raw) : []), [raw]);
   // start from the design as it was last saved (texts, colours, font, moved elements)
   useEffect(() => {
@@ -93,19 +104,23 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
         const extra = (fontCss[font] ? `<style>${fontCss[font]}</style>` : "") + slideCss(slide, PW, PH);
         setDoc(/<\/head>/i.test(p) ? p.replace(/<\/head>/i, extra + "</head>") : extra + p); setRev((x) => x + 1);
       } catch { setError(L("تعذّر تطبيق التعديل")); }
-    }, 250);
+    }, 180);
     return () => clearTimeout(id);
   }, [raw, vals, hex, font, logo, logoSrc, fontCss, elList, slide, PW, PH]);
-  const srcDoc = useMemo(() => (doc ? withClock(doc, 0, false, 1) : null), [doc]);
+  useEffect(() => { if (doc) setPages((p) => [...p.filter((x) => x.rev === front), { rev, html: withClock(doc, 0, false, 1) }].slice(-2)); }, [doc, rev]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = (r: number, el: HTMLIFrameElement | null) => { if (r === (front || pages[0]?.rev)) iframe.current = el ?? iframe.current; };
+  const ready = (r: number, el: HTMLIFrameElement) => { if (r < front) return; iframe.current = el; setFront(r); setPages((p) => p.filter((x) => x.rev >= r)); setTimeout(() => sendPickRef.current(), 0); };
 
   // choosing and dragging an element inside the sealed preview
   const pickRef = useRef({ pick, els, sel: selEl?.sel ?? "" }); pickRef.current = { pick, els, sel: selEl?.sel ?? "" };
   const sendPick = useCallback(() => { const p = pickRef.current; iframe.current?.contentWindow?.postMessage({ type: "pick", on: p.pick, sel: p.sel, bases: Object.fromEntries(Object.entries(p.els).map(([k, e]) => [k, { x: e.x, y: e.y }])) }, "*"); }, []);
+  const sendPickRef = useRef(sendPick); sendPickRef.current = sendPick;
   useEffect(() => { sendPick(); }, [pick, selEl?.sel, sendPick]);
   useEffect(() => {
     const on = (e: MessageEvent) => {
       if (e.source !== iframe.current?.contentWindow) return;
       const m = (e.data ?? {}) as { type?: string; sel?: string; text?: string; x?: number; y?: number };
+      if (!m || typeof m !== "object") return;
       if (m.type === "ready") { sendPick(); return; }
       if (m.type === "picked" && typeof m.sel === "string") { setSelEl({ sel: m.sel, text: String(m.text ?? "") }); return; }
       if (m.type === "moved" && typeof m.sel === "string") { const k = m.sel, x = Math.round(Number(m.x) || 0), y = Math.round(Number(m.y) || 0); setEls((p) => ({ ...p, [k]: { ...(p[k] ?? { s: 1 }), x, y } })); touch(); }
@@ -145,9 +160,9 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
             </div>
           )}
           <div ref={box} dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-2xl border border-line bg-white shadow-lg" style={{ aspectRatio: `${PW} / ${PH}` }}>
-            {srcDoc && !loadErr ? <>
-              <iframe key={`r${rev}`} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={srcDoc} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${scale})`, transformOrigin: "0 0" }} />
-              {logo && !pick && <div className="absolute inset-0"><LogoDrag box={logo.box} onChange={(b) => { setLogo((p) => (p ? { ...p, box: b } : p)); touch(); }} /></div>}
+            {pages.length && !loadErr ? <>
+              {pages.map((pg) => <iframe key={pg.rev} ref={(el) => shown(pg.rev, el)} onLoad={(e) => ready(pg.rev, e.currentTarget)} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={pg.html} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${scale})`, transformOrigin: "0 0", zIndex: pg.rev === (front || pages[0].rev) ? 2 : 1, visibility: pg.rev === (front || pages[0].rev) || pages.length === 1 ? "visible" : "hidden" }} />)}
+              {logo && !pick && <div className="absolute inset-0 z-10"><LogoDrag box={logo.box} onChange={(b) => { setLogo((p) => (p ? { ...p, box: b } : p)); touch(); }} /></div>}
             </> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-subtle">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
           </div>
           <div className={`rounded-2xl border p-3 ${pick ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}>
@@ -180,8 +195,9 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
         <div className="flex min-w-0 flex-col gap-5">
           <section className="card flex flex-col gap-3 p-5">
             <Sub>{L("النصوص")}</Sub>
-            {fields.length === 0 && <p className="text-[13px] text-subtle">{L("ما لقينا نصوص قابلة للتعديل.")}</p>}
-            {fields.map((f) => (
+            {data.slides > 1 && <p className="text-[12.5px] text-subtle">{LT(`نصوص الشريحة ${slide}. بدّل الشريحة من فوق المعاينة لتعديل غيرها.`, `Texts of slide ${slide}. Switch slides above the preview to edit the others.`)}</p>}
+            {slideFields.length === 0 && <p className="text-[13px] text-subtle">{L("ما لقينا نصوص قابلة للتعديل.")}</p>}
+            {slideFields.map((f) => (
               <div key={f.key} className="flex flex-col gap-1">
                 {(vals[f.key] ?? f.value).length > 60
                   ? <textarea value={vals[f.key] ?? ""} maxLength={300} rows={2} onChange={(e) => { setVals((p) => ({ ...p, [f.key]: e.target.value })); touch(); }} className="field" aria-label={f.label} />

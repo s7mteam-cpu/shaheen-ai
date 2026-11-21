@@ -18,7 +18,7 @@ type Edits = { texts: Record<string, string>; hex: Record<string, string>; font?
 function cleanEdits(raw: unknown, userId: string): Edits {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const texts: Record<string, string> = {};
-  for (const [k, v] of Object.entries((o.texts && typeof o.texts === "object" ? o.texts : {}) as Record<string, unknown>).slice(0, 80)) if (/^t\d{1,3}$/.test(k) && typeof v === "string") texts[k] = v.replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
+  for (const [k, v] of Object.entries((o.texts && typeof o.texts === "object" ? o.texts : {}) as Record<string, unknown>).slice(0, 220)) if (/^t\d{1,3}$/.test(k) && typeof v === "string") texts[k] = v.replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
   const hex: Record<string, string> = {};
   for (const [k, v] of Object.entries((o.hex && typeof o.hex === "object" ? o.hex : {}) as Record<string, unknown>).slice(0, 16)) if (/^#[0-9a-f]{6}$/i.test(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) hex[k.toLowerCase()] = v.toLowerCase();
   const lg = (o.logo && typeof o.logo === "object" ? o.logo : null) as Record<string, unknown> | null;
