@@ -1,3 +1,4 @@
+import { notifyUser } from "@/lib/server/notify";
 import { NextResponse } from "next/server";
 import { recordPayment } from "@/lib/server/payments";
 import type Stripe from "stripe";
@@ -68,6 +69,7 @@ export async function POST(req: Request) {
       const synced = await syncSubscription(await stripe().subscriptions.retrieve(String(subId)));
       if (synced?.planId && inv.amount_paid > 0) {
         await admin.rpc("renew_credits", { p_user: synced.userId, p_plan: synced.planId, p_invoice: inv.id });
+        await notifyUser(synced.userId, "info", "تم تجديد اشتراكك ✅", "انسحب الاشتراك ونزلت ريشك الشهرية. استمتع بكل الأدوات.");
         // Finance: every paid invoice becomes an income line (once), and the admins get notified.
         const { data: plan } = await admin.from("plans").select("name").eq("id", synced.planId).maybeSingle();
         await recordPayment({
@@ -84,7 +86,20 @@ export async function POST(req: Request) {
       const obj = event.data.object as Stripe.Subscription | Stripe.Invoice;
       const subId = obj.object === "subscription" ? obj.id
         : ((obj as unknown as { subscription?: string }).subscription ?? (obj as Stripe.Invoice).parent?.subscription_details?.subscription);
-      if (subId) await syncSubscription(await stripe().subscriptions.retrieve(String(subId)));
+      if (subId) {
+        const sub = await stripe().subscriptions.retrieve(String(subId));
+        const r = await syncSubscription(sub);
+        if (r?.userId) {
+          const end = (sub.items.data[0]?.current_period_end ?? (sub as unknown as { current_period_end?: number }).current_period_end);
+          const endTxt = end ? new Date(end * 1000).toLocaleDateString("ar-KW") : "";
+          if (event.type === "invoice.payment_failed" || sub.status === "past_due")
+            await notifyUser(r.userId, "payment", "تعذّر سحب اشتراكك ⚠️", "ما انسحب مبلغ الاشتراك من بطاقتك. حدّث بطاقتك أو جدّد الاشتراك عشان ما يتوقف حسابك.");
+          else if (event.type === "customer.subscription.deleted" || sub.status === "canceled")
+            await notifyUser(r.userId, "payment", "انتهى اشتراكك", "توقف اشتراكك. اختر باقة وجدّد عشان ترجع تستخدم الأدوات.");
+          else if (sub.cancel_at_period_end)
+            await notifyUser(r.userId, "payment", "اشتراكك بينتهي قريباً", `ما راح يتجدد اشتراكك${endTxt ? ` بعد ${endTxt}` : ""}. إذا تبي تكمل لا تلغي التجديد.`);
+        }
+      }
       break;
     }
   }
