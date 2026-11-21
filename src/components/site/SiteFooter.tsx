@@ -2,6 +2,22 @@ import Image from "next/image";
 import Link from "next/link";
 import type { SiteContent } from "@/lib/defaults";
 import { tr, type Lang } from "@/lib/i18n";
+import { BRANDS, type BrandId } from "@/remotion/brandIcons";
+
+/** a link or just a username → the profile link of that app */
+const PROFILE: Record<Exclude<BrandId, "whatsapp">, string> = {
+  instagram: "https://instagram.com/", tiktok: "https://www.tiktok.com/@", snapchat: "https://www.snapchat.com/add/", x: "https://x.com/",
+  youtube: "https://www.youtube.com/@", facebook: "https://facebook.com/", telegram: "https://t.me/", threads: "https://www.threads.net/@", pinterest: "https://pinterest.com/",
+};
+/** each app in its own colours: coloured circle + white logo (white circle for the black ones, black logo on the yellow of Snapchat) */
+const badge = (id: BrandId) => {
+  const hex = BRANDS[id].hex;
+  if (hex === "000000") return { bg: "#FFFFFF", fg: "#000000" };
+  if (id === "snapchat") return { bg: "#FFFC00", fg: "#000000" };
+  return { bg: `#${hex}`, fg: "#FFFFFF" };
+};
+const iconCls = "flex h-10 w-10 items-center justify-center rounded-full transition hover:scale-110 hover:shadow-lg";
+const linkOf = (id: keyof typeof PROFILE, v: string) => (/^https?:\/\//i.test(v.trim()) ? v.trim() : `${PROFILE[id]}${v.trim().replace(/^@/, "")}`);
 
 export function SiteFooter({ footer, lang = "ar" }: { footer: SiteContent["footer"]; lang?: Lang }) {
   const T = (ar: string, en: string) => tr(lang, ar, en);
@@ -20,9 +36,12 @@ export function SiteFooter({ footer, lang = "ar" }: { footer: SiteContent["foote
               {footer.whatsapp && <a href={`tel:${footer.whatsapp.replace(/[^\d+]/g, "")}`} dir="ltr" className="self-start font-latin hover:text-white">{footer.whatsapp}</a>}
               <a href={`mailto:${email}`} dir="ltr" className="self-start font-latin hover:text-white">{email}</a>
             </div>
-            <div className="flex flex-wrap gap-3 text-sm">
-              {footer.whatsapp && <a href={`https://wa.me/${footer.whatsapp.replace(/\D/g, "")}`} className="hover:text-white">{T("واتساب", "WhatsApp")}</a>}
-              {footer.instagram && <a href={`https://instagram.com/${footer.instagram.replace("@", "")}`} className="hover:text-white">{T("إنستغرام", "Instagram")}</a>}
+            <div className="flex flex-wrap gap-2.5">
+              {footer.whatsapp && <a href={`https://wa.me/${footer.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" aria-label={T("واتساب", "WhatsApp")} title={T("واتساب", "WhatsApp")} className={iconCls} style={{ background: badge("whatsapp").bg, color: badge("whatsapp").fg }}><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden><path d={BRANDS.whatsapp.path} /></svg></a>}
+              {(Object.keys(PROFILE) as (keyof typeof PROFILE)[]).map((id) => {
+                const v = (footer as Record<string, string | undefined>)[id];
+                return v?.trim() ? <a key={id} href={linkOf(id, v)} target="_blank" rel="noopener noreferrer" aria-label={BRANDS[id].name} title={BRANDS[id].name} className={iconCls} style={{ background: badge(id).bg, color: badge(id).fg }}><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden><path d={BRANDS[id].path} /></svg></a> : null;
+              })}
             </div>
           </div>
           <nav aria-label={T("روابط الفوتر", "Footer links")} className="flex flex-wrap gap-12 text-sm">

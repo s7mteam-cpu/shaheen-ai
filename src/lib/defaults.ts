@@ -45,7 +45,7 @@ export type SiteContent = {
   pricing: { title: string; subtitle: string };
   faq: { items: { q: string; a: string }[] };
   final_cta: { title: string; subtitle: string; cta: string };
-  footer: { tagline: string; company: string; whatsapp: string; email: string; instagram: string };
+  footer: { tagline: string; company: string; whatsapp: string; email: string; instagram: string; tiktok?: string; snapchat?: string; x?: string; youtube?: string; facebook?: string; telegram?: string; threads?: string; pinterest?: string };
   legal: { updated: string; updated_en: string; refund_days: string; terms: string; terms_en: string; privacy: string; privacy_en: string; refund: string; refund_en: string; content: string; content_en: string };
   voices: { items: { id: string; name: string; note: string; google_voice?: string; gender?: string; age?: string; dialects?: string[]; model?: string }[] };
   /** Background-music library for the motion studio (royalty-free tracks you uploaded). */
@@ -115,7 +115,7 @@ export const defaultContent: SiteContent = {
     ],
   },
   final_cta: { title: "جاهز تحلّق بمحتواك؟", subtitle: "اختر باقتك واصنع أول إعلان لمشروعك اليوم.", cta: "اختر باقتك" },
-  footer: { tagline: "أدوات الذكاء الاصطناعي لصناعة المحتوى، بالعربي.", company: "[اسم الشركة والسجل التجاري]", whatsapp: "+96550993895", email: "", instagram: "" },
+  footer: { tagline: "أدوات الذكاء الاصطناعي لصناعة المحتوى، بالعربي.", company: "[اسم الشركة والسجل التجاري]", whatsapp: "+96550993895", email: "", instagram: "", tiktok: "", snapchat: "", x: "", youtube: "", facebook: "", telegram: "", threads: "", pinterest: "" },
   legal: {
     updated: "13 نوفمبر 2026", updated_en: "November 13, 2026", refund_days: "14",
     terms: TERMS_AR, terms_en: TERMS_EN, privacy: PRIVACY_AR, privacy_en: PRIVACY_EN, refund: REFUND_AR, refund_en: REFUND_EN, content: CONTENT_AR, content_en: CONTENT_EN,
