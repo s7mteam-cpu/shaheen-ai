@@ -1,7 +1,7 @@
 // «بوست / كاروسيل مبتكر»: Claude writes the design of a still post (or the slides of a carousel) as one self-contained HTML page,
 // Shaheen draws it in the same network-less browser used for videos, and saves one PNG per slide.
 // Customer text only ever reaches the model as fenced data. The page never runs scripts (they are removed before drawing).
-import { claude } from "./freegen.mjs";
+import { modelFor } from "./models.mjs";
 
 const clean = (s, n = 400) => String(s ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
 
@@ -27,6 +27,7 @@ export const POST_RULES = (W, H, n) => `أنت مدير فني ومصمم جرا
 - عمق وطبقات: خلفية بتدرّج أو نمط، أشكال هندسية كبيرة، ظلال ناعمة، عنصر بصري رئيسي مرسوم بـSVG يخدم الفكرة.
 - تباين عالٍ بين النص والخلفية، ومساحات فاضية مريحة، ومحاذاة دقيقة.
 ${n > 1 ? `- الكاروسيل: الشريحة 1 غلاف يشدّ (هوك)، الشرائح الوسطى كل وحدة فكرة واحدة بعنوان قصير ونقاط قليلة، والأخيرة دعوة لاتخاذ إجراء. نفس الهوية بكل الشرائح مع تنويع التكوين، ورقم الشريحة صغير بزاوية (1 و2 و3 بدون صفر).` : ""}
+- اكتب الكود مختصرًا ومنظمًا: <style> واحد مشترك بأصناف (classes) يعاد استخدامها بكل الشرائح، أسماء أصناف قصيرة، رسومات SVG بسيطة (أشكال قليلة بدون مسارات طويلة)، بدون تعليقات وبدون تكرار أنماط داخل العناصر. ${n > 1 ? `الملف كله أقل من ${Math.min(60, 14 + n * 6)} ألف حرف.` : "الملف كله أقل من 18 ألف حرف."}
 - اترك الزاوية العلوية اليسرى (مربع تقريبًا 22% من العرض) فاضية من النصوص: المنصة تحط فيها شعار العميل إذا عنده.`;
 
 export function postPrompt({ idea, n, brand, identity, retry }) {
@@ -79,11 +80,42 @@ export function onlySlide(html, i, W, H) {
   return /<\/head>/i.test(html) ? html.replace(/<\/head>/i, css + "</head>") : css + html;
 }
 
+/** One streamed request to Claude: a long design arrives in pieces, so it never hits the «waiting for the answer» limit, and we know if it was cut off. */
+async function ask({ system, user, maxTokens }) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", signal: AbortSignal.timeout(600_000),
+    headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: await modelFor("claude-sonnet-5-5"), max_tokens: maxTokens, stream: true, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages: [{ role: "user", content: user }] }),
+  });
+  if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  let text = "", stop = "", buf = "";
+  const dec = new TextDecoder();
+  for await (const chunk of res.body) {
+    buf += dec.decode(chunk, { stream: true });
+    let i;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (!line.startsWith("data:")) continue;
+      let j; try { j = JSON.parse(line.slice(5)); } catch { continue; }
+      if (j.type === "content_block_delta" && j.delta?.type === "text_delta") text += j.delta.text ?? "";
+      else if (j.type === "message_delta" && j.delta?.stop_reason) stop = j.delta.stop_reason;
+      else if (j.type === "error") throw new Error(`claude: ${String(j.error?.message ?? "stream error").slice(0, 160)}`);
+      if (text.length > 400_000) throw new Error("claude: الرد أطول من المسموح");
+    }
+  }
+  return { text, cut: stop === "max_tokens" };
+}
+/** room for the answer: a base for the shared styles plus a share per slide */
+const budget = (n) => Math.min(48000, 9000 + n * 5500);
+export const CUT_NOTE = "The answer was cut off before the page ended. Write the SAME design much more compactly: one shared <style> with reusable classes, short class names, simpler SVG (few shapes, no long paths), no repeated inline styles, no comments.";
+
 export async function writePost({ idea, n, W, H, brand, identity, retry }) {
-  const r = await claude({ system: POST_RULES(W, H, n), user: postPrompt({ idea, n, brand, identity, retry }), maxTokens: n > 1 ? 24000 : 12000, model: "claude-sonnet-5-5", signal: AbortSignal.timeout(280_000) });
-  return extractHtml(r);
+  const r = await ask({ system: POST_RULES(W, H, n), user: postPrompt({ idea, n, brand, identity, retry }), maxTokens: budget(n) });
+  if (r.cut) { const e = new Error("CUT"); e.cut = true; throw e; }
+  return extractHtml(r.text);
 }
 export async function editPost({ html, instruction, n, W, H, retry }) {
-  const r = await claude({ system: POST_EDIT_RULES(W, H, n), user: `تعليمة العميل (وصف للتعديل فقط):\n"""\n${clean(instruction, 600)}\n"""${retry ? `\n\nالمحاولة السابقة انرفضت: ${retry}` : ""}\n\nالصفحة الحالية:\n\`\`\`html\n${html}\n\`\`\``, maxTokens: n > 1 ? 24000 : 12000, model: "claude-sonnet-5-5", signal: AbortSignal.timeout(280_000) });
-  return extractHtml(r);
+  const r = await ask({ system: POST_EDIT_RULES(W, H, n), user: `تعليمة العميل (وصف للتعديل فقط):\n"""\n${clean(instruction, 600)}\n"""${retry ? `\n\nالمحاولة السابقة انرفضت: ${retry}` : ""}\n\nالصفحة الحالية:\n\`\`\`html\n${html}\n\`\`\``, maxTokens: budget(n) });
+  if (r.cut) { const e = new Error("CUT"); e.cut = true; throw e; }
+  return extractHtml(r.text);
 }

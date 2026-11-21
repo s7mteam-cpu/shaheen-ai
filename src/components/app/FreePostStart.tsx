@@ -58,7 +58,7 @@ export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: 
         <div className="card mx-auto flex w-full max-w-xl flex-col items-center gap-4 p-8 text-center">
           <h2 className="text-[20px] font-bold text-navy-900">{L("شاهين يصمّم لك…")}</h2>
           <div className="w-full"><Progress value={state?.progress ?? 0} label={state?.status === "running" ? L("يكتب التصميم ويرسمه…") : L("في الطابور…")} /></div>
-          <p className="text-[13px] leading-6 text-subtle">{L("ياخذ من دقيقة إلى 3 دقائق. تقدر تطلع، وتلقاه في «أعمالي».")}</p>
+          <p className="text-[13px] leading-6 text-subtle">{carousel ? L("الكاروسيل ياخذ من 3 إلى 7 دقائق حسب عدد الشرائح. تقدر تطلع، وتلقاه في «أعمالي».") : L("ياخذ من دقيقة إلى 3 دقائق. تقدر تطلع، وتلقاه في «أعمالي».")}</p>
         </div>
       );
     }
