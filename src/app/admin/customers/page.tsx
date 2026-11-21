@@ -24,6 +24,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   const { data: allPlans } = await admin.from("plans").select("id,name,is_active").order("sort_order");
   if (plan === "hidden") { const ids = (allPlans ?? []).filter((x) => !x.is_active).map((x) => x.id as string); query = ids.length ? query.in("plan_id", ids) : query.eq("plan_id", "__none__"); }
   else if (plan === "active") { const ids = (allPlans ?? []).filter((x) => x.is_active).map((x) => x.id as string); query = ids.length ? query.in("plan_id", ids) : query.eq("plan_id", "__none__"); }
+  else if (plan === "managed") { const { data: inc } = await admin.from("income").select("customer_id").ilike("description", "%باقة الإدارة الكاملة%").not("customer_id", "is", null); const ids = [...new Set((inc ?? []).map((x) => x.customer_id as string))]; query = ids.length ? query.in("id", ids) : query.eq("id", "00000000-0000-0000-0000-000000000000"); }
   else if (plan) query = query.eq("plan_id", plan);
   if (/^\d{4}-\d{2}-\d{2}$/.test(from)) query = query.gte("created_at", `${from}T00:00:00Z`);
   if (/^\d{4}-\d{2}-\d{2}$/.test(to)) query = query.lte("created_at", `${to}T23:59:59Z`);
@@ -57,7 +58,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
       <form className="card flex flex-wrap items-end gap-3 p-4">
         <input type="hidden" name="q" value={q} />
         <div className="flex flex-col gap-1"><label className="label" htmlFor="plan">{L("الباقة")}</label>
-          <select id="plan" name="plan" defaultValue={plan} className="field bg-white"><option value="">{L("كل الباقات")}</option><option value="active">{L("الباقات الحالية (الظاهرة)")}</option><option value="hidden">{L("الباقات القديمة (المخفية)")}</option>{(allPlans ?? []).map((x) => <option key={x.id as string} value={x.id as string}>{x.name as string}</option>)}</select></div>
+          <select id="plan" name="plan" defaultValue={plan} className="field bg-white"><option value="">{L("كل الباقات")}</option><option value="active">{L("الباقات الحالية (الظاهرة)")}</option><option value="hidden">{L("الباقات القديمة (المخفية)")}</option><option value="managed">{L("عملاء باقة الإدارة الكاملة")}</option>{(allPlans ?? []).map((x) => <option key={x.id as string} value={x.id as string}>{x.name as string}</option>)}</select></div>
         <div className="flex flex-col gap-1"><label className="label" htmlFor="sort">{L("الترتيب")}</label>
           <select id="sort" name="sort" defaultValue={sort} className="field bg-white"><option value="new">{L("الأحدث تسجيلاً")}</option><option value="old">{L("الأقدم تسجيلاً")}</option></select></div>
         <div className="flex flex-col gap-1"><label className="label" htmlFor="from">{L("سجّل من تاريخ")}</label><input id="from" name="from" type="date" defaultValue={from} className="field bg-white" /></div>
@@ -127,10 +128,10 @@ export default async function Customers({ searchParams }: { searchParams: Promis
                     ? <form action={resumeCustomerSub}><input type="hidden" name="user_id" value={selected.id} /><button className="btn btn-outline w-full py-2.5 text-sm">{L("رجّع التجديد")}</button></form>
                     : null}
                   <CancelSub key={`c-${selected.id}`} userId={selected.id} action={cancelCustomerSub} />
-                  <MessageCustomer key={`m-${selected.id}`} userId={selected.id} action={messageCustomer} />
                 </>
               ) : <p className="text-[13px] text-subtle">{L("ما عنده اشتراك شغّال.")}</p>}
             </div>
+            <MessageCustomer key={`m-${selected.id}`} userId={selected.id} action={messageCustomer} />
             <form action={setUserFlags} className="flex gap-2">
               <input type="hidden" name="user_id" value={selected.id} />
               <input type="hidden" name="is_suspended" value={selected.is_suspended ? "false" : "true"} />
