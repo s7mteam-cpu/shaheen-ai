@@ -138,7 +138,7 @@ async function speechReady(text) {
 async function voiceOver(text, voiceId, model = "eleven_v4", s = null) {
   const n = (v, d) => (typeof v === "number" && v >= 0 && v <= 2 ? v : d);
   const vs = s ? { stability: n(s.stability, 0.5), similarity_boost: n(s.similarity, 0.75), style: n(s.style, 0), speed: n(s.speed, 1), use_speaker_boost: s.speaker_boost ?? true } : null;
-  const call = (model) => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
+  const call = (model) => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(String(voiceId))}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "", "content-type": "application/json" },
     body: JSON.stringify({ text: speakable(text), model_id: model, ...(/^eleven_(v3|v4|flash_v2_5|turbo_v2_5)/.test(model) ? { language_code: "ar" } : {}), ...(vs ? { voice_settings: vs } : {}) }),
   });
@@ -1383,7 +1383,7 @@ async function freeJob(job) {
       let last = 0;
       await prep.video(propsOf(free.fields), outFile, (pr) => { const v = 12 + pr * 78; if (v - last >= 4) { last = v; setProgress(job.id, v); } });
       // sound + cut: voice, music, the customer's own sound, then the chosen start/end
-      const own = inp.ownAudio && inp.ownAudio.path && String(inp.ownAudio.path).startsWith(`${job.user_id}/`) ? inp.ownAudio : null;
+      const own = inp.ownAudio && inp.ownAudio.path && String(inp.ownAudio.path).startsWith(`${job.user_id}/`) && !String(inp.ownAudio.path).includes("..") ? inp.ownAudio : null;
       const tr = inp.trim && Number.isFinite(inp.trim.start) && Number.isFinite(inp.trim.end) && inp.trim.end - inp.trim.start >= 2 && (inp.trim.start > 0.05 || inp.trim.end < seconds - 0.05) ? { s: Math.max(0, inp.trim.start), e: Math.min(seconds, inp.trim.end) } : null;
       const vol = Math.max(0, Math.min(0.6, Number(inp.musicVol ?? 0.14)));
       const music = !!vo && inp.music !== false && vol > 0 && !!vo.musicPath;
