@@ -1,7 +1,7 @@
 import { guardPage } from "@/lib/server/auth";
 import { getPlans } from "@/lib/data";
 import type { Plan } from "@/lib/defaults";
-import { savePlan } from "../actions";
+import { savePlan, deletePlan } from "../actions";
 import { getL } from "@/lib/server/lang";
 import { PriceHistory } from "@/components/admin/PriceHistory";
 import { L } from "@/lib/i18n/ui";
@@ -31,20 +31,34 @@ async function PlanForm({ p, audience }: { p?: Plan; audience?: "ind" | "biz" })
   );
 }
 
+async function PlanBlock({ p, used }: { p: Plan; used: boolean }) {
+  const L = await getL();
+  return (
+    <div className="flex flex-col gap-2">
+      <PlanForm p={p} />
+      {used
+        ? <p className="text-[13px] text-subtle">{L("فيها مشتركين، ما تنحذف. لإخفائها ألغِ «ظاهرة للعملاء» واحفظ.")}</p>
+        : <form action={deletePlan}><input type="hidden" name="id" value={p.id} /><button className="text-[13px] font-semibold text-red-600 underline">{L("حذف الباقة نهائياً (ما فيها مشتركين)")}</button></form>}
+    </div>
+  );
+}
+
 export default async function PlansAdmin() {
   const L = await getL();
   await guardPage("plans");
   const plans = await getPlans(true);
+  const { data: subs } = await createAdminClient().from("subscriptions").select("plan_id");
+  const usedIds = new Set((subs ?? []).map((x) => x.plan_id as string));
   const biz = plans.filter((p) => p.id.startsWith("biz-")), ind = plans.filter((p) => !p.id.startsWith("biz-"));
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-[26px] font-bold text-navy-900">{L("الباقات")}</h1>
       <TrialCard />
       <h2 className="text-xl font-bold text-navy-900">{L("باقات الأفراد")}</h2>
-      {ind.map((p) => <PlanForm key={p.id} p={p} />)}
+      {ind.map((p) => <PlanBlock key={p.id} p={p} used={usedIds.has(p.id)} />)}
       <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة للأفراد")}</summary><div className="mt-4"><PlanForm audience="ind" /></div></details>
       <h2 className="mt-4 text-xl font-bold text-navy-900">{L("باقات الشركات")}</h2>
-      {biz.map((p) => <PlanForm key={p.id} p={p} />)}
+      {biz.map((p) => <PlanBlock key={p.id} p={p} used={usedIds.has(p.id)} />)}
       <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة للشركات")}</summary><div className="mt-4"><PlanForm audience="biz" /></div></details>
       <PriceHistory kind="plan" />
     </div>

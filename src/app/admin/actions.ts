@@ -31,6 +31,20 @@ export async function setMaintenance(on: boolean) {
   return { ok: !error, error: error?.message };
 }
 
+/** Delete a plan only when nobody ever subscribed to it; otherwise it must be hidden (the subscribers' history points at it). */
+export async function deletePlan(form: FormData) {
+  const me = await guard("plans");
+  const id = String(form.get("id") || "").trim();
+  if (!id) return;
+  const admin = createAdminClient();
+  const { count } = await admin.from("subscriptions").select("id", { count: "exact", head: true }).eq("plan_id", id);
+  if ((count ?? 0) > 0) return; // the button is only shown for unused plans, this is the safety net
+  const { data: before } = await admin.from("plans").select("name,price_kwd,credits,bonus_credits,is_active").eq("id", id).maybeSingle();
+  const { error } = await admin.from("plans").delete().eq("id", id);
+  if (!error) await recordPriceChanges("plan", id, before?.name ?? id, before, { ...(before ?? {}), is_active: false, deleted: true }, me.email);
+  refresh();
+}
+
 export async function saveTool(form: FormData) {
   const me = await guard("tools");
   const id = String(form.get("id"));
