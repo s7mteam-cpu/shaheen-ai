@@ -54,7 +54,7 @@ export default async function GeminiLab() {
       </form>
       {items.map((it) => (
         <div key={it.id} className="card grid gap-4 p-4 md:grid-cols-[220px_1fr]">
-          {it.play ? <video src={it.play} controls playsInline className="w-full rounded-xl bg-black" /> : <div className="grid h-40 place-items-center rounded-xl bg-neutral-100 text-sm text-subtle">—</div>}
+          {it.play ? <video src={it.play} controls preload="none" playsInline className="w-full rounded-xl bg-black" /> : <div className="grid h-40 place-items-center rounded-xl bg-neutral-100 text-sm text-subtle">—</div>}
           <div className="flex flex-col gap-2 text-[13px]">
             <p dir="auto" className="text-[14px] font-bold">{it.meta.idea}</p>
             <p className="text-subtle">{it.meta.plan?.title} · {it.meta.plan_mode === "full" ? "خطة كاملة" : it.meta.plan_mode === "scenes" ? "مشاهد" : "نص فقط"} · {it.meta.seconds}s · {it.meta.aspect}{it.meta.timings ? ` · ${Object.entries(it.meta.timings).map(([k, v]) => `${k} ${v}s`).join(" · ")}` : ""}</p>

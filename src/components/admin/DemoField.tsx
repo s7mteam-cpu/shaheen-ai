@@ -16,7 +16,7 @@ export function DemoField({ tool, initial, name = "demo_url" }: { tool: string; 
       const r = await fetch("/api/admin/demo-upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tool, type: file.type, size: file.size, name: file.name }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
-      const { error } = await createClient().storage.from("site").uploadToSignedUrl(d.path, d.token, file);
+      const { error } = await createClient().storage.from("site").uploadToSignedUrl(d.path, d.token, file, { cacheControl: "31536000" });
       if (error) throw new Error(L("تعذّر رفع الملف."));
       setUrl(d.url);
       setNote({ ok: L("✓ انرفع الفيديو. اضغط «حفظ» تحت عشان يطلع بالموقع.") });

@@ -25,7 +25,7 @@ export default async function GemDesigns() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((r) => (
           <div key={r.id} className="card flex flex-col gap-2 p-3">
-            {r.url && <video src={r.url} controls preload="metadata" playsInline className="max-h-72 w-full rounded-lg bg-black" />}
+            {r.url && <video src={r.url} controls preload="none" playsInline className="max-h-72 w-full rounded-lg bg-black" />}
             <p className="text-[14px] font-semibold">{r.title}</p><p className="text-[12px] text-subtle">{r.at}</p>
             <form action={templateFromGem}><input type="hidden" name="jobId" value={r.id} /><button className="btn btn-gold px-4 py-2 text-[13px]">📚 {L("حوّل لقالب")}</button></form>
           </div>

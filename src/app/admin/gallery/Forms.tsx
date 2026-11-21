@@ -31,7 +31,7 @@ export function AddShowcase() {
         const res = await fetch("/api/admin/gallery-upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: file.type, size: file.size, name: file.name }) });
         const d = await res.json();
         if (!res.ok) throw new Error(d.error);
-        const { error } = await createClient().storage.from("site").uploadToSignedUrl(d.path, d.token, file);
+        const { error } = await createClient().storage.from("site").uploadToSignedUrl(d.path, d.token, file, { cacheControl: "31536000" });
         if (error) throw new Error("تعذّر رفع الملف.");
         setFiles((f) => [...f, { url: d.url, kind: d.deck ? "deck" : d.video ? "video" : "image", name: file.name }]);
       } catch (e) { setErr(e instanceof Error ? e.message : "تعذّر رفع الملف."); }

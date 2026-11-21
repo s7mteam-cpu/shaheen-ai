@@ -114,7 +114,7 @@ async function saveToolDemo(id: string, form: FormData) {
   const upload = async (file: File, folder: string) => {
     const ext = (file.name.split(".").pop() || "bin").toLowerCase();
     const path = `${folder}/${id}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-    const { error } = await admin.storage.from("site").upload(path, file, { contentType: file.type });
+    const { error } = await admin.storage.from("site").upload(path, file, { contentType: file.type, cacheControl: "31536000" });
     return error ? null : admin.storage.from("site").getPublicUrl(path).data.publicUrl;
   };
   const patch: { demo_url?: string | null; demo_thumb?: string | null; tutorial_url?: string | null; cover_url?: string | null } = {};
@@ -171,7 +171,7 @@ export async function addGalleryItem(form: FormData) {
   if (!file || !file.size) return;
   const ext = (file.name.split(".").pop() || "bin").toLowerCase();
   const path = `gallery/${crypto.randomUUID()}.${ext}`;
-  await admin.storage.from("site").upload(path, file, { contentType: file.type });
+  await admin.storage.from("site").upload(path, file, { contentType: file.type, cacheControl: "31536000" });
   const url = admin.storage.from("site").getPublicUrl(path).data.publicUrl;
   await admin.from("gallery_items").insert({
     title: String(form.get("title") || ""),
@@ -198,7 +198,7 @@ export async function uploadSiteImage(form: FormData) {
   if (!file || !file.size) return { url: "" };
   const admin = createAdminClient();
   const path = `media/${crypto.randomUUID()}.${(file.name.split(".").pop() || "bin").toLowerCase()}`;
-  await admin.storage.from("site").upload(path, file, { contentType: file.type });
+  await admin.storage.from("site").upload(path, file, { contentType: file.type, cacheControl: "31536000" });
   return { url: admin.storage.from("site").getPublicUrl(path).data.publicUrl };
 }
 

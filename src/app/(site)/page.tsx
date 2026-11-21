@@ -13,6 +13,7 @@ import { SHOWCASE_CATS } from "@/lib/showcase";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
+import { LazyVideo } from "@/components/LazyVideo";
 
 export const revalidate = 60;
 
@@ -166,7 +167,7 @@ export default async function Home() {
                       {cover.media_type === "deck"
                         ? <DeckCover title={name[1]} />
                         : cover.media_type === "video"
-                        ? <video src={cover.media_url} className="h-full w-full object-cover" muted loop playsInline autoPlay preload="metadata" />
+                        ? <LazyVideo src={cover.media_url} className="h-full w-full object-cover" />
                         // eslint-disable-next-line @next/next/no-img-element
                         : <img src={cover.media_url} alt={name[1]} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />}
                       <span className="absolute end-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-navy-900">{works.length + (x.cat === "motion" ? templates.length : 0)}</span>

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/components/LangProvider";
 import { DeckCover } from "@/components/DeckCover";
+import { LazyVideo } from "@/components/LazyVideo";
 import { SHOWCASE_CATS, LIKE_TOOL, isVideo, type ShowcaseItem } from "@/lib/showcase";
 
 const media = (g: ShowcaseItem) => [g.media_url, ...g.extra_media];
@@ -35,7 +36,7 @@ export function ShowcaseGrid({ items, filter = false, signedIn = false, like = t
             <button key={g.id} onClick={() => setOpen(g)} className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white text-start shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
               <div className="relative aspect-[4/5] w-full overflow-hidden bg-tint">
                 {g.media_type === "deck" ? <DeckCover title={g.title} /> : vid
-                  ? <video src={g.media_url} className="h-full w-full object-cover" muted loop playsInline autoPlay preload="metadata" />
+                  ? <LazyVideo src={g.media_url} className="h-full w-full object-cover" />
                   // eslint-disable-next-line @next/next/no-img-element
                   : <img src={g.media_url} alt={g.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />}
                 <span className="absolute start-2 top-2 rounded-full bg-navy-900/75 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur">{label(g.category)}</span>

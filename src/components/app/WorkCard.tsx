@@ -9,7 +9,7 @@ export type WorkFile = { url: string; type: string; caption?: string };
 export type Work = { id: string; title: string | null; tool_id: string; toolName: string; status: string; created_at: string; files: WorkFile[]; error?: string | null; progress?: number; plan?: { day: string; date: string; format: string } };
 
 export function Media({ f, className = "" }: { f: WorkFile; className?: string }) {
-  if (f.type.startsWith("video")) return <video src={f.url} controls playsInline className={`w-full bg-black ${className}`} />;
+  if (f.type.startsWith("video")) return <video src={f.url} controls playsInline preload="none" className={`w-full bg-black ${className}`} />;
   if (f.type.startsWith("audio")) return <div className={`flex items-center bg-tint p-4 ${className}`}><audio src={f.url} controls className="w-full" /></div>;
   if (f.type && !f.type.startsWith("image")) {
     // a document (PDF, PowerPoint, Word…): a file tile instead of a broken picture

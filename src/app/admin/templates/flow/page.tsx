@@ -48,7 +48,7 @@ export default async function Flow() {
       </form>
       {items.map((it) => (
         <div key={it.id} className="card grid gap-4 p-4 md:grid-cols-[220px_1fr]">
-          {it.play ? <video src={it.play} controls playsInline className="w-full rounded-xl bg-black" /> : <div className="grid h-40 place-items-center rounded-xl bg-neutral-100 text-sm text-subtle">{it.meta.error ? "—" : "…"}</div>}
+          {it.play ? <video src={it.play} controls preload="none" playsInline className="w-full rounded-xl bg-black" /> : <div className="grid h-40 place-items-center rounded-xl bg-neutral-100 text-sm text-subtle">{it.meta.error ? "—" : "…"}</div>}
           <div className="flex flex-col gap-2 text-[13px]">
             <p dir="auto" className="text-[14px] font-bold">{it.meta.idea}</p>
             <p className="text-subtle">{L("القالب")}: {it.meta.template ?? "—"} · {INDUSTRIES.find((i) => i.id === it.meta.field)?.label ?? ""} · {it.meta.seconds ? `${it.meta.seconds}s` : ""}</p>
