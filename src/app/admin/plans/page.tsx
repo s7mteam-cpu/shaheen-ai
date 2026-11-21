@@ -1,7 +1,7 @@
 import { guardPage } from "@/lib/server/auth";
-import { getPlans } from "@/lib/data";
+import { getPlans, getContent } from "@/lib/data";
 import type { Plan } from "@/lib/defaults";
-import { savePlan, deletePlan } from "../actions";
+import { savePlan, deletePlan, saveManaged } from "../actions";
 import { getL } from "@/lib/server/lang";
 import { PriceHistory } from "@/components/admin/PriceHistory";
 import { L } from "@/lib/i18n/ui";
@@ -46,6 +46,25 @@ async function PlanBlock({ p, used, who }: { p: Plan; used: boolean; who: string
   );
 }
 
+async function ManagedForm({ ms }: { ms: Awaited<ReturnType<typeof getContent>>["managed_service"] }) {
+  const L = await getL();
+  const f = (label: string, name: string, v: string, dir?: "ltr") => <div className="flex flex-col gap-1.5"><label className="label">{label}</label><input name={name} defaultValue={v} dir={dir} className={dir ? "field text-right" : "field"} /></div>;
+  return (
+    <form action={saveManaged} className="grid gap-4 md:grid-cols-2">
+      {f(L("العنوان"), "title", ms.title)}
+      {f(L("السعر (د.ك)"), "price_kwd", ms.price_kwd)}
+      {f(L("الفترة (مثل: شهرياً)"), "period", ms.period)}
+      {f(L("نص الزر"), "cta", ms.cta)}
+      {f(L("رقم واتساب الطلبات"), "whatsapp", ms.whatsapp, "ltr")}
+      {f(L("الرسالة الجاهزة للواتساب"), "whatsapp_message", ms.whatsapp_message)}
+      <div className="flex flex-col gap-1.5 md:col-span-2"><label className="label">{L("المميزات (كل سطر ميزة)")}</label><textarea name="features" rows={5} defaultValue={ms.features.join("\n")} className="field" /></div>
+      <div className="flex flex-col gap-1.5 md:col-span-2"><label className="label">{L("رسالة الشكر بعد الطلب")}</label><input name="thanks" defaultValue={ms.thanks} className="field" /></div>
+      <label className="flex items-center gap-2"><input type="checkbox" name="enabled" defaultChecked={ms.enabled} className="h-5 w-5 accent-navy-700" />{L("ظاهرة للعملاء")}</label>
+      <button className="btn btn-primary justify-self-start px-6 py-2.5">{L("حفظ")}</button>
+    </form>
+  );
+}
+
 export default async function PlansAdmin() {
   const L = await getL();
   await guardPage("plans");
@@ -58,17 +77,24 @@ export default async function PlansAdmin() {
   const nameOf = new Map((ppl ?? []).map((x) => [x.id as string, String(x.full_name || x.email || x.id)]));
   const whoBy: Record<string, string[]> = {};
   for (const x of live) (whoBy[x.plan_id as string] ??= []).push(nameOf.get(x.user_id as string) ?? String(x.user_id));
+  const ms = (await getContent()).managed_service;
   const biz = plans.filter((p) => p.id.startsWith("biz-")), ind = plans.filter((p) => !p.id.startsWith("biz-"));
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-[26px] font-bold text-navy-900">{L("الباقات")}</h1>
       <TrialCard />
-      <h2 className="text-xl font-bold text-navy-900">{L("باقات الأفراد")}</h2>
+      <details className="card p-5"><summary className="cursor-pointer text-xl font-bold text-navy-900">{L("باقات الأفراد")} <span className="text-sm font-normal text-subtle">({ind.length})</span></summary>
+        <div className="mt-4 flex flex-col gap-5">
       {ind.map((p) => <PlanBlock key={p.id} p={p} used={usedIds.has(p.id)} who={whoBy[p.id] ?? []} />)}
       <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة للأفراد")}</summary><div className="mt-4"><PlanForm audience="ind" /></div></details>
-      <h2 className="mt-4 text-xl font-bold text-navy-900">{L("باقات الشركات")}</h2>
+        </div></details>
+      <details className="card p-5"><summary className="cursor-pointer text-xl font-bold text-navy-900">{L("باقات الشركات")} <span className="text-sm font-normal text-subtle">({biz.length})</span></summary>
+        <div className="mt-4 flex flex-col gap-5">
       {biz.map((p) => <PlanBlock key={p.id} p={p} used={usedIds.has(p.id)} who={whoBy[p.id] ?? []} />)}
       <details className="card p-5"><summary className="cursor-pointer text-[15px] font-bold text-navy-800">+ {L("إضافة باقة للشركات")}</summary><div className="mt-4"><PlanForm audience="biz" /></div></details>
+        </div></details>
+      <details className="card p-5"><summary className="cursor-pointer text-xl font-bold text-navy-900">{L("باقة الإدارة الكاملة")} <span className="text-sm font-normal text-subtle">({ms.enabled ? L("ظاهرة") : L("مخفية")})</span></summary>
+        <div className="mt-4"><ManagedForm ms={ms} /></div></details>
       <PriceHistory kind="plan" />
     </div>
   );

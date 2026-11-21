@@ -22,6 +22,23 @@ export async function saveContent(key: string, value: unknown) {
   return { ok: !error, error: error?.message };
 }
 
+/** «باقة الإدارة الكاملة للسوشال ميديا»: edited from the plans page, stored with the site content (key managed_service). */
+export async function saveManaged(form: FormData) {
+  await guard("plans");
+  const admin = createAdminClient();
+  const { data: cur } = await admin.from("site_content").select("value").eq("key", "managed_service").maybeSingle();
+  const str = (k: string) => String(form.get(k) ?? "").trim();
+  const value = {
+    ...((cur?.value as object | null) ?? {}),
+    enabled: form.get("enabled") === "on",
+    title: str("title"), price_kwd: str("price_kwd"), period: str("period"), cta: str("cta"),
+    features: String(form.get("features") ?? "").split("\n").map((x) => x.trim()).filter(Boolean),
+    whatsapp: str("whatsapp"), whatsapp_message: str("whatsapp_message"), thanks: str("thanks"),
+  };
+  await admin.from("site_content").upsert({ key: "managed_service", value, updated_at: new Date().toISOString() });
+  refresh();
+}
+
 /** «وضع الصيانة»: only the owner-level admin can switch the site off for everyone but the team. */
 export async function setMaintenance(on: boolean) {
   const L = await getL();
