@@ -234,7 +234,11 @@ export async function messageCustomer(_prev: Res, form: FormData): Promise<Res> 
     else {
       const { data: pr } = await createAdminClient().from("profiles").select("email").eq("id", p.id).maybeSingle();
       const r = pr?.email ? await sendMail(String(pr.email), "رسالة من فريق شاهين", text, "/app/account") : { ok: false as const, error: "no_email" };
-      mailed = r.ok ? L(" وانرسلت بالبريد كمان.") : L(" بس البريد ما انرسل، تأكد من الإعدادات.");
+      const why: Record<string, string> = {
+        no_email: L("ما عند العميل بريد مسجّل."), bad_address: L("بريد العميل مكتوب بشكل غير صحيح."), network: L("ما قدرنا نوصل لخدمة البريد (انقطاع أو تأخر)."),
+        provider_401: L("المفتاح غير صحيح أو انحذف (RESEND_API_KEY)."), provider_403: L("العنوان المرسل منه غير مسموح: تأكد إن MAIL_FROM على دومين موثّق."), provider_422: L("MAIL_FROM مكتوب بشكل غير صحيح."), provider_429: L("وصلنا للحد المسموح، جرّب بعد شوي."),
+      };
+      mailed = r.ok ? L(" وانرسلت بالبريد كمان.") : ` ${L("بس البريد ما انرسل:")} ${why[r.error] ?? `${L("سبب غير معروف")} (${r.error})`}`;
     }
   }
   await audit(me, "message", p, `${text.slice(0, 100)}${form.get("mail") === "on" ? " [+بريد]" : ""}`);
