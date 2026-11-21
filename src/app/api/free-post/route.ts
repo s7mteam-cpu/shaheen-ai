@@ -3,12 +3,33 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { guardContent } from "@/lib/server/moderation";
 import { cleanColors, FREE_FONTS } from "@/lib/server/freeMotion";
+import { cleanEls } from "@/lib/htmlKit";
 
 export const maxDuration = 30;
 const ASPECTS = ["4:5", "1:1", "9:16", "16:9"];
 const DAILY = 40; // designs + edits per customer in 24 hours
 const clean = (x: unknown, n: number) => String(x ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
 const TOOLS = ["free-post", "free-carousel"];
+const MAX_SAVES = 40; // free studio saves per design
+const num = (v: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
+type Edits = { texts: Record<string, string>; hex: Record<string, string>; font?: string; els: ReturnType<typeof cleanEls>; logo: { on: boolean; path?: string; box: { x: number; y: number; w: number } } | null };
+
+/** What the studio may change: text pieces by their key, #rrggbb colours, a font of the library, strict element moves, and the customer's own logo. Never code, never a path outside his folder. */
+function cleanEdits(raw: unknown, userId: string): Edits {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const texts: Record<string, string> = {};
+  for (const [k, v] of Object.entries((o.texts && typeof o.texts === "object" ? o.texts : {}) as Record<string, unknown>).slice(0, 80)) if (/^t\d{1,3}$/.test(k) && typeof v === "string") texts[k] = v.replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
+  const hex: Record<string, string> = {};
+  for (const [k, v] of Object.entries((o.hex && typeof o.hex === "object" ? o.hex : {}) as Record<string, unknown>).slice(0, 16)) if (/^#[0-9a-f]{6}$/i.test(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) hex[k.toLowerCase()] = v.toLowerCase();
+  const lg = (o.logo && typeof o.logo === "object" ? o.logo : null) as Record<string, unknown> | null;
+  const bx = (lg?.box && typeof lg.box === "object" ? lg.box : {}) as Record<string, unknown>;
+  const path = typeof lg?.path === "string" && lg.path.startsWith(`${userId}/`) && !lg.path.includes("..") && lg.path.length < 300 ? lg.path : undefined;
+  return {
+    texts, hex, els: cleanEls(o.els),
+    ...(FREE_FONTS.includes(String(o.font)) ? { font: String(o.font) } : {}),
+    logo: lg ? { on: lg.on !== false && !!path, ...(path ? { path } : {}), box: { x: num(bx.x, 0.14, 0.03, 0.97), y: num(bx.y, 0.09, 0.03, 0.97), w: num(bx.w, 0.18, 0.06, 0.7) } } : null,
+  };
+}
 const uuid = (x: unknown) => (typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x) ? x : "");
 
 /**
@@ -27,6 +48,19 @@ export async function POST(req: Request) {
     const r = await admin.from("jobs").select("id,title,tool_id,input").eq("id", from).eq("user_id", user.id).in("tool_id", TOOLS).eq("status", "done").maybeSingle();
     src = r.data;
     if (!src) return NextResponse.json({ error: "التصميم غير موجود." }, { status: 404 });
+  }
+  // ---- studio save (free): the same design drawn again with the customer's own edits. No AI, nothing charged. ----
+  if (src && b.apply !== undefined) {
+    const inp = (src.input ?? {}) as Record<string, unknown> & { post?: { htmlPath?: string }; saves?: number; edits?: unknown };
+    const hp = String(inp.post?.htmlPath ?? "");
+    if (!hp.startsWith(`${user.id}/`) || hp.includes("..")) return NextResponse.json({ error: "التصميم غير موجود." }, { status: 404 });
+    if ((Number(inp.saves) || 0) >= MAX_SAVES) return NextResponse.json({ error: "وصلت حد الحفظ لهذا التصميم. سوِّ تصميم جديد أو عدّل بالكلام." }, { status: 429 });
+    const edits = cleanEdits(b.apply, user.id);
+    { const bad = await guardContent(user.id, { text: Object.values(edits.texts).join(" ") }, "free-post-studio"); if (bad) return bad; }
+    // claimed only while it is «done», so two saves at the same moment cannot both start
+    const { data: won } = await admin.from("jobs").update({ status: "queued", progress: 0, error: null, input: { ...inp, mode: "restyle", edits, prevEdits: inp.edits ?? null, saves: (Number(inp.saves) || 0) + 1 }, updated_at: new Date().toISOString() }).eq("id", src.id).eq("user_id", user.id).eq("status", "done").select("id");
+    if (!won?.length) return NextResponse.json({ error: "التصميم قيد الرسم، لحظات." }, { status: 409 });
+    return NextResponse.json({ jobId: src.id, cost: 0 });
   }
   const toolId = src ? src.tool_id : b.tool === "free-carousel" ? "free-carousel" : "free-post";
   const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost,is_enabled").eq("id", toolId).maybeSingle();
@@ -102,9 +136,18 @@ export async function GET(req: Request) {
     paths.length ? admin.storage.from("results").createSignedUrls(paths, 60 * 60 * 3, { download: true }) : Promise.resolve({ data: [] }),
   ]);
   const { data: tool } = await admin.from("tools").select("edit_cost").eq("id", job.tool_id).maybeSingle();
-  const inp = (job.input ?? {}) as { aspect?: string; idea?: string };
+  const inp = (job.input ?? {}) as { aspect?: string; idea?: string; slides?: number; logoPath?: string | null; saves?: number; post?: { htmlPath?: string }; edits?: Edits | null };
+  const mine = (p?: string | null) => !!p && p.startsWith(`${user.id}/`) && !p.includes("..");
+  const htmlUrl = mine(inp.post?.htmlPath) ? (await admin.storage.from("results").createSignedUrl(inp.post!.htmlPath!, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
+  // the logo the design shows now: the studio's choice if there is one, otherwise the brand-kit logo it was made with
+  const ed = inp.edits ?? null;
+  const lp = ed?.logo ? (ed.logo.on && mine(ed.logo.path) ? ed.logo.path! : "") : mine(inp.logoPath) ? inp.logoPath! : "";
+  const logoUrl = lp ? (await admin.storage.from("uploads").createSignedUrl(lp, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
   return NextResponse.json({
     status: "done", title: job.title, aspect: inp.aspect ?? "4:5", editCost: tool?.edit_cost ?? 3,
+    slides: Math.min(8, Math.max(1, Math.round(Number(inp.slides) || 1))), htmlUrl, savesLeft: Math.max(0, MAX_SAVES - (Number(inp.saves) || 0)),
+    edits: ed ? { texts: ed.texts ?? {}, hex: ed.hex ?? {}, font: ed.font ?? null, els: ed.els ?? [] } : null,
+    logo: lp && logoUrl ? { path: lp, url: logoUrl, box: ed?.logo?.box ?? { x: 0.14, y: 0.09, w: 0.18 } } : null,
     images: paths.map((_, i) => ({ url: view.data?.[i]?.signedUrl ?? "", download: down.data?.[i]?.signedUrl ?? "" })).filter((x) => x.url),
   });
 }
