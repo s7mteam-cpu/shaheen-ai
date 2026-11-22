@@ -1073,8 +1073,8 @@ async function gemFlowJob(job) {
     const view = (h) => (shots ? injectShots(h, shots.data) : h);
     if (shots) meta.shots = Object.keys(shots.paths);
     const styleIn = cust ? await styleInputs(job, inp.style, workDir, { maxImages: 3, frames: 3 }).catch(() => null) : null; // «أسلوبي»: taste, reference pictures, frames of the reference video
-    const animTxt = cust ? animNote(inp.anim) : ""; // «ستايل الأنيميشن»
-    const skillTxt = cust ? await skillFor(inp.site ? "site-free" : "free-motion") : ""; // «مهارات الأدوات» from the admin panel
+    const animTxt = cust ? animNote(inp.anim, inp.aspect) : ""; // «ستايل الأنيميشن»
+    const skillTxt = cust ? await skillFor(inp.site ? "site-free" : inp.anim ? "anim-video" : "free-motion") : ""; // «مهارات الأدوات» from the admin panel
     let retry = "", page = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
       await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);

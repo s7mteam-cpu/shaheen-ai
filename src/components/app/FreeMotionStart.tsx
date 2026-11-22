@@ -22,7 +22,7 @@ const sizes = [["9:16", "📱 ريلز 9:16"], ["16:9", "▶️ يوتيوب 16:
 const social = Object.keys(BRANDS) as BrandId[];
 
 /** «تصميم مبتكر ✨»: the customer writes an idea; the AI writes a motion design as code and the worker renders it. Texts and colours can be edited afterwards. */
-export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, voices = [], hasStyle = false }: { hasStyle?: boolean; voices?: VoiceItem[]; costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null; kit?: { name: string; colors: string[]; font: string } | null }) {
+export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, voices = [], hasStyle = false, animTool = false }: { hasStyle?: boolean; animTool?: boolean; voices?: VoiceItem[]; costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null; kit?: { name: string; colors: string[]; font: string } | null }) {
   const router = useRouter();
   const sp = useSearchParams();
   const jobId = sp.get("job");
@@ -30,7 +30,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
   const [brand, setBrand] = useState(kit?.name ?? "");
   const [useIdentity, setUseIdentity] = useState(true);
   const [useStyle, setUseStyle] = useState(true);
-  const [anim, setAnim] = useState("");
+  const [anim, setAnim] = useState(animTool ? "paper" : "");
   const [aspect, setAspect] = useState("9:16");
   const [seconds, setSeconds] = useState(15);
   const [auto, setAuto] = useState(false);
@@ -104,7 +104,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
       return;
     }
     setBusy(true);
-    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds: secs ?? seconds, brand, colors, useIdentity, useStyle, anim, font, contact, voiceover, dialect, vtype, voice: voiceId || undefined, music: withMusic }) });
+    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds: secs ?? seconds, brand, colors, useIdentity, useStyle, ...(animTool ? { animTool: true, anim } : {}), font, contact, voiceover, dialect, vtype, voice: voiceId || undefined, music: withMusic }) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setError(d.error ?? L("تعذّر البدء.")); return; }
@@ -153,17 +153,18 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
     <form onSubmit={start} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
       <p className="rounded-xl bg-amber-50 px-4 py-3 text-[13px] text-amber-900">{L("ميزة تجريبية: شاهين يصمّم موشن جرافيك من الصفر بدل القوالب الجاهزة. إذا فشل التصميم ترجع لك ريشك كاملة.")}</p>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("شو الفكرة؟")}</span>
-        <textarea required minLength={10} maxLength={1500} rows={5} value={idea} onChange={(e) => setIdea(e.target.value)} className="field" placeholder={L("مثال: إعلان لمطعم مندي بالكويت، افتتاح فرع جديد، خصم 20% أول أسبوع، أجواء فخمة بالذهبي…")} /></label>
+        <textarea required minLength={10} maxLength={1500} rows={5} value={idea} onChange={(e) => setIdea(e.target.value)} className="field" placeholder={animTool ? L("مثال: قصة قصيرة عن حق الجار: رجل يشوف بيت جاره العجوز مظلم من يومين، يدق عليه ويلقاه مريض، يجيب له أكل ويقعد جنبه. ثاني يوم الجار واقف مبتسم. الرسالة: اسأل عن جارك.") : L("مثال: إعلان لمطعم مندي بالكويت، افتتاح فرع جديد، خصم 20% أول أسبوع، أجواء فخمة بالذهبي…")} /></label>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("اسم النشاط (اختياري)")}</span><input value={brand} onChange={(e) => setBrand(e.target.value)} maxLength={60} className="field" /></label>
+      {animTool && (<>
       <div className="flex flex-col gap-2">
-        <span className="font-semibold">{L("ستايل الأنيميشن")} <span className="text-[13px] font-normal text-subtle">{L("(اختياري. نفس فكرتك تنرسم بالستايل اللي تختاره.)")}</span></span>
+        <span className="font-semibold">{L("ستايل الأنيميشن")} <span className="text-[13px] font-normal text-subtle">{L("(نفس قصتك تنرسم وتتحرك بالستايل اللي تختاره.)")}</span></span>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          <button type="button" aria-pressed={anim === ""} onClick={() => setAnim("")} className={`rounded-xl border p-2.5 text-start ${anim === "" ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}><span className="block text-[14px] font-semibold text-navy-900">🎬 {L("تلقائي")}</span><span className="block text-[12px] leading-5 text-subtle">{L("المصمم يختار الأنسب لفكرتك")}</span></button>
           {ANIM_STYLES.map((a) => (
             <button key={a.id} type="button" aria-pressed={anim === a.id} onClick={() => setAnim(a.id)} className={`rounded-xl border p-2.5 text-start ${anim === a.id ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}><span className="block text-[14px] font-semibold text-navy-900">{a.icon} {L(a.name)}</span><span className="block text-[12px] leading-5 text-subtle">{L(a.hint)}</span></button>
           ))}
         </div>
       </div>
+      </>)}
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span><div className="flex flex-wrap gap-2">{sizes.map(([v, l]) => <button key={v} type="button" aria-pressed={aspect === v} onClick={() => setAspect(v)} className="chip">{L(l)}</button>)}</div></div>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span><div className="flex flex-wrap gap-2">{([[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"], [120, "دقيقتين"]] as const).map(([s, l]) => <button key={s} type="button" aria-pressed={!auto && seconds === s} onClick={() => { setAuto(false); setPlan(null); setSeconds(s); }} className="chip">{L(l)}</button>)}<button type="button" aria-pressed={auto} onClick={() => { setAuto(true); setPlan(null); }} className="chip">✨ {L("تلقائي حسب فكرتي")}</button></div>{auto && <span className="text-[12px] text-subtle">{L("شاهين يقدّر المدة من فكرتك (حتى دقيقتين) ويعرض لك السعر قبل ما يخصم أي ريش.")}</span>}</div>
       <div className="flex flex-col gap-3 rounded-xl border p-4">

@@ -19,5 +19,11 @@ export const ANIM_STYLES = [
   { id: "terminal", icon: "💻", name: "شاشة طرفية", hint: "حروف خضراء على شاشة سوداء" },
   { id: "thermal", icon: "🌡️", name: "كاميرا حرارية", hint: "بنفسجي وبرتقالي كأنها تصوير حراري" },
   { id: "parchment", icon: "📜", name: "ورق قديم", hint: "رسم حبر على ورق بردي" },
+  { id: "silhouette", icon: "🌅", name: "ظلال الغروب", hint: "أشكال سوداء على سماء ملوّنة" },
+  { id: "geo", icon: "🕌", name: "زخارف هندسية", hint: "نقوش ونجوم هندسية شرقية" },
+  { id: "lowpoly", icon: "🔺", name: "لو بولي", hint: "مجسمات من مثلثات ملوّنة" },
+  { id: "crayon", icon: "🖍️", name: "رسم أطفال", hint: "ألوان شمع بخطوط عفوية" },
+  { id: "retro", icon: "📺", name: "ريترو", hint: "ألوان السبعينات وأشعة شمس" },
+  { id: "storybook", icon: "📖", name: "كتاب قصص", hint: "رسوم دافئة كقصص الأطفال" },
 ] as const;
 export const ANIM_IDS: string[] = ANIM_STYLES.map((s) => s.id);
