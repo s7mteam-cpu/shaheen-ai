@@ -156,8 +156,8 @@ async function ask({ system, user, maxTokens }) {
 const budget = (n, kind) => Math.min(48000, (kind === "cv" ? 16000 : 9000) + n * 5500);
 export const CUT_NOTE = "The answer was cut off before the page ended. Write the SAME design much more compactly: one shared <style> with reusable classes, short class names, simpler SVG (few shapes, no long paths), no repeated inline styles, no comments.";
 
-export async function writePost({ idea, n, W, H, brand, identity, retry, kind }) {
-  const r = await ask({ system: POST_RULES(W, H, n), user: postPrompt({ idea, n, brand, identity, retry, kind }), maxTokens: budget(n, kind) });
+export async function writePost({ idea, n, W, H, brand, identity, retry, kind, skill = "" }) {
+  const r = await ask({ system: POST_RULES(W, H, n) + skill, user: postPrompt({ idea, n, brand, identity, retry, kind }), maxTokens: budget(n, kind) });
   if (r.cut) { const e = new Error("CUT"); e.cut = true; throw e; }
   return extractHtml(r.text);
 }

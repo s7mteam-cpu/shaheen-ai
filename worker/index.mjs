@@ -3,6 +3,7 @@
 // 2) "video-editing" (queued, no spec yet)   → smart montage analysis: transcript + AI edit plan → "draft" (customer edits it live).
 // 3) "video-editing" (queued + render: true) → render the edited montage → MP4.
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY (optional: smarter plans), RENDER_CONCURRENCY
+import { skillFor, skillNote } from "./skills.mjs";
 import { initUsage, setUsageJob } from "./usage.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
@@ -1038,10 +1039,11 @@ async function gemFlowJob(job) {
     const shots = cust && inp.site?.shots ? await siteShots(job, inp.site, base, workDir).catch(() => null) : null;
     const view = (h) => (shots ? injectShots(h, shots.data) : h);
     if (shots) meta.shots = Object.keys(shots.paths);
+    const skillTxt = cust ? await skillFor(inp.site ? "site-free" : "free-motion") : ""; // «مهارات الأدوات» from the admin panel
     let retry = "", page = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
       await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);
-      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model, ...(shots ? { user: geminiPrompt(plan, ideaFull, retry) + shotNote(inp.aspect, !!shots.data.logo) } : {}) });
+      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model, ...(shots || skillTxt ? { user: geminiPrompt(plan, ideaFull, retry) + (shots ? shotNote(inp.aspect, !!shots.data.logo) : "") + skillNote(skillTxt) } : {}) });
       // SECURITY: the raw answer is checked BEFORE anything reads or opens it; a page with forbidden code is never prepared, opened or recorded
       const unsafe0 = unsafeHtml(g.html);
       if (unsafe0.length) {
@@ -1730,7 +1732,7 @@ async function postJob(job) {
         // the writing is one long request: the bar keeps moving slowly so the customer sees it is alive
         let shown = p0; const creep = setInterval(() => { if (shown < p0 + 34) { shown += 2; stage(shown); } }, 9000);
         let raw = "";
-        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry, kind: POST_KIND[job.tool_id] }); }
+        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry, kind: POST_KIND[job.tool_id], skill: skillNote(await skillFor(job.tool_id)) }); }
         catch (e) { if (attempt === 2) throw e; retry = e?.cut ? CUT_NOTE : `The last answer was not a usable page (${String(e?.message ?? e).slice(0, 120)}). Return the full HTML page in one html block.`; continue; }
         finally { clearInterval(creep); }
         // SECURITY: scripts and event handlers are removed first, then the page is checked BEFORE anything opens it
