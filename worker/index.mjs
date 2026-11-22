@@ -21,7 +21,7 @@ import { captureSite } from "./site.mjs";
 import { prepareFree, checkFreeCode, MAX_CODE } from "./free.mjs";
 import { normalizeTemplate, verifyTemplate } from "./ingest.mjs";
 import { buildPreview } from "./freepreview.mjs";
-import { recordHtml, htmlStills, htmlPreviewDoc } from "./htmlrec.mjs";
+import { recordHtml, htmlStills, htmlPreviewDoc, htmlPdf } from "./htmlrec.mjs";
 import { FONT_LIB, FONT_IDS, freeFontCss } from "./fontlib.mjs";
 import { extractTexts, extractColors, applyEdits, applyFont, applyLogo, applyEls, injectShots } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
@@ -1650,9 +1650,10 @@ async function freeJob(job) {
 
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
 // ---------- «بوست / كاروسيل مبتكر»: the AI writes the design as a page, we draw one PNG per slide ----------
-const POST_TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite", "free-card"];
-const POST_KIND = { "free-ad": "ad", "free-invite": "invite", "free-card": "card" };
-const POST_SIZE = { "1:1": [1080, 1080], "4:5": [1080, 1350], "9:16": [1080, 1920], "16:9": [1920, 1080], card: [1200, 685] }; // card = a 3.5 × 2 inch business card (about 340 dpi); 1200 × 685 keeps the layout size in whole pixels (960 × 548)
+const POST_TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite", "free-card", "free-deck", "free-cv"];
+const POST_KIND = { "free-ad": "ad", "free-invite": "invite", "free-card": "card", "free-deck": "deck", "free-cv": "cv" };
+const POST_PDF = ["free-deck", "free-cv"]; // these also come as a real PDF (selectable text)
+const POST_SIZE = { "1:1": [1080, 1080], "4:5": [1080, 1350], "9:16": [1080, 1920], "16:9": [1920, 1080], card: [1200, 685], a4: [1588, 2246] }; // card = a 3.5 × 2 inch business card (about 340 dpi); 1200 × 685 keeps the layout size in whole pixels (960 × 548)
 /** the customer's studio edits (texts, colours, font, moved elements) put on a saved design. Every value is cleaned by the kit functions themselves. */
 function postEdits(html, ed) {
   if (!ed || typeof ed !== "object") return html;
@@ -1684,9 +1685,10 @@ async function postJob(job) {
     }
     const aspect = POST_SIZE[from.aspect] ? from.aspect : "4:5";
     const [W, H] = POST_SIZE[aspect];
-    const [cw, ch] = cssSize(W, H); // the page is written in CSS sizes and drawn at full W × H pixels
+    const baseW = aspect === "a4" ? 794 : undefined; // an A4 page is written at its natural 794 × 1123 CSS size (normal text sizes)
+    const [cw, ch] = baseW ? [794, 1123] : cssSize(W, H); // the page is written in CSS sizes and drawn at full W × H pixels
     const n = Math.min(8, Math.max(1, Math.round(Number(from.slides) || 1)));
-    const idea = String(from.idea ?? "").slice(0, 1500);
+    const idea = String(from.idea ?? "").slice(0, 4000);
     const identity = from.colors ? { bg: hexOk(from.colors.bg, "#0B2A4A"), accent: hexOk(from.colors.accent, "#E8B44C"), text: hexOk(from.colors.text, "#FFFFFF"), font: FONT_IDS.includes(from.font) ? from.font : "Cairo" } : null;
     // logo: the studio's choice when there is one (off, another picture of his, where and how big), otherwise the brand-kit logo in the top corner
     const lg0 = (edit ? null : inp.edits?.logo) ?? from.edits?.logo ?? null;
@@ -1703,15 +1705,16 @@ async function postJob(job) {
       const withLogo = applyLogo(html, logo);
       const shots = []; let blank = 0;
       for (let i = 1; i <= n; i++) {
-        const [png] = await htmlStills({ html: onlySlide(withLogo, i, cw, ch), width: W, height: H, times: [0.4], fontCss: htmlFontCss(withLogo) });
+        const [png] = await htmlStills({ html: onlySlide(withLogo, i, cw, ch), width: W, height: H, times: [0.4], fontCss: htmlFontCss(withLogo), baseW });
         const probe = join(workDir, `pp-${job.id}-${i}.png`); await writeFile(probe, png);
         if (await frameIsBlank(probe)) blank++;
         await rm(probe, { force: true });
         shots.push(png);
       }
+      drawn = withLogo;
       return blank ? { shots: [], why: `${blank} slide(s) came out empty (one flat colour). Every slide must show its full design at its exact size without any script or animation.` } : { shots, why: "" };
     };
-    let page = "", retry = "", shots = [];
+    let page = "", retry = "", shots = [], drawn = "";
     if (restyle) {
       await stage(30);
       // SECURITY: the saved page is checked again, and the edits can only change text pieces, #rrggbb colours, the font name and strict element moves
@@ -1750,6 +1753,14 @@ async function postJob(job) {
       const up = await db.storage.from("results").upload(dest, png, { contentType: "image/png" });
       if (up.error) throw new Error(`upload: ${up.error.message}`);
       files.push({ path: dest, type: "image/png" });
+    }
+    // «عرض مبتكر» و«سيرة مبتكرة»: the same page as one PDF (best effort: the pictures are the result even if the PDF could not be made)
+    if (POST_PDF.includes(job.tool_id) && drawn) {
+      try {
+        const pdf = await htmlPdf({ html: drawn, width: W, height: H, fontCss: htmlFontCss(drawn), baseW });
+        const dest = `${base}/${crypto.randomUUID()}.pdf`;
+        if (pdf.length > 1000 && !(await db.storage.from("results").upload(dest, pdf, { contentType: "application/pdf" })).error) files.push({ path: dest, type: "application/pdf" });
+      } catch (e) { console.error("post pdf skipped", job.id, e?.message ?? e); }
     }
     if (restyle) {
       const old = ((job.output ?? (await db.from("jobs").select("output").eq("id", job.id).maybeSingle()).data?.output)?.files ?? []).map((f) => f.path).filter(own);

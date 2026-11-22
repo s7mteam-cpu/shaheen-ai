@@ -10,14 +10,14 @@ type Done = PostData;
 type State = { status: "queued" | "running"; progress: number } | Done | { status: "failed"; error: string } | { status: "expired" } | null;
 
 /** «بوست / كاروسيل مبتكر»: the idea form, the waiting screen, then the pictures with «edit by words». */
-export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: { tool: "free-post" | "free-carousel" | "free-ad" | "free-invite" | "free-card"; costPerSlide: number; balance: number; hasKit: boolean; hasLogo: boolean }) {
+export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: { tool: "free-post" | "free-carousel" | "free-ad" | "free-invite" | "free-card" | "free-deck" | "free-cv"; costPerSlide: number; balance: number; hasKit: boolean; hasLogo: boolean }) {
   const router = useRouter();
   const jobId = useSearchParams().get("job");
   const [idea, setIdea] = useState("");
   const [aspect, setAspect] = useState<string>("4:5");
   const carousel = tool === "free-carousel";
-  const invite = tool === "free-invite", ad = tool === "free-ad", bcard = tool === "free-card";
-  const [slides, setSlides] = useState(carousel ? 5 : 1);
+  const invite = tool === "free-invite", ad = tool === "free-ad", bcard = tool === "free-card", deck = tool === "free-deck", cvTool = tool === "free-cv";
+  const [slides, setSlides] = useState(carousel ? 5 : tool === "free-deck" ? 6 : 1);
   const [useBrand, setUseBrand] = useState(true);
   const [useLogo, setUseLogo] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -59,7 +59,7 @@ export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: 
         <div className="card mx-auto flex w-full max-w-xl flex-col items-center gap-4 p-8 text-center">
           <h2 className="text-[20px] font-bold text-navy-900">{L("شاهين يصمّم لك…")}</h2>
           <div className="w-full"><Progress value={state?.progress ?? 0} label={state?.status === "running" ? L("يكتب التصميم ويرسمه…") : L("في الطابور…")} /></div>
-          <p className="text-[13px] leading-6 text-subtle">{carousel ? L("الكاروسيل ياخذ من 3 إلى 7 دقائق حسب عدد الشرائح. تقدر تطلع، وتلقاه في «أعمالي».") : L("ياخذ من دقيقة إلى 3 دقائق. تقدر تطلع، وتلقاه في «أعمالي».")}</p>
+          <p className="text-[13px] leading-6 text-subtle">{carousel || deck ? L("الكاروسيل ياخذ من 3 إلى 7 دقائق حسب عدد الشرائح. تقدر تطلع، وتلقاه في «أعمالي».") : L("ياخذ من دقيقة إلى 3 دقائق. تقدر تطلع، وتلقاه في «أعمالي».")}</p>
         </div>
       );
     }
@@ -75,21 +75,23 @@ export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: 
     <div className="card mx-auto flex w-full max-w-2xl flex-col gap-5 p-6">
       <div className="flex flex-col gap-1.5">
         <label className="label" htmlFor="fp-idea">{L("فكرتك")}</label>
-        <textarea id="fp-idea" value={idea} onChange={(e) => setIdea(e.target.value)} maxLength={1500} rows={6} className="field" placeholder={bcard ? L("مثال: بطاقة عمل لأحمد العلي، مدير المبيعات في شركة النخبة العقارية. جوال 66112233، بريد ahmad@nokhba.com، الموقع nokhba.com، الكويت - شرق. أسلوب رسمي فخم بالكحلي والذهبي.") : invite ? L("مثال: دعوة زفاف محمد وسارة، يوم الجمعة 18 ديسمبر 2026 الساعة 8 مساءً، قاعة الراية بالكويت. طابع ملكي فخم بالأبيض والذهبي مع زخارف ناعمة.") : ad ? L("مثال: إعلان افتتاح فرعنا الجديد بالسالمية، خصم 30% على كل الوجبات أول أسبوع، للطلب واتساب 66112233. أسلوب جريء بالأحمر والأسود.") : carousel ? L("مثال: كاروسيل «5 أخطاء تخرب قهوتك بالبيت» لكوفي «دانة»: كل شريحة خطأ وحله بجملة، والأخيرة: زورونا بالسالمية، حسابنا @dana.cafe.") : L("مثال: إعلان افتتاح كوفي «دانة» بالسالمية، خصم 30% على كل المشروبات أول أسبوع، للحجز واتساب 5xxxxxxx، حسابنا @dana.cafe. أبيه فخم وهادي.")} />
+        <textarea id="fp-idea" value={idea} onChange={(e) => setIdea(e.target.value)} maxLength={cvTool || deck ? 4000 : 1500} rows={6} className="field" placeholder={cvTool ? L("اكتب بياناتك: الاسم، المسمّى، الجوال والبريد والمدينة، نبذة قصيرة، الخبرات (المسمّى، الجهة، من سنة إلى سنة، وأهم إنجازاتك)، التعليم، المهارات، اللغات. والأسلوب اللي تحبه (رسمي، عصري، لون معيّن).") : deck ? L("مثال: عرض تعريفي عن شركة النخبة العقارية للمستثمرين: من نحن، خدماتنا الثلاث (بيع، تأجير، إدارة أملاك)، أرقامنا (120 عقار، 8 سنوات)، لماذا نحن، وطريقة التواصل. أسلوب رسمي بالكحلي والذهبي.") : bcard ? L("مثال: بطاقة عمل لأحمد العلي، مدير المبيعات في شركة النخبة العقارية. جوال 66112233، بريد ahmad@nokhba.com، الموقع nokhba.com، الكويت - شرق. أسلوب رسمي فخم بالكحلي والذهبي.") : invite ? L("مثال: دعوة زفاف محمد وسارة، يوم الجمعة 18 ديسمبر 2026 الساعة 8 مساءً، قاعة الراية بالكويت. طابع ملكي فخم بالأبيض والذهبي مع زخارف ناعمة.") : ad ? L("مثال: إعلان افتتاح فرعنا الجديد بالسالمية، خصم 30% على كل الوجبات أول أسبوع، للطلب واتساب 66112233. أسلوب جريء بالأحمر والأسود.") : carousel ? L("مثال: كاروسيل «5 أخطاء تخرب قهوتك بالبيت» لكوفي «دانة»: كل شريحة خطأ وحله بجملة، والأخيرة: زورونا بالسالمية، حسابنا @dana.cafe.") : L("مثال: إعلان افتتاح كوفي «دانة» بالسالمية، خصم 30% على كل المشروبات أول أسبوع، للحجز واتساب 5xxxxxxx، حسابنا @dana.cafe. أبيه فخم وهادي.")} />
         <p className="text-[12.5px] leading-6 text-subtle">{invite ? L("اكتب الأسماء والتاريخ والوقت والمكان بالضبط مثل ما تبيهم يظهرون، والطابع اللي تحبه. شاهين ما يخترع أسماء ولا تواريخ.") : L("اكتب كل اللي تبي يظهر: العرض، السعر، رقم التواصل، الحساب. شاهين ما يخترع أسعار ولا أرقام من عنده.")}</p>
       </div>
       {bcard && <p className="rounded-xl bg-navy-900/5 px-4 py-3 text-[13.5px] leading-6 text-muted">{L("البطاقة تطلع بوجهين (أمامي وخلفي) بمقاس الطباعة المعتمد 9 × 5 سم تقريباً، صورتين جاهزتين للمطبعة.")}</p>}
-      <div className={bcard ? "hidden" : "flex flex-col gap-2"}>
+      <div className={bcard || deck || cvTool ? "hidden" : "flex flex-col gap-2"}>
         <span className="label">{L("المقاس")}</span>
         <div className="flex flex-wrap gap-2">{SIZES.map(([v, l]) => <button key={v} type="button" aria-pressed={aspect === v} onClick={() => setAspect(v)} className="chip">{L(l)}</button>)}</div>
       </div>
-      {carousel && (
+      {cvTool && <p className="rounded-xl bg-navy-900/5 px-4 py-3 text-[13.5px] leading-6 text-muted">{L("السيرة تطلع صفحة A4 وحدة: صورة + ملف PDF بنص حقيقي ينسخ ويُبحث فيه. شاهين ما يخترع خبرة ولا شهادة: اللي تكتبه هو اللي يطلع.")}</p>}
+      {deck && <p className="rounded-xl bg-navy-900/5 px-4 py-3 text-[13.5px] leading-6 text-muted">{L("العرض يطلع شرائح عريضة 16:9: صور + ملف PDF واحد جاهز للعرض أو الإرسال. (مو ملف PowerPoint يتعدّل؛ التعديل من استوديو شاهين.)")}</p>}
+      {(carousel || deck) && (
         <div className="flex flex-col gap-2">
           <span className="label">{L("عدد الشرائح")}</span>
-          <div className="flex flex-wrap gap-2">{[3, 4, 5, 6, 7, 8].map((n) => <button key={n} type="button" aria-pressed={slides === n} onClick={() => setSlides(n)} className="chip">{n}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{(deck ? [4, 5, 6, 7, 8] : [3, 4, 5, 6, 7, 8]).map((n) => <button key={n} type="button" aria-pressed={slides === n} onClick={() => setSlides(n)} className="chip">{n}</button>)}</div>
         </div>
       )}
-      {hasKit && !invite && (
+      {hasKit && !invite && !cvTool && (
         <div className="flex flex-col gap-2 text-[14px]">
           <label className="flex items-center gap-2"><input type="checkbox" checked={useBrand} onChange={(e) => setUseBrand(e.target.checked)} className="h-4 w-4" />{L("استخدم ألوان وخط هويتي التجارية")}</label>
           {hasLogo && <label className="flex items-center gap-2"><input type="checkbox" checked={useBrand && useLogo} disabled={!useBrand} onChange={(e) => setUseLogo(e.target.checked)} className="h-4 w-4" />{L("حط شعاري على التصميم")}</label>}

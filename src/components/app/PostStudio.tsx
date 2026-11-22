@@ -12,13 +12,13 @@ import { RetentionNote } from "@/components/app/RetentionNote";
 
 type El = { hide?: boolean; s: number; x: number; y: number };
 export type PostData = {
-  status: "done"; title: string; aspect: string; editCost: number; slides: number; htmlUrl: string; savesLeft: number;
+  status: "done"; title: string; aspect: string; editCost: number; slides: number; htmlUrl: string; pdfUrl?: string; savesLeft: number;
   images: { url: string; download: string }[];
   edits: { texts: Record<string, string>; hex: Record<string, string>; font: string | null; els: ({ sel: string } & El)[] } | null;
   logo: { path: string; url: string; box: LogoBox } | null;
 };
 /** the page is laid out in these CSS sizes and drawn at full resolution by the video worker (same rule as worker/postflow.mjs → cssSize) */
-const CSS_SIZE: Record<string, [number, number]> = { "4:5": [432, 540], "1:1": [540, 540], "9:16": [432, 768], "16:9": [960, 540], card: [960, 548] };
+const CSS_SIZE: Record<string, [number, number]> = { "4:5": [432, 540], "1:1": [540, 540], "9:16": [432, 768], "16:9": [960, 540], card: [960, 548], a4: [794, 1123] };
 /** a still post never needs code: scripts and inline handlers are dropped before the page is shown (the worker does the same before drawing) */
 const noScripts = (h: string) => h.replace(/<script\b[\s\S]*?<\/script\s*>/gi, "").replace(/<script\b[^>]*>/gi, "").replace(/\son[a-z]{3,20}\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/javascript\s*:/gi, "");
 const slideCss = (i: number, W: number, H: number) => `<style>html,body{margin:0!important;padding:0!important;width:${W}px!important;height:${H}px!important;overflow:hidden!important;background:#fff}section.slide:not([data-slide="${i}"]){display:none!important}section.slide[data-slide="${i}"]{position:fixed!important;left:0!important;top:0!important;width:${W}px!important;height:${H}px!important;margin:0!important}*,*::before,*::after{animation:none!important;transition:none!important}</style>`;
@@ -271,6 +271,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
       <section className="card flex flex-col gap-3 p-5">
         <Sub>{L("الصور الجاهزة للتحميل")}</Sub>
         {dirty && <p className="text-[13px] text-red-700">{L("هذي الصور قبل تعديلاتك الأخيرة. اضغط «احفظ التعديلات» لتحديثها.")}</p>}
+        {data.pdfUrl && <a href={data.pdfUrl} download className="btn btn-gold mb-4 inline-flex w-fit gap-2 px-6 py-3">⬇️ {L("تحميل ملف PDF (نص حقيقي)")}</a>}
         <div className={`grid gap-4 ${data.images.length > 1 ? "grid-cols-2 md:grid-cols-4" : "max-w-xs"}`}>
           {data.images.map((im, i) => (
             <figure key={i} className="overflow-hidden rounded-xl border border-line bg-white">

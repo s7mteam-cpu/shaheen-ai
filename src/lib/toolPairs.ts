@@ -1,6 +1,6 @@
 /** One card per thing the customer wants ("بوست", "فيديو من موقعك"…). Inside it he picks HOW: ready templates, or a brand-new design («مبتكر»).
  *  Each way stays its own tool for the admin (own price, switch and models): the pairing is only how they are shown. */
-export const FRESH_OF: Record<string, string> = { post: "free-post", carousel: "free-carousel", "ad-design": "free-ad", invitations: "free-invite", "business-cards": "free-card", "motion-video": "free-motion", "site-video": "site-free" };
+export const FRESH_OF: Record<string, string> = { post: "free-post", carousel: "free-carousel", "ad-design": "free-ad", invitations: "free-invite", "business-cards": "free-card", presentations: "free-deck", cv: "free-cv", "motion-video": "free-motion", "site-video": "site-free" };
 const TEMPLATE_OF: Record<string, string> = Object.fromEntries(Object.entries(FRESH_OF).map(([t, f]) => [f, t]));
 
 /** the lists of tools: the «مبتكر» twin is not a card of its own while its templates tool is open */

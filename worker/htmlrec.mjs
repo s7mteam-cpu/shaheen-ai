@@ -53,13 +53,13 @@ export function htmlPreviewDoc(html, fontCss = "") {
 }
 /** The page is laid out like on the preview (a phone-sized screen: 432 css px wide for portrait) and drawn at a higher pixel density,
  * so the video is exactly what the live preview shows (designs switch to their "mobile" layout on narrow screens). */
-function layoutOf(width, height) {
-  const baseW = height > width ? 432 : height === width ? 540 : 960;
+function layoutOf(width, height, base) {
+  const baseW = base || (height > width ? 432 : height === width ? 540 : 960);
   const scale = width / baseW;
   return { lw: baseW, lh: Math.round(height / scale), scale };
 }
-async function openHtmlPage({ html, width, height, fontCss, browserExecutable }) {
-  const { lw, lh, scale } = layoutOf(width, height);
+async function openHtmlPage({ html, width, height, fontCss, browserExecutable, baseW }) {
+  const { lw, lh, scale } = layoutOf(width, height, baseW);
   const csp = `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src 'none'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'`;
   const head = `<meta http-equiv="Content-Security-Policy" content="${csp}"><style>${fontCss}html,body{margin:0;overflow:hidden}</style>`;
   const page0 = withHead(html, head);
@@ -93,7 +93,7 @@ async function openHtmlPage({ html, width, height, fontCss, browserExecutable })
     };
     const evalIn = (fn, arg) => page.evaluate(fn, arg);
     const errors = () => page.evaluate(() => (window.__errs || []).slice(0, 8)).catch(() => []);
-    return { step, shot, evalIn, errors, browser };
+    return { step, shot, evalIn, errors, browser, cdp, lw, lh };
   } catch (e) { try { await browser.close({ silent: true }); } catch {} throw e; }
 }
 
@@ -120,9 +120,21 @@ export async function findCrop({ html, width, height, fontCss = "", browserExecu
 }
 
 /** stills at given seconds (PNG buffers), same clock as the recording */
-export async function htmlStills({ html, width, height, times, fontCss = "", browserExecutable, fps = 30, crop = false, sig = false }) {
+/** the page as a real PDF (selectable text, fonts inside): one PDF page per .slide, each exactly the design's size. Same locked browser as the stills. */
+export async function htmlPdf({ html, width, height, fontCss = "", browserExecutable, baseW }) {
+  const { lw, lh } = layoutOf(width, height, baseW);
+  const print = `<style>@page{size:${lw}px ${lh}px;margin:0}html,body{overflow:visible!important;height:auto!important;width:${lw}px!important;background:none}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.slide{break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid;overflow:hidden}.slide:last-of-type{break-after:auto;page-break-after:auto}</style>`;
+  const page = /<\/head>/i.test(html) ? html.replace(/<\/head>/i, print + "</head>") : print + html;
+  const { cdp, browser } = await openHtmlPage({ html: page, width, height, fontCss, browserExecutable, baseW });
+  try {
+    await sleep(300);
+    const r = await cdp.send("Page.printToPDF", { printBackground: true, preferCSSPageSize: true, paperWidth: lw / 96, paperHeight: lh / 96, marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 });
+    return Buffer.from((r.value ?? r).data, "base64");
+  } finally { try { await browser.close({ silent: true }); } catch {} }
+}
+export async function htmlStills({ html, width, height, times, fontCss = "", browserExecutable, fps = 30, crop = false, sig = false, baseW }) {
   const box = crop ? await findCrop({ html, width, height, fontCss, browserExecutable, fps }) : null;
-  const { step, shot, evalIn, errors, browser } = await openHtmlPage({ html, width, height, fontCss, browserExecutable });
+  const { step, shot, evalIn, errors, browser } = await openHtmlPage({ html, width, height, fontCss, browserExecutable, baseW });
   try {
     const out = []; let t = 0;
     for (const sec of [...times].sort((a, b) => a - b)) {

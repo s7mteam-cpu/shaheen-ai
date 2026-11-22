@@ -9,7 +9,7 @@ export const maxDuration = 30;
 const ASPECTS = ["4:5", "1:1", "9:16", "16:9"];
 const DAILY = 40; // designs + edits per customer in 24 hours
 const clean = (x: unknown, n: number) => String(x ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
-const TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite", "free-card"];
+const TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite", "free-card", "free-deck", "free-cv"];
 const MAX_SAVES = 40; // free studio saves per design
 const num = (v: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
 type Edits = { texts: Record<string, string>; hex: Record<string, string>; font?: string; els: ReturnType<typeof cleanEls>; logo: { on: boolean; path?: string; box: { x: number; y: number; w: number } } | null };
@@ -85,14 +85,15 @@ export async function POST(req: Request) {
     cost = Math.max(0, tool.edit_cost ?? 3);
     title = `تعديل: ${String(src.title ?? "تصميم مبتكر")}`.slice(0, 80);
   } else {
-    const idea = clean(b.idea, 1500);
+    const idea = clean(b.idea, toolId === "free-cv" || toolId === "free-deck" ? 4000 : 1500);
     if (idea.length < 10) return NextResponse.json({ error: "اكتب فكرتك بتفصيل أكثر (جملتين على الأقل)." }, { status: 400 });
     { const bad = await guardContent(user.id, { idea }, "free-post"); if (bad) return bad; }
     const card = toolId === "free-card"; // a business card: fixed print size, two sides (front + back), one price
-    const aspect = card ? "card" : ASPECTS.includes(String(b.aspect)) ? String(b.aspect) : "4:5";
-    const slides = card ? 2 : toolId === "free-carousel" ? Math.min(8, Math.max(3, Math.round(Number(b.slides)) || 5)) : 1;
+    const deck = toolId === "free-deck", cvTool = toolId === "free-cv"; // a presentation: wide slides, 4 to 8. A CV: one A4 page.
+    const aspect = card ? "card" : deck ? "16:9" : cvTool ? "a4" : ASPECTS.includes(String(b.aspect)) ? String(b.aspect) : "4:5";
+    const slides = card ? 2 : deck ? Math.min(8, Math.max(4, Math.round(Number(b.slides)) || 6)) : cvTool ? 1 : toolId === "free-carousel" ? Math.min(8, Math.max(3, Math.round(Number(b.slides)) || 5)) : 1;
     // the customer's own identity (colours, font, logo, name) is read by the server from his brand kit, never from the request
-    const { data: kit } = b.useBrand === false || toolId === "free-invite" ? { data: null } // an invitation is personal: the business identity stays out of it
+    const { data: kit } = b.useBrand === false || toolId === "free-invite" || toolId === "free-cv" ? { data: null } // an invitation is personal: the business identity stays out of it
       : await admin.from("brand_kits").select("business_name,colors,font,logo_url").eq("user_id", user.id).maybeSingle();
     const cols = ((kit?.colors ?? []) as unknown[]).map((c) => String(c ?? "")).filter((c) => /^#[0-9a-fA-F]{6}$/.test(c));
     const logo = String(kit?.logo_url ?? "");
@@ -130,9 +131,12 @@ export async function GET(req: Request) {
   if (!job) return NextResponse.json({ error: "ما لقينا الطلب." }, { status: 404 });
   if (job.status === "failed") return NextResponse.json({ status: "failed", error: "ما قدرنا نكمل هذا التصميم، ورجّعنا لك الريش. جرّب تكتب الفكرة بشكل أبسط." });
   if (job.status !== "done") return NextResponse.json({ status: job.status, progress: job.progress ?? 0 });
-  const out = (job.output ?? {}) as { files?: { path: string }[]; expired?: boolean };
+  const out = (job.output ?? {}) as { files?: { path: string; type?: string }[]; expired?: boolean };
   if (out.expired) return NextResponse.json({ status: "expired" });
-  const paths = (out.files ?? []).map((f) => String(f.path)).filter((p) => p.startsWith(`${user.id}/`) && !p.includes(".."));
+  const okPath = (p: string) => p.startsWith(`${user.id}/`) && !p.includes("..");
+  const paths = (out.files ?? []).filter((f) => f.type !== "application/pdf").map((f) => String(f.path)).filter(okPath);
+  const pdfPath = (out.files ?? []).filter((f) => f.type === "application/pdf").map((f) => String(f.path)).filter(okPath)[0];
+  const pdfUrl = pdfPath ? (await admin.storage.from("results").createSignedUrl(pdfPath, 60 * 60 * 3, { download: true })).data?.signedUrl ?? "" : "";
   const [view, down] = await Promise.all([
     paths.length ? admin.storage.from("results").createSignedUrls(paths, 60 * 60 * 3) : Promise.resolve({ data: [] }),
     paths.length ? admin.storage.from("results").createSignedUrls(paths, 60 * 60 * 3, { download: true }) : Promise.resolve({ data: [] }),
@@ -147,7 +151,7 @@ export async function GET(req: Request) {
   const logoUrl = lp ? (await admin.storage.from("uploads").createSignedUrl(lp, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
   return NextResponse.json({
     status: "done", title: job.title, aspect: inp.aspect ?? "4:5", editCost: tool?.edit_cost ?? 3,
-    slides: Math.min(8, Math.max(1, Math.round(Number(inp.slides) || 1))), htmlUrl, savesLeft: Math.max(0, MAX_SAVES - (Number(inp.saves) || 0)),
+    slides: Math.min(8, Math.max(1, Math.round(Number(inp.slides) || 1))), htmlUrl, pdfUrl, savesLeft: Math.max(0, MAX_SAVES - (Number(inp.saves) || 0)),
     edits: ed ? { texts: ed.texts ?? {}, hex: ed.hex ?? {}, font: ed.font ?? null, els: ed.els ?? [] } : null,
     logo: lp && logoUrl ? { path: lp, url: logoUrl, box: ed?.logo?.box ?? { x: 0.14, y: 0.09, w: 0.18 } } : null,
     images: paths.map((_, i) => ({ url: view.data?.[i]?.signedUrl ?? "", download: down.data?.[i]?.signedUrl ?? "" })).filter((x) => x.url),
