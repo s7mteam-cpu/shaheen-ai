@@ -9,7 +9,7 @@ export const maxDuration = 30;
 const ASPECTS = ["4:5", "1:1", "9:16", "16:9"];
 const DAILY = 40; // designs + edits per customer in 24 hours
 const clean = (x: unknown, n: number) => String(x ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
-const TOOLS = ["free-post", "free-carousel"];
+const TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite"];
 const MAX_SAVES = 40; // free studio saves per design
 const num = (v: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
 type Edits = { texts: Record<string, string>; hex: Record<string, string>; font?: string; els: ReturnType<typeof cleanEls>; logo: { on: boolean; path?: string; box: { x: number; y: number; w: number } } | null };
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     if (!won?.length) return NextResponse.json({ error: "التصميم قيد الرسم، لحظات." }, { status: 409 });
     return NextResponse.json({ jobId: src.id, cost: 0 });
   }
-  const toolId = src ? src.tool_id : b.tool === "free-carousel" ? "free-carousel" : "free-post";
+  const toolId = src ? src.tool_id : TOOLS.includes(String(b.tool)) ? String(b.tool) : "free-post";
   const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost,is_enabled").eq("id", toolId).maybeSingle();
   if (!tool) return NextResponse.json({ error: "الأداة مو مضافة بعد (ملف SQL الخاص بالتحديث v235)." }, { status: 400 });
   if (!tool.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
@@ -91,7 +91,8 @@ export async function POST(req: Request) {
     const aspect = ASPECTS.includes(String(b.aspect)) ? String(b.aspect) : "4:5";
     const slides = toolId === "free-carousel" ? Math.min(8, Math.max(3, Math.round(Number(b.slides)) || 5)) : 1;
     // the customer's own identity (colours, font, logo, name) is read by the server from his brand kit, never from the request
-    const { data: kit } = b.useBrand === false ? { data: null } : await admin.from("brand_kits").select("business_name,colors,font,logo_url").eq("user_id", user.id).maybeSingle();
+    const { data: kit } = b.useBrand === false || toolId === "free-invite" ? { data: null } // an invitation is personal: the business identity stays out of it
+      : await admin.from("brand_kits").select("business_name,colors,font,logo_url").eq("user_id", user.id).maybeSingle();
     const cols = ((kit?.colors ?? []) as unknown[]).map((c) => String(c ?? "")).filter((c) => /^#[0-9a-fA-F]{6}$/.test(c));
     const logo = String(kit?.logo_url ?? "");
     input = {

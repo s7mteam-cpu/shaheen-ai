@@ -1650,7 +1650,8 @@ async function freeJob(job) {
 
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
 // ---------- «بوست / كاروسيل مبتكر»: the AI writes the design as a page, we draw one PNG per slide ----------
-const POST_TOOLS = ["free-post", "free-carousel"];
+const POST_TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite"];
+const POST_KIND = { "free-ad": "ad", "free-invite": "invite" };
 const POST_SIZE = { "1:1": [1080, 1080], "4:5": [1080, 1350], "9:16": [1080, 1920], "16:9": [1920, 1080] };
 /** the customer's studio edits (texts, colours, font, moved elements) put on a saved design. Every value is cleaned by the kit functions themselves. */
 function postEdits(html, ed) {
@@ -1726,7 +1727,7 @@ async function postJob(job) {
         // the writing is one long request: the bar keeps moving slowly so the customer sees it is alive
         let shown = p0; const creep = setInterval(() => { if (shown < p0 + 34) { shown += 2; stage(shown); } }, 9000);
         let raw = "";
-        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry }); }
+        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry, kind: POST_KIND[job.tool_id] }); }
         catch (e) { if (attempt === 2) throw e; retry = e?.cut ? CUT_NOTE : `The last answer was not a usable page (${String(e?.message ?? e).slice(0, 120)}). Return the full HTML page in one html block.`; continue; }
         finally { clearInterval(creep); }
         // SECURITY: scripts and event handlers are removed first, then the page is checked BEFORE anything opens it

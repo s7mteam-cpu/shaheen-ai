@@ -11,6 +11,8 @@ export const TOOL_AI: Record<string, Uses[]> = {
   invitations: [{ model: "claude-sonnet-5-5", what: "يكتب خطة الدعوة" }, { model: "gemini-3-pro-image-preview", what: "الصور (إذا مزوّد الصور Google)" }],
   "business-cards": [{ model: "claude-sonnet-5-5", what: "يكتب خطة الكرت" }],
   "free-post": [{ model: "post-writer", what: "يكتب التصميم كله من الصفر، و«عدّل بالذكاء الاصطناعي»" }],
+  "free-ad": [{ model: "post-writer", what: "يكتب الإعلان كله من الصفر، و«عدّل بالذكاء الاصطناعي»" }],
+  "free-invite": [{ model: "post-writer", what: "يكتب بطاقة الدعوة كلها من الصفر، و«عدّل بالذكاء الاصطناعي»" }],
   "free-carousel": [{ model: "post-writer", what: "يكتب كل الشرائح من الصفر، و«عدّل بالذكاء الاصطناعي»" }],
   "motion-video": [{ model: "claude-sonnet-5-5", what: "يكتب المشاهد والنص" }, { model: "eleven_v4", what: "التعليق الصوتي" }, { model: "gemini-3-pro-image-preview", what: "رسومات المشاهد (إذا مزوّد الصور Google)" }],
   "real-scenes": [{ model: "claude-sonnet-5-5", what: "يكتب النص ويختار اللقطات" }, { model: "eleven_v4", what: "التعليق الصوتي" }, { model: "gemini-omni-1.1-flash", what: "لقطات بالذكاء الاصطناعي (الخيار الأغلى)" }],

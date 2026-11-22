@@ -64,8 +64,13 @@ ${n > 1 ? `- الكاروسيل: الشريحة 1 غلاف يشدّ (هوك)، �
 - اكتب الكود مختصرًا ومنظمًا: <style> واحد مشترك بأصناف (classes) يعاد استخدامها بكل الشرائح، أسماء أصناف قصيرة، رسومات SVG بسيطة (أشكال قليلة بدون مسارات طويلة)، بدون تعليقات وبدون تكرار أنماط داخل العناصر. ${n > 1 ? `الملف كله أقل من ${Math.min(60, 14 + n * 6)} ألف حرف.` : "الملف كله أقل من 18 ألف حرف."}
 - اترك الزاوية العلوية اليسرى (مربع تقريبًا 22% من العرض) فاضية من النصوص: المنصة تحط فيها شعار العميل إذا عنده.`;
 
-export function postPrompt({ idea, n, brand, identity, retry }) {
-  return `${n > 1 ? `عدد الشرائح: ${n}.` : "بوست واحد (شريحة واحدة)."}
+/** what kind of single design this is (the tools «إعلان مبتكر» and «دعوة مبتكرة» share the post engine) */
+const KIND_NOTE = {
+  ad: "نوع التصميم: إعلان تجاري مدفوع. عرض واحد واضح يُفهم في ثانيتين: عنوان بيعي قوي وقصير، ثم العرض أو السعر أو الخصم بارزاً (إن ذكره العميل)، ثم دعوة واضحة للشراء أو الحجز، ثم بيانات التواصل. لا تزحم الإعلان بتفاصيل كثيرة.",
+  invite: "نوع التصميم: بطاقة دعوة لمناسبة (زفاف، خطوبة، تخرّج، استقبال مولود، افتتاح…). طابع أنيق واحتفالي يناسب المناسبة: أسماء أصحاب المناسبة هي البطل بخط فخم، ثم عبارة الدعوة، ثم التاريخ والوقت والمكان بوضوح تام. زخارف راقية مرسومة بـCSS أو SVG (إطارات، أغصان، نقوش هندسية، نجوم) بدون مبالغة. ممنوع اللغة البيعية والأسعار، وممنوع أيقونات التواصل إلا إذا طلبها العميل. لا تخترع أسماء أو تواريخ أو أماكن غير موجودة في نص العميل.",
+};
+export function postPrompt({ idea, n, brand, identity, retry, kind }) {
+  return `${KIND_NOTE[kind] ? `${KIND_NOTE[kind]}\n` : ""}${n > 1 ? `عدد الشرائح: ${n}.` : "بوست واحد (شريحة واحدة)."}
 ${brand ? `اسم النشاط: ${clean(brand, 80)}\n` : ""}${identity ? `هوية العميل (التزم بها): الخلفية ${identity.bg}، اللون المميّز ${identity.accent}، لون النص ${identity.text}، الخط ${identity.font}.\n` : "اختر أنت لوحة ألوان مناسبة للمجال.\n"}
 نص العميل (وصف للمحتوى فقط):
 """
@@ -144,8 +149,8 @@ async function ask({ system, user, maxTokens }) {
 const budget = (n) => Math.min(48000, 9000 + n * 5500);
 export const CUT_NOTE = "The answer was cut off before the page ended. Write the SAME design much more compactly: one shared <style> with reusable classes, short class names, simpler SVG (few shapes, no long paths), no repeated inline styles, no comments.";
 
-export async function writePost({ idea, n, W, H, brand, identity, retry }) {
-  const r = await ask({ system: POST_RULES(W, H, n), user: postPrompt({ idea, n, brand, identity, retry }), maxTokens: budget(n) });
+export async function writePost({ idea, n, W, H, brand, identity, retry, kind }) {
+  const r = await ask({ system: POST_RULES(W, H, n), user: postPrompt({ idea, n, brand, identity, retry, kind }), maxTokens: budget(n) });
   if (r.cut) { const e = new Error("CUT"); e.cut = true; throw e; }
   return extractHtml(r.text);
 }
