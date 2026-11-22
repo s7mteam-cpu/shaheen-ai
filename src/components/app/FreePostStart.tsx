@@ -11,7 +11,7 @@ type Done = PostData;
 type State = { status: "queued" | "running"; progress: number } | Done | { status: "failed"; error: string } | { status: "expired" } | null;
 
 /** «بوست / كاروسيل مبتكر»: the idea form, the waiting screen, then the pictures with «edit by words». */
-export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo, imageCost = 0 }: { imageCost?: number; tool: "free-post" | "free-carousel" | "free-ad" | "free-invite" | "free-card" | "free-deck" | "free-cv"; costPerSlide: number; balance: number; hasKit: boolean; hasLogo: boolean }) {
+export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo, imageCost = 0, hasStyle = false }: { imageCost?: number; hasStyle?: boolean; tool: "free-post" | "free-carousel" | "free-ad" | "free-invite" | "free-card" | "free-deck" | "free-cv"; costPerSlide: number; balance: number; hasKit: boolean; hasLogo: boolean }) {
   const router = useRouter();
   const jobId = useSearchParams().get("job");
   const [idea, setIdea] = useState("");
@@ -26,6 +26,7 @@ export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo, im
   const [state, setState] = useState<State>(null);
   const [poll, setPoll] = useState(0);
   // «صورة للتصميم» (بوست وإعلان): none, drawn by AI (the image tool's price is added), or the customer's own picture
+  const [useStyle, setUseStyle] = useState(true);
   const canPhoto = tool === "free-post" || tool === "free-ad";
   const [photo, setPhoto] = useState<"none" | "ai" | "upload">("none");
   const [photoDesc, setPhotoDesc] = useState("");
@@ -127,8 +128,9 @@ export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo, im
           {hasLogo && <label className="flex items-center gap-2"><input type="checkbox" checked={useBrand && useLogo} disabled={!useBrand} onChange={(e) => setUseLogo(e.target.checked)} className="h-4 w-4" />{L("حط شعاري على التصميم")}</label>}
         </div>
       )}
+      {hasStyle && <label className="flex items-start gap-2.5 text-[14px]"><input type="checkbox" checked={useStyle} onChange={(e) => setUseStyle(e.target.checked)} className="mt-1 size-4" /><span><span className="font-semibold">{L("صمّم بأسلوبي ✨")}</span><span className="block text-[13px] text-subtle">{L("شاهين يستلهم من وصف ذوقك وصورك المرجعية المحفوظة في «هويتي».")}</span></span></label>}
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
-      <button type="button" disabled={busy || upBusy || idea.trim().length < 10 || balance < cost || (canPhoto && photo === "upload" && !up)} onClick={() => send({ tool, idea, aspect, slides, useBrand, useLogo, ...(canPhoto && photo === "ai" ? { photo: "ai", photoDesc } : canPhoto && photo === "upload" && up ? { photo: "upload", photoPath: up.path } : {}) })} className="btn btn-gold w-full py-3.5 disabled:opacity-50">{busy ? L("جاري الإرسال…") : LT(`✨ صمّم (${cost} ريشة)`, `✨ Design (${cost} credits)`)}</button>
+      <button type="button" disabled={busy || upBusy || idea.trim().length < 10 || balance < cost || (canPhoto && photo === "upload" && !up)} onClick={() => send({ tool, idea, aspect, slides, useBrand, useLogo, useStyle, ...(canPhoto && photo === "ai" ? { photo: "ai", photoDesc } : canPhoto && photo === "upload" && up ? { photo: "upload", photoPath: up.path } : {}) })} className="btn btn-gold w-full py-3.5 disabled:opacity-50">{busy ? L("جاري الإرسال…") : LT(`✨ صمّم (${cost} ريشة)`, `✨ Design (${cost} credits)`)}</button>
       {balance < cost && <p className="text-center text-[13px] text-red-700">{L("رصيدك من الريش ما يكفي.")}</p>}
       <p className="text-center text-[12.5px] leading-6 text-subtle">{L("أداة تجريبية: التصميم يكتبه الذكاء الاصطناعي من الصفر، فمرة يطلع ممتاز ومرة يحتاج تعديل بالكلام. إذا فشل ترجع الريش تلقائياً.")}</p>
     </div>

@@ -66,7 +66,7 @@ export function geminiPrompt(plan, idea, retry) {
 }
 
 /** Calls Gemini (key + model come from Railway variables). Returns { html, usage }. */
-export async function geminiHtml({ plan, idea, retry, model: pick, system, user }) {
+export async function geminiHtml({ plan, idea, retry, model: pick, system, user, images = [] }) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY غير موجود بإعدادات Railway. أضفه هناك ثم أعد النشر.");
   const model = await modelFor(/^gemini-[a-z0-9.-]{2,40}$/.test(String(pick ?? "")) ? pick : (process.env.GEMINI_MODEL || "gemini-3.8-flash"));
@@ -76,7 +76,7 @@ export async function geminiHtml({ plan, idea, retry, model: pick, system, user 
     res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
       method: "POST", signal: AbortSignal.timeout(900_000),
       headers: { "x-goog-api-key": key, "content-type": "application/json" },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: system ?? RULES }] }, contents: [{ role: "user", parts: [{ text: user ?? geminiPrompt(plan, idea, retry) }] }], generationConfig: { temperature: 1, maxOutputTokens: 60000 } }),
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: system ?? RULES }] }, contents: [{ role: "user", parts: [...images.map((data) => ({ inlineData: { mimeType: "image/jpeg", data } })), { text: user ?? geminiPrompt(plan, idea, retry) }] }], generationConfig: { temperature: 1, maxOutputTokens: 60000 } }),
     });
   } catch (e) { throw new Error(`gemini اتصال فشل (النموذج: ${model}): ${String(e?.cause?.code ?? e?.cause?.message ?? e?.message ?? e).slice(0, 160)}`); }
   if (!res.ok) throw new Error(`gemini ${res.status} (النموذج: ${model}): ${(await res.text()).replace(key, "***").slice(0, 220)}`);

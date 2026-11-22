@@ -21,13 +21,14 @@ const sizes = [["9:16", "📱 ريلز 9:16"], ["16:9", "▶️ يوتيوب 16:
 const social = Object.keys(BRANDS) as BrandId[];
 
 /** «تصميم مبتكر ✨»: the customer writes an idea; the AI writes a motion design as code and the worker renders it. Texts and colours can be edited afterwards. */
-export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, voices = [] }: { voices?: VoiceItem[]; costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null; kit?: { name: string; colors: string[]; font: string } | null }) {
+export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, voices = [], hasStyle = false }: { hasStyle?: boolean; voices?: VoiceItem[]; costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null; kit?: { name: string; colors: string[]; font: string } | null }) {
   const router = useRouter();
   const sp = useSearchParams();
   const jobId = sp.get("job");
   const [idea, setIdea] = useState("");
   const [brand, setBrand] = useState(kit?.name ?? "");
   const [useIdentity, setUseIdentity] = useState(true);
+  const [useStyle, setUseStyle] = useState(true);
   const [aspect, setAspect] = useState("9:16");
   const [seconds, setSeconds] = useState(15);
   const [auto, setAuto] = useState(false);
@@ -101,7 +102,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
       return;
     }
     setBusy(true);
-    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds: secs ?? seconds, brand, colors, useIdentity, font, contact, voiceover, dialect, vtype, voice: voiceId || undefined, music: withMusic }) });
+    const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea, aspect, seconds: secs ?? seconds, brand, colors, useIdentity, useStyle, font, contact, voiceover, dialect, vtype, voice: voiceId || undefined, music: withMusic }) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setError(d.error ?? L("تعذّر البدء.")); return; }
@@ -164,6 +165,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
           <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} />{L("موسيقى هادية بالخلفية")}</label>
         </>)}
       </div>
+      {hasStyle && <label className="flex items-start gap-2.5 text-[14px]"><input type="checkbox" checked={useStyle} onChange={(e) => setUseStyle(e.target.checked)} className="mt-1 size-4" /><span><span className="font-semibold">{L("صمّم بأسلوبي ✨")}</span><span className="block text-[13px] text-subtle">{L("شاهين يستلهم من وصف ذوقك وصورك المرجعية المحفوظة في «هويتي».")}</span></span></label>}
       <label className="flex items-center gap-2 text-[14px] font-semibold"><input type="checkbox" checked={useIdentity} onChange={(e) => setUseIdentity(e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("طبّق هويتي (ألوانها)")}</label>
       {useIdentity ? <div className="flex flex-col gap-2"><span className="font-semibold">{L("ألوان هويتك")}</span>{colorRow(colors)}</div> : <p className="text-[13px] text-subtle">{L("بدون هويتك: المصمم يختار الألوان المناسبة للفكرة، وإذا كتبت ألوان بالنص يلتزم بها. تقدر تغيّرها بعد التصميم.")}</p>}
       <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{FONT_LIBRARY.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}</select></label>

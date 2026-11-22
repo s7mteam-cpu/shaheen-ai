@@ -1,3 +1,4 @@
+import { loadStyle } from "@/lib/server/myStyle";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
@@ -129,6 +130,7 @@ export async function POST(req: Request) {
     };
     cost = Math.max(0, tool.credit_cost) * (card ? 1 : slides);
     title = idea.slice(0, 80);
+    if (b.useStyle !== false) { const st = await loadStyle(user.id); if (st) input.style = st; } // «أسلوبي»: his taste, reference pictures and video (his own files, read by the server)
     // «صورة للتصميم» (بوست وإعلان فقط): the customer's own uploaded picture, or one drawn now by the image tool (its price is added)
     if (PHOTO_TOOLS.includes(toolId) && b.photo === "upload") {
       const pp = String(b.photoPath ?? "");

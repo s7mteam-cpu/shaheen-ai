@@ -6,7 +6,7 @@ import { resetBrand, saveBrand } from "@/app/app/brand/actions";
 
 import { FontPicker } from "./FontPicker";
 
-export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; refs?: { path: string; url: string }[] } }) {
+export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[] } }) {
   const [name, setName] = useState(initial.business_name);
   const [logo, setLogo] = useState(initial.logo_url);
   const [preview, setPreview] = useState(initial.logo_preview);
@@ -17,6 +17,21 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
   const [website, setWebsite] = useState(initial.website ?? "");
   const [instagram, setInstagram] = useState(initial.instagram ?? "");
   const [refs, setRefs] = useState(initial.refs ?? []);
+  const [note, setNote] = useState(initial.style_note ?? "");
+  const [video, setVideo] = useState<string | null>(initial.style_video ?? null);
+  const [vidBusy, setVidBusy] = useState(false);
+  async function addVideo(file?: File) {
+    if (!file) return;
+    setVidBusy(true); setMsg("");
+    try {
+      const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "video", type: file.type, size: file.size, name: file.name }) });
+      const d = await r.json();
+      if (!r.ok) { setMsg(d.error); return; }
+      const { error } = await createClient().storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
+      if (error) { setMsg("ما نجح رفع الفيديو."); return; }
+      setVideo(d.path);
+    } finally { setVidBusy(false); }
+  }
   async function addRefs(files: FileList | null) {
     for (const file of Array.from(files ?? []).slice(0, 6 - refs.length)) {
       const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "image", type: file.type, size: file.size, name: file.name }) });
@@ -44,7 +59,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
     setMsg(L("تم تصفير الهوية. التصاميم الجديدة بتكون بدون هوية لين تحفظ هوية جديدة."));
   }
   async function save() {
-    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path) });
+    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video });
     setMsg(r.ok ? L("تم الحفظ. بتنطبق هويتك على كل تصميم جديد.") : L("تعذّر الحفظ."));
   }
 
@@ -85,7 +100,12 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
         <FontPicker value={font} onChange={setFont} none={{ label: L("يختاره شاهين"), active: !font, onPick: () => setFont("") }} />
       </div>
       <div className="flex flex-col gap-4 rounded-2xl bg-tint p-4">
-        <div><span className="label">{L("ستايلك المفضّل")}</span><p className="text-[13px] text-subtle">{L("شاهين يتعلّم منها أسلوبك، ويصمّم لك بنفس الإحساس.")}</p></div>
+        <div><span className="label">{L("أسلوبي ✨")}</span><p className="text-[13px] leading-6 text-subtle">{L("علّم شاهين ذوقك مرة وحدة: وصف بالكلام، صور تعجبك، وفيديو مرجعي. الأدوات المبتكرة تستلهم منها الأسلوب (الألوان، الترتيب، الروح) وما تنسخها. تقدر تطفيها من أي أداة بخيار «صمّم بأسلوبي».")}</p></div>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[14px] font-semibold">{L("وصف ذوقك بالكلام")}</span>
+          <textarea value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} rows={3} className="field" placeholder={L("مثال: أحب التصاميم البسيطة والفخمة، ألوان هادية، مساحات فاضية، خط عريض للعناوين، وبدون زخارف كثيرة.")} />
+          <span className="text-[12px] text-subtle">{note.length} / 500</span>
+        </label>
         <div className="flex flex-col gap-2">
           <span className="text-[14px] font-semibold">{L("ارفع 3-6 صور من أحلى بوستاتك")} <span className="font-normal text-subtle">{L("(سكرين شوت من إنستغرام يكفي)")}</span></span>
           <div className="flex flex-wrap gap-2.5">
@@ -98,6 +118,15 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
             ))}
             {refs.length < 6 && <label className="grid h-20 w-16 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-field bg-white text-[22px] text-subtle">+<input type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" onChange={(e) => addRefs(e.target.files)} /></label>}
           </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-[14px] font-semibold">{L("فيديو مرجعي واحد")} <span className="font-normal text-subtle">{L("(اختياري، فيديو يعجبك أسلوبه. شاهين ياخذ منه لقطات ويستلهم الشكل والألوان.)")}</span></span>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="btn btn-outline cursor-pointer px-4 py-2 text-[14px]">{vidBusy ? "…" : video ? L("غيّر الفيديو") : L("ارفع فيديو")}<input type="file" accept="video/mp4,video/quicktime,video/webm" className="sr-only" disabled={vidBusy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; addVideo(f); }} /></label>
+            {video && <span className="text-[13px] font-semibold text-green-700">✓ {L("فيه فيديو مرجعي محفوظ")}</span>}
+            {video && <button type="button" onClick={() => setVideo(null)} className="text-[13px] font-semibold text-red-700 underline">{L("شيله")}</button>}
+          </div>
+          <p className="text-[12px] leading-5 text-subtle">{L("ارفع صور وفيديوهات تملك حقها أو للاستلهام فقط. ممنوع رفع محتوى مخالف لسياسة المحتوى. اضغط «حفظ» بعد الرفع.")}</p>
         </div>
       </div>
       {msg && <p role="status" className="text-sm text-navy-700">{L(msg)}</p>}

@@ -29,7 +29,7 @@ import { prepareHtml } from "./htmlprep.mjs";
 import { planVideo, geminiHtml, geminiEdit, geminiPrompt, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { modelFor } from "./models.mjs";
-import { writePost, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE, withIcons } from "./postflow.mjs";
+import { writePost, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE, withIcons, styleNote } from "./postflow.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
@@ -938,6 +938,38 @@ async function mixAudio({ video, voice, music, own, voiceVol = 1, musicVol = 0.1
 }
 
 /** «التجربة الكبرى» (للأدمن): Claude يخطط ← Gemini يبني الحركة (HTML) ← فحص بصري ← تسجيل MP4. النتيجة بالتخزين فقط. */
+/** «أسلوبي»: the customer's reference pictures (and a few frames of his reference video) as small JPEGs for the designer model. Every path must be his own file in "uploads". */
+async function styleInputs(job, style, workDir, { maxImages = 3, frames = 0 } = {}) {
+  if (!style || typeof style !== "object") return null;
+  const own = (p) => typeof p === "string" && p.startsWith(`${job.user_id}/`) && !p.includes("..");
+  const images = [];
+  const small = async (inF, extra = []) => { const outF = `${inF}.jpg`; await ff([...extra, "-i", inF, "-vf", "scale='min(768,iw)':-2", "-frames:v", "1", "-q:v", "6", outF]); const b = await readFile(outF); await rm(outF, { force: true }); return b.length > 1500 && b.length < 700_000 ? b.toString("base64") : null; };
+  for (const [i, p] of (Array.isArray(style.refs) ? style.refs : []).filter(own).slice(0, maxImages).entries()) {
+    try {
+      const d = await db.storage.from("uploads").download(p); if (d.error) continue;
+      const inF = join(workDir, `st-${job.id}-${i}.in`); await writeFile(inF, Buffer.from(await d.data.arrayBuffer()));
+      const b = await small(inF); await rm(inF, { force: true }); if (b) images.push(b);
+    } catch (e) { console.error("style ref skipped", e?.message ?? e); }
+  }
+  if (frames > 0 && own(style.video)) {
+    const inF = join(workDir, `st-${job.id}-v.in`);
+    try {
+      const d = await db.storage.from("uploads").download(style.video);
+      if (!d.error) {
+        const buf = Buffer.from(await d.data.arrayBuffer());
+        if (buf.length < 80_000_000) {
+          await writeFile(inF, buf);
+          const { stdout } = await run("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", inF], { timeout: 30000 });
+          const dur = Math.max(1, Math.min(600, Number(String(stdout).trim()) || 6));
+          for (let k = 0; k < frames; k++) { const b = await small(inF, ["-ss", String((dur * (k + 0.6)) / (frames + 0.2))]).catch(() => null); if (b) images.push(b); }
+        }
+      }
+    } catch (e) { console.error("style video skipped", e?.message ?? e); }
+    await rm(inF, { force: true }).catch(() => {});
+  }
+  const note = typeof style.note === "string" ? style.note.slice(0, 500) : "";
+  return note || images.length ? { note, images } : null;
+}
 /** what the model is told about the real website pictures (and the customer's logo) of a «فيديو مبتكر من موقعك» */
 function shotNote(aspect, hasLogo) {
   const tall = aspect !== "16:9";
@@ -1039,11 +1071,12 @@ async function gemFlowJob(job) {
     const shots = cust && inp.site?.shots ? await siteShots(job, inp.site, base, workDir).catch(() => null) : null;
     const view = (h) => (shots ? injectShots(h, shots.data) : h);
     if (shots) meta.shots = Object.keys(shots.paths);
+    const styleIn = cust ? await styleInputs(job, inp.style, workDir, { maxImages: 3, frames: 3 }).catch(() => null) : null; // «أسلوبي»: taste, reference pictures, frames of the reference video
     const skillTxt = cust ? await skillFor(inp.site ? "site-free" : "free-motion") : ""; // «مهارات الأدوات» from the admin panel
     let retry = "", page = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
       await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);
-      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model, ...(shots || skillTxt ? { user: geminiPrompt(plan, ideaFull, retry) + (shots ? shotNote(inp.aspect, !!shots.data.logo) : "") + skillNote(skillTxt) } : {}) });
+      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model, images: styleIn?.images ?? [], ...(shots || skillTxt || styleIn ? { user: geminiPrompt(plan, ideaFull, retry) + (shots ? shotNote(inp.aspect, !!shots.data.logo) : "") + styleNote(styleIn) + skillNote(skillTxt) } : {}) });
       // SECURITY: the raw answer is checked BEFORE anything reads or opens it; a page with forbidden code is never prepared, opened or recorded
       const unsafe0 = unsafeHtml(g.html);
       if (unsafe0.length) {
@@ -1714,6 +1747,7 @@ async function postJob(job) {
       const lg = await db.storage.from("uploads").download(logoPath);
       if (!lg.error) { const buf = Buffer.from(await lg.data.arrayBuffer()); if (buf.length <= 3_000_000) { const png = buf[0] === 0x89, jpg = buf[0] === 0xff && buf[1] === 0xd8, webp = buf.slice(8, 12).toString() === "WEBP"; if (png || jpg || webp) logo = { src: `data:image/${png ? "png" : jpg ? "jpeg" : "webp"};base64,${buf.toString("base64")}`, ...logoBox }; } }
     }
+    const styleIn = !edit && !restyle ? await styleInputs(job, inp.style, workDir, { maxImages: 3, frames: 1 }).catch(() => null) : null; // «أسلوبي»
     // the design's picture (AI-drawn or uploaded by the customer; always one of his own files): made light once, kept beside the design
     let photo = null, photoPath = null;
     try {
@@ -1769,7 +1803,7 @@ async function postJob(job) {
         // the writing is one long request: the bar keeps moving slowly so the customer sees it is alive
         let shown = p0; const creep = setInterval(() => { if (shown < p0 + 34) { shown += 2; stage(shown); } }, 9000);
         let raw = "";
-        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry, kind: POST_KIND[job.tool_id], skill: skillNote(await skillFor(job.tool_id)), photo: !!photo }); }
+        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry, kind: POST_KIND[job.tool_id], skill: skillNote(await skillFor(job.tool_id)), photo: !!photo, style: styleIn }); }
         catch (e) { if (attempt === 2) throw e; retry = e?.cut ? CUT_NOTE : `The last answer was not a usable page (${String(e?.message ?? e).slice(0, 120)}). Return the full HTML page in one html block.`; continue; }
         finally { clearInterval(creep); }
         // SECURITY: scripts and event handlers are removed first, then the page is checked BEFORE anything opens it

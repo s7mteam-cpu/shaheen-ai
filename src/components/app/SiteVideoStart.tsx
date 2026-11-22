@@ -21,7 +21,7 @@ const SWATCH: Record<SBg, string> = {
 type Site = { host: string; title: string; desc: string; text: string; sections: string[]; mobileUrl: string; desktopUrl: string };
 
 /** «فيديو من موقعك»: the customer pastes his website; Shaheen opens it, reads it, and makes a video that browses it and explains what it offers. */
-export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false, ready = true }: { costPer15: number; balance: number; fresh?: boolean; ready?: boolean; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
+export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false, ready = true, hasStyle = false }: { costPer15: number; balance: number; fresh?: boolean; ready?: boolean; hasStyle?: boolean; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -48,6 +48,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
   // `fresh` = the separate tool «فيديو مبتكر من موقعك»: a new design drawn from scratch every time, with the website's pictures inside it
   const per15 = costPer15;
   const [useLogo, setUseLogo] = useState(true);
+  const [useStyle, setUseStyle] = useState(true);
   const cost = Math.max(1, Math.round(seconds / 15)) * per15;
   const stop = useRef(false);
   useEffect(() => () => { stop.current = true; }, []);
@@ -84,7 +85,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
     if (fresh) {
       try {
         const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-          siteJob: jobId, useLogo, idea: topic, seconds, aspect, dialect, voiceover, vgender, vage, music: withMusic, useIdentity: false }) });
+          siteJob: jobId, useLogo, useStyle, idea: topic, seconds, aspect, dialect, voiceover, vgender, vage, music: withMusic, useIdentity: false }) });
         const d = await r.json();
         if (!r.ok) throw new Error(L(d.error));
         setPct(100);
@@ -145,6 +146,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
         <PhotoPicker photos={shots} onChange={setShots} max={6} title="صفحات من داخل موقعك (لقطات شاشة)" hint="لو موقعك فيه صفحات ما تنفتح إلا بتسجيل دخول (لوحة تحكم، حجوزات، طلبات)، صوّرها بنفسك وارفعها هنا، واكتب تحت كل صورة وش هي. ما نطلب منك يوزر ولا كلمة سر أبداً." />
         {shots.length > 0 && <label className="flex items-start gap-3 rounded-2xl border border-line p-3"><input type="checkbox" checked={readImgs} onChange={(e) => setReadImgs(e.target.checked)} className="mt-1 h-5 w-5" /><span>{L("خلّ شاهين يقرأ محتوى الصور ويشرح ميزاتها")}<span className="block text-[13px] text-subtle">{L("يقرأ النص والأقسام الظاهرة بكل لقطة، ويتكلم عنها بالتعليق حتى لو ما كتبت وصف.")}</span></span></label>}
         </>}
+        {fresh && hasStyle && <label className="flex items-start gap-2.5 text-[14px]"><input type="checkbox" checked={useStyle} onChange={(e) => setUseStyle(e.target.checked)} className="mt-1 size-4" /><span><span className="font-semibold">{L("صمّم بأسلوبي ✨")}</span><span className="block text-[13px] text-subtle">{L("شاهين يستلهم من وصف ذوقك وصورك المرجعية المحفوظة في «هويتي».")}</span></span></label>}
         {fresh && <label className="flex items-start gap-2.5"><input type="checkbox" checked={useLogo} onChange={(e) => setUseLogo(e.target.checked)} className="mt-1 size-4" /><span><span className="font-semibold">{L("حط شعاري بالفيديو")}</span><span className="block text-[13px] text-subtle">{L("شعارك المحفوظ في «هويتي» يظهر بالافتتاح والختام. إذا ما عندك شعار محفوظ ينكتب اسم الموقع بداله.")}</span></span></label>}
         <div className="flex flex-col gap-2"><span className="font-semibold">{L("المقاس")}</span>{chips(sizes, aspect, setAspect)}</div>
         <div className="flex flex-col gap-2"><span className="font-semibold">{L("المدة")}</span>{chips(lengths, seconds, setSeconds)}</div>

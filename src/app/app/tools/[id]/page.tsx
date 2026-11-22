@@ -1,3 +1,4 @@
+import { loadStyle } from "@/lib/server/myStyle";
 import { pairOf } from "@/lib/toolPairs";
 import { KindSwitch } from "@/components/app/KindSwitch";
 import { getFreeEngine } from "@/lib/server/freeEngine";
@@ -64,6 +65,7 @@ export default async function ToolPage({ params, searchParams }: P) {
   const tool = tools.find((t) => t.id === id);
   if (!tool || !toolSpecs[id]) notFound();
   const pair = pairOf(id, tools);
+  const hasStyle = !job && profile && (id.startsWith("free-") || id === "site-free") ? !!(await loadStyle(profile.id)) : false; // «أسلوبي» in هويتي
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -82,7 +84,7 @@ export default async function ToolPage({ params, searchParams }: P) {
       </div>
       {!job && pair && <KindSwitch current={id} templates={pair.templates} fresh={pair.fresh} L={L} />}
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "free-motion" ? <Suspense><FreeMotionStart voices={content.voices.items} costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "free-post" || id === "free-carousel" || id === "free-ad" || id === "free-invite" || id === "free-card" || id === "free-deck" || id === "free-cv" ? <Suspense><FreePostStart tool={id} imageCost={tools.find((x) => x.id === "image")?.credit_cost ?? 0} costPerSlide={tool.credit_cost} balance={profile?.credits ?? 0} hasKit={!!(await brandKitInfo())} hasLogo={!!(await brandKitLogo())} /></Suspense> : id === "site-video" ? <SiteVideoStart costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "site-free" ? <SiteVideoStart fresh ready={await siteInnovative()} costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "free-motion" ? <Suspense><FreeMotionStart hasStyle={hasStyle} voices={content.voices.items} costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "free-post" || id === "free-carousel" || id === "free-ad" || id === "free-invite" || id === "free-card" || id === "free-deck" || id === "free-cv" ? <Suspense><FreePostStart tool={id} hasStyle={hasStyle} imageCost={tools.find((x) => x.id === "image")?.credit_cost ?? 0} costPerSlide={tool.credit_cost} balance={profile?.credits ?? 0} hasKit={!!(await brandKitInfo())} hasLogo={!!(await brandKitLogo())} /></Suspense> : id === "site-video" ? <SiteVideoStart costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "site-free" ? <SiteVideoStart fresh hasStyle={hasStyle} ready={await siteInnovative()} costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>

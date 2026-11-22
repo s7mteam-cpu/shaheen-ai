@@ -29,7 +29,7 @@ export function SideNav({ isAdmin, support, ready }: { isAdmin: boolean; ready?:
   const settings = path.startsWith("/app/account") && tab === "me";
 
   return (
-    <nav aria-label={T("قائمة المنصة", "App menu")} className="card flex flex-col gap-1 self-start p-3 lg:sticky lg:top-24">
+    <nav aria-label={T("قائمة المنصة", "App menu")} className="card flex flex-col gap-1 self-start p-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
       <Link href="/app" aria-current={home ? "page" : undefined} className={item(home)}><Icon name="home" size={18} className={ic(home)} />{T("الرئيسية", "Home")}</Link>
 
       <Link href="/app/tools#tools-top" aria-current={onTools ? "page" : undefined} className={item(onTools)}><Icon name="grid" size={18} className={ic(onTools)} />{T("الأدوات", "Tools")}</Link>
