@@ -9,8 +9,6 @@ import { DemoField } from "@/components/admin/DemoField";
 import { CoversButton } from "@/components/admin/CoversButton";
 import { extraPricing } from "@/lib/server/pricing";
 import { ExtraPricingForm } from "./ExtraPricingForm";
-import { SectionsForm } from "./SectionsForm";
-import { getToolSections } from "@/lib/server/toolSections";
 
 export const dynamic = "force-dynamic";
 const icons = ["sparkles", "camera", "megaphone", "film", "user", "scissors", "mic", "waves"];
@@ -28,7 +26,6 @@ export default async function ToolsAdmin() {
         <p className="text-[13px] text-subtle">{L("ترسم صور واقعية لكل أداة بالذكاء الاصطناعي (نفس مزوّد أداة «إنشاء صورة»، تقريباً سنتات بسيطة للصورة) وتنحفظ صورة للبطاقة. تقدر بعدين تغيّر أي صورة برفع صورتك.")}</p>
         <CoversButton />
       </div>
-      <SectionsForm s={await getToolSections()} tools={tools.filter((t) => t.sort_order < 90).map((t) => ({ id: t.id, name: t.name, is_enabled: t.is_enabled }))} />
       <ExtraPricingForm s={extra} />
       {tools.map((t) => (
         <form key={t.id} id={`tool-${t.id}`} action={saveTool} className="card grid scroll-mt-24 gap-4 p-5 md:grid-cols-2">

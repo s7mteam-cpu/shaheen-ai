@@ -1,3 +1,5 @@
+import { pairOf } from "@/lib/toolPairs";
+import { KindSwitch } from "@/components/app/KindSwitch";
 import { getFreeEngine } from "@/lib/server/freeEngine";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -61,6 +63,7 @@ export default async function ToolPage({ params, searchParams }: P) {
   if (id === "lesson-video") redirect(job ? `/app/tools/motion-video?job=${job}` : "/app/tools/motion-video"); // the educational video is now part of motion graphics
   const tool = tools.find((t) => t.id === id);
   if (!tool || !toolSpecs[id]) notFound();
+  const pair = pairOf(id, tools);
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -77,6 +80,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         {!job && <p className="mt-1 text-muted">{tool.description}</p>}
         {!job && <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>}
       </div>
+      {!job && pair && <KindSwitch current={id} templates={pair.templates} fresh={pair.fresh} L={L} />}
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
       {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "free-motion" ? <Suspense><FreeMotionStart voices={content.voices.items} costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "free-post" || id === "free-carousel" ? <Suspense><FreePostStart tool={id} costPerSlide={tool.credit_cost} balance={profile?.credits ?? 0} hasKit={!!(await brandKitInfo())} hasLogo={!!(await brandKitLogo())} /></Suspense> : id === "site-video" ? <SiteVideoStart costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "site-free" ? <SiteVideoStart fresh ready={await siteInnovative()} costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />

@@ -1,3 +1,4 @@
+import { mainTools } from "@/lib/toolPairs";
 import { DeckCover } from "@/components/DeckCover";
 import { getMoney } from "@/lib/server/money";
 import Link from "next/link";
@@ -133,7 +134,7 @@ export default async function Home() {
             <a href="#pricing" className="text-[15px] font-semibold text-navy-700">{T("كل الأدوات متاحة في كل الباقات ←", "All tools are included in every plan →")}</a>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {tools.map((t) => (
+            {mainTools(tools).map((t) => (
               <div key={t.id} className="card flex flex-col overflow-hidden rounded-2xl p-0 transition hover:-translate-y-0.5 hover:border-gold-500">
                 <div className="relative aspect-[4/3] overflow-hidden bg-navy-800">
                   {toolCover(t)

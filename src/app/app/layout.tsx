@@ -1,4 +1,5 @@
 import "@/lib/fontsCss"; // the tools' font library (not loaded on the public pages)
+import { mainTools } from "@/lib/toolPairs";
 import { after } from "next/server";
 import { sheetsTick } from "@/lib/server/sheetsSync";
 import Link from "next/link";
@@ -67,7 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const notesRes = await createAdminClient().from("notifications").select("id,kind,title,body,link,read_at,created_at").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(20);
   const notes = (notesRes.error ? [] : notesRes.data ?? []) as Note[];
   const [content, tools0] = await Promise.all([getContent(), getTools()]);
-  const tools = await localize(tools0, lang);
+  const tools = mainTools(await localize(tools0, lang));
   const wa = content.footer.whatsapp ? `https://wa.me/${content.footer.whatsapp.replace(/\D/g, "")}` : undefined;
 
   return (
