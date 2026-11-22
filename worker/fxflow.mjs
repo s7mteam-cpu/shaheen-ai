@@ -176,9 +176,11 @@ export async function fxJob(job, d) {
     const aspect = [["9:16", 0.5625], ["4:5", 0.8], ["1:1", 1], ["16:9", 1.7778]].reduce((best, x) => (Math.abs(x[1] - r) < Math.abs(best[1] - r) ? x : best))[0];
     const [W, H] = d.FREE_SIZE[aspect], tall = aspect !== "16:9";
     const norm = join(dir, "base.mp4"); // one clean file: the final size, 30 fps exactly, so every drawn frame meets its own video frame
-    await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart", norm]);
+    await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_MAX + 3), "-movflags", "+faststart", norm]);
     await rm(raw, { force: true });
-    const frames = Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
+    // the length is the PICTURE's own length (counted frames): a file whose sound runs longer than its picture must not leave the drawing waiting for frames that never come
+    const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
+    if (seconds < 3) throw new Error("FX_NO_VIDEO");
     lap("prepare");
 
     await stage("يسمع كلامك ويفرّغه…", 12);

@@ -220,22 +220,25 @@ export async function recordOverlay({ html, width, height, seconds, fps = 30, ba
     let ffErr = ""; ff.stderr.on("data", (d) => { ffErr += d; });
     const done = new Promise((res, rej) => { ff.on("close", (c) => (c === 0 ? res() : rej(new Error(`ffmpeg: ${ffErr.slice(0, 300)}`)))); ff.on("error", rej); });
     ff.stdin.on("error", () => {}); done.catch(() => {});
-    const dead = new Promise((_, rej) => { ff.on("close", (c) => { if (c !== 0) rej(new Error(`ffmpeg: ${ffErr.slice(0, 300)}`)); }); ff.on("error", rej); }); dead.catch(() => {}); // if ffmpeg stops early, never wait on its pipe
+    // ffmpeg may stop before the last frame (the video part of the file is shorter than its sound): its pipe is then never waited on again
+    let closed = false; const gone = new Promise((res) => { ff.on("close", () => { closed = true; res(); }); ff.on("error", () => { closed = true; res(); }); });
     const deadline = Date.now() + Math.max(15 * 60_000, seconds * 40_000);
     const guard = (x, what) => Promise.race([x, new Promise((_, rej) => setTimeout(() => rej(new Error(`التسجيل علّق (${what})`)), 120_000).unref())]);
-    let hot = 0, drawn = 0;
-    for (let i = 0; i < frames; i++) {
+    let hot = 0, drawn = 0, sent = 0;
+    for (let i = 0; i < frames && !closed; i++) {
       if (Date.now() > deadline) throw new Error("التسجيل أخذ وقتًا أطول من المسموح، تم إيقافه");
       await guard(p.step(1000 / fps), "step");
       let buf;
       if (hot > 0) { buf = await guard(p.full(), "shot"); hot--; drawn++; }
       else if ((await guard(p.tiny(), "probe")).equals(p.blankTiny)) buf = p.blankFull;
       else { buf = await guard(p.full(), "shot"); hot = 5; drawn++; }
-      if (ff.exitCode != null) await dead;
-      if (!ff.stdin.write(buf)) await Promise.race([new Promise((r) => ff.stdin.once("drain", r)), dead]);
+      if (closed) break;
+      if (!ff.stdin.write(buf)) await guard(Promise.race([new Promise((r) => ff.stdin.once("drain", r)), gone]), "pipe");
+      sent++;
       if (i % 15 === 0) onProgress(i / frames);
     }
-    ff.stdin.end(); await done; ff = null;
-    return { frames, drawn };
+    try { ff.stdin.end(); } catch {}
+    await guard(done, "ffmpeg"); ff = null;
+    return { frames, drawn, sent };
   } finally { try { ff?.kill("SIGKILL"); } catch {} try { await p.browser.close({ silent: true }); } catch {} }
 }
