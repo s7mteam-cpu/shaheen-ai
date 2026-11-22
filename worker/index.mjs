@@ -3,6 +3,7 @@
 // 2) "video-editing" (queued, no spec yet)   → smart montage analysis: transcript + AI edit plan → "draft" (customer edits it live).
 // 3) "video-editing" (queued + render: true) → render the edited montage → MP4.
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY (optional: smarter plans), RENDER_CONCURRENCY
+import { animNote } from "./animstyles.mjs";
 import { skillFor, skillNote } from "./skills.mjs";
 import { initUsage, setUsageJob } from "./usage.mjs";
 import { createClient } from "@supabase/supabase-js";
@@ -1072,11 +1073,12 @@ async function gemFlowJob(job) {
     const view = (h) => (shots ? injectShots(h, shots.data) : h);
     if (shots) meta.shots = Object.keys(shots.paths);
     const styleIn = cust ? await styleInputs(job, inp.style, workDir, { maxImages: 3, frames: 3 }).catch(() => null) : null; // «أسلوبي»: taste, reference pictures, frames of the reference video
+    const animTxt = cust ? animNote(inp.anim) : ""; // «ستايل الأنيميشن»
     const skillTxt = cust ? await skillFor(inp.site ? "site-free" : "free-motion") : ""; // «مهارات الأدوات» from the admin panel
     let retry = "", page = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
       await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);
-      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model, images: styleIn?.images ?? [], ...(shots || skillTxt || styleIn ? { user: geminiPrompt(plan, ideaFull, retry) + (shots ? shotNote(inp.aspect, !!shots.data.logo) : "") + styleNote(styleIn) + skillNote(skillTxt) } : {}) });
+      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model, images: styleIn?.images ?? [], ...(shots || skillTxt || styleIn || animTxt ? { user: geminiPrompt(plan, ideaFull, retry) + (shots ? shotNote(inp.aspect, !!shots.data.logo) : "") + animTxt + styleNote(styleIn) + skillNote(skillTxt) } : {}) });
       // SECURITY: the raw answer is checked BEFORE anything reads or opens it; a page with forbidden code is never prepared, opened or recorded
       const unsafe0 = unsafeHtml(g.html);
       if (unsafe0.length) {
