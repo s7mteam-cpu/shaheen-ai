@@ -44,7 +44,7 @@ export default async function CostsPage() {
                       <td className="p-2 font-semibold" dir="ltr">{usd(t.max)}</td>
                       <td className="p-2">{(t.max / f).toFixed(1)} ريشة</td>
                       <td className="p-2">{t.avgCredits ? `${t.avgCredits.toFixed(0)} ريشة` : "—"}</td>
-                      <td className={`p-2 font-bold ${cover === 0 ? "text-subtle" : cover < 2 ? "text-red-700" : cover < 4 ? "text-[#9A7A35]" : "text-green-700"}`}>{cover ? `${cover.toFixed(1)}×` : "—"}</td>
+                      <td className={`p-2 font-bold ${cover === 0 || t.unknown ? "text-subtle" : cover < 2 ? "text-red-700" : cover < 4 ? "text-[#9A7A35]" : "text-green-700"}`}>{t.unknown ? "؟ (ناقص سعر)" : cover ? `${cover.toFixed(1)}×` : "—"}</td>
                     </tr>
                   );
                 })}
@@ -61,7 +61,7 @@ export default async function CostsPage() {
             {r.jobs.map((j) => (
               <li key={j.jobId} className="flex flex-col gap-1.5 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-navy-900">{r.tools.find((t) => t.toolId === j.toolId)?.name ?? j.toolId} <span className="text-[13px] font-normal text-subtle">· {j.user || "—"} · {new Date(j.at).toLocaleString("ar", { dateStyle: "short", timeStyle: "short" })}{j.status === "failed" ? " · فشل" : ""}{j.refunded ? " · رجعت الريش" : ""}</span></span>
+                  <span className="font-semibold text-navy-900">{r.tools.find((t) => t.toolId === j.toolId)?.name ?? j.toolId} <span className="text-[13px] font-normal text-subtle">· {j.user || "—"} · {new Date(j.at).toLocaleString("ar", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Kuwait" })}{j.status === "failed" ? " · فشل" : ""}{j.refunded ? " · رجعت الريش" : ""}</span></span>
                   <span className="flex items-center gap-3 text-sm"><b dir="ltr" className="text-navy-900">{usd(j.usd)}</b><span className="text-subtle">دفع {j.credits} ريشة</span></span>
                 </div>
                 <ul className="flex flex-wrap gap-2 text-[12.5px] text-muted">

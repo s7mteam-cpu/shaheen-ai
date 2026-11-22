@@ -39,10 +39,12 @@ export async function costReport(days = 30): Promise<CostReport> {
     s.calls++; s.usd += c.usd; s.known = s.known && c.known; siteMap.set(k, s);
   }
   const ids = [...byJob.keys()];
-  const info = new Map<string, { tool_id: string; status: string; credits_charged: number; refunded: boolean; created_at: string; user_id: string }>();
+  type JobInfo = { id: string; tool_id: string; status: string; credits_charged: number; refunded: boolean; created_at: string; user_id: string };
+  const info = new Map<string, JobInfo>();
   for (let i = 0; i < ids.length; i += 200) {
-    const { data } = await admin.from("jobs").select("id,tool_id,status,credits_charged,refunded,created_at,user_id").in("id", ids.slice(i, i + 200));
-    for (const j of data ?? []) info.set(j.id, j);
+    const { data } = await admin.from("jobs").select("id,tool_id,status,credits_charged,refunded,created_at,user_id,site_host:input->site->>host").in("id", ids.slice(i, i + 200));
+    // «فيديو مبتكر من موقعك» is saved as a free-motion job (same engine and studio): here it is shown under its own name
+    for (const j of (data ?? []) as unknown as (JobInfo & { site_host?: string | null })[]) info.set(j.id, { ...j, tool_id: j.tool_id === "free-motion" && j.site_host ? "site-free" : j.tool_id });
   }
   const uids = [...new Set([...info.values()].map((j) => j.user_id))];
   const names = new Map<string, string>();
