@@ -1,3 +1,4 @@
+import { noteClaudeUsage } from "@/lib/server/aiUsage";
 import "server-only";
 import { modelFor, noteModelFailure, looksLikeBadModel } from "@/lib/server/models";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -50,6 +51,7 @@ export async function aiChat(purpose: Purpose | { provider: string; model: strin
   if (!res.ok && use !== written) { const why = await res.clone().text(); if (looksLikeBadModel(res.status, why)) { await noteModelFailure(written, use, why); res = await ask(written); } }
   if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as { content: { text?: string }[] };
+  noteClaudeUsage(use, data, "نص الموقع");
   return data.content.map((c) => c.text ?? "").join("").trim();
 }
 
@@ -103,6 +105,7 @@ export async function claudeVisionJson<T>(system: string, text: string, images: 
   if (!res.ok && use !== model) { const why = await res.clone().text(); if (looksLikeBadModel(res.status, why)) { await noteModelFailure(model, use, why); res = await ask(model); } }
   if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as { content: { text?: string }[] };
+  noteClaudeUsage(use, data, "خطة الموقع (JSON)");
   const out = data.content.map((c) => c.text ?? "").join("");
   const o = out.indexOf("{");
   if (o < 0 || out.lastIndexOf("}") < o) throw new Error(`no JSON in reply (${(data as { stop_reason?: string }).stop_reason ?? "?"}): ${out.slice(0, 120)}`);

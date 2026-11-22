@@ -3,6 +3,7 @@
 // 2) "video-editing" (queued, no spec yet)   → smart montage analysis: transcript + AI edit plan → "draft" (customer edits it live).
 // 3) "video-editing" (queued + render: true) → render the edited montage → MP4.
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY (optional: smarter plans), RENDER_CONCURRENCY
+import { initUsage, setUsageJob } from "./usage.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
 import { execFile } from "node:child_process";
@@ -34,6 +35,7 @@ const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.
 
 const run = promisify(execFile);
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+initUsage(db); // notes every AI call with its job (table ai_usage)
 const MAX_SECONDS = 600;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const now = () => new Date().toISOString();
@@ -1781,6 +1783,7 @@ for (;;) {
   // claim it (only one worker wins)
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
   if (!claimed?.length) continue;
+  setUsageJob(job);
   if (job.tool_id === "site-video") await captureJob(job);
   else if (POST_TOOLS.includes(job.tool_id)) await postJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "ingest") await ingestJob(job);

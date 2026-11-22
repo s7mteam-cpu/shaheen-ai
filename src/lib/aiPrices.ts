@@ -1,0 +1,43 @@
+/** «تكلفة كل طلب»: prices the admin can edit (site_content key "ai_prices"). Tokens are priced per 1,000,000; ElevenLabs speech per 1,000 characters.
+ *  The defaults are the providers' public list prices on 22 Nov 2026 where they were found; a model with no price shows its tokens with «بدون سعر». */
+export type ModelPrice = { in: number; out: number; cache?: number };
+export type AiPrices = { models: Record<string, ModelPrice>; el_per_1k: number; feather_usd: number };
+
+export const DEFAULT_PRICES: AiPrices = {
+  models: {
+    "claude-opus-5-5": { in: 4, out: 20, cache: 0.2 },
+    "claude-sonnet-5-5": { in: 2, out: 10, cache: 0.1 },
+    "claude-haiku-5-5": { in: 0.1, out: 0.5, cache: 0.01 },
+    "claude-fable-5-2": { in: 10, out: 50, cache: 0.25 },
+    "gemini-3.8-flash": { in: 0.75, out: 3.75 },
+    "gemini-2.5-pro": { in: 1.25, out: 10 },
+  },
+  el_per_1k: 0,
+  feather_usd: 0.195, // one feather ≈ 0.06 KWD in the current plans
+};
+
+export function cleanPrices(v: unknown): AiPrices {
+  const o = (v && typeof v === "object" ? v : {}) as { models?: unknown; el_per_1k?: unknown; feather_usd?: unknown };
+  const num = (x: unknown, max: number) => { const n = Number(x); return Number.isFinite(n) && n >= 0 ? Math.min(max, n) : NaN; };
+  const models: Record<string, ModelPrice> = { ...DEFAULT_PRICES.models };
+  if (o.models && typeof o.models === "object") for (const [k, x] of Object.entries(o.models as Record<string, { in?: unknown; out?: unknown; cache?: unknown }>).slice(0, 80)) {
+    if (!/^[a-z0-9._/-]{2,90}$/i.test(k) || !x) continue;
+    const i = num(x.in, 1000), u = num(x.out, 1000), c = num(x.cache, 1000);
+    if (Number.isNaN(i) || Number.isNaN(u)) continue;
+    models[k] = { in: i, out: u, ...(Number.isNaN(c) ? {} : { cache: c }) };
+  }
+  const el = num(o.el_per_1k, 100), f = num(o.feather_usd, 100);
+  return { models, el_per_1k: Number.isNaN(el) ? DEFAULT_PRICES.el_per_1k : el, feather_usd: Number.isNaN(f) || f === 0 ? DEFAULT_PRICES.feather_usd : f };
+}
+
+export type UsageRow = { provider: string; model: string; input_tokens: number; output_tokens: number; cache_read: number; cache_write: number; units: number };
+/** estimated dollars of one call; `known:false` when the model has no price yet */
+export function costOf(r: UsageRow, p: AiPrices): { usd: number; known: boolean } {
+  if (r.provider === "elevenlabs") return { usd: (r.units / 1000) * p.el_per_1k, known: p.el_per_1k > 0 };
+  const m = p.models[r.model];
+  if (!m) return { usd: 0, known: false };
+  // Claude reports cached tokens beside input_tokens; Gemini counts them inside promptTokenCount
+  const plain = r.provider === "google" ? Math.max(0, r.input_tokens - r.cache_read) : r.input_tokens;
+  const cacheRate = m.cache ?? m.in * 0.1;
+  return { usd: (plain * m.in + r.output_tokens * m.out + r.cache_read * cacheRate + r.cache_write * m.in * 1.25) / 1_000_000, known: true };
+}
