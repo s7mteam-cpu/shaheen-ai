@@ -9,7 +9,7 @@ export const maxDuration = 30;
 const ASPECTS = ["4:5", "1:1", "9:16", "16:9"];
 const DAILY = 40; // designs + edits per customer in 24 hours
 const clean = (x: unknown, n: number) => String(x ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
-const TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite"];
+const TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite", "free-card"];
 const MAX_SAVES = 40; // free studio saves per design
 const num = (v: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
 type Edits = { texts: Record<string, string>; hex: Record<string, string>; font?: string; els: ReturnType<typeof cleanEls>; logo: { on: boolean; path?: string; box: { x: number; y: number; w: number } } | null };
@@ -88,8 +88,9 @@ export async function POST(req: Request) {
     const idea = clean(b.idea, 1500);
     if (idea.length < 10) return NextResponse.json({ error: "اكتب فكرتك بتفصيل أكثر (جملتين على الأقل)." }, { status: 400 });
     { const bad = await guardContent(user.id, { idea }, "free-post"); if (bad) return bad; }
-    const aspect = ASPECTS.includes(String(b.aspect)) ? String(b.aspect) : "4:5";
-    const slides = toolId === "free-carousel" ? Math.min(8, Math.max(3, Math.round(Number(b.slides)) || 5)) : 1;
+    const card = toolId === "free-card"; // a business card: fixed print size, two sides (front + back), one price
+    const aspect = card ? "card" : ASPECTS.includes(String(b.aspect)) ? String(b.aspect) : "4:5";
+    const slides = card ? 2 : toolId === "free-carousel" ? Math.min(8, Math.max(3, Math.round(Number(b.slides)) || 5)) : 1;
     // the customer's own identity (colours, font, logo, name) is read by the server from his brand kit, never from the request
     const { data: kit } = b.useBrand === false || toolId === "free-invite" ? { data: null } // an invitation is personal: the business identity stays out of it
       : await admin.from("brand_kits").select("business_name,colors,font,logo_url").eq("user_id", user.id).maybeSingle();
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
       font: FREE_FONTS.includes(String(kit?.font)) ? String(kit?.font) : "Cairo",
       logoPath: b.useLogo !== false && logo.startsWith(`${user.id}/`) && !logo.includes("..") ? logo : null,
     };
-    cost = Math.max(0, tool.credit_cost) * slides;
+    cost = Math.max(0, tool.credit_cost) * (card ? 1 : slides);
     title = idea.slice(0, 80);
   }
 

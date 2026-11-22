@@ -18,7 +18,7 @@ export type PostData = {
   logo: { path: string; url: string; box: LogoBox } | null;
 };
 /** the page is laid out in these CSS sizes and drawn at full resolution by the video worker (same rule as worker/postflow.mjs → cssSize) */
-const CSS_SIZE: Record<string, [number, number]> = { "4:5": [432, 540], "1:1": [540, 540], "9:16": [432, 768], "16:9": [960, 540] };
+const CSS_SIZE: Record<string, [number, number]> = { "4:5": [432, 540], "1:1": [540, 540], "9:16": [432, 768], "16:9": [960, 540], card: [960, 548] };
 /** a still post never needs code: scripts and inline handlers are dropped before the page is shown (the worker does the same before drawing) */
 const noScripts = (h: string) => h.replace(/<script\b[\s\S]*?<\/script\s*>/gi, "").replace(/<script\b[^>]*>/gi, "").replace(/\son[a-z]{3,20}\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/javascript\s*:/gi, "");
 const slideCss = (i: number, W: number, H: number) => `<style>html,body{margin:0!important;padding:0!important;width:${W}px!important;height:${H}px!important;overflow:hidden!important;background:#fff}section.slide:not([data-slide="${i}"]){display:none!important}section.slide[data-slide="${i}"]{position:fixed!important;left:0!important;top:0!important;width:${W}px!important;height:${H}px!important;margin:0!important}*,*::before,*::after{animation:none!important;transition:none!important}</style>`;
@@ -174,7 +174,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
   return (
     <div className="flex flex-col gap-5">
       {cropFile && <LogoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); uploadLogo(f); }} />}
-      <div className={`grid grid-cols-1 gap-6 lg:items-start ${data.aspect === "16:9" ? "lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)]"}`}>
+      <div className={`grid grid-cols-1 gap-6 lg:items-start ${data.aspect === "16:9" || data.aspect === "card" ? "lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)]"}`}>
         <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-20 lg:self-start">
           {data.slides > 1 && (
             <div className="flex flex-wrap gap-2" role="group" aria-label={L("الشرائح")}>

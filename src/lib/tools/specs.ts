@@ -120,6 +120,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
   cv: { fields: [], units: () => 1 }, // own page + route (/api/cv)
   presentations: { fields: [], units: () => 1 }, // own page + route (/api/presentation)
   "free-post": { fields: [], units: () => 1 }, // own page + route (/api/free-post): the AI writes the post design, the video worker draws it
+  "free-card": { fields: [], units: () => 1 }, // «بطاقة عمل مبتكرة»: the same engine, a two-sided business card at print size
   "free-ad": { fields: [], units: () => 1 }, // «إعلان مبتكر»: the free-post page and engine, told to design a paid advert
   "free-invite": { fields: [], units: () => 1 }, // «دعوة مبتكرة»: the same, told to design an invitation card
   "free-carousel": { fields: [], units: () => 1 }, // same page, route and engine as free-post, as a carousel of 3 to 8 slides

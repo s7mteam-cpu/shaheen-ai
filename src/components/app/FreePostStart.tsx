@@ -10,13 +10,13 @@ type Done = PostData;
 type State = { status: "queued" | "running"; progress: number } | Done | { status: "failed"; error: string } | { status: "expired" } | null;
 
 /** «بوست / كاروسيل مبتكر»: the idea form, the waiting screen, then the pictures with «edit by words». */
-export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: { tool: "free-post" | "free-carousel" | "free-ad" | "free-invite"; costPerSlide: number; balance: number; hasKit: boolean; hasLogo: boolean }) {
+export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: { tool: "free-post" | "free-carousel" | "free-ad" | "free-invite" | "free-card"; costPerSlide: number; balance: number; hasKit: boolean; hasLogo: boolean }) {
   const router = useRouter();
   const jobId = useSearchParams().get("job");
   const [idea, setIdea] = useState("");
   const [aspect, setAspect] = useState<string>("4:5");
   const carousel = tool === "free-carousel";
-  const invite = tool === "free-invite", ad = tool === "free-ad";
+  const invite = tool === "free-invite", ad = tool === "free-ad", bcard = tool === "free-card";
   const [slides, setSlides] = useState(carousel ? 5 : 1);
   const [useBrand, setUseBrand] = useState(true);
   const [useLogo, setUseLogo] = useState(true);
@@ -75,10 +75,11 @@ export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: 
     <div className="card mx-auto flex w-full max-w-2xl flex-col gap-5 p-6">
       <div className="flex flex-col gap-1.5">
         <label className="label" htmlFor="fp-idea">{L("فكرتك")}</label>
-        <textarea id="fp-idea" value={idea} onChange={(e) => setIdea(e.target.value)} maxLength={1500} rows={6} className="field" placeholder={invite ? L("مثال: دعوة زفاف محمد وسارة، يوم الجمعة 18 ديسمبر 2026 الساعة 8 مساءً، قاعة الراية بالكويت. طابع ملكي فخم بالأبيض والذهبي مع زخارف ناعمة.") : ad ? L("مثال: إعلان افتتاح فرعنا الجديد بالسالمية، خصم 30% على كل الوجبات أول أسبوع، للطلب واتساب 66112233. أسلوب جريء بالأحمر والأسود.") : carousel ? L("مثال: كاروسيل «5 أخطاء تخرب قهوتك بالبيت» لكوفي «دانة»: كل شريحة خطأ وحله بجملة، والأخيرة: زورونا بالسالمية، حسابنا @dana.cafe.") : L("مثال: إعلان افتتاح كوفي «دانة» بالسالمية، خصم 30% على كل المشروبات أول أسبوع، للحجز واتساب 5xxxxxxx، حسابنا @dana.cafe. أبيه فخم وهادي.")} />
+        <textarea id="fp-idea" value={idea} onChange={(e) => setIdea(e.target.value)} maxLength={1500} rows={6} className="field" placeholder={bcard ? L("مثال: بطاقة عمل لأحمد العلي، مدير المبيعات في شركة النخبة العقارية. جوال 66112233، بريد ahmad@nokhba.com، الموقع nokhba.com، الكويت - شرق. أسلوب رسمي فخم بالكحلي والذهبي.") : invite ? L("مثال: دعوة زفاف محمد وسارة، يوم الجمعة 18 ديسمبر 2026 الساعة 8 مساءً، قاعة الراية بالكويت. طابع ملكي فخم بالأبيض والذهبي مع زخارف ناعمة.") : ad ? L("مثال: إعلان افتتاح فرعنا الجديد بالسالمية، خصم 30% على كل الوجبات أول أسبوع، للطلب واتساب 66112233. أسلوب جريء بالأحمر والأسود.") : carousel ? L("مثال: كاروسيل «5 أخطاء تخرب قهوتك بالبيت» لكوفي «دانة»: كل شريحة خطأ وحله بجملة، والأخيرة: زورونا بالسالمية، حسابنا @dana.cafe.") : L("مثال: إعلان افتتاح كوفي «دانة» بالسالمية، خصم 30% على كل المشروبات أول أسبوع، للحجز واتساب 5xxxxxxx، حسابنا @dana.cafe. أبيه فخم وهادي.")} />
         <p className="text-[12.5px] leading-6 text-subtle">{invite ? L("اكتب الأسماء والتاريخ والوقت والمكان بالضبط مثل ما تبيهم يظهرون، والطابع اللي تحبه. شاهين ما يخترع أسماء ولا تواريخ.") : L("اكتب كل اللي تبي يظهر: العرض، السعر، رقم التواصل، الحساب. شاهين ما يخترع أسعار ولا أرقام من عنده.")}</p>
       </div>
-      <div className="flex flex-col gap-2">
+      {bcard && <p className="rounded-xl bg-navy-900/5 px-4 py-3 text-[13.5px] leading-6 text-muted">{L("البطاقة تطلع بوجهين (أمامي وخلفي) بمقاس الطباعة المعتمد 9 × 5 سم تقريباً، صورتين جاهزتين للمطبعة.")}</p>}
+      <div className={bcard ? "hidden" : "flex flex-col gap-2"}>
         <span className="label">{L("المقاس")}</span>
         <div className="flex flex-wrap gap-2">{SIZES.map(([v, l]) => <button key={v} type="button" aria-pressed={aspect === v} onClick={() => setAspect(v)} className="chip">{L(l)}</button>)}</div>
       </div>

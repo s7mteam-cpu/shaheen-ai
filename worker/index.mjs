@@ -1650,9 +1650,9 @@ async function freeJob(job) {
 
 // Jobs left "running" by a crash/restart: retry once, then fail and refund (never stuck forever).
 // ---------- «بوست / كاروسيل مبتكر»: the AI writes the design as a page, we draw one PNG per slide ----------
-const POST_TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite"];
-const POST_KIND = { "free-ad": "ad", "free-invite": "invite" };
-const POST_SIZE = { "1:1": [1080, 1080], "4:5": [1080, 1350], "9:16": [1080, 1920], "16:9": [1920, 1080] };
+const POST_TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite", "free-card"];
+const POST_KIND = { "free-ad": "ad", "free-invite": "invite", "free-card": "card" };
+const POST_SIZE = { "1:1": [1080, 1080], "4:5": [1080, 1350], "9:16": [1080, 1920], "16:9": [1920, 1080], card: [1200, 685] }; // card = a 3.5 × 2 inch business card (about 340 dpi); 1200 × 685 keeps the layout size in whole pixels (960 × 548)
 /** the customer's studio edits (texts, colours, font, moved elements) put on a saved design. Every value is cleaned by the kit functions themselves. */
 function postEdits(html, ed) {
   if (!ed || typeof ed !== "object") return html;
