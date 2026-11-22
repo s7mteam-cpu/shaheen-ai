@@ -4,6 +4,7 @@
 // 3) "video-editing" (queued + render: true) → render the edited montage → MP4.
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY (optional: smarter plans), RENDER_CONCURRENCY
 import { animNote } from "./animstyles.mjs";
+import { fxJob } from "./fxflow.mjs";
 import { skillFor, skillNote } from "./skills.mjs";
 import { initUsage, setUsageJob } from "./usage.mjs";
 import { createClient } from "@supabase/supabase-js";
@@ -1862,6 +1863,8 @@ async function recoverStale(minutes) {
   const { data: designs } = await db.from("jobs").select("id,tool_id,input").in("tool_id", DESIGN_TOOLS).eq("input->>render", "true").eq("status", "running").lt("updated_at", cutoff);
   const { data: sites } = await db.from("jobs").select("id").eq("tool_id", "site-video").eq("status", "running").lt("updated_at", cutoff);
   for (const j of sites ?? []) await db.from("jobs").update({ status: "failed", error: "site: worker restarted", updated_at: now() }).eq("id", j.id);
+  const { data: fxs } = await db.from("jobs").select("id").eq("tool_id", "free-montage").eq("status", "running").lt("updated_at", cutoff); // «مونتاج مبتكر»: a stopped job is refunded (the customer starts it again)
+  for (const j of fxs ?? []) { await db.from("jobs").update({ status: "failed", error: "WORKER_RESTARTED", updated_at: now() }).eq("id", j.id); await db.rpc("refund_job", { p_job: j.id }); }
   const { data: posts } = await db.from("jobs").select("id,input").in("tool_id", POST_TOOLS).eq("status", "running").lt("updated_at", cutoff);
   for (const j of posts ?? []) {
     if (j.input?.mode === "restyle") await db.from("jobs").update({ status: "done", progress: 100, error: "RESTYLE_FAILED", input: { ...j.input, mode: "done", edits: j.input.prevEdits ?? null }, updated_at: now() }).eq("id", j.id); // a free studio save: the design stays as it was
@@ -1892,14 +1895,16 @@ for (;;) {
   const { data: sites } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").eq("tool_id", "site-video").eq("status", "queued").order("created_at").limit(1);
   const { data: frees } = await db.from("jobs").select("id,user_id,tool_id,input,output,created_at").eq("tool_id", "free-motion").eq("status", "queued").order("created_at").limit(1);
   const { data: posts } = await db.from("jobs").select("id,user_id,tool_id,input,output,created_at").in("tool_id", POST_TOOLS).eq("status", "queued").order("created_at").limit(1);
+  const { data: fxs } = await db.from("jobs").select("id,user_id,tool_id,input,created_at").eq("tool_id", "free-montage").eq("status", "queued").order("created_at").limit(1);
   // Website captures and designs are quick: they go first so customers don't wait behind long videos.
-  const job = sites?.[0] ?? designs?.[0] ?? posts?.[0] ?? frees?.[0] ?? jobs?.[0];
+  const job = sites?.[0] ?? designs?.[0] ?? posts?.[0] ?? frees?.[0] ?? fxs?.[0] ?? jobs?.[0];
   if (!job) { await sleep(4000); continue; }
   // claim it (only one worker wins)
   const { data: claimed } = await db.from("jobs").update({ status: "running", updated_at: now() }).eq("id", job.id).eq("status", "queued").select("id");
   if (!claimed?.length) continue;
   setUsageJob(job);
   if (job.tool_id === "site-video") await captureJob(job);
+  else if (job.tool_id === "free-montage") await fxJob(job, { db, ff, probe, transcribe, sentences, faceTrack, fail, now, FREE_SIZE, htmlFontCss });
   else if (POST_TOOLS.includes(job.tool_id)) await postJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "ingest") await ingestJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplpreview") await tplPreviewJob(job);

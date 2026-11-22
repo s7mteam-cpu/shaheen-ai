@@ -126,6 +126,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
   "free-ad": { fields: [], units: () => 1 }, // «إعلان مبتكر»: the free-post page and engine, told to design a paid advert
   "free-invite": { fields: [], units: () => 1 }, // «دعوة مبتكرة»: the same, told to design an invitation card
   "free-carousel": { fields: [], units: () => 1 }, // same page, route and engine as free-post, as a carousel of 3 to 8 slides
+  "free-montage": { fields: [], units: () => 1 }, // «مونتاج مبتكر»: own page and route (/api/free-montage): graphics written as code and drawn over the customer's own video, priced per minute
   "anim-video": { fields: [], units: () => 1 }, // «فيديو أنيميشن»: own page, the free-motion engine told to draw a story in a chosen drawing style (jobs are saved as free-motion)
   "free-motion": { fields: [], units: () => 1 }, // own page: the AI writes motion-graphics code, the video worker renders it
   "site-free": { fields: [], units: () => 1 }, // own page: reads the website like site-video, then the free-motion engine draws a new video (jobs are saved as free-motion)

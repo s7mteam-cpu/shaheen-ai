@@ -172,3 +172,70 @@ export async function recordHtml({ html, width, height, seconds, fps = 30, outFi
     return { frames, cropped: !!box };
   } finally { try { ff?.kill("SIGKILL"); } catch {} try { await browser.close({ silent: true }); } catch {} }
 }
+
+// ---------- «مونتاج مبتكر»: a see-through page drawn on top of the customer's own video ----------
+const CLEAR = `<style>html,body{background:transparent!important}</style>`;
+/** opens the page with a transparent background. full(): the frame as a PNG with alpha. tiny(): a small probe of the same frame (equal to `blankTiny` when nothing is drawn). */
+async function openOverlay(o) {
+  const p = await openHtmlPage({ ...o, html: withHead(o.html, CLEAR) });
+  try {
+    await p.cdp.send("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } });
+    const png = async (scale) => { const r = await p.cdp.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false, optimizeForSpeed: true, ...(scale ? { clip: { x: 0, y: 0, width: p.lw, height: p.lh, scale } } : {}) }); return Buffer.from((r.value ?? r).data, "base64"); };
+    const full = () => png(0), tiny = () => png(0.25);
+    await p.evalIn(() => { document.documentElement.style.visibility = "hidden"; });
+    const blankFull = await full(), blankTiny = await tiny();
+    await p.evalIn(() => { document.documentElement.style.visibility = ""; });
+    return { ...p, full, tiny, blankFull, blankTiny };
+  } catch (e) { try { await p.browser.close({ silent: true }); } catch {} throw e; }
+}
+/** For the checks: at each time, is anything drawn (blank), and a JPEG of the overlay over `bg` (one frame of the customer's video, a data: url). */
+export async function overlayStills({ html, width, height, times, bg = "", fontCss = "", browserExecutable, fps = 30 }) {
+  const p = await openOverlay({ html, width, height, fontCss, browserExecutable });
+  try {
+    await p.evalIn((u) => { const d = document.createElement("div"); d.id = "__fxbg"; d.style.cssText = "position:fixed;inset:0;z-index:-2147483647;display:none;background:#222 center/cover no-repeat"; if (u) d.style.backgroundImage = `url(${u})`; document.documentElement.appendChild(d); }, bg);
+    const out = []; let t = 0;
+    for (const sec of [...times].sort((a, b) => a - b)) {
+      const target = Math.round(sec * fps);
+      while (t < target) { await p.step(1000 / fps); t++; }
+      const blank = (await p.tiny()).equals(p.blankTiny);
+      await p.evalIn(() => { document.getElementById("__fxbg").style.display = "block"; });
+      const frame = await p.shot("jpeg", 82);
+      await p.evalIn(() => { document.getElementById("__fxbg").style.display = "none"; });
+      out.push({ t: sec, blank, frame });
+    }
+    out.errors = await p.errors();
+    return out;
+  } finally { try { await p.browser.close({ silent: true }); } catch {} }
+}
+/** Records the page over `base` (a constant-fps video) from second `start`, for `seconds`. Video only (the sound is added once at the end).
+ *  Frames where nothing is drawn are not captured: a small probe tells, and a ready empty frame is sent instead, so quiet stretches cost almost nothing. */
+export async function recordOverlay({ html, width, height, seconds, fps = 30, base, start = 0, outFile, fontCss = "", browserExecutable, onProgress = () => {}, ffmpeg = "ffmpeg" }) {
+  const p = await openOverlay({ html, width, height, fontCss, browserExecutable });
+  let ff = null;
+  try {
+    const frames = Math.max(1, Math.round(seconds * fps));
+    ff = spawn(ffmpeg, ["-y", "-loglevel", "error", "-ss", start.toFixed(3), "-i", base, "-f", "image2pipe", "-framerate", String(fps), "-c:v", "png", "-i", "-",
+      "-filter_complex", `[0:v]fps=${fps},setpts=PTS-STARTPTS[b];[1:v]scale=${width}:${height}:flags=lanczos,format=rgba[o];[b][o]overlay=eof_action=pass:format=auto[v]`,
+      "-map", "[v]", "-an", "-frames:v", String(frames), "-r", String(fps), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", outFile], { stdio: ["pipe", "ignore", "pipe"] });
+    let ffErr = ""; ff.stderr.on("data", (d) => { ffErr += d; });
+    const done = new Promise((res, rej) => { ff.on("close", (c) => (c === 0 ? res() : rej(new Error(`ffmpeg: ${ffErr.slice(0, 300)}`)))); ff.on("error", rej); });
+    ff.stdin.on("error", () => {}); done.catch(() => {});
+    const dead = new Promise((_, rej) => { ff.on("close", (c) => { if (c !== 0) rej(new Error(`ffmpeg: ${ffErr.slice(0, 300)}`)); }); ff.on("error", rej); }); dead.catch(() => {}); // if ffmpeg stops early, never wait on its pipe
+    const deadline = Date.now() + Math.max(15 * 60_000, seconds * 40_000);
+    const guard = (x, what) => Promise.race([x, new Promise((_, rej) => setTimeout(() => rej(new Error(`التسجيل علّق (${what})`)), 120_000).unref())]);
+    let hot = 0, drawn = 0;
+    for (let i = 0; i < frames; i++) {
+      if (Date.now() > deadline) throw new Error("التسجيل أخذ وقتًا أطول من المسموح، تم إيقافه");
+      await guard(p.step(1000 / fps), "step");
+      let buf;
+      if (hot > 0) { buf = await guard(p.full(), "shot"); hot--; drawn++; }
+      else if ((await guard(p.tiny(), "probe")).equals(p.blankTiny)) buf = p.blankFull;
+      else { buf = await guard(p.full(), "shot"); hot = 5; drawn++; }
+      if (ff.exitCode != null) await dead;
+      if (!ff.stdin.write(buf)) await Promise.race([new Promise((r) => ff.stdin.once("drain", r)), dead]);
+      if (i % 15 === 0) onProgress(i / frames);
+    }
+    ff.stdin.end(); await done; ff = null;
+    return { frames, drawn };
+  } finally { try { ff?.kill("SIGKILL"); } catch {} try { await p.browser.close({ silent: true }); } catch {} }
+}
