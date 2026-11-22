@@ -1,4 +1,5 @@
 import "server-only";
+import { setUsageCtx } from "@/lib/server/usageCtx";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { falImages, falQueue, falRun } from "@/lib/providers/fal";
 import { aiJson, claudeVisionJson, speechReady } from "@/lib/providers/text";
@@ -56,6 +57,7 @@ export async function voiceById(id: string) {
  * or null when it was queued and will finish through a webhook / the worker.
  */
 export async function runJob(job: Job): Promise<OutFile[] | null> {
+  setUsageCtx({ jobId: job.id, userId: job.user_id, toolId: job.tool_id });
   const v = job.input;
   const brand = await brandHint(job.user_id);
   const save = async (urls: string[]) => Promise.all(urls.map(async (u) => {

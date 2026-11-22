@@ -1,4 +1,5 @@
 import "server-only";
+import { noteUsage } from "@/lib/server/usageCtx";
 import { modelFor } from "@/lib/server/models";
 
 const API = "https://api.elevenlabs.io/v1";
@@ -34,6 +35,7 @@ export function voiceSettings(s?: VoiceSettings) {
 }
 
 export async function tts(text: string, voiceId: string, model = DEFAULT_TTS, settings?: VoiceSettings) {
+  noteUsage({ provider: "elevenlabs", model, source: "صوت ElevenLabs", units: text.length });
   const call = async (m0: string) => { const m = await modelFor(m0); return fetch(`${API}/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": key(), "content-type": "application/json" },
@@ -46,6 +48,7 @@ export async function tts(text: string, voiceId: string, model = DEFAULT_TTS, se
 
 /** Speech + word timings (seconds), for captions that follow the voice. */
 export async function ttsTimed(text: string, voiceId: string, model = DEFAULT_TTS, settings?: VoiceSettings) {
+  noteUsage({ provider: "elevenlabs", model, source: "صوت ElevenLabs", units: text.length });
   const call = async (m0: string) => { const m = await modelFor(m0); return fetch(`${API}/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST", headers: { "xi-api-key": key(), "content-type": "application/json" },
     body: JSON.stringify({ text: speakable(text), model_id: m, ...(takesLanguage(m) ? { language_code: "ar" } : {}), ...(voiceSettings(settings) ? { voice_settings: voiceSettings(settings) } : {}) }),
@@ -83,6 +86,7 @@ export async function deleteVoice(voiceId: string) {
 
 /** Eleven Music. For nasheeds the prompt forbids any instruments. */
 export async function music(prompt: string, seconds: number) {
+  noteUsage({ provider: "elevenlabs", model: "music", source: "موسيقى ElevenLabs", units: Math.max(1, Math.round(seconds)) });
   const res = await fetch(`${API}/music?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": key(), "content-type": "application/json" },

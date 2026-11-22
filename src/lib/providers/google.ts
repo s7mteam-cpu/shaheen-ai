@@ -1,4 +1,5 @@
 import "server-only";
+import { noteUsage } from "@/lib/server/usageCtx";
 import { modelFor } from "@/lib/server/models";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
@@ -47,12 +48,14 @@ export async function geminiImage(model: string, prompt: string, imageUrls: stri
   });
   const img = r.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
   if (!img) throw new Error("google: no image returned");
+  noteUsage({ provider: "google", model, source: "صور Google", units: 1 });
   return { bytes: Buffer.from(img.data, "base64"), type: img.mimeType };
 }
 
 /** Gemini text-to-speech → WAV bytes. */
 export async function geminiSpeech(model: string, text: string, voiceName: string) {
   model = await modelFor(model);
+  noteUsage({ provider: "google", model, source: "صوت Google", units: text.length });
   const r = await post<GenResp>(`models/${model}:generateContent`, {
     contents: [{ role: "user", parts: [{ text }] }],
     generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } },
@@ -73,6 +76,7 @@ function pcmToWav(pcm: Buffer, rate: number) {
 /** Start a Veo video. Returns the operation name (we poll it). */
 export async function veoStart(model: string, prompt: string, imageUrl: string | undefined, aspect: string, seconds: number) {
   model = await modelFor(model);
+  noteUsage({ provider: "google", model, source: "فيديو Google", units: Math.max(1, Math.round(seconds)) });
   const instance: Record<string, unknown> = { prompt };
   if (imageUrl) {
     const p = await toInline(imageUrl);
@@ -115,6 +119,7 @@ function findVideo(o: unknown): { uri?: string; data?: string } | null {
  */
 export async function omniStart(model: string, prompt: string, imageUrl: string, aspect: "9:16" | "16:9", seconds: number, resolution = "1080p") {
   model = await modelFor(model);
+  noteUsage({ provider: "google", model, source: "فيديو Google", units: Math.max(1, Math.round(seconds)) });
   const img = await toInline(imageUrl);
   const r = await post<Record<string, unknown>>("interactions", {
     model,

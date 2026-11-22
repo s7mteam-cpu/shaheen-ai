@@ -7,14 +7,14 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "تكلفة كل طلب" };
 
 const usd = (n: number) => (n >= 1 ? `$${n.toFixed(2)}` : n >= 0.01 ? `$${n.toFixed(3)}` : n > 0 ? `$${n.toFixed(4)}` : "$0");
-const PROV: Record<string, string> = { claude: "Claude", google: "Gemini", elevenlabs: "ElevenLabs" };
+const PROV: Record<string, string> = { claude: "Claude", google: "Google", elevenlabs: "ElevenLabs", fal: "fal" };
 
 /** «تكلفة كل طلب»: what every order cost at the AI providers (an estimate: noted tokens × the prices below), beside what the customer paid in feathers. */
 export default async function CostsPage() {
   await guardPage("ai");
   const r = await costReport(30);
   const f = r.prices.feather_usd;
-  const missing = [...new Set(r.jobs.flatMap((j) => j.unknown).concat(r.site.filter((s) => !s.known).map((s) => s.model)))].filter((m) => m && !/^eleven|^scribe/.test(m));
+  const missing = [...new Set(r.jobs.flatMap((j) => j.unknown).concat(r.site.filter((s) => !s.known).map((s) => s.model)))].filter((m) => m && !/^eleven|^scribe|^elevenlabs$/.test(m));
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -29,10 +29,10 @@ export default async function CostsPage() {
       {r.tools.length > 0 && (
         <section aria-labelledby="by-tool" className="card flex flex-col gap-3 p-5">
           <h2 id="by-tool" className="text-lg font-bold text-navy-900">ملخص كل أداة (للتسعير)</h2>
-          <p className="text-[13px] text-subtle">«تغطي» = كم مرة ريش الطلب تغطي أغلى تكلفة انسجّلت. أقل من 2× يعني السعر قريب من التكلفة ولازم ينرفع. المجموع التقديري للفترة: <b>{usd(r.total)}</b>.</p>
+          <p className="text-[13px] text-subtle">«تغطي» = كم مرة ريش الطلب تغطي أغلى تكلفة انسجّلت. أقل من 2× يعني السعر قريب من التكلفة ولازم ينرفع. «متوسط المدفوع» و«تغطي» من الطلبات اللي صارت فعلاً، و«السعر الحالي» هو اللي بصفحة «الأدوات والأسعار» الحين ويتغيّر هنا فوراً. المجموع التقديري للفترة: <b>{usd(r.total)}</b>.</p>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead><tr className="text-subtle"><th className="p-2 text-start">الأداة</th><th className="p-2 text-start">طلبات</th><th className="p-2 text-start">متوسط التكلفة</th><th className="p-2 text-start">أغلى طلب</th><th className="p-2 text-start">أغلى طلب بالريش</th><th className="p-2 text-start">متوسط المدفوع</th><th className="p-2 text-start">تغطي</th></tr></thead>
+            <table className="w-full min-w-[760px] text-sm">
+              <thead><tr className="text-subtle"><th className="p-2 text-start">الأداة</th><th className="p-2 text-start">طلبات</th><th className="p-2 text-start">متوسط التكلفة</th><th className="p-2 text-start">أغلى طلب</th><th className="p-2 text-start">أغلى طلب بالريش</th><th className="p-2 text-start">متوسط المدفوع</th><th className="p-2 text-start">السعر الحالي</th><th className="p-2 text-start">تغطي</th></tr></thead>
               <tbody>
                 {r.tools.map((t) => {
                   const cover = t.max > 0 && t.avgCredits > 0 ? (t.avgCredits * f) / t.max : 0;
@@ -44,6 +44,7 @@ export default async function CostsPage() {
                       <td className="p-2 font-semibold" dir="ltr">{usd(t.max)}</td>
                       <td className="p-2">{(t.max / f).toFixed(1)} ريشة</td>
                       <td className="p-2">{t.avgCredits ? `${t.avgCredits.toFixed(0)} ريشة` : "—"}</td>
+                      <td className="p-2 font-semibold text-navy-900">{t.creditCost ? `${t.creditCost} ريشة / ${t.unit || "وحدة"}` : "—"}</td>
                       <td className={`p-2 font-bold ${cover === 0 || t.unknown ? "text-subtle" : cover < 2 ? "text-red-700" : cover < 4 ? "text-[#9A7A35]" : "text-green-700"}`}>{t.unknown ? "؟ (ناقص سعر)" : cover ? `${cover.toFixed(1)}×` : "—"}</td>
                     </tr>
                   );
@@ -67,7 +68,7 @@ export default async function CostsPage() {
                 <ul className="flex flex-wrap gap-2 text-[12.5px] text-muted">
                   {j.parts.map((p) => (
                     <li key={p.provider + p.model} className="rounded-lg bg-navy-900/5 px-2 py-1" dir="ltr">
-                      {PROV[p.provider] ?? p.provider} · {p.model || "?"} · {p.provider === "elevenlabs" ? `${p.units} chars` : `${p.input.toLocaleString("en")} in / ${p.output.toLocaleString("en")} out`} · {p.calls}× · {p.known ? usd(p.usd) : "بدون سعر"}
+                      {PROV[p.provider] ?? p.provider} · {p.model || "?"} · {p.input + p.output === 0 ? `${p.units.toLocaleString("en")} ${p.provider === "elevenlabs" && p.model !== "music" ? "chars" : "units"}` : `${p.input.toLocaleString("en")} in / ${p.output.toLocaleString("en")} out`} · {p.calls}× · {p.known ? usd(p.usd) : "بدون سعر"}
                     </li>
                   ))}
                 </ul>
@@ -86,7 +87,7 @@ export default async function CostsPage() {
           </ul>
         </section>
       )}
-      <p className="text-[13px] text-subtle">اللي ينسجّل الحين: Claude و Gemini (توكنات) وصوت ElevenLabs (حروف) بكل الطلبات اللي يشتغل عليها العامل، ونصوص Claude بالموقع. ما ينسجّل لسه: نماذج الصور والفيديو (fal وصور وفيديو Google) والموسيقى.</p>
+      <p className="text-[13px] text-subtle">اللي ينسجّل: Claude و Gemini (توكنات)، صوت ElevenLabs (حروف)، الموسيقى (ثواني)، وصور وفيديوهات fal و Google (بالعدد أو الثواني). الصور والأصوات اللي تنولّد داخل استوديو التصميم والمونتاج والدروس قبل ما ينفتح الطلب تطلع تحت «نداءات الموقع».</p>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { noteUsage } from "@/lib/server/usageCtx";
 import { modelFor } from "@/lib/server/models";
 import { fal } from "@fal-ai/client";
 
@@ -10,6 +11,7 @@ type FalImage = { url: string };
 export async function falRun<T = Record<string, unknown>>(model: string, input: Record<string, unknown>) {
   model = await modelFor(model);
   const r = await fal.subscribe(model, { input, logs: false });
+  noteUsage({ provider: "fal", model, source: "صور وفيديو fal", units: Math.max(1, Number(input.num_images) || 1) });
   return r.data as T;
 }
 
@@ -17,6 +19,7 @@ export async function falRun<T = Record<string, unknown>>(model: string, input: 
 export async function falQueue(model: string, input: Record<string, unknown>, webhookUrl: string) {
   model = await modelFor(model);
   const { request_id } = await fal.queue.submit(model, { input, webhookUrl });
+  noteUsage({ provider: "fal", model, source: "فيديو fal", units: 1 });
   return request_id;
 }
 

@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanPrices, costOf, type AiPrices, type UsageRow } from "@/lib/aiPrices";
+import { noteUsage } from "@/lib/server/usageCtx";
 
 export async function getAiPrices(): Promise<AiPrices> {
   const { data } = await createAdminClient().from("site_content").select("value").eq("key", "ai_prices").maybeSingle();
@@ -9,15 +10,12 @@ export async function getAiPrices(): Promise<AiPrices> {
 
 /** notes one Claude answer made by the website itself (not the worker). Never throws. */
 export function noteClaudeUsage(model: string, data: unknown, label: string) {
-  try {
-    const u = (data as { usage?: Record<string, number> })?.usage; if (!u) return;
-    const n = (x: unknown) => (Number.isFinite(Number(x)) ? Math.max(0, Math.round(Number(x))) : 0);
-    void createAdminClient().from("ai_usage").insert({ source: label.slice(0, 40), provider: "claude", model: model.slice(0, 120), input_tokens: n(u.input_tokens), output_tokens: n(u.output_tokens), cache_read: n(u.cache_read_input_tokens), cache_write: n(u.cache_creation_input_tokens) }).then(() => {}, () => {});
-  } catch { /* best effort */ }
+  const u = (data as { usage?: Record<string, number> } | null)?.usage; if (!u) return;
+  noteUsage({ provider: "claude", model, source: label, input: u.input_tokens, output: u.output_tokens, cacheRead: u.cache_read_input_tokens, cacheWrite: u.cache_creation_input_tokens });
 }
 
 export type JobCost = { jobId: string; toolId: string; at: string; user: string; status: string; credits: number; refunded: boolean; usd: number; unknown: string[]; parts: { provider: string; model: string; usd: number; known: boolean; calls: number; input: number; output: number; units: number }[] };
-export type ToolCost = { toolId: string; name: string; jobs: number; avg: number; max: number; creditCost: number; avgCredits: number; unknown: boolean };
+export type ToolCost = { toolId: string; name: string; unit: string; jobs: number; avg: number; max: number; creditCost: number; avgCredits: number; unknown: boolean };
 export type CostReport = { ready: boolean; prices: AiPrices; jobs: JobCost[]; tools: ToolCost[]; site: { source: string; model: string; calls: number; usd: number; known: boolean }[]; days: number; total: number };
 
 /** the last `days` days of noted AI calls, grouped per job and per tool */
@@ -52,7 +50,7 @@ export async function costReport(days = 30): Promise<CostReport> {
     const { data } = await admin.from("profiles").select("id,full_name,email").in("id", uids.slice(i, i + 200));
     for (const p of data ?? []) names.set(p.id, p.full_name || p.email || "");
   }
-  const { data: toolRows } = await admin.from("tools").select("id,name,credit_cost");
+  const { data: toolRows } = await admin.from("tools").select("id,name,credit_cost,cost_unit");
   const tname = new Map((toolRows ?? []).map((t) => [t.id, t]));
   const jobs: JobCost[] = ids.map((id) => {
     const list = byJob.get(id)!; const j = info.get(id);
@@ -69,7 +67,7 @@ export async function costReport(days = 30): Promise<CostReport> {
   for (const j of jobs) { const l = byTool.get(j.toolId) ?? []; l.push(j); byTool.set(j.toolId, l); }
   const tools: ToolCost[] = [...byTool.entries()].map(([toolId, l]) => {
     const paid = l.filter((j) => !j.refunded && j.credits > 0);
-    return { toolId, name: tname.get(toolId)?.name ?? toolId, jobs: l.length, avg: l.reduce((a, j) => a + j.usd, 0) / l.length, max: Math.max(...l.map((j) => j.usd)), creditCost: tname.get(toolId)?.credit_cost ?? 0, avgCredits: paid.length ? paid.reduce((a, j) => a + j.credits, 0) / paid.length : 0, unknown: l.some((j) => j.unknown.length > 0) };
+    return { toolId, name: tname.get(toolId)?.name ?? toolId, unit: tname.get(toolId)?.cost_unit ?? "", jobs: l.length, avg: l.reduce((a, j) => a + j.usd, 0) / l.length, max: Math.max(...l.map((j) => j.usd)), creditCost: tname.get(toolId)?.credit_cost ?? 0, avgCredits: paid.length ? paid.reduce((a, j) => a + j.credits, 0) / paid.length : 0, unknown: l.some((j) => j.unknown.length > 0) };
   }).sort((a, b) => b.max - a.max);
   return { ready: true, prices, jobs: jobs.slice(0, 80), tools, site: [...siteMap.values()].sort((a, b) => b.usd - a.usd), days, total };
 }
