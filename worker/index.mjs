@@ -1702,9 +1702,30 @@ async function postJob(job) {
       const lg = await db.storage.from("uploads").download(logoPath);
       if (!lg.error) { const buf = Buffer.from(await lg.data.arrayBuffer()); if (buf.length <= 3_000_000) { const png = buf[0] === 0x89, jpg = buf[0] === 0xff && buf[1] === 0xd8, webp = buf.slice(8, 12).toString() === "WEBP"; if (png || jpg || webp) logo = { src: `data:image/${png ? "png" : jpg ? "jpeg" : "webp"};base64,${buf.toString("base64")}`, ...logoBox }; } }
     }
+    // the design's picture (AI-drawn or uploaded by the customer; always one of his own files): made light once, kept beside the design
+    let photo = null, photoPath = null;
+    try {
+      const srcP = edit || restyle ? { bucket: "results", path: from.post?.photoPath } : inp.photoSrc;
+      const bucket = srcP?.bucket === "uploads" ? "uploads" : "results";
+      if (own(srcP?.path)) {
+        const d = await db.storage.from(bucket).download(srcP.path);
+        if (!d.error) {
+          const inF = join(workDir, `ph-${job.id}.in`), outF = join(workDir, `ph-${job.id}.jpg`);
+          await writeFile(inF, Buffer.from(await d.data.arrayBuffer()));
+          await ff(["-i", inF, "-vf", "scale='min(1400,iw)':-2", "-frames:v", "1", "-q:v", "4", outF]);
+          const buf = await readFile(outF); await rm(inF, { force: true }); await rm(outF, { force: true });
+          if (buf.length > 2000 && buf.length < 2_500_000) {
+            photo = `data:image/jpeg;base64,${buf.toString("base64")}`;
+            photoPath = restyle ? srcP.path : `${job.user_id}/${job.id}/photo.jpg`;
+            if (!restyle && (await db.storage.from("results").upload(photoPath, buf, { contentType: "image/jpeg", upsert: true })).error) photoPath = null;
+          }
+        }
+      }
+    } catch (e) { console.error("post photo skipped", job.id, e?.message ?? e); }
+    if ((inp.photoSrc || from.post?.photoPath) && !photo && !restyle && !edit) throw new Error("post: the picture could not be read");
     /** draws every slide; returns the PNGs, or a reason when a slide came out empty */
     const draw = async (html) => {
-      const withLogo = applyLogo(html, logo);
+      const withLogo = injectShots(applyLogo(html, logo), photo ? { photo } : null);
       const shots = []; let blank = 0;
       for (let i = 1; i <= n; i++) {
         const [png] = await htmlStills({ html: onlySlide(withLogo, i, cw, ch), width: W, height: H, times: [0.4], fontCss: htmlFontCss(withLogo), baseW });
@@ -1732,7 +1753,7 @@ async function postJob(job) {
         // the writing is one long request: the bar keeps moving slowly so the customer sees it is alive
         let shown = p0; const creep = setInterval(() => { if (shown < p0 + 34) { shown += 2; stage(shown); } }, 9000);
         let raw = "";
-        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry, kind: POST_KIND[job.tool_id], skill: skillNote(await skillFor(job.tool_id)) }); }
+        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry, kind: POST_KIND[job.tool_id], skill: skillNote(await skillFor(job.tool_id)), photo: !!photo }); }
         catch (e) { if (attempt === 2) throw e; retry = e?.cut ? CUT_NOTE : `The last answer was not a usable page (${String(e?.message ?? e).slice(0, 120)}). Return the full HTML page in one html block.`; continue; }
         finally { clearInterval(creep); }
         // SECURITY: scripts and event handlers are removed first, then the page is checked BEFORE anything opens it
@@ -1773,7 +1794,7 @@ async function postJob(job) {
       const upH = await db.storage.from("results").upload(htmlPath, Buffer.from(page), { contentType: "text/plain", upsert: true });
       if (upH.error) throw new Error(`upload: ${upH.error.message}`);
       // an edit by words is a new design: it carries its parent's settings, and starts with no studio edits (they are already inside the new page)
-      await db.from("jobs").update({ status: "done", progress: 100, error: null, output: { files }, input: { ...inp, ...(edit ? { idea, aspect, slides: n, colors: from.colors ?? null, font: from.font ?? null, logoPath: from.logoPath ?? null, brand: from.brand ?? null, edits: from.edits?.logo ? { logo: from.edits.logo } : null } : {}), mode: "done", post: { htmlPath } }, updated_at: now() }).eq("id", job.id);
+      await db.from("jobs").update({ status: "done", progress: 100, error: null, output: { files }, input: { ...inp, ...(edit ? { idea, aspect, slides: n, colors: from.colors ?? null, font: from.font ?? null, logoPath: from.logoPath ?? null, brand: from.brand ?? null, edits: from.edits?.logo ? { logo: from.edits.logo } : null } : {}), mode: "done", post: { htmlPath, ...(photoPath ? { photoPath } : {}) } }, updated_at: now() }).eq("id", job.id);
     }
     console.log("post drawn", job.id, n, inp.mode);
   } catch (e) {

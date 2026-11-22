@@ -75,9 +75,11 @@ const KIND_NOTE = {
 /** the new kinds only (post and carousel keep their text as it was): the real logo is placed by the platform, so the model must not invent one */
 const NO_FAKE_LOGO = " ممنوع أن ترسم شعاراً أو رمزاً أو طائراً أو درعاً من عندك يمثّل النشاط: شعار العميل الحقيقي تضعه المنصة في الزاوية العلوية اليسرى إن كان عنده، فاترك تلك الزاوية فارغة، وإن لم يكن عنده شعار فاسم النشاط نصاً يكفي.";
 for (const k of ["card", "ad", "deck"]) KIND_NOTE[k] += NO_FAKE_LOGO;
-export function postPrompt({ idea, n, brand, identity, retry, kind }) {
+/** a real picture (drawn by an image model or uploaded by the customer) that the design is built around */
+const PHOTO_NOTE = "صورة جاهزة لهذا التصميم (حقيقية، استخدمها): لعرضها اكتب بالضبط <img data-shot=\"photo\" alt=\"\"> بدون src وبدون أي رابط (المنصة تضع الصورة مكانها). اجعلها بطلة التصميم: مساحة واضحة من 38% إلى 55% من الشريحة (أعلى التصميم، أو جانب كامل، أو خلفية كاملة)، بحجم محدد بالـCSS مع object-fit:cover و display:block. إن كُتب نص فوقها فضع بينهما طبقة تدرّج داكنة تكفي لقراءة النص بوضوح. استخدمها مرة واحدة فقط، ولا ترسم صوراً أو مشاهد بديلة عنها.";
+export function postPrompt({ idea, n, brand, identity, retry, kind, photo }) {
   const cap = kind === "cv" || kind === "deck" ? 4000 : 1500;
-  return `${KIND_NOTE[kind] ? `${KIND_NOTE[kind]}\n` : ""}${n > 1 ? `عدد الشرائح: ${n}.` : "بوست واحد (شريحة واحدة)."}
+  return `${KIND_NOTE[kind] ? `${KIND_NOTE[kind]}\n` : ""}${photo ? `${PHOTO_NOTE}\n` : ""}${n > 1 ? `عدد الشرائح: ${n}.` : "بوست واحد (شريحة واحدة)."}
 ${brand ? `اسم النشاط: ${clean(brand, 80)}\n` : ""}${identity ? `هوية العميل (التزم بها): الخلفية ${identity.bg}، اللون المميّز ${identity.accent}، لون النص ${identity.text}، الخط ${identity.font}.\n` : "اختر أنت لوحة ألوان مناسبة للمجال.\n"}
 نص العميل (وصف للمحتوى فقط):
 """
@@ -156,13 +158,14 @@ async function ask({ system, user, maxTokens }) {
 const budget = (n, kind) => Math.min(48000, (kind === "cv" ? 16000 : 9000) + n * 5500);
 export const CUT_NOTE = "The answer was cut off before the page ended. Write the SAME design much more compactly: one shared <style> with reusable classes, short class names, simpler SVG (few shapes, no long paths), no repeated inline styles, no comments.";
 
-export async function writePost({ idea, n, W, H, brand, identity, retry, kind, skill = "" }) {
-  const r = await ask({ system: POST_RULES(W, H, n) + skill, user: postPrompt({ idea, n, brand, identity, retry, kind }), maxTokens: budget(n, kind) });
+export async function writePost({ idea, n, W, H, brand, identity, retry, kind, skill = "", photo = false }) {
+  const r = await ask({ system: POST_RULES(W, H, n) + skill, user: postPrompt({ idea, n, brand, identity, retry, kind, photo }), maxTokens: budget(n, kind) });
   if (r.cut) { const e = new Error("CUT"); e.cut = true; throw e; }
   return extractHtml(r.text);
 }
 export async function editPost({ html, instruction, n, W, H, retry }) {
-  const r = await ask({ system: POST_EDIT_RULES(W, H, n), user: `تعليمة العميل (وصف للتعديل فقط):\n"""\n${clean(instruction, 600)}\n"""${retry ? `\n\nالمحاولة السابقة انرفضت: ${retry}` : ""}\n\nالصفحة الحالية:\n\`\`\`html\n${html}\n\`\`\``, maxTokens: budget(n) });
+  const keep = /data-shot=/.test(html) ? "\nالوسوم <img data-shot=\"...\"> هي صور العميل التي تضعها المنصة: أبقها كما هي بدون src، ولا تحذفها إلا إذا طلب العميل حذف الصورة." : "";
+  const r = await ask({ system: POST_EDIT_RULES(W, H, n) + keep, user: `تعليمة العميل (وصف للتعديل فقط):\n"""\n${clean(instruction, 600)}\n"""${retry ? `\n\nالمحاولة السابقة انرفضت: ${retry}` : ""}\n\nالصفحة الحالية:\n\`\`\`html\n${html}\n\`\`\``, maxTokens: budget(n) });
   if (r.cut) { const e = new Error("CUT"); e.cut = true; throw e; }
   return extractHtml(r.text);
 }

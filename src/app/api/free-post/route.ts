@@ -4,11 +4,27 @@ import { requireUser } from "@/lib/server/auth";
 import { guardContent } from "@/lib/server/moderation";
 import { cleanColors, FREE_FONTS } from "@/lib/server/freeMotion";
 import { cleanEls } from "@/lib/htmlKit";
+import { geminiImage } from "@/lib/providers/google";
+import { falImages, falRun } from "@/lib/providers/fal";
+import { saveFromUrl, saveResult } from "@/lib/providers/storage";
+import { config } from "@/lib/tools/run";
+import { setUsageCtx } from "@/lib/server/usageCtx";
 
-export const maxDuration = 30;
+export const maxDuration = 120; // a design with an AI picture draws the picture first
 const ASPECTS = ["4:5", "1:1", "9:16", "16:9"];
 const DAILY = 40; // designs + edits per customer in 24 hours
 const clean = (x: unknown, n: number) => String(x ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
+const PHOTO_TOOLS = ["free-post", "free-ad"];
+/** one advertising picture for a design, drawn by whichever provider runs the «صورة» tool. Returns its path in "results" (the customer's own folder). */
+async function drawPhoto(userId: string, jobId: string, about: string, aspect: string) {
+  const { provider, model } = await config("image");
+  const ar = aspect === "16:9" ? "16:9" : aspect === "9:16" ? "4:5" : "1:1";
+  const prompt = `Professional, realistic advertising photograph for a social media design about: ${about}. Clean composition with one clear subject, soft studio or natural light, rich colours. Absolutely no text, no letters, no numbers, no logos, no watermarks and no user-interface screenshots anywhere in the picture.`;
+  if (provider === "google") { const r = await geminiImage(model, prompt, [], ar === "4:5" ? "4:5" : ar); return saveResult(userId, jobId, r.bytes, r.type, r.type.includes("png") ? "png" : "jpg"); }
+  const [url] = falImages(await falRun(model.replace(/\/edit$/, ""), { prompt, num_images: 1, aspect_ratio: ar }));
+  if (!url) throw new Error("no image");
+  return (await saveFromUrl(userId, jobId, url)).path;
+}
 const TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite", "free-card", "free-deck", "free-cv"];
 const MAX_SAVES = 40; // free studio saves per design
 const num = (v: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
@@ -73,7 +89,7 @@ export async function POST(req: Request) {
   const { count: busy } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).in("tool_id", TOOLS).in("status", ["queued", "running"]);
   if ((busy ?? 0) >= 2) return NextResponse.json({ error: "عندك تصميمين قيد التنفيذ. انتظر لين يخلصون." }, { status: 429 });
 
-  let input: Record<string, unknown>, cost: number, title: string;
+  let input: Record<string, unknown>, cost: number, title: string, newId: string | undefined;
   if (src) {
     // edit by words: only the instruction comes from the request; the design, size and identity come from the customer's own finished job
     const hp = String((src.input as { post?: { htmlPath?: string } } | null)?.post?.htmlPath ?? "");
@@ -106,9 +122,27 @@ export async function POST(req: Request) {
     };
     cost = Math.max(0, tool.credit_cost) * (card ? 1 : slides);
     title = idea.slice(0, 80);
+    // «صورة للتصميم» (بوست وإعلان فقط): the customer's own uploaded picture, or one drawn now by the image tool (its price is added)
+    if (PHOTO_TOOLS.includes(toolId) && b.photo === "upload") {
+      const pp = String(b.photoPath ?? "");
+      if (!pp.startsWith(`${user.id}/`) || pp.includes("..")) return NextResponse.json({ error: "ارفع الصورة مرة ثانية." }, { status: 400 });
+      input.photoSrc = { bucket: "uploads", path: pp };
+    } else if (PHOTO_TOOLS.includes(toolId) && b.photo === "ai") {
+      const desc = clean(b.photoDesc, 400);
+      if (desc) { const bad = await guardContent(user.id, { idea: desc }, "free-post-photo"); if (bad) return bad; }
+      const { data: imgTool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", "image").maybeSingle();
+      if (!imgTool?.is_enabled) return NextResponse.json({ error: "صور الذكاء الاصطناعي متوقفة حالياً. جرّب بدون صورة أو ارفع صورتك." }, { status: 400 });
+      cost += Math.max(0, imgTool.credit_cost);
+      const { data: prof } = await admin.from("profiles").select("credits").eq("id", user.id).maybeSingle();
+      if ((prof?.credits ?? 0) < cost) return NextResponse.json({ error: "رصيدك ما يكفي." }, { status: 402 });
+      newId = crypto.randomUUID();
+      setUsageCtx({ jobId: newId, userId: user.id, toolId });
+      try { input.photoSrc = { bucket: "results", path: await drawPhoto(user.id, newId, desc || idea.slice(0, 400), aspect) }; }
+      catch (e) { console.error("free-post photo", e); return NextResponse.json({ error: "ما قدرنا نرسم الصورة الحين، وما انخصم شي. جرّب مرة ثانية أو ارفع صورتك." }, { status: 502 }); }
+    }
   }
 
-  const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: toolId, title, status: "queued", progress: 0, input }).select("id").single();
+  const { data: job, error } = await admin.from("jobs").insert({ ...(newId ? { id: newId } : {}), user_id: user.id, tool_id: toolId, title, status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
   if (cost > 0) {
     const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
@@ -148,10 +182,12 @@ export async function GET(req: Request) {
   // the logo the design shows now: the studio's choice if there is one, otherwise the brand-kit logo it was made with
   const ed = inp.edits ?? null;
   const lp = ed?.logo ? (ed.logo.on && mine(ed.logo.path) ? ed.logo.path! : "") : mine(inp.logoPath) ? inp.logoPath! : "";
+  const php = (inp.post as { photoPath?: string } | undefined)?.photoPath;
+  const photoUrl = mine(php) ? (await admin.storage.from("results").createSignedUrl(php!, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
   const logoUrl = lp ? (await admin.storage.from("uploads").createSignedUrl(lp, 60 * 60 * 3)).data?.signedUrl ?? "" : "";
   return NextResponse.json({
     status: "done", title: job.title, aspect: inp.aspect ?? "4:5", editCost: tool?.edit_cost ?? 3,
-    slides: Math.min(8, Math.max(1, Math.round(Number(inp.slides) || 1))), htmlUrl, pdfUrl, savesLeft: Math.max(0, MAX_SAVES - (Number(inp.saves) || 0)),
+    slides: Math.min(8, Math.max(1, Math.round(Number(inp.slides) || 1))), htmlUrl, pdfUrl, photoUrl, savesLeft: Math.max(0, MAX_SAVES - (Number(inp.saves) || 0)),
     edits: ed ? { texts: ed.texts ?? {}, hex: ed.hex ?? {}, font: ed.font ?? null, els: ed.els ?? [] } : null,
     logo: lp && logoUrl ? { path: lp, url: logoUrl, box: ed?.logo?.box ?? { x: 0.14, y: 0.09, w: 0.18 } } : null,
     images: paths.map((_, i) => ({ url: view.data?.[i]?.signedUrl ?? "", download: down.data?.[i]?.signedUrl ?? "" })).filter((x) => x.url),

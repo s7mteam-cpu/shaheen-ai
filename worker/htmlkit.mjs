@@ -111,8 +111,8 @@ export const looksHtml = (s) => /<(!doctype html|html|body|div|svg|style|script)
 /** «فيديو مبتكر من موقعك»: the page marks where a real picture of the customer's website goes (<img data-shot="mobile|desktop">, no src);
  *  the pictures are put in only when the page is shown or drawn, so the saved page stays small and never carries a link. */
 export function injectShots(html, shots) {
-  if (!shots || (!shots.mobile && !shots.desktop && !shots.logo)) return html;
-  return String(html).replace(/<img\b[^>]*\bdata-shot\s*=\s*["']?(mobile|desktop|logo)["']?[^>]*>/gi, (tag, k) => {
+  if (!shots || (!shots.mobile && !shots.desktop && !shots.logo && !shots.photo)) return html;
+  return String(html).replace(/<img\b[^>]*\bdata-shot\s*=\s*["']?(mobile|desktop|logo|photo)["']?[^>]*>/gi, (tag, k) => {
     const src = shots[String(k).toLowerCase()];
     if (typeof src !== "string" || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(src)) return tag;
     return tag.replace(/\ssrc\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/<img\b/i, `<img src="${src}"`);

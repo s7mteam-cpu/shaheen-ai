@@ -25,9 +25,47 @@ function autoTrim(im: HTMLImageElement): R | null {
   return { x: clamp(x0 / w - pad, 0, 1), y: clamp(y0 / h - pad, 0, 1), w: clamp((x1 - x0 + 1) / w + pad * 2, 0.05, 1), h: clamp((y1 - y0 + 1) / h + pad * 2, 0.05, 1) };
 }
 
+/** Makes a plain background (white, black or any one flat colour) transparent: the colour of the corners is removed wherever it touches the edge of the picture,
+ *  so the same colour INSIDE the logo stays. Works in the browser; returns a PNG data URL, or null when the picture has no plain background. */
+function removeBackground(im: HTMLImageElement): string | null {
+  const k = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight));
+  const w = Math.max(1, Math.round(im.naturalWidth * k)), h = Math.max(1, Math.round(im.naturalHeight * k));
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d", { willReadFrequently: true }); if (!g) return null;
+  g.drawImage(im, 0, 0, w, h);
+  const img = g.getImageData(0, 0, w, h), d = img.data;
+  // the background colour = the corners (they must agree with each other)
+  const cs = [0, w - 1, (h - 1) * w, h * w - 1].map((i) => [d[i * 4], d[i * 4 + 1], d[i * 4 + 2], d[i * 4 + 3]]);
+  const solid = cs.filter((p) => p[3] > 200);
+  if (solid.length < 3) return null; // already transparent
+  const bg = [0, 1, 2].map((j) => Math.round(solid.reduce((a, p) => a + p[j], 0) / solid.length));
+  const dist = (i: number) => Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]);
+  if (solid.some((p) => Math.abs(p[0] - bg[0]) + Math.abs(p[1] - bg[1]) + Math.abs(p[2] - bg[2]) > 60)) return null; // corners differ: not a plain background
+  const TOL = 54, SOFT = 110;
+  const seen = new Uint8Array(w * h); const stack: number[] = [];
+  const push = (x: number, y: number) => { if (x < 0 || y < 0 || x >= w || y >= h) return; const i = y * w + x; if (seen[i]) return; if (d[i * 4 + 3] > 20 && dist(i * 4) > TOL) return; seen[i] = 1; stack.push(i); };
+  for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+  for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+  while (stack.length) { const i = stack.pop()!; const x = i % w, y = (i - x) / w; push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1); }
+  let removed = 0;
+  for (let i = 0; i < w * h; i++) if (seen[i]) { d[i * 4 + 3] = 0; removed++; }
+  if (removed < w * h * 0.03) return null;
+  // soften the cut: a kept pixel that touches a removed one and is still close to the background colour becomes partly transparent
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const i = y * w + x; if (seen[i]) continue;
+    if (!(seen[i - 1] || seen[i + 1] || seen[i - w] || seen[i + w])) continue;
+    const dd = dist(i * 4); if (dd < SOFT) d[i * 4 + 3] = Math.round(d[i * 4 + 3] * Math.max(0.15, (dd - TOL) / (SOFT - TOL)));
+  }
+  g.putImageData(img, 0, 0);
+  return c.toDataURL("image/png");
+}
+
 /** Crop a logo before it is uploaded: drag the frame, pull the corners, or let Shaheen trim the empty margins. */
 export function LogoCropper({ file, onDone, onCancel }: { file: File; onDone: (f: File) => void; onCancel: () => void }) {
   const [src] = useState(() => URL.createObjectURL(file));
+  const [cut, setCut] = useState<string | null>(null); // the same picture with its plain background removed
+  const [cutNote, setCutNote] = useState("");
+  const orig = useRef<HTMLImageElement | null>(null);
   const img = useRef<HTMLImageElement>(null);
   const area = useRef<HTMLDivElement>(null);
   const [r, setR] = useState<R>({ x: 0, y: 0, w: 1, h: 1 });
@@ -75,7 +113,7 @@ export function LogoCropper({ file, onDone, onCancel }: { file: File; onDone: (f
       <div className="card flex w-full max-w-md flex-col gap-4 p-5">
         <h2 className="text-[18px] font-bold text-navy-900">{L("قص الشعار")}</h2>
         <div dir="ltr" ref={area} className="relative mx-auto select-none bg-[repeating-conic-gradient(#eee_0_25%,#fff_0_50%)] bg-[length:20px_20px]" onPointerMove={move} onPointerUp={up}>
-          <img ref={img} src={src} alt="" className="block max-h-[50vh] max-w-full" draggable={false} />
+          <img ref={img} src={cut ?? src} alt="" className="block max-h-[50vh] max-w-full" draggable={false} />
           <div className="pointer-events-none absolute inset-0 bg-black/45" style={{ clipPath: `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${r.x * 100}% ${r.y * 100}%, ${r.x * 100}% ${(r.y + r.h) * 100}%, ${(r.x + r.w) * 100}% ${(r.y + r.h) * 100}%, ${(r.x + r.w) * 100}% ${r.y * 100}%, ${r.x * 100}% ${r.y * 100}%)` }} />
           <div onPointerDown={down("move")} onPointerMove={move} onPointerUp={up} className="absolute cursor-move touch-none border-2 border-dashed border-gold-500"
             style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}>
@@ -89,7 +127,14 @@ export function LogoCropper({ file, onDone, onCancel }: { file: File; onDone: (f
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => { const t = img.current && autoTrim(img.current); if (t) setR(t); }} className="btn btn-outline px-4 py-2 text-sm">{L("✂️ قص الفراغ تلقائياً")}</button>
           <button type="button" onClick={() => setR({ x: 0, y: 0, w: 1, h: 1 })} className="btn btn-outline px-4 py-2 text-sm">{L("بدون قص")}</button>
+          <button type="button" aria-pressed={!!cut} onClick={() => {
+            if (cut) { setCut(null); setCutNote(""); return; }
+            const go = (im: HTMLImageElement) => { const out = removeBackground(im); if (out) { setCut(out); setCutNote(L("انشالت الخلفية. المربعات الرمادية يعني شفاف.")); } else setCutNote(L("ما لقينا خلفية بلون واحد نشيلها (الشعار شفاف أصلاً، أو خلفيته مو لون واحد).")); };
+            if (orig.current) { go(orig.current); return; }
+            const im = new Image(); im.onload = () => { orig.current = im; go(im); }; im.src = src;
+          }} className={`btn px-4 py-2 text-sm ${cut ? "btn-gold" : "btn-outline"}`}>{cut ? L("↩️ رجّع الخلفية") : L("🪄 أزل الخلفية")}</button>
         </div>
+        {cutNote && <p className="text-center text-[13px] text-[#9A7A35]">{cutNote}</p>}
         <div className="flex gap-2">
           <button type="button" onClick={done} className="btn btn-primary flex-1 py-3">{L("تم")}</button>
           <button type="button" onClick={onCancel} className="btn border border-line bg-white flex-1 py-3">{L("إلغاء")}</button>

@@ -1,4 +1,5 @@
 "use client";
+import { uploadImage } from "@/components/app/DesignStart";
 import { L, LT } from "@/lib/i18n/ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,7 +11,7 @@ type Done = PostData;
 type State = { status: "queued" | "running"; progress: number } | Done | { status: "failed"; error: string } | { status: "expired" } | null;
 
 /** «بوست / كاروسيل مبتكر»: the idea form, the waiting screen, then the pictures with «edit by words». */
-export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: { tool: "free-post" | "free-carousel" | "free-ad" | "free-invite" | "free-card" | "free-deck" | "free-cv"; costPerSlide: number; balance: number; hasKit: boolean; hasLogo: boolean }) {
+export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo, imageCost = 0 }: { imageCost?: number; tool: "free-post" | "free-carousel" | "free-ad" | "free-invite" | "free-card" | "free-deck" | "free-cv"; costPerSlide: number; balance: number; hasKit: boolean; hasLogo: boolean }) {
   const router = useRouter();
   const jobId = useSearchParams().get("job");
   const [idea, setIdea] = useState("");
@@ -24,7 +25,13 @@ export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: 
   const [error, setError] = useState("");
   const [state, setState] = useState<State>(null);
   const [poll, setPoll] = useState(0);
-  const cost = costPerSlide * slides;
+  // «صورة للتصميم» (بوست وإعلان): none, drawn by AI (the image tool's price is added), or the customer's own picture
+  const canPhoto = tool === "free-post" || tool === "free-ad";
+  const [photo, setPhoto] = useState<"none" | "ai" | "upload">("none");
+  const [photoDesc, setPhotoDesc] = useState("");
+  const [up, setUp] = useState<{ path: string; preview: string } | null>(null);
+  const [upBusy, setUpBusy] = useState(false);
+  const cost = costPerSlide * slides + (canPhoto && photo === "ai" ? imageCost : 0);
 
   useEffect(() => {
     if (!jobId) { setState(null); return; }
@@ -91,6 +98,29 @@ export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: 
           <div className="flex flex-wrap gap-2">{(deck ? [4, 5, 6, 7, 8] : [3, 4, 5, 6, 7, 8]).map((n) => <button key={n} type="button" aria-pressed={slides === n} onClick={() => setSlides(n)} className="chip">{n}</button>)}</div>
         </div>
       )}
+      {canPhoto && (
+        <div className="flex flex-col gap-2">
+          <span className="label">{L("صورة داخل التصميم")}</span>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-pressed={photo === "none"} onClick={() => setPhoto("none")} className="chip">{L("بدون صورة")}</button>
+            {imageCost > 0 && <button type="button" aria-pressed={photo === "ai"} onClick={() => setPhoto("ai")} className="chip">✨ {L("صورة بالذكاء الاصطناعي")} (+{imageCost} {L("ريشة")})</button>}
+            <button type="button" aria-pressed={photo === "upload"} onClick={() => setPhoto("upload")} className="chip">📷 {L("ارفع صورتك")}</button>
+          </div>
+          {photo === "ai" && (
+            <label className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("وصف الصورة (اختياري). إذا تركته فاضي، شاهين يرسم صورة تناسب فكرتك. الصورة تطلع بدون كتابة.")}</span>
+              <input value={photoDesc} onChange={(e) => setPhotoDesc(e.target.value)} maxLength={400} className="field" placeholder={L("مثال: لابتوب على مكتب أنيق وجنبه كوب قهوة، إضاءة دافئة")} /></label>
+          )}
+          {photo === "upload" && (
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="btn btn-outline cursor-pointer px-4 py-2 text-[14px]">{upBusy ? "…" : up ? L("غيّر الصورة") : L("اختر صورة")}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={upBusy} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setUpBusy(true); setError(""); try { setUp(await uploadImage(f)); } catch (err) { setError((err as Error).message); } finally { setUpBusy(false); } }} /></label>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {up && <img src={up.preview} alt="" className="h-16 w-16 rounded-xl border border-line object-cover" />}
+              <span className="text-[13px] text-subtle">{L("صورة منتجك أو محلك أو أي صورة تملك حقها.")}</span>
+            </div>
+          )}
+        </div>
+      )}
       {hasKit && !invite && !cvTool && (
         <div className="flex flex-col gap-2 text-[14px]">
           <label className="flex items-center gap-2"><input type="checkbox" checked={useBrand} onChange={(e) => setUseBrand(e.target.checked)} className="h-4 w-4" />{L("استخدم ألوان وخط هويتي التجارية")}</label>
@@ -98,7 +128,7 @@ export function FreePostStart({ tool, costPerSlide, balance, hasKit, hasLogo }: 
         </div>
       )}
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
-      <button type="button" disabled={busy || idea.trim().length < 10 || balance < cost} onClick={() => send({ tool, idea, aspect, slides, useBrand, useLogo })} className="btn btn-gold w-full py-3.5 disabled:opacity-50">{busy ? L("جاري الإرسال…") : LT(`✨ صمّم (${cost} ريشة)`, `✨ Design (${cost} credits)`)}</button>
+      <button type="button" disabled={busy || upBusy || idea.trim().length < 10 || balance < cost || (canPhoto && photo === "upload" && !up)} onClick={() => send({ tool, idea, aspect, slides, useBrand, useLogo, ...(canPhoto && photo === "ai" ? { photo: "ai", photoDesc } : canPhoto && photo === "upload" && up ? { photo: "upload", photoPath: up.path } : {}) })} className="btn btn-gold w-full py-3.5 disabled:opacity-50">{busy ? L("جاري الإرسال…") : LT(`✨ صمّم (${cost} ريشة)`, `✨ Design (${cost} credits)`)}</button>
       {balance < cost && <p className="text-center text-[13px] text-red-700">{L("رصيدك من الريش ما يكفي.")}</p>}
       <p className="text-center text-[12.5px] leading-6 text-subtle">{L("أداة تجريبية: التصميم يكتبه الذكاء الاصطناعي من الصفر، فمرة يطلع ممتاز ومرة يحتاج تعديل بالكلام. إذا فشل ترجع الريش تلقائياً.")}</p>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 import { L, LT } from "@/lib/i18n/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { applyEdits, applyEls, applyFont, applyLogo, currentFont, extractColors, extractTexts } from "@/lib/htmlKit";
+import { applyEdits, applyEls, applyFont, applyLogo, currentFont, extractColors, extractTexts, injectShots } from "@/lib/htmlKit";
 import { withClock } from "@/lib/gemClock";
 import { fontCssFor } from "@/lib/iframeFonts";
 import { LogoDrag, LogoSize, type LogoBox } from "@/components/app/LogoDrag";
@@ -12,7 +12,7 @@ import { RetentionNote } from "@/components/app/RetentionNote";
 
 type El = { hide?: boolean; s: number; x: number; y: number };
 export type PostData = {
-  status: "done"; title: string; aspect: string; editCost: number; slides: number; htmlUrl: string; pdfUrl?: string; savesLeft: number;
+  status: "done"; title: string; aspect: string; editCost: number; slides: number; htmlUrl: string; pdfUrl?: string; photoUrl?: string; savesLeft: number;
   images: { url: string; download: string }[];
   edits: { texts: Record<string, string>; hex: Record<string, string>; font: string | null; els: ({ sel: string } & El)[] } | null;
   logo: { path: string; url: string; box: LogoBox } | null;
@@ -115,6 +115,15 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
   const elList = useMemo(() => Object.entries(els).filter(([, e]) => e.hide || e.s !== 1 || e.x !== 0 || e.y !== 0).map(([sel, e]) => ({ sel, ...e })), [els]);
 
   // live page: every edit rebuilds it after a short pause
+  // the design's picture is put into the preview only (the saved page keeps an empty mark)
+  const [photoData, setPhotoData] = useState<string | null>(null);
+  const photoUrl = data.photoUrl;
+  useEffect(() => {
+    if (!photoUrl) return;
+    let dead = false;
+    fetch(photoUrl).then((r) => (r.ok ? r.blob() : Promise.reject())).then((bl) => new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(bl); })).then((u) => { if (!dead) setPhotoData(u); }).catch(() => {});
+    return () => { dead = true; };
+  }, [photoUrl]);
   useEffect(() => {
     if (raw === null) return;
     const id = setTimeout(() => {
@@ -123,12 +132,13 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
         p = applyFont(p, font);
         p = applyEls(p, elList);
         p = applyLogo(p, logo && logoSrc ? { src: logoSrc, ...logo.box } : null);
+        p = injectShots(p, photoData ? { photo: photoData } : null);
         const extra = (fontCss[font] ? `<style>${fontCss[font]}</style>` : "") + slideCss(slide, PW, PH);
         setDoc(/<\/head>/i.test(p) ? p.replace(/<\/head>/i, extra + "</head>") : extra + p); setRev((x) => x + 1);
       } catch { setError(L("تعذّر تطبيق التعديل")); }
     }, 180);
     return () => clearTimeout(id);
-  }, [raw, vals, hex, font, logo, logoSrc, fontCss, elList, slide, PW, PH]);
+  }, [raw, vals, hex, font, logo, logoSrc, fontCss, elList, slide, PW, PH, photoData]);
   useEffect(() => { if (doc) setPages((p) => [...p.filter((x) => x.rev === front), { rev, html: withClock(doc, 0, false, 1) }].slice(-2)); }, [doc, rev]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = (r: number, el: HTMLIFrameElement | null) => { if (r === (front || pages[0]?.rev)) iframe.current = el ?? iframe.current; };
   const ready = (r: number, el: HTMLIFrameElement) => { if (r < front) return; iframe.current = el; setFront(r); setPages((p) => p.filter((x) => x.rev >= r)); setTimeout(() => sendPickRef.current(), 0); };
@@ -184,7 +194,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
           <div ref={box} dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-2xl border border-line bg-white shadow-lg" style={{ aspectRatio: `${PW} / ${PH}` }}>
             {pages.length && !loadErr ? <>
               {pages.map((pg) => <iframe key={pg.rev} ref={(el) => shown(pg.rev, el)} onLoad={(e) => ready(pg.rev, e.currentTarget)} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={pg.html} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${scale})`, transformOrigin: "0 0", zIndex: pg.rev === (front || pages[0].rev) ? 2 : 1, visibility: pg.rev === (front || pages[0].rev) || pages.length === 1 ? "visible" : "hidden" }} />)}
-              {logo && !pick && <div className="absolute inset-0 z-10"><LogoDrag box={logo.box} onChange={(b) => { setLogo((p) => (p ? { ...p, box: b } : p)); touch(); }} /></div>}
+              {logo && <div className="pointer-events-none absolute inset-0 z-10"><LogoDrag box={logo.box} onChange={(b) => { setLogo((p) => (p ? { ...p, box: b } : p)); touch(); }} /></div>}
             </> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-subtle">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
           </div>
           <div className={`rounded-2xl border p-3 ${pick ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}>
@@ -251,7 +261,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
             </div>
             {logo ? <>
               <LogoSize box={logo.box} onChange={(b) => { setLogo((p) => (p ? { ...p, box: b } : p)); touch(); }} />
-              <p className="text-[12.5px] leading-6 text-subtle">{L("اسحب الشعار داخل المعاينة لتغيير مكانه (لما يكون زر تحريك العناصر مطفي). الشعار يظهر بنفس المكان بكل الشرائح.")}</p>
+              <p className="text-[12.5px] leading-6 text-subtle">{L("اسحب الإطار الذهبي المنقّط اللي حول الشعار داخل المعاينة لتغيير مكانه، واسحب زاويته لتكبيره. يشتغل دائماً، حتى وزر تحريك العناصر شغال. الشعار يظهر بنفس المكان بكل الشرائح.")}</p>
             </> : <p className="text-[12.5px] text-subtle">{L("PNG بخلفية شفافة يطلع أحلى.")}</p>}
           </section>
           <section className="card flex flex-col gap-3 p-5">
