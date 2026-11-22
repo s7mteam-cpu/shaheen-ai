@@ -194,7 +194,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
             </div>
             {pick && (
               <div className="mt-3 flex flex-col gap-2">
-                {!selEl ? <p className="text-[13px] text-subtle">{L("اضغط على أي نص أو شكل داخل التصميم لتحديده، واسحبه بالماوس أو الإصبع لتغيير مكانه.")}</p> : (
+                {!selEl ? <p className="text-[13px] text-subtle">{L("اضغط على أي نص أو شكل داخل التصميم لتحديده، واسحبه بالماوس أو الإصبع لتغيير مكانه. تبي جزء داخل الشكل (مثل رسمة داخل دائرة)؟ اضغط عليه مرة ثانية بعد تحديد الشكل.")}</p> : (
                   <>
                     <p className="truncate text-[13px] text-navy-900">{L("العنصر المحدد")}: <b>{selEl.text || L("شكل بدون نص")}</b> · {Math.round((els[selEl.sel] ?? { s: 1 }).s * 100)}%</p>
                     <div className="flex flex-wrap gap-2">
