@@ -16,6 +16,7 @@ const WHY: Record<string, string> = {
   FX_NO_SPEECH: "ما لقينا كلام واضح بالفيديو. المونتاج المبتكر يعتمد على كلام المتحدث.",
   FX_NO_PLAN: "ما قدرنا نطلع خطة مونتاج من هذا الفيديو. جرّب وصف أوضح.",
   FX_QUALITY: "الغرافيكس ما طلع بجودة كافية بعد محاولتين، فما سلّمناه.",
+  FX_CANCELLED: "ألغيت الطلب.",
   WORKER_RESTARTED: "توقف التنفيذ بسبب تحديث بالنظام. ابدأ من جديد.",
 };
 
@@ -77,4 +78,17 @@ export async function GET(req: Request) {
   const [play, dl] = await Promise.all([admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6), admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6, { download: "shaheen-montage.mp4" })]);
   const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; fxr?: { missing?: number; cues?: unknown[] } };
   return NextResponse.json({ status: "done", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, cues: Array.isArray(inp.fxr?.cues) ? inp.fxr!.cues!.length : 0, missing: inp.fxr?.missing ?? 0, videoUrl: play.data?.signedUrl ?? "", downloadUrl: dl.data?.signedUrl ?? "" });
+}
+
+/** «إلغاء الطلب»: the customer stops his own waiting or running montage. The feathers come back once (only the request that really changed the job refunds it); the worker sees it and stops. */
+export async function DELETE(req: Request) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
+  const id = new URL(req.url).searchParams.get("job") ?? "";
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "طلب غير صالح." }, { status: 400 });
+  const admin = createAdminClient();
+  const { data: changed } = await admin.from("jobs").update({ status: "failed", error: "FX_CANCELLED", updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id).eq("tool_id", TOOL).in("status", ["queued", "running"]).select("id");
+  if (!changed?.length) return NextResponse.json({ error: "الطلب خلص أو توقف قبل الإلغاء." }, { status: 409 });
+  await admin.rpc("refund_job", { p_job: id });
+  return NextResponse.json({ ok: true });
 }

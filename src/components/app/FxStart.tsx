@@ -28,6 +28,16 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
   const [err, setErr] = useState("");
   const [state, setState] = useState<State | null>(null);
   const stopped = useRef(false);
+  const [ask, setAsk] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  async function cancel() {
+    if (!jobId || cancelling) return;
+    setCancelling(true);
+    const r = await fetch(`/api/free-montage?job=${jobId}`, { method: "DELETE" }).catch(() => null);
+    const d = r ? await r.json().catch(() => null) : null;
+    setCancelling(false); setAsk(false);
+    if (r?.ok) { stopped.current = true; setState({ status: "failed", error: "ألغيت الطلب." }); router.refresh(); } else { setErr(L(d?.error ?? "تعذّر الإلغاء.")); void poll(); }
+  }
 
   const poll = useCallback(async () => {
     if (!jobId) return;
@@ -104,7 +114,11 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
       </div>
     );
     const pr = state && "progress" in state ? state.progress : 0;
-    return <div className="card max-w-2xl p-6"><Progress value={pr || 3} label={state && "step" in state && state.step ? L(state.step) : L("بالانتظار…")} /><p className="mt-3 text-[13px] text-subtle">{L("شاهين يسمع كلامك، يخطط المونتاج، يرسم الغرافيكس ويركّبها فوق فيديوك. ياخذ تقريباً من 5 إلى 10 دقائق لكل دقيقة فيديو.")} {L("تقدر تطلع من الصفحة، تلقاه بـ«أعمالي» لما يخلص.")}</p></div>;
+    return <div className="card max-w-2xl p-6"><Progress value={pr || 3} label={state && "step" in state && state.step ? L(state.step) : L("بالانتظار…")} /><p className="mt-3 text-[13px] text-subtle">{L("شاهين يسمع كلامك، يخطط المونتاج، يرسم الغرافيكس ويركّبها فوق فيديوك. ياخذ تقريباً من 5 إلى 10 دقائق لكل دقيقة فيديو.")} {L("تقدر تطلع من الصفحة، تلقاه بـ«أعمالي» لما يخلص.")}</p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {ask ? (<><span className="text-[14px] text-navy-900">{L("متأكد؟ يتوقف المونتاج وترجع لك ريشك.")}</span><button type="button" disabled={cancelling} onClick={cancel} className="btn btn-outline px-4 py-2 text-[14px] text-red-700">{cancelling ? L("لحظات…") : L("نعم، ألغِ الطلب")}</button><button type="button" disabled={cancelling} onClick={() => setAsk(false)} className="btn btn-outline px-4 py-2 text-[14px]">{L("لا، كمّل")}</button></>) : <button type="button" onClick={() => setAsk(true)} className="text-[13px] font-semibold text-red-700 underline">{L("إلغاء الطلب")}</button>}
+      </div>
+      {err && <p className="mt-2 text-[14px] text-red-700">{err}</p>}</div>;
   }
 
   return (

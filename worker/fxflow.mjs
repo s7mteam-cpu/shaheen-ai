@@ -156,9 +156,13 @@ export async function fxJob(job, d) {
   const { db } = d, inp = job.input ?? {};
   const dir = await mkdtemp(join(tmpdir(), "fx-"));
   const base = `${job.user_id}/fx-${job.id}`;
-  const stage = async (txt, progress) => { try { await db.from("jobs").update({ title: txt.slice(0, 60), progress: Math.round(progress), updated_at: d.now() }).eq("id", job.id); } catch {} };
+  // «إلغاء الطلب»: the customer may cancel (the route marks the job failed and gives the feathers back). The worker then stops at its next step and touches nothing.
+  let cancelled = false;
+  const STOP = new Error("FX_CANCELLED");
+  const alive = async () => { if (!cancelled) { const { data } = await db.from("jobs").select("status").eq("id", job.id).maybeSingle().then((x) => x, () => ({ data: { status: "running" } })); if (data && data.status !== "running") cancelled = true; } if (cancelled) throw STOP; };
+  const stage = async (txt, progress) => { await alive(); try { await db.from("jobs").update({ title: txt.slice(0, 60), progress: Math.round(progress), updated_at: d.now() }).eq("id", job.id).eq("status", "running"); } catch {} };
   const t0 = Date.now(), timings = {}, lap = (k) => { timings[k] = Math.round((Date.now() - t0) / 1000); };
-  const beat = setInterval(() => { db.from("jobs").update({ updated_at: d.now() }).eq("id", job.id).eq("status", "running").then(() => {}, () => {}); }, 60_000); // a long design step must not look like a stopped job
+  const beat = setInterval(() => { db.from("jobs").update({ updated_at: d.now() }).eq("id", job.id).eq("status", "running").select("id").then((x) => { if (x.data && !x.data.length) cancelled = true; }, () => {}); }, 20_000); // a long design step must not look like a stopped job
   try {
     // SECURITY: only a file inside the owner's own folder
     const src = String(inp.video ?? "");
@@ -239,7 +243,7 @@ export async function fxJob(job, d) {
     };
     const pages = new Array(chunks.length); let next = 0, made = 0;
     await Promise.all(Array.from({ length: Math.min(2, chunks.length) }, async () => { // two pieces are written at a time
-      for (;;) { const i = next++; if (i >= chunks.length) return; pages[i] = await make(chunks[i], i); made++; await stage(`يصمّم الغرافيكس (${made} من ${chunks.length})…`, 25 + (made / chunks.length) * 30); }
+      for (;;) { const i = next++; if (i >= chunks.length || cancelled) return; pages[i] = await make(chunks[i], i); made++; await stage(`يصمّم الغرافيكس (${made} من ${chunks.length})…`, 25 + (made / chunks.length) * 30); }
     }));
     const failed = chunks.filter((c, i) => c.cues.length && !pages[i]).length;
     if (failed > Math.floor(chunks.length / 3)) throw new Error("FX_QUALITY"); // never deliver a video with most of its graphics missing: refunded
@@ -249,7 +253,7 @@ export async function fxJob(job, d) {
     for (const [i, c] of chunks.entries()) {
       const html = withCaps(pages[i] || EMPTY, captions ? captionLayer(words, c.a, c.b, { tall, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400" }) : "");
       const out = join(dir, `p${i}.mp4`);
-      const r1 = await recordOverlay({ html, width: W, height: H, seconds: c.b - c.a, fps: FPS, base: norm, start: c.a, outFile: out, fontCss: d.htmlFontCss(html), onProgress: (p) => { if (Date.now() - last > 8000) { last = Date.now(); stage(`يركّب الغرافيكس فوق الفيديو (${i + 1} من ${chunks.length})…`, 56 + ((i + p) / chunks.length) * 36); } } });
+      const r1 = await recordOverlay({ html, width: W, height: H, seconds: c.b - c.a, fps: FPS, base: norm, start: c.a, outFile: out, fontCss: d.htmlFontCss(html), onProgress: (p) => { if (cancelled) throw STOP; if (Date.now() - last > 8000) { last = Date.now(); stage(`يركّب الغرافيكس فوق الفيديو (${i + 1} من ${chunks.length})…`, 56 + ((i + p) / chunks.length) * 36); } } });
       report[i].drawn = `${r1.drawn}/${r1.frames}`;
       parts.push(out);
       if (pages[i]) await db.storage.from("results").upload(`${base}.c${i}.html`, Buffer.from(pages[i]), { contentType: "text/html", upsert: true });
@@ -263,7 +267,12 @@ export async function fxJob(job, d) {
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.words.json`, Buffer.from(JSON.stringify(words)), { contentType: "application/json", upsert: true });
     lap("finish");
-    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: (plan.title || "مونتاج مبتكر").slice(0, 80), input: { ...inp, mode: "done", cseconds: +seconds.toFixed(2), aspect, fxr: { pages: chunks.map((c, i) => ({ a: c.a, b: c.b, path: pages[i] ? `${base}.c${i}.html` : null })), wordsPath: `${base}.words.json`, look: plan.look, cues: plan.cues, face: fx == null ? null : { x: fx, y: fy }, missing: failed, report, timings } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: d.now() }).eq("id", job.id);
-  } catch (e) { console.error("fx failed", job.id, e?.message ?? e); await d.fail(job, e); }
+    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: (plan.title || "مونتاج مبتكر").slice(0, 80), input: { ...inp, mode: "done", cseconds: +seconds.toFixed(2), aspect, fxr: { pages: chunks.map((c, i) => ({ a: c.a, b: c.b, path: pages[i] ? `${base}.c${i}.html` : null })), wordsPath: `${base}.words.json`, look: plan.look, cues: plan.cues, face: fx == null ? null : { x: fx, y: fy }, missing: failed, report, timings } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: d.now() }).eq("id", job.id).eq("status", "running");
+  } catch (e) {
+    console.error("fx stopped", job.id, e?.message ?? e);
+    const { data: nowRow } = await db.from("jobs").select("status").eq("id", job.id).maybeSingle().then((x) => x, () => ({ data: null }));
+    if (cancelled || (nowRow && nowRow.status !== "running")) return; // cancelled by the customer: already marked and refunded by the route, never twice
+    await d.fail(job, e);
+  }
   finally { clearInterval(beat); await rm(dir, { recursive: true, force: true }); }
 }
