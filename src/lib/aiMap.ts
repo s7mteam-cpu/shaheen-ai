@@ -16,6 +16,7 @@ export const TOOL_AI: Record<string, Uses[]> = {
   "real-scenes": [{ model: "claude-sonnet-5-5", what: "يكتب النص ويختار اللقطات" }, { model: "eleven_v4", what: "التعليق الصوتي" }, { model: "gemini-omni-1.1-flash", what: "لقطات بالذكاء الاصطناعي (الخيار الأغلى)" }],
   "site-video": [{ model: "claude-sonnet-5-5", what: "يقرأ الموقع ويكتب الفيديو" }, { model: "eleven_v4", what: "التعليق الصوتي" }],
   "free-motion": [{ model: "claude-sonnet-5-5", what: "المخرج: الخطة والنص والمراجعة الفنية" }, { model: "gemini-4-neon", what: "يكتب كود الفيديو (المحرك الجديد، القوي)" }, { model: "gemini-3.8-flash", what: "يكتب كود الفيديو (المحرك الجديد، السريع)" }, { model: "claude-haiku-5-5", what: "تعبئة النصوص والتعليق" }, { model: "eleven_v4", what: "التعليق الصوتي" }],
+  "site-free": [{ model: "claude-sonnet-5-5", what: "المخرج: الخطة والنص والمراجعة الفنية" }, { model: "gemini-4-neon", what: "يكتب كود الفيديو (المحرك الجديد، القوي)" }, { model: "gemini-3.8-flash", what: "يكتب كود الفيديو (المحرك الجديد، السريع)" }, { model: "claude-haiku-5-5", what: "تعبئة النصوص والتعليق" }, { model: "eleven_v4", what: "التعليق الصوتي" }],
   "video-editing": [{ model: "scribe_v1", what: "يفرّغ كلام الفيديو" }, { model: "claude-sonnet-5-5", what: "يكتب خطة المونتاج" }, { model: "eleven_v4", what: "التعليق الصوتي" }, { model: "fal-ai/birefnet/v2", what: "إزالة خلفية الصور" }],
   "product-video": [],
   "avatar-video": [{ model: "eleven_v4", what: "صوت المتحدث" }],

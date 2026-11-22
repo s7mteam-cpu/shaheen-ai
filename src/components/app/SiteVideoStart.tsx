@@ -21,7 +21,7 @@ const SWATCH: Record<SBg, string> = {
 type Site = { host: string; title: string; desc: string; text: string; sections: string[]; mobileUrl: string; desktopUrl: string };
 
 /** «فيديو من موقعك»: the customer pastes his website; Shaheen opens it, reads it, and makes a video that browses it and explains what it offers. */
-export function SiteVideoStart({ costPer15, balance, voices = [], freeCost = 0 }: { costPer15: number; balance: number; freeCost?: number; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
+export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false, ready = true }: { costPer15: number; balance: number; fresh?: boolean; ready?: boolean; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -45,10 +45,8 @@ export function SiteVideoStart({ costPer15, balance, voices = [], freeCost = 0 }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pct, setPct] = useState(0);
-  // two ways: "browse" (the video scrolls through the real website) or "new" (a fresh design drawn from scratch every time, with the website's pictures inside it)
-  const [kind, setKind] = useState<"browse" | "new">("browse");
-  const fresh = kind === "new" && freeCost > 0;
-  const per15 = fresh ? freeCost : costPer15;
+  // `fresh` = the separate tool «فيديو مبتكر من موقعك»: a new design drawn from scratch every time, with the website's pictures inside it
+  const per15 = costPer15;
   const cost = Math.max(1, Math.round(seconds / 15)) * per15;
   const stop = useRef(false);
   useEffect(() => () => { stop.current = true; }, []);
@@ -107,12 +105,13 @@ export function SiteVideoStart({ costPer15, balance, voices = [], freeCost = 0 }
     <div className="flex flex-wrap gap-2">{list.map(([v, l]) => <button key={String(v)} type="button" aria-pressed={value === v} onClick={() => set(v)} className="chip">{L(l)}</button>)}</div>
   );
 
+  if (fresh && !ready) return <p className="card max-w-2xl p-5 text-[15px] text-muted">{L("هذي الأداة متوقفة مؤقتاً. جرّب بعدين.")}</p>;
   if (!site) {
     return (
       <form onSubmit={read} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
         <label className="flex flex-col gap-2"><span className="font-semibold">{L("رابط موقعك")}</span>
           <input dir="ltr" required value={url} onChange={(e) => setUrl(e.target.value)} className="field text-start" placeholder="example.com" inputMode="url" maxLength={300} disabled={reading} />
-          <span className="text-[13px] text-subtle">{L("أي موقع عام: مطعم، عقارات، مدرّب، متجر، شركة… شاهين يفتحه ويقرأ صفحاته ويسوي فيديو يتصفّحه ويشرح اللي يقدّمه.")}</span></label>
+          <span className="text-[13px] text-subtle">{fresh ? L("أي موقع عام: مطعم، عقارات، مدرّب، متجر، شركة… شاهين يفتحه ويقرأه ويرسم لك فيديو إعلاني جديد من الصفر، ولقطات موقعك داخله.") : L("أي موقع عام: مطعم، عقارات، مدرّب، متجر، شركة… شاهين يفتحه ويقرأ صفحاته ويسوي فيديو يتصفّحه ويشرح اللي يقدّمه.")}</span></label>
         {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
         {reading ? <Progress value={pct} label={L("شاهين يفتح موقعك ويقرأه…")} /> : <button disabled={url.trim().length < 4} className="btn btn-gold py-3.5 text-[16px]">🔎 {L("اقرأ الموقع")}</button>}
         <p className="text-center text-[13px] text-subtle">{L("قراءة الموقع مجانية. الريش تنخصم بس لما تضغط «أنشئ الفيديو».")}</p>
@@ -137,16 +136,9 @@ export function SiteVideoStart({ costPer15, balance, voices = [], freeCost = 0 }
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); make(); }} className="card flex flex-col gap-5 p-5 sm:p-6">
-        {freeCost > 0 && (
-          <div className="flex flex-col gap-2"><span className="font-semibold">{L("نوع الفيديو")}</span>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <button type="button" aria-pressed={kind === "browse"} onClick={() => setKind("browse")} className={`rounded-2xl border p-4 text-start ${kind === "browse" ? "border-gold-500 bg-gold-50" : "border-line"}`}><span className="block font-semibold">🖥️ {L("تصفّح الموقع")}</span><span className="block text-[13px] text-subtle">{L("الفيديو يتصفّح موقعك الحقيقي ويشرحه، بستايلات جاهزة.")}</span></button>
-              <button type="button" aria-pressed={kind === "new"} onClick={() => setKind("new")} className={`rounded-2xl border p-4 text-start ${kind === "new" ? "border-gold-500 bg-gold-50" : "border-line"}`}><span className="block font-semibold">✨ {L("مبتكر")}</span><span className="block text-[13px] text-subtle">{L("تصميم جديد يُرسم من الصفر كل مرة: عناوين ورسومات متحركة، ولقطات موقعك داخل جوال ولابتوب.")}</span></button>
-            </div>
-          </div>
-        )}
         <label className="flex flex-col gap-2"><span className="font-semibold">{L("شنو تبي الفيديو يركّز عليه؟")}</span>
           <textarea required minLength={5} maxLength={800} rows={3} value={topic} onChange={(e) => setTopic(e.target.value)} className="field" />
+          {fresh && <span className="text-[13px] text-subtle">{L("اكتب وصفك بحرية: الفكرة، الأسلوب، الألوان، والرسالة. كل فيديو يطلع تصميم جديد مبني على وصفك ومحتوى موقعك.")}</span>}
           <span className="text-[13px] text-subtle">{L("شاهين يشرح الموقع من محتواه الفعلي (ما يخترع أسعار ولا خدمات). تقدر تضيف: ركّز على الخدمات، أو على العروض، أو على التواصل.")}</span></label>
         {!fresh && <>
         <PhotoPicker photos={shots} onChange={setShots} max={6} title="صفحات من داخل موقعك (لقطات شاشة)" hint="لو موقعك فيه صفحات ما تنفتح إلا بتسجيل دخول (لوحة تحكم، حجوزات، طلبات)، صوّرها بنفسك وارفعها هنا، واكتب تحت كل صورة وش هي. ما نطلب منك يوزر ولا كلمة سر أبداً." />

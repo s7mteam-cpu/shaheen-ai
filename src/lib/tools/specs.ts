@@ -122,6 +122,7 @@ export const toolSpecs: Record<string, ToolSpec> = {
   "free-post": { fields: [], units: () => 1 }, // own page + route (/api/free-post): the AI writes the post design, the video worker draws it
   "free-carousel": { fields: [], units: () => 1 }, // same page, route and engine as free-post, as a carousel of 3 to 8 slides
   "free-motion": { fields: [], units: () => 1 }, // own page: the AI writes motion-graphics code, the video worker renders it
+  "site-free": { fields: [], units: () => 1 }, // own page: reads the website like site-video, then the free-motion engine draws a new video (jobs are saved as free-motion)
   "site-video": { fields: [], units: () => 1 }, // runs in its own page: the website is read by the video worker, then /api/lesson makes a motion video (priced as motion-video)
   "real-scenes": { fields: [], units: () => 1 }, // runs in its own studio (/api/lesson), like motion-video
   "product-video": {

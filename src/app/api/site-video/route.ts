@@ -14,7 +14,8 @@ export async function POST(req: Request) {
   const u = await checkSiteUrl(String(b.url ?? ""));
   if (!u) return NextResponse.json({ error: "الرابط غير صالح. اكتب رابط موقع عام مثل example.com" }, { status: 400 });
   const admin = createAdminClient();
-  const { data: tool } = await admin.from("tools").select("is_enabled").eq("id", "site-video").maybeSingle();
+  const { data: tls } = await admin.from("tools").select("is_enabled").in("id", ["site-video", "site-free"]);
+  const tool = { is_enabled: (tls ?? []).some((x) => x.is_enabled) };
   if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
   // a free step: a few a quarter of an hour, and only one waiting at a time
   const since = new Date(Date.now() - 15 * 60_000).toISOString();

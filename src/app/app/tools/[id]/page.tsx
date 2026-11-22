@@ -78,7 +78,7 @@ export default async function ToolPage({ params, searchParams }: P) {
         {!job && <p className="mt-1 text-[12px] text-subtle">{L("باستخدامك الأداة توافق على")} <Link href="/content-policy" target="_blank" className="underline">{L("سياسة المحتوى")}</Link>{L(": أي محتوى غير أخلاقي ممنوع ويوقف الحساب.")}</p>}
       </div>
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
-      {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "free-motion" ? <Suspense><FreeMotionStart voices={content.voices.items} costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "free-post" || id === "free-carousel" ? <Suspense><FreePostStart tool={id} costPerSlide={tool.credit_cost} balance={profile?.credits ?? 0} hasKit={!!(await brandKitInfo())} hasLogo={!!(await brandKitLogo())} /></Suspense> : id === "site-video" ? <SiteVideoStart costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} {...(await siteInnovative())} /> : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
+      {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "free-motion" ? <Suspense><FreeMotionStart voices={content.voices.items} costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "free-post" || id === "free-carousel" ? <Suspense><FreePostStart tool={id} costPerSlide={tool.credit_cost} balance={profile?.credits ?? 0} hasKit={!!(await brandKitInfo())} hasLogo={!!(await brandKitLogo())} /></Suspense> : id === "site-video" ? <SiteVideoStart costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "site-free" ? <SiteVideoStart fresh ready={await siteInnovative()} costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
         <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
       </Suspense>}
     </div>
@@ -245,10 +245,10 @@ async function reopen(jobId: string, toolId: string, tool: ToolRow) {
   return <><ReopenCard jobId={jobId} url={url} cost={tool.edit_cost ?? 3} toolId={toolId} />{caption ? <CaptionBox text={caption} /> : null}</>;
 }
 
-/** «فيديو من موقعك»: is the innovative engine (a new design every time) open, and what does it cost */
-async function siteInnovative(): Promise<{ freeCost: number }> {
+/** «فيديو مبتكر من موقعك»: is the innovative video engine open */
+async function siteInnovative(): Promise<boolean> {
   const eng = await getFreeEngine().catch(() => null);
-  if (eng?.engine !== "gemini") return { freeCost: 0 };
-  const { data } = await createAdminClient().from("tools").select("credit_cost,is_enabled").eq("id", "free-motion").maybeSingle();
-  return { freeCost: data?.is_enabled ? Number(data.credit_cost) || 0 : 0 };
+  if (eng?.engine !== "gemini") return false;
+  const { data } = await createAdminClient().from("tools").select("is_enabled").eq("id", "free-motion").maybeSingle();
+  return !!data?.is_enabled;
 }
