@@ -15,7 +15,7 @@ export type PostData = {
   status: "done"; title: string; aspect: string; editCost: number; slides: number; htmlUrl: string; pdfUrl?: string; photoUrl?: string; savesLeft: number;
   images: { url: string; download: string }[];
   edits: { texts: Record<string, string>; hex: Record<string, string>; font: string | null; els: ({ sel: string } & El)[] } | null;
-  logo: { path: string; url: string; box: LogoBox } | null;
+  logo: { path: string; url: string; box: LogoBox; per?: Record<string, LogoBox & { off?: boolean }> } | null;
 };
 /** the page is laid out in these CSS sizes and drawn at full resolution by the video worker (same rule as worker/postflow.mjs → cssSize) */
 const CSS_SIZE: Record<string, [number, number]> = { "4:5": [432, 540], "1:1": [540, 540], "9:16": [432, 768], "16:9": [960, 540], card: [960, 548], a4: [794, 1123] };
@@ -57,7 +57,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
   const [hex, setHex] = useState<Record<string, string>>({});
   const [font, setFont] = useState("Cairo");
   const [els, setEls] = useState<Record<string, El>>({});
-  const [logo, setLogo] = useState<{ path: string; url: string; box: LogoBox } | null>(data.logo);
+  const [logo, setLogo] = useState<{ path: string; url: string; box: LogoBox; per?: Record<string, LogoBox & { off?: boolean }> } | null>(data.logo);
   const [logoData, setLogoData] = useState<{ url: string; src: string } | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [slide, setSlide] = useState(1);
@@ -111,6 +111,12 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
       .then((d) => { if (!dead) setLogoData({ url: logo.url, src: d }); }).catch(() => {});
     return () => { dead = true; };
   }, [logo?.url, logoData?.url]);
+  // on a design with several slides / sides the logo has its own place on each one (falls back to the shared place)
+  const many = data.slides > 1;
+  const lgHere = many ? logo?.per?.[String(slide)] : undefined;
+  const logoBox: LogoBox = lgHere ? { x: lgHere.x, y: lgHere.y, w: lgHere.w } : logo?.box ?? { x: 0.14, y: 0.09, w: 0.18 };
+  const logoOff = !!lgHere?.off;
+  const setLogoBox = (b: LogoBox) => { setLogo((p) => (!p ? p : many ? { ...p, per: { ...(p.per ?? {}), [String(slide)]: { ...b, ...(p.per?.[String(slide)]?.off ? { off: true } : {}) } } } : { ...p, box: b })); touch(); };
   const logoSrc = logo ? (logo.url.startsWith("data:") ? logo.url : logoData?.url === logo.url ? logoData.src : "") : "";
   const elList = useMemo(() => Object.entries(els).filter(([, e]) => e.hide || e.s !== 1 || e.x !== 0 || e.y !== 0).map(([sel, e]) => ({ sel, ...e })), [els]);
 
@@ -131,14 +137,14 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
         let p = applyEdits(raw, { texts: vals, hex });
         p = applyFont(p, font);
         p = applyEls(p, elList);
-        p = applyLogo(p, logo && logoSrc ? { src: logoSrc, ...logo.box } : null);
+        p = applyLogo(p, logo && logoSrc && !logoOff ? { src: logoSrc, ...logoBox } : null);
         p = injectShots(p, photoData ? { photo: photoData } : null);
         const extra = (fontCss[font] ? `<style>${fontCss[font]}</style>` : "") + slideCss(slide, PW, PH);
         setDoc(/<\/head>/i.test(p) ? p.replace(/<\/head>/i, extra + "</head>") : extra + p); setRev((x) => x + 1);
       } catch { setError(L("تعذّر تطبيق التعديل")); }
     }, 180);
     return () => clearTimeout(id);
-  }, [raw, vals, hex, font, logo, logoSrc, fontCss, elList, slide, PW, PH, photoData]);
+  }, [raw, vals, hex, font, logo, logoSrc, fontCss, elList, slide, PW, PH, photoData]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (doc) setPages((p) => [...p.filter((x) => x.rev === front), { rev, html: withClock(doc, 0, false, 1) }].slice(-2)); }, [doc, rev]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = (r: number, el: HTMLIFrameElement | null) => { if (r === (front || pages[0]?.rev)) iframe.current = el ?? iframe.current; };
   const ready = (r: number, el: HTMLIFrameElement) => { if (r < front) return; iframe.current = el; setFront(r); setPages((p) => p.filter((x) => x.rev >= r)); setTimeout(() => sendPickRef.current(), 0); };
@@ -164,7 +170,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
 
   async function uploadLogo(f: File) {
     setBusy(true); setError("");
-    try { const u = await uploadImage(f); setLogo({ path: u.path, url: u.preview, box: logo?.box ?? { x: 0.14, y: 0.09, w: 0.18 } }); touch(); }
+    try { const u = await uploadImage(f); setLogo({ path: u.path, url: u.preview, box: logo?.box ?? { x: 0.14, y: 0.09, w: 0.18 }, per: logo?.per }); touch(); }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   async function post(body: Record<string, unknown>) {
@@ -178,7 +184,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
     } catch (e) { setError(e instanceof Error ? e.message : "تعذّر إرسال الطلب."); }
     finally { setBusy(false); }
   }
-  const save = () => post({ from: jobId, apply: { texts: vals, hex, font, els: elList, logo: logo ? { on: true, path: logo.path, box: logo.box } : { on: false } } });
+  const save = () => post({ from: jobId, apply: { texts: vals, hex, font, els: elList, logo: logo ? { on: true, path: logo.path, box: logo.box, ...(logo.per ? { per: logo.per } : {}) } : { on: false } } });
   const scale = cw ? cw / PW : 0.3;
 
   return (
@@ -194,7 +200,7 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
           <div ref={box} dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-2xl border border-line bg-white shadow-lg" style={{ aspectRatio: `${PW} / ${PH}` }}>
             {pages.length && !loadErr ? <>
               {pages.map((pg) => <iframe key={pg.rev} ref={(el) => shown(pg.rev, el)} onLoad={(e) => ready(pg.rev, e.currentTarget)} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={pg.html} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${scale})`, transformOrigin: "0 0", zIndex: pg.rev === (front || pages[0].rev) ? 2 : 1, visibility: pg.rev === (front || pages[0].rev) || pages.length === 1 ? "visible" : "hidden" }} />)}
-              {logo && <div className="pointer-events-none absolute inset-0 z-10"><LogoDrag box={logo.box} onChange={(b) => { setLogo((p) => (p ? { ...p, box: b } : p)); touch(); }} /></div>}
+              {logo && !logoOff && <div className="pointer-events-none absolute inset-0 z-10"><LogoDrag box={logoBox} onChange={setLogoBox} /></div>}
             </> : <div className="grid h-full place-items-center p-6 text-center text-[14px] text-subtle">{loadErr ? L("تعذّر تحميل المعاينة. حدّث الصفحة.") : L("جاري تجهيز المعاينة…")}</div>}
           </div>
           <div className={`rounded-2xl border p-3 ${pick ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}>
@@ -260,7 +266,9 @@ export function PostStudio({ jobId, data, balance, onQueued, onNew }: { jobId: s
               {logo && <button type="button" className="btn btn-outline px-4 py-2 text-[14px] text-red-700" onClick={() => { setLogo(null); touch(); }}>{L("شيل الشعار")}</button>}
             </div>
             {logo ? <>
-              <LogoSize box={logo.box} onChange={(b) => { setLogo((p) => (p ? { ...p, box: b } : p)); touch(); }} />
+              {many && <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" className="size-4" checked={!logoOff} onChange={(e) => { const on = e.target.checked; setLogo((p) => (!p ? p : { ...p, per: { ...(p.per ?? {}), [String(slide)]: { ...logoBox, ...(on ? {} : { off: true }) } } })); touch(); }} />{data.aspect === "card" ? (slide === 1 ? L("الشعار ظاهر على الوجه الأمامي") : L("الشعار ظاهر على الوجه الخلفي")) : LT(`الشعار ظاهر على الشريحة ${slide}`, `Logo shown on slide ${slide}`)}</label>}
+              {many && <p className="text-[12.5px] leading-6 text-subtle">{data.aspect === "card" ? L("لكل وجه مكانه وحجمه: حرّك الشعار على هذا الوجه، ثم انتقل للوجه الثاني وحطه وين ما تبي.") : L("لكل شريحة مكانها وحجمها: اللي تغيّره هنا ينطبق على الشريحة المفتوحة بس.")}</p>}
+              <LogoSize box={logoBox} onChange={setLogoBox} />
               <p className="text-[12.5px] leading-6 text-subtle">{L("اسحب الإطار الذهبي المنقّط اللي حول الشعار داخل المعاينة لتغيير مكانه، واسحب زاويته لتكبيره. يشتغل دائماً، حتى وزر تحريك العناصر شغال. الشعار يظهر بنفس المكان بكل الشرائح.")}</p>
             </> : <p className="text-[12.5px] text-subtle">{L("PNG بخلفية شفافة يطلع أحلى.")}</p>}
           </section>

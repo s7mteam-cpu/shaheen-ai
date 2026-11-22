@@ -28,7 +28,7 @@ async function drawPhoto(userId: string, jobId: string, about: string, aspect: s
 const TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite", "free-card", "free-deck", "free-cv"];
 const MAX_SAVES = 40; // free studio saves per design
 const num = (v: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(v)) ? Number(v) : d));
-type Edits = { texts: Record<string, string>; hex: Record<string, string>; font?: string; els: ReturnType<typeof cleanEls>; logo: { on: boolean; path?: string; box: { x: number; y: number; w: number } } | null };
+type Edits = { texts: Record<string, string>; hex: Record<string, string>; font?: string; els: ReturnType<typeof cleanEls>; logo: { on: boolean; path?: string; box: { x: number; y: number; w: number }; per?: Record<string, { x: number; y: number; w: number; off?: boolean }> } | null };
 
 /** What the studio may change: text pieces by their key, #rrggbb colours, a font of the library, strict element moves, and the customer's own logo. Never code, never a path outside his folder. */
 function cleanEdits(raw: unknown, userId: string): Edits {
@@ -38,12 +38,19 @@ function cleanEdits(raw: unknown, userId: string): Edits {
   const hex: Record<string, string> = {};
   for (const [k, v] of Object.entries((o.hex && typeof o.hex === "object" ? o.hex : {}) as Record<string, unknown>).slice(0, 16)) if (/^#[0-9a-f]{6}$/i.test(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) hex[k.toLowerCase()] = v.toLowerCase();
   const lg = (o.logo && typeof o.logo === "object" ? o.logo : null) as Record<string, unknown> | null;
+  // the logo's own place on each slide / side (a business card's front and back, a carousel's slides): slide number → box, or off
+  const per: Record<string, { x: number; y: number; w: number; off?: boolean }> = {};
+  if (lg?.per && typeof lg.per === "object") for (const [k, v] of Object.entries(lg.per as Record<string, Record<string, unknown>>).slice(0, 8)) {
+    if (!/^[1-8]$/.test(k) || !v || typeof v !== "object") continue;
+    const pn = (x: unknown, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(Number(x)) ? Number(x) : d));
+    per[k] = { x: pn(v.x, 0.14, 0.03, 0.97), y: pn(v.y, 0.09, 0.03, 0.97), w: pn(v.w, 0.18, 0.06, 0.7), ...(v.off === true ? { off: true } : {}) };
+  }
   const bx = (lg?.box && typeof lg.box === "object" ? lg.box : {}) as Record<string, unknown>;
   const path = typeof lg?.path === "string" && lg.path.startsWith(`${userId}/`) && !lg.path.includes("..") && lg.path.length < 300 ? lg.path : undefined;
   return {
     texts, hex, els: cleanEls(o.els),
     ...(FREE_FONTS.includes(String(o.font)) ? { font: String(o.font) } : {}),
-    logo: lg ? { on: lg.on !== false && !!path, ...(path ? { path } : {}), box: { x: num(bx.x, 0.14, 0.03, 0.97), y: num(bx.y, 0.09, 0.03, 0.97), w: num(bx.w, 0.18, 0.06, 0.7) } } : null,
+    logo: lg ? { on: lg.on !== false && !!path, ...(path ? { path } : {}), box: { x: num(bx.x, 0.14, 0.03, 0.97), y: num(bx.y, 0.09, 0.03, 0.97), w: num(bx.w, 0.18, 0.06, 0.7) }, ...(Object.keys(per).length ? { per } : {}) } : null,
   };
 }
 const uuid = (x: unknown) => (typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x) ? x : "");
@@ -189,7 +196,7 @@ export async function GET(req: Request) {
     status: "done", title: job.title, aspect: inp.aspect ?? "4:5", editCost: tool?.edit_cost ?? 3,
     slides: Math.min(8, Math.max(1, Math.round(Number(inp.slides) || 1))), htmlUrl, pdfUrl, photoUrl, savesLeft: Math.max(0, MAX_SAVES - (Number(inp.saves) || 0)),
     edits: ed ? { texts: ed.texts ?? {}, hex: ed.hex ?? {}, font: ed.font ?? null, els: ed.els ?? [] } : null,
-    logo: lp && logoUrl ? { path: lp, url: logoUrl, box: ed?.logo?.box ?? { x: 0.14, y: 0.09, w: 0.18 } } : null,
+    logo: lp && logoUrl ? { path: lp, url: logoUrl, box: ed?.logo?.box ?? { x: 0.14, y: 0.09, w: 0.18 }, per: ed?.logo?.per ?? {} } : null,
     images: paths.map((_, i) => ({ url: view.data?.[i]?.signedUrl ?? "", download: down.data?.[i]?.signedUrl ?? "" })).filter((x) => x.url),
   });
 }

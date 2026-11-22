@@ -1654,6 +1654,18 @@ async function freeJob(job) {
 // ---------- «بوست / كاروسيل مبتكر»: the AI writes the design as a page, we draw one PNG per slide ----------
 const POST_TOOLS = ["free-post", "free-carousel", "free-ad", "free-invite", "free-card", "free-deck", "free-cv"];
 const POST_KIND = { "free-ad": "ad", "free-invite": "invite", "free-card": "card", "free-deck": "deck", "free-cv": "cv" };
+/** puts the logo INSIDE each slide (position:absolute, at that slide's own place): used for the PDF, where a fixed logo would repeat at one place on every page */
+function perSlideLogo(html, logoAt, n) {
+  let out = html, any = false;
+  for (let i = 1; i <= n; i++) {
+    const lg = logoAt(i); if (!lg) continue;
+    const m = applyLogo("<body></body>", lg).match(/<img id="__shlogo"[^>]*>/i); if (!m) continue;
+    const tag = m[0].replace('id="__shlogo"', 'data-shlogo="1"').replace("position:fixed", "position:absolute");
+    const re = new RegExp(`(<section\\b[^>]*\\bdata-slide\\s*=\\s*["']?${i}["']?[^>]*>)`, "i");
+    if (re.test(out)) { out = out.replace(re, (open) => open + tag); any = true; }
+  }
+  return any ? out.replace(/<\/head>/i, "<style>.slide{position:relative}</style></head>") : out;
+}
 const POST_PDF = ["free-deck", "free-cv"]; // these also come as a real PDF (selectable text)
 const POST_SIZE = { "1:1": [1080, 1080], "4:5": [1080, 1350], "9:16": [1080, 1920], "16:9": [1920, 1080], card: [1200, 685], a4: [1588, 2246] }; // card = a 3.5 × 2 inch business card (about 340 dpi); 1200 × 685 keeps the layout size in whole pixels (960 × 548)
 /** the customer's studio edits (texts, colours, font, moved elements) put on a saved design. Every value is cleaned by the kit functions themselves. */
@@ -1724,11 +1736,15 @@ async function postJob(job) {
     } catch (e) { console.error("post photo skipped", job.id, e?.message ?? e); }
     if ((inp.photoSrc || from.post?.photoPath) && !photo && !restyle && !edit) throw new Error("post: the picture could not be read");
     /** draws every slide; returns the PNGs, or a reason when a slide came out empty */
+    // the logo's own place on each slide / side when the customer set one in the studio (otherwise the shared place)
+    const logoAt = (i) => { if (!logo) return null; const p = lg0?.per?.[String(i)]; if (!p) return logo; if (p.off === true) return null; return { src: logo.src, x: c01(p.x, logoBox.x, 0.03, 0.97), y: c01(p.y, logoBox.y, 0.03, 0.97), w: c01(p.w, logoBox.w, 0.06, 0.7) }; };
     const draw = async (html) => {
-      const withLogo = injectShots(applyLogo(html, logo), photo ? { photo } : null);
+      const bare = injectShots(applyLogo(html, null), photo ? { photo } : null);
+      const withLogo = perSlideLogo(bare, logoAt, n); // for the PDF: the logo sits inside every slide at that slide's place
       const shots = []; let blank = 0;
       for (let i = 1; i <= n; i++) {
-        const [png] = await htmlStills({ html: onlySlide(withLogo, i, cw, ch), width: W, height: H, times: [0.4], fontCss: htmlFontCss(withLogo), baseW });
+        const one = applyLogo(bare, logoAt(i));
+        const [png] = await htmlStills({ html: onlySlide(one, i, cw, ch), width: W, height: H, times: [0.4], fontCss: htmlFontCss(one), baseW });
         const probe = join(workDir, `pp-${job.id}-${i}.png`); await writeFile(probe, png);
         if (await frameIsBlank(probe)) blank++;
         await rm(probe, { force: true });
