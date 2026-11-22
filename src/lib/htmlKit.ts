@@ -111,10 +111,10 @@ export const looksHtml = (s: string) => /<(!doctype html|html|body|div|svg|style
 
 /** «فيديو مبتكر من موقعك»: the page marks where a real picture of the customer's website goes (<img data-shot="mobile|desktop">, no src);
  *  the pictures are put in only when the page is shown or drawn, so the saved page stays small and never carries a link. */
-export function injectShots(html: string, shots: { mobile?: string; desktop?: string } | null | undefined) {
-  if (!shots || (!shots.mobile && !shots.desktop)) return html;
-  return String(html).replace(/<img\b[^>]*\bdata-shot\s*=\s*["']?(mobile|desktop)["']?[^>]*>/gi, (tag: string, k: string) => {
-    const src = shots[String(k).toLowerCase() as "mobile" | "desktop"];
+export function injectShots(html: string, shots: { mobile?: string; desktop?: string; logo?: string } | null | undefined) {
+  if (!shots || (!shots.mobile && !shots.desktop && !shots.logo)) return html;
+  return String(html).replace(/<img\b[^>]*\bdata-shot\s*=\s*["']?(mobile|desktop|logo)["']?[^>]*>/gi, (tag: string, k: string) => {
+    const src = shots[String(k).toLowerCase() as "mobile" | "desktop" | "logo"];
     if (typeof src !== "string" || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(src)) return tag;
     return tag.replace(/\ssrc\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/<img\b/i, `<img src="${src}"`);
   });

@@ -937,9 +937,22 @@ async function mixAudio({ video, voice, music, own, voiceVol = 1, musicVol = 0.1
 }
 
 /** «التجربة الكبرى» (للأدمن): Claude يخطط ← Gemini يبني الحركة (HTML) ← فحص بصري ← تسجيل MP4. النتيجة بالتخزين فقط. */
-const SHOT_NOTE = `
+/** what the model is told about the real website pictures (and the customer's logo) of a «فيديو مبتكر من موقعك» */
+function shotNote(aspect, hasLogo) {
+  const tall = aspect !== "16:9";
+  return `
 
-لقطات حقيقية من موقع العميل (استثناء من القاعدتين 2 و 11 لهذا الفيديو فقط؛ استخدمها، هذا فيديو عن موقعه): عندك صورتان جاهزتان: لقطة الجوال (نسبة العرض للارتفاع 9:19) ولقطة الكمبيوتر (نسبة 16:10). لعرض لقطة اكتب بالضبط <img data-shot="mobile" alt=""> أو <img data-shot="desktop" alt=""> بدون src وبدون أي رابط (المنصة تضع الصورة مكانها). حط كل لقطة داخل إطار ترسمه أنت بـCSS (إطار جوال للأولى، ونافذة متصفح أو لابتوب للثانية) بحجم محدد بالـCSS و object-fit:cover و object-position:top. هذا الإطار عنصر داخل المشهد (مسموح)، وليس حاوية للفيديو كله. اعرض كل لقطة في مشهد أو مشهدين مناسبين مع حركة (دخول، ميلان خفيف، تكبير بسيط، تمرير ببطء داخل الإطار)، وباقي المشاهد نصوص ورسومات عن خدمات الموقع.`;
+لقطات حقيقية من موقع العميل (استثناء من القاعدتين 2 و 11 لهذا الفيديو فقط؛ استخدمها، هذا فيديو عن موقعه): عندك صورتان جاهزتان: لقطة الجوال (نسبة العرض للارتفاع 9:19) ولقطة الكمبيوتر (نسبة 16:10). لعرض لقطة اكتب بالضبط <img data-shot="mobile" alt=""> أو <img data-shot="desktop" alt=""> بدون src وبدون أي رابط (المنصة تضع الصورة مكانها). حط كل لقطة داخل إطار ترسمه أنت بـCSS (إطار جوال للأولى، ونافذة متصفح أو لابتوب للثانية) بحجم محدد بالـCSS و object-fit:cover و object-position:top. هذا الإطار عنصر داخل المشهد (مسموح)، وليس حاوية للفيديو كله. اعرض كل لقطة في مشهد أو مشهدين مناسبين مع حركة (دخول، ميلان خفيف، تكبير بسيط، تمرير ببطء داخل الإطار)، وباقي المشاهد نصوص ورسومات عن خدمات الموقع.
+
+مقاسات اللقطات (مهم، التزم بها):
+- اللقطة هي بطل مشهدها: الإطار مع صورته يأخذ ${tall ? "من 50% إلى 62% من ارتفاع الشاشة" : "من 68% إلى 80% من ارتفاع الشاشة"}، وفوقه عنوان قصير، وتحته أو بجانبه سطر أو بطاقتان على الأكثر.
+- إطار الجوال: ${tall ? "عرضه من 54% إلى 62% من عرض الشاشة" : "ارتفاعه من 70% إلى 80% من ارتفاع الشاشة"} (بنسبة الجوال 9:19). ممنوع جوال صغير تضيع فيه اللقطة.
+- إطار اللابتوب أو المتصفح: ${tall ? "عرضه من 84% إلى 90% من عرض الشاشة" : "عرضه من 56% إلى 64% من عرض الشاشة"} بنسبة 16:10، وكامله داخل الشاشة مع هامش 5% على الأقل من كل جهة. احسب ارتفاعه مع ما فوقه وما تحته حتى لا ينزل أي جزء منه خارج الشاشة أو ينقص من أسفله.
+
+ملء الشاشة (مهم لكل المشاهد): وزّع محتوى كل مشهد على كامل ارتفاع الشاشة، من 8% إلى 92% تقريباً. ممنوع أن يتكدّس المحتوى في النصف العلوي ويبقى النصف السفلي فارغاً. إذا كان محتوى المشهد قليلاً: كبّر العناصر والخط، ووسّط المجموعة عمودياً، وأضف عنصراً بصرياً داعماً (رسمة، بطاقة، رقم كبير، زخرفة متحركة) يملأ المساحة. لا تترك أكثر من ربع الشاشة فارغاً في أي مشهد.
+
+${hasLogo ? `شعار العميل الحقيقي جاهز: اكتب بالضبط <img data-shot="logo" alt=""> بدون src (المنصة تضع الشعار). اعرضه في مشهد الافتتاح ومشهد الختام بعرض من 26% إلى 36% من عرض الشاشة مع height:auto و object-fit:contain، بدون إطار أو خلفية تغطيه. ممنوع أن ترسم شعاراً أو رمزاً أو أيقونة من عندك تمثّل العلامة.` : `لا يوجد ملف شعار: لا ترسم شعاراً أو رمزاً أو درعاً من خيالك للعلامة. اكتب اسم الموقع نصاً بخط قوي بدل الشعار.`}`;
+}
 /** the two website pictures of a «فيديو مبتكر من موقعك» order: the top of each page, cut to a light JPEG, kept beside the video for later edits. Returns data: links for the page (or null). */
 async function siteShots(job, site, base, workDir) {
   const own = (p) => typeof p === "string" && p.startsWith(`${job.user_id}/`) && !p.includes("..");
@@ -960,17 +973,32 @@ async function siteShots(job, site, base, workDir) {
       out[k] = `data:image/jpeg;base64,${buf.toString("base64")}`; paths[k] = dest;
     } catch (e) { console.error("site shot skipped", k, e?.message ?? e); }
   }
+  // the customer's own logo (from his brand kit, an own path in "uploads"): a small PNG that keeps its transparency
+  try {
+    const src = site?.shots?.logo;
+    if (own(src) && (out.mobile || out.desktop)) {
+      const d = await db.storage.from("uploads").download(src);
+      if (!d.error) {
+        const inF = join(workDir, `ss-${job.id}-logo.in`), outF = join(workDir, `ss-${job.id}-logo.png`);
+        await writeFile(inF, Buffer.from(await d.data.arrayBuffer()));
+        await ff(["-i", inF, "-vf", "scale='min(600,iw)':-2", "-frames:v", "1", outF]);
+        const buf = await readFile(outF); await rm(inF, { force: true }); await rm(outF, { force: true });
+        const dest = `${base}.shot-logo.png`;
+        if (buf.length > 300 && buf.length < 900_000 && !(await db.storage.from("results").upload(dest, buf, { contentType: "image/png", upsert: true })).error) { out.logo = `data:image/png;base64,${buf.toString("base64")}`; paths.logo = dest; }
+      }
+    }
+  } catch (e) { console.error("site logo skipped", e?.message ?? e); }
   return out.mobile || out.desktop ? { data: out, paths } : null;
 }
 /** the saved pictures of an earlier «فيديو مبتكر من موقعك» (for an edit of that video) */
 async function savedShots(userId, paths) {
   const own = (p) => typeof p === "string" && p.startsWith(`${userId}/`) && !p.includes("..");
   const out = {};
-  for (const k of ["mobile", "desktop"]) {
+  for (const k of ["mobile", "desktop", "logo"]) {
     if (!own(paths?.[k])) continue;
     const d = await db.storage.from("results").download(paths[k]); if (d.error) continue;
     const buf = Buffer.from(await d.data.arrayBuffer());
-    if (buf.length <= 1_500_000) out[k] = `data:image/jpeg;base64,${buf.toString("base64")}`;
+    if (buf.length <= 1_500_000) out[k] = `data:image/${k === "logo" ? "png" : "jpeg"};base64,${buf.toString("base64")}`;
   }
   return out.mobile || out.desktop ? out : null;
 }
@@ -1013,7 +1041,7 @@ async function gemFlowJob(job) {
     let retry = "", page = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
       await stage(`يبني التصميم (Gemini) · محاولة ${attempt}…`, 25 + attempt * 10);
-      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model, ...(shots ? { user: geminiPrompt(plan, ideaFull, retry) + SHOT_NOTE } : {}) });
+      const g = await geminiHtml({ plan, idea: ideaFull, retry, model: inp.model, ...(shots ? { user: geminiPrompt(plan, ideaFull, retry) + shotNote(inp.aspect, !!shots.data.logo) } : {}) });
       // SECURITY: the raw answer is checked BEFORE anything reads or opens it; a page with forbidden code is never prepared, opened or recorded
       const unsafe0 = unsafeHtml(g.html);
       if (unsafe0.length) {
