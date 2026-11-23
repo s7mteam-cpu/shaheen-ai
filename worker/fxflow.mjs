@@ -231,10 +231,14 @@ export async function fxJob(job, d) {
     if (vs > 0 && as - vs > 2) throw new Error("FX_BAD_FILE");
     const hold = vs > 0 && as - vs > 0.15 ? as - vs : 0;
     await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_MAX + 3), "-movflags", "+faststart", norm]); // the sound starts at 0 too (silence is added if it began late), so the word times match the final video
-    await rm(raw, { force: true });
+    const rawSize = (await readFile(raw)).length;
     // the length is the PICTURE's own length (counted frames): a file whose sound runs longer than its picture must not leave the drawing waiting for frames that never come
     const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
     if (seconds < 3) throw new Error("FX_NO_VIDEO");
+    // SYNC GUARD 1: the prepared video must be exactly as long as the uploaded one. If seconds of picture went missing, stop here (before any paid step) and say the numbers.
+    const srcLen = Math.max(vs, as), rawFrames = await d.countFrames(raw).catch(() => 0);
+    await rm(raw, { force: true });
+    if (Math.abs(seconds - srcLen) > 0.5) throw new Error(`FX_SYNC|prepare|src=${srcLen.toFixed(2)}s v=${vs.toFixed(2)} a=${as.toFixed(2)} f=${rawFrames}|base=${seconds.toFixed(2)}s f=${frames}|size=${rawSize}`);
     lap("prepare");
 
     await stage("يسمع كلامك ويفرّغه…", 12);
@@ -330,6 +334,9 @@ export async function fxJob(job, d) {
     const list = join(dir, "list.txt"), final = join(dir, "final.mp4");
     await writeFile(list, parts.map((p) => `file '${p}'`).join("\n"));
     await d.ff(["-f", "concat", "-safe", "0", "-i", list, "-i", norm, "-map", "0:v", "-map", "1:a?", "-c:v", "copy", "-c:a", "copy", "-shortest", "-movflags", "+faststart", final]);
+    // SYNC GUARD 2: the delivered video has every frame of the prepared one. A shorter result is never delivered.
+    const outFrames = await d.countFrames(final).catch(() => 0);
+    if (Math.abs(outFrames - frames) > 6) throw new Error(`FX_SYNC|final|base=${frames}f|out=${outFrames}f|parts=${parts.length}`);
     const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(final), { contentType: "video/mp4", upsert: true });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.words.json`, Buffer.from(JSON.stringify(words)), { contentType: "application/json", upsert: true });
@@ -373,9 +380,13 @@ async function fxExport(job, d) {
     const hold = vs > 0 && as - vs > 0.15 ? as - vs : 0;
     const norm = join(dir, "base.mp4");
     await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_MAX + 3), "-movflags", "+faststart", norm]); // the sound starts at 0 too (silence is added if it began late), so the word times match the final video
-    await rm(raw, { force: true });
+    const rawSize = (await readFile(raw)).length;
     const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
     if (seconds < 3) throw new Error("FX_NO_VIDEO");
+    // SYNC GUARD 1: the prepared video must be exactly as long as the uploaded one. If seconds of picture went missing, stop here (before any paid step) and say the numbers.
+    const srcLen = Math.max(vs, as), rawFrames = await d.countFrames(raw).catch(() => 0);
+    await rm(raw, { force: true });
+    if (Math.abs(seconds - srcLen) > 0.5) throw new Error(`FX_SYNC|prepare|src=${srcLen.toFixed(2)}s v=${vs.toFixed(2)} a=${as.toFixed(2)} f=${rawFrames}|base=${seconds.toFixed(2)}s f=${frames}|size=${rawSize}`);
 
     const wl = await db.storage.from("results").download(fr.wordsPath);
     const words = wl.error ? [] : JSON.parse(Buffer.from(await wl.data.arrayBuffer()).toString("utf8"));
@@ -433,6 +444,9 @@ async function fxExport(job, d) {
     const list = join(dir, "list.txt"), final = join(dir, "final.mp4");
     await writeFile(list, parts.map((p) => `file '${p}'`).join("\n"));
     await d.ff(["-f", "concat", "-safe", "0", "-i", list, "-i", norm, "-map", "0:v", "-map", "1:a?", "-c:v", "copy", "-c:a", "copy", "-shortest", "-movflags", "+faststart", final]);
+    // SYNC GUARD 2: the delivered video has every frame of the prepared one. A shorter result is never delivered.
+    const outFrames = await d.countFrames(final).catch(() => 0);
+    if (Math.abs(outFrames - frames) > 6) throw new Error(`FX_SYNC|final|base=${frames}f|out=${outFrames}f|parts=${parts.length}`);
     const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(final), { contentType: "video/mp4", upsert: true });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.words.json`, Buffer.from(JSON.stringify(words)), { contentType: "application/json", upsert: true });

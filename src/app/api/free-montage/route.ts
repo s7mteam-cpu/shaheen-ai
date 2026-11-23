@@ -77,6 +77,7 @@ export async function GET(req: Request) {
   const admin = createAdminClient();
   const { data: job } = await admin.from("jobs").select("id,status,progress,error,input,output,title").eq("id", id).eq("user_id", user.id).eq("tool_id", TOOL).maybeSingle();
   if (!job) return NextResponse.json({ error: "ما لقينا الطلب." }, { status: 404 });
+  if (job.status === "failed" && String(job.error ?? "").startsWith("FX_SYNC")) return NextResponse.json({ status: "failed", error: `وقّفنا المونتاج لأن طول الفيديو تغيّر أثناء التجهيز، وما نسلّم فيديو صوته مو مع صورته. صوّر هذي الرسالة وأرسلها للدعم: [${String(job.error).slice(0, 180)}]` });
   if (job.status === "failed") { const code = String(job.error ?? ""); return NextResponse.json({ status: "failed", error: WHY[code] ?? (/scribe|quota|429/i.test(code) ? "خدمة تفريغ الصوت غير متاحة حالياً. جرّب بعد شوي." : "ما اكتمل المونتاج.") }); }
   if (job.status !== "done") return NextResponse.json({ status: job.status, progress: job.progress ?? 0, step: job.status === "running" ? String(job.title ?? "") : "" });
   const path = String((job.output as { files?: { path?: string }[] } | null)?.files?.[0]?.path ?? "");
