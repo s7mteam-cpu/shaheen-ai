@@ -54,6 +54,10 @@ async function probe(file) {
   return { duration: Number(j.format?.duration ?? 0), width: Number(w) || 1080, height: Number(h) || 1920 };
 }
 
+/** seconds of one stream ("v:0" or "a:0"); 0 when there is none */
+async function streamSeconds(file, which) {
+  try { const { stdout } = await run("ffprobe", ["-v", "error", "-select_streams", which, "-show_entries", "stream=duration", "-of", "csv=p=0", file]); return Math.max(0, parseFloat(stdout) || 0); } catch { return 0; }
+}
 /** how many pictures the video really has (its sound may run longer or shorter) */
 async function countFrames(file) {
   const { stdout } = await run("ffprobe", ["-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", file]);
@@ -1910,7 +1914,7 @@ for (;;) {
   if (!claimed?.length) continue;
   setUsageJob(job);
   if (job.tool_id === "site-video") await captureJob(job);
-  else if (job.tool_id === "free-montage") await fxJob(job, { db, ff, probe, countFrames, transcribe, sentences, faceTrack, fail, now, FREE_SIZE, htmlFontCss });
+  else if (job.tool_id === "free-montage") await fxJob(job, { db, ff, probe, countFrames, streamSeconds, transcribe, sentences, faceTrack, fail, now, FREE_SIZE, htmlFontCss });
   else if (POST_TOOLS.includes(job.tool_id)) await postJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "ingest") await ingestJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplpreview") await tplPreviewJob(job);

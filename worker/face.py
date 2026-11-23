@@ -30,7 +30,7 @@ while True:
     if len(faces):
         fx, fy, fw, fh = max(faces, key=lambda f: f[2] * f[3])  # biggest face = the speaker
         sw, sh = small.shape[1], small.shape[0]
-        out.append({"t": round(t, 2), "x": round((fx + fw / 2) / sw, 3), "y": round((fy + fh / 2) / sh, 3)})
+        out.append({"t": round(t, 2), "x": round((fx + fw / 2) / sw, 3), "y": round((fy + fh / 2) / sh, 3), "w": round(fw / sw, 3), "h": round(fh / sh, 3)})
     t += step
     if t > 900:
         break
