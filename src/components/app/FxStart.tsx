@@ -7,6 +7,7 @@ import { Progress } from "@/components/app/Progress";
 import { createClient } from "@/lib/supabase/client";
 import { compressVideo } from "@/lib/compressVideo";
 import { FX_STYLES, FX_MAX_SECONDS } from "@/lib/fxStyles";
+import { FxStudio } from "@/components/app/FxStudio";
 
 type State = { status: "queued" | "running"; progress: number; step?: string } | { status: "done"; title: string; aspect: string; seconds: number; cues: number; missing: number; videoUrl: string; downloadUrl: string } | { status: "failed"; error: string };
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
@@ -99,6 +100,7 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
     router.refresh();
   }
 
+  if (jobId && sp.get("studio") === "1") return <FxStudio jobId={jobId} balance={balance} />;
   if (jobId) {
     if (state?.status === "failed") return <div className="card max-w-2xl p-6"><p className="font-semibold text-red-700">{L(state.error)}</p><p className="mt-2 text-[14px] text-muted">{L("رجعت لك ريشك كاملة.")}</p><Link href="/app/tools/free-montage" className="btn btn-outline mt-4 inline-flex px-5 py-2.5">{L("جرّب مرة ثانية")}</Link></div>;
     if (state?.status === "done") return (
@@ -108,9 +110,10 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
         <p className="text-center text-[13px] text-subtle">{mmss(state.seconds)} · {state.cues} {L("عنصر غرافيكس")}{state.missing ? ` · ${L("جزء من الفيديو طلع بالترجمة فقط")}` : ""}</p>
         <div className="flex flex-wrap justify-center gap-2">
           <a href={state.downloadUrl} className="btn btn-gold px-6 py-3">⬇️ {L("تحميل الفيديو")}</a>
+          <Link href={`/app/tools/free-montage?job=${jobId}&studio=1`} className="btn btn-outline px-5 py-3">🎛️ {L("عدّل بالاستوديو")}</Link>
           <Link href="/app/tools/free-montage" className="btn btn-outline px-5 py-3">✨ {L("مونتاج جديد")}</Link>
         </div>
-        <p className="text-center text-[12px] text-subtle">{L("ما عجبك الستايل؟ ابدأ مونتاج جديد بنفس الفيديو ووصف مختلف. الفيديو محفوظ بـ«أعمالي».")}</p>
+        <p className="text-center text-[12px] text-subtle">{L("بالاستوديو تحرّك العناصر وتغيّر النصوص والألوان وتصحّح كلمات الترجمة، ثم تصدّر من جديد مجاناً. الفيديو محفوظ بـ«أعمالي».")}</p>
       </div>
     );
     const pr = state && "progress" in state ? state.progress : 0;

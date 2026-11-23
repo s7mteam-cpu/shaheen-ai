@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/server/auth";
 import { guardContent } from "@/lib/server/moderation";
 import { getFreeEngine } from "@/lib/server/freeEngine";
 import { FX_IDS, FX_MAX_SECONDS } from "@/lib/fxStyles";
+import { cleanEls } from "@/lib/htmlKit";
 
 export const maxDuration = 30;
 const TOOL = "free-montage";
@@ -16,6 +17,9 @@ const WHY: Record<string, string> = {
   FX_NO_SPEECH: "ما لقينا كلام واضح بالفيديو. المونتاج المبتكر يعتمد على كلام المتحدث.",
   FX_NO_PLAN: "ما قدرنا نطلع خطة مونتاج من هذا الفيديو. جرّب وصف أوضح.",
   FX_QUALITY: "الغرافيكس ما طلع بجودة كافية بعد محاولتين، فما سلّمناه.",
+  FX_NO_SOURCE: "ما لقينا المونتاج الأصلي.",
+  FX_SOURCE_GONE: "الفيديو الأصلي انحذف بعد مدة الحفظ، فما نقدر نعيد تصديره. ارفعه بمونتاج جديد.",
+  FX_EDIT_FAILED: "المصمم ما قدر يطبّق طلبك على هذا المقطع. جرّب صياغة أوضح.",
   FX_CANCELLED: "ألغيت الطلب.",
   WORKER_RESTARTED: "توقف التنفيذ بسبب تحديث بالنظام. ابدأ من جديد.",
 };
@@ -43,7 +47,7 @@ export async function POST(req: Request) {
   if (blocked) return blocked;
   const eng = await getFreeEngine();
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { count: today } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", TOOL).gte("created_at", since);
+  const { count: today } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", TOOL).is("input->>fromJob", null).gte("created_at", since);
   if ((today ?? 0) >= eng.dailyCap) return NextResponse.json({ error: "وصلت الحد اليومي لعدد المونتاجات، جرّب بكرة." }, { status: 429 });
   const { count: busy } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", TOOL).in("status", ["queued", "running"]);
   if ((busy ?? 0) >= 1) return NextResponse.json({ error: "عندك مونتاج قيد التنفيذ. انتظر يخلص ثم ابدأ الثاني." }, { status: 429 });
@@ -76,8 +80,71 @@ export async function GET(req: Request) {
   // SECURITY: only a result inside his own folder is ever signed
   if (!path.startsWith(`${user.id}/`) || path.includes("..")) return NextResponse.json({ status: "failed", error: "ما لقينا الفيديو." });
   const [play, dl] = await Promise.all([admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6), admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6, { download: "shaheen-montage.mp4" })]);
-  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; fxr?: { missing?: number; cues?: unknown[] } };
+  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; video?: string; captions?: boolean; colors?: string[]; fxr?: { missing?: number; cues?: unknown[]; wordsPath?: string; pages?: { a?: number; b?: number; path?: string | null; els?: unknown }[] } };
+  if (new URL(req.url).searchParams.get("studio") === "1") {
+    // «استوديو المونتاج»: the saved pieces, the word times and the customer's own video. Every path is checked to sit inside his folder before it is read or signed.
+    const mine = (p: unknown): p is string => typeof p === "string" && p.startsWith(`${user.id}/`) && !p.includes("..");
+    const fr = inp.fxr;
+    if (!fr || !Array.isArray(fr.pages) || !mine(inp.video)) return NextResponse.json({ error: "هذا المونتاج ما ينفتح بالاستوديو." }, { status: 400 });
+    const read = async (p: unknown) => { if (!mine(p)) return ""; const r = await admin.storage.from("results").download(p); return r.error ? "" : await r.data.text(); };
+    const [srcUrl, wordsTxt, pages, tl] = await Promise.all([
+      admin.storage.from("uploads").createSignedUrl(inp.video, 60 * 60 * 3),
+      read(fr.wordsPath),
+      Promise.all(fr.pages.slice(0, 12).map(async (p) => ({ a: Number(p.a) || 0, b: Number(p.b) || 0, html: await read(p.path), els: cleanEls(p.els) }))),
+      admin.from("tools").select("edit_cost").eq("id", TOOL).maybeSingle(),
+    ]);
+    let words: unknown = []; try { words = JSON.parse(wordsTxt || "[]"); } catch { words = []; }
+    return NextResponse.json({ status: "studio", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, srcUrl: srcUrl.data?.signedUrl ?? "", pages, words, captions: inp.captions !== false, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400", editCost: tl.data?.edit_cost ?? 8 });
+  }
   return NextResponse.json({ status: "done", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, cues: Array.isArray(inp.fxr?.cues) ? inp.fxr!.cues!.length : 0, missing: inp.fxr?.missing ?? 0, videoUrl: play.data?.signedUrl ?? "", downloadUrl: dl.data?.signedUrl ?? "" });
+}
+
+/** «استوديو المونتاج»: the edits become a NEW job (the montage it edits stays as it is). Drawing again with the customer's own edits is free (limited per day); a request in words for one piece costs the tool's edit price. */
+export async function PUT(req: Request) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
+  const b = ((await req.json().catch(() => null)) ?? {}) as Record<string, unknown>;
+  const from = String(b.job ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(from)) return NextResponse.json({ error: "طلب غير صالح." }, { status: 400 });
+  const admin = createAdminClient();
+  const [{ data: tool }, { data: src }] = await Promise.all([
+    admin.from("tools").select("edit_cost,is_enabled").eq("id", TOOL).maybeSingle(),
+    admin.from("jobs").select("id,title,input").eq("id", from).eq("user_id", user.id).eq("tool_id", TOOL).eq("status", "done").maybeSingle(),
+  ]);
+  if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  const n = Array.isArray((src?.input as { fxr?: { pages?: unknown[] } } | null)?.fxr?.pages) ? (src!.input as { fxr: { pages: unknown[] } }).fxr.pages.length : 0;
+  if (!src || !n) return NextResponse.json({ error: "ما لقينا المونتاج." }, { status: 404 });
+  // only clean, bounded values travel to the worker (which cleans them again)
+  const e = (b.edit && typeof b.edit === "object" ? b.edit : {}) as Record<string, unknown>;
+  const chunks: Record<string, { texts: Record<string, string>; hex: Record<string, string>; els: ReturnType<typeof cleanEls> }> = {};
+  for (const [k, v] of Object.entries(e.chunks && typeof e.chunks === "object" ? (e.chunks as Record<string, unknown>) : {})) {
+    const i = Number(k); if (!Number.isInteger(i) || i < 0 || i >= n || !v || typeof v !== "object") continue;
+    const o = v as Record<string, unknown>, texts: Record<string, string> = {}, hex: Record<string, string> = {};
+    for (const [tk, tv] of Object.entries(o.texts && typeof o.texts === "object" ? (o.texts as Record<string, unknown>) : {}).slice(0, 200)) if (/^t\d{1,3}$/.test(tk) && typeof tv === "string") texts[tk] = clean(tv.replace(/[<>`]/g, ""), 300);
+    for (const [hk, hv] of Object.entries(o.hex && typeof o.hex === "object" ? (o.hex as Record<string, unknown>) : {}).slice(0, 12)) if (/^#[0-9a-f]{6}$/i.test(hk) && /^#[0-9a-f]{6}$/i.test(String(hv))) hex[hk] = String(hv);
+    chunks[String(i)] = { texts, hex, els: cleanEls(o.els) };
+  }
+  const words: Record<string, string> = {};
+  for (const [k, v] of Object.entries(e.words && typeof e.words === "object" ? (e.words as Record<string, unknown>) : {}).slice(0, 3000)) if (/^\d{1,5}$/.test(k) && typeof v === "string") words[k] = clean(v.replace(/[<>`]/g, ""), 40);
+  const askRaw = (b.ask && typeof b.ask === "object" ? b.ask : null) as Record<string, unknown> | null;
+  const askText = askRaw ? clean(askRaw.text, 600) : "";
+  const askChunk = askRaw ? Number(askRaw.chunk) : -1;
+  const ask = askText.length >= 4 && Number.isInteger(askChunk) && askChunk >= 0 && askChunk < n ? { chunk: askChunk, text: askText } : null;
+  const blocked = await guardContent(user.id, `${askText} ${Object.values(chunks).flatMap((c) => Object.values(c.texts)).join(" ")} ${Object.values(words).join(" ")}`.slice(0, 6000), TOOL);
+  if (blocked) return blocked;
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { count: today } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", TOOL).not("input->>fromJob", "is", null).gte("created_at", since);
+  if ((today ?? 0) >= 15) return NextResponse.json({ error: "وصلت الحد اليومي لعدد مرات التصدير من الاستوديو، جرّب بكرة." }, { status: 429 });
+  const { count: busy } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", TOOL).in("status", ["queued", "running"]);
+  if ((busy ?? 0) >= 1) return NextResponse.json({ error: "عندك مونتاج قيد التنفيذ. انتظر يخلص." }, { status: 429 });
+  const input = { kind: "fx", mode: "export", fromJob: from, edit: { chunks, words, captions: e.captions !== false }, ...(ask ? { ask } : {}) };
+  const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: String(src.title ?? "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
+  if (error || !job) return NextResponse.json({ error: "تعذّر بدء التصدير." }, { status: 500 });
+  if (ask) {
+    const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: tool.edit_cost ?? 8, p_job: job.id });
+    if (payErr) { await admin.from("jobs").delete().eq("id", job.id); return NextResponse.json({ error: "رصيدك ما يكفي." }, { status: 402 }); }
+  }
+  return NextResponse.json({ jobId: job.id });
 }
 
 /** «إلغاء الطلب»: the customer stops his own waiting or running montage. The feathers come back once (only the request that really changed the job refunds it); the worker sees it and stops. */

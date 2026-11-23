@@ -5,7 +5,8 @@ import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { claude } from "./freegen.mjs";
-import { geminiHtml, unsafeHtml } from "./gemflow.mjs";
+import { geminiHtml, geminiEdit, unsafeHtml } from "./gemflow.mjs";
+import { applyEdits, applyEls, cleanEls } from "./htmlkit.mjs";
 import { prepareHtml } from "./htmlprep.mjs";
 import { overlayStills, recordOverlay } from "./htmlrec.mjs";
 import { fxStyle } from "./fxstyles.mjs";
@@ -156,6 +157,7 @@ const withCaps = (page, caps) => { if (!caps) return page; const at = page.toLow
 /** d: helpers of the worker (db, ff, probe, transcribe, sentences, faceTrack, fail, now, FREE_SIZE, htmlFontCss) */
 export async function fxJob(job, d) {
   const { db } = d, inp = job.input ?? {};
+  if (inp.mode === "export") return fxExport(job, d);
   const dir = await mkdtemp(join(tmpdir(), "fx-"));
   const base = `${job.user_id}/fx-${job.id}`;
   // «إلغاء الطلب»: the customer may cancel (the route marks the job failed and gives the feathers back). The worker then stops at its next step and touches nothing.
@@ -286,4 +288,101 @@ export async function fxJob(job, d) {
     await d.fail(job, e);
   }
   finally { clearInterval(beat); await rm(dir, { recursive: true, force: true }); }
+}
+
+const FX_EDIT_NOTE = `\n\nتذكير خاص بهذه الصفحة: هي طبقة غرافيكس شفافة فوق فيديو عميل يتكلم. الخلفية تبقى شفافة تماماً (لا خلفية لـ html أو body ولا طبقة تغطي الشاشة)، لا تغيّر توقيت العناصر الأخرى، ولا ترسم وجه شخص حقيقي ولا شعارات أو أسماء جرائد وقنوات حقيقية. العنصر الجديد يكون داخل <div class="cue" data-start data-end> ومخفياً خارج وقته.`;
+
+/** «استوديو المونتاج»: the customer's edits (texts, colours, moved / resized / hidden elements, corrected caption words, captions on or off, and optionally one request in words for one piece) are applied to the saved pages and the video is drawn again.
+ *  A NEW job made by the route (input.fromJob = the montage it edits). Nothing is planned again: only an edit in words calls the designer model, for that piece alone. */
+async function fxExport(job, d) {
+  const { db } = d, inp = job.input ?? {};
+  const dir = await mkdtemp(join(tmpdir(), "fxe-"));
+  const base = `${job.user_id}/fx-${job.id}`;
+  let cancelled = false; const STOP = new Error("FX_CANCELLED");
+  const stage = async (txt, progress) => { if (cancelled) throw STOP; try { await db.from("jobs").update({ title: txt.slice(0, 60), progress: Math.round(progress), updated_at: d.now() }).eq("id", job.id).eq("status", "running"); } catch {} };
+  const beat = setInterval(() => { db.from("jobs").update({ updated_at: d.now() }).eq("id", job.id).eq("status", "running").select("id").then((x) => { if (x.data && !x.data.length) cancelled = true; }, () => {}); }, 20_000);
+  try {
+    // SECURITY: everything is read from the owner's own finished montage; every path must sit inside his folder
+    const own = (p) => typeof p === "string" && p.startsWith(`${job.user_id}/`) && !p.includes("..");
+    const { data: src } = await db.from("jobs").select("input,title").eq("id", String(inp.fromJob ?? "")).eq("user_id", job.user_id).eq("tool_id", "free-montage").eq("status", "done").maybeSingle();
+    const fr = src?.input?.fxr;
+    if (!fr || !Array.isArray(fr.pages) || !fr.pages.length || !own(src.input.video) || !own(fr.wordsPath)) throw new Error("FX_NO_SOURCE");
+    const aspect = ["9:16", "16:9", "1:1", "4:5"].includes(src.input.aspect) ? src.input.aspect : "9:16";
+    const [W, H] = d.FREE_SIZE[aspect], tall = aspect !== "16:9";
+    await stage("يجهّز الفيديو…", 5);
+    const dl = await db.storage.from("uploads").download(src.input.video);
+    if (dl.error) throw new Error("FX_SOURCE_GONE"); // the uploaded video is kept for a limited time
+    const raw = join(dir, "raw.mp4"); await writeFile(raw, Buffer.from(await dl.data.arrayBuffer()));
+    const [vs, as] = await Promise.all([d.streamSeconds(raw, "v:0"), d.streamSeconds(raw, "a:0")]);
+    const hold = vs > 0 && as - vs > 0.15 ? Math.min(20, as - vs) : 0;
+    const norm = join(dir, "base.mp4");
+    await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_MAX + 3), "-movflags", "+faststart", norm]);
+    await rm(raw, { force: true });
+    const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
+    if (seconds < 3) throw new Error("FX_NO_VIDEO");
+
+    const wl = await db.storage.from("results").download(fr.wordsPath);
+    const words = wl.error ? [] : JSON.parse(Buffer.from(await wl.data.arrayBuffer()).toString("utf8"));
+    const edit = inp.edit && typeof inp.edit === "object" ? inp.edit : {};
+    for (const [k, v] of Object.entries(edit.words && typeof edit.words === "object" ? edit.words : {}).slice(0, 3000)) { const i = Number(k); if (Number.isInteger(i) && words[i] && typeof v === "string") words[i].t = tidy(v, 40); }
+    const captions = edit.captions !== false;
+    const accent = (Array.isArray(src.input.colors) && src.input.colors[1]) || "#ffd400";
+    // the pieces as saved; the last one ends with the video
+    const chunks = fr.pages.map((p) => ({ a: Number(p.a) || 0, b: Number(p.b) || 0, path: p.path, els: p.els })).filter((c) => c.a < seconds - 0.2);
+    chunks.forEach((c, i) => { c.b = i === chunks.length - 1 ? seconds : Math.min(c.b, seconds); });
+    const ask = inp.ask && typeof inp.ask === "object" && tidy(inp.ask.text, 600).length >= 4 ? { chunk: Number(inp.ask.chunk) || 0, text: tidy(inp.ask.text, 600) } : null;
+
+    const parts = [], saved = []; let last = 0;
+    for (const [i, c] of chunks.entries()) {
+      let page = "";
+      if (own(c.path)) { const r = await db.storage.from("results").download(c.path); if (!r.error) page = Buffer.from(await r.data.arrayBuffer()).toString("utf8"); }
+      const ed = edit.chunks && typeof edit.chunks === "object" && edit.chunks[i] && typeof edit.chunks[i] === "object" ? edit.chunks[i] : {};
+      let els = cleanEls(ed.els ?? c.els ?? []);
+      if (page && unsafeHtml(page).length) page = ""; // never open a stored page that would not pass today's check
+      if (page) {
+        const texts = {}; for (const [k, v] of Object.entries(ed.texts && typeof ed.texts === "object" ? ed.texts : {})) if (/^t\d{1,3}$/.test(k) && typeof v === "string") texts[k] = tidy(v, 300);
+        const hex = {}; for (const [k, v] of Object.entries(ed.hex && typeof ed.hex === "object" ? ed.hex : {})) if (/^#[0-9a-f]{6}$/i.test(k) && /^#[0-9a-f]{6}$/i.test(String(v))) hex[k] = String(v);
+        page = applyEdits(page, { texts, hex });
+      }
+      if (ask && ask.chunk === i) {
+        // «عدّل بالوصف»: the designer rewrites this piece only. The request is the customer's text, passed as text; the answer is checked like any new page.
+        await stage("المصمم يطبّق طلبك…", 12);
+        const before = page || EMPTY;
+        let done = "", retry = "";
+        for (let attempt = 1; attempt <= 2 && !done; attempt++) {
+          let g; try { g = await geminiEdit({ html: before, instruction: ask.text + FX_EDIT_NOTE, retry, model: src.input.model }); } catch { continue; }
+          const bad = unsafeHtml(g.html);
+          if (bad.length) { retry = `forbidden code (${bad.join(", ")}): the page must stay self-contained`; continue; }
+          const next = (await prepareHtml(g.html)).html;
+          const len = c.b - c.a, times = [0.2, 0.4, 0.6, 0.8].map((x) => x * len);
+          let st; try { st = await overlayStills({ html: next, width: W, height: H, times, fontCss: d.htmlFontCss(next) }); } catch { retry = "the page failed to run; return a valid complete page"; continue; }
+          if (page && st.every((x) => x.blank)) { retry = "nothing is drawn at any moment: the existing elements must keep working"; continue; }
+          done = next;
+        }
+        if (!done) throw new Error("FX_EDIT_FAILED"); // the edit price goes back
+        page = done; els = []; // the page was rewritten: the old element positions no longer point at the same elements
+      }
+      const html = withCaps(applyEls(page || EMPTY, els), captions ? captionLayer(words, c.a, c.b, { tall, accent }) : "");
+      const out = join(dir, `p${i}.mp4`);
+      await recordOverlay({ html, width: W, height: H, seconds: c.b - c.a, fps: FPS, base: norm, start: c.a, outFile: out, fontCss: d.htmlFontCss(html), onProgress: (p) => { if (cancelled) throw STOP; if (Date.now() - last > 8000) { last = Date.now(); stage(`يركّب الغرافيكس فوق الفيديو (${i + 1} من ${chunks.length})…`, 15 + ((i + p) / chunks.length) * 77).catch(() => {}); } } });
+      parts.push(out);
+      const path = page ? `${base}.c${i}.html` : null;
+      if (path) await db.storage.from("results").upload(path, Buffer.from(page), { contentType: "text/html", upsert: true });
+      saved.push({ a: c.a, b: c.b, path, els });
+    }
+    await stage("يجهّز الفيديو النهائي…", 94);
+    const list = join(dir, "list.txt"), final = join(dir, "final.mp4");
+    await writeFile(list, parts.map((p) => `file '${p}'`).join("\n"));
+    await d.ff(["-f", "concat", "-safe", "0", "-i", list, "-i", norm, "-map", "0:v", "-map", "1:a?", "-c:v", "copy", "-c:a", "copy", "-shortest", "-movflags", "+faststart", final]);
+    const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(final), { contentType: "video/mp4", upsert: true });
+    if (up.error) throw new Error(`upload: ${up.error.message}`);
+    await db.storage.from("results").upload(`${base}.words.json`, Buffer.from(JSON.stringify(words)), { contentType: "application/json", upsert: true });
+    const keep = src.input;
+    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(src.title ?? "مونتاج مبتكر").slice(0, 80), input: { kind: "fx", mode: "done", fromJob: inp.fromJob, video: keep.video, seconds: keep.seconds, notes: keep.notes, fx: keep.fx, ...(keep.styleDesc ? { styleDesc: keep.styleDesc } : {}), captions, model: keep.model, ...(keep.colors ? { colors: keep.colors } : {}), cseconds: +seconds.toFixed(2), aspect, fxr: { pages: saved, wordsPath: `${base}.words.json`, look: fr.look, cues: fr.cues, face: fr.face ?? null, missing: 0 } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: d.now() }).eq("id", job.id).eq("status", "running");
+  } catch (e) {
+    console.error("fx export stopped", job.id, e?.message ?? e);
+    const { data: nowRow } = await db.from("jobs").select("status").eq("id", job.id).maybeSingle().then((x) => x, () => ({ data: null }));
+    if (cancelled || (nowRow && nowRow.status !== "running")) return;
+    await d.fail(job, e);
+  } finally { clearInterval(beat); await rm(dir, { recursive: true, force: true }); }
 }
