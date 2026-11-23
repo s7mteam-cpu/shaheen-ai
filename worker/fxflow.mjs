@@ -238,42 +238,64 @@ async function cutPerson({ db, d, norm, base, dir, seconds }) {
   const key = process.env.FAL_KEY;
   if (!key) throw new Error("FX_CUT_NOKEY");
   const tmp = `${base}.cut-src.mp4`;
+  const H = { Authorization: `Key ${key}`, "content-type": "application/json" };
+  const why = (step, e) => new Error(`FX_CUT_FAILED|${step}|${String(e?.message ?? e).replace(/[\r\n]+/g, " ").slice(0, 200)}`); // the step and the service's own words, for the admin
+  const clean = async () => { try { await db.storage.from("results").remove([tmp]); } catch {} };
+  // Step 1 (awaited before any design work starts): the request is accepted or refused within seconds, so a missing balance or a wrong key never costs a whole montage.
+  let statusUrl = "", resultUrl = "";
   try {
     const up = await db.storage.from("results").upload(tmp, await readFile(norm), { contentType: "video/mp4", upsert: true });
-    if (up.error) throw new Error("upload");
+    if (up.error) throw new Error(`storage: ${up.error.message}`);
     const link = await db.storage.from("results").createSignedUrl(tmp, 60 * 60 * 2);
-    if (!link.data?.signedUrl) throw new Error("link");
-    const H = { Authorization: `Key ${key}`, "content-type": "application/json" };
+    if (!link.data?.signedUrl) throw new Error("no signed link");
     const sub = await fetch(`https://queue.fal.run/${CUT_MODEL}`, { method: "POST", headers: H, signal: AbortSignal.timeout(60_000), body: JSON.stringify({ video_url: link.data.signedUrl, output_codec: "vp9", refine_foreground_edges: true, subject_is_person: true }) });
-    if (!sub.ok) throw new Error(`submit ${sub.status}: ${(await sub.text()).slice(0, 160)}`);
-    const q = await sub.json();
-    const statusUrl = String(q.status_url ?? ""), resultUrl = String(q.response_url ?? "");
-    if (!/^https:\/\/queue\.fal\.run\//.test(statusUrl) || !/^https:\/\/queue\.fal\.run\//.test(resultUrl)) throw new Error("queue answer");
-    const until = Date.now() + 25 * 60_000; let state = "";
-    while (Date.now() < until) {
-      await new Promise((r) => setTimeout(r, 5000));
-      const st = await fetch(statusUrl, { headers: H, signal: AbortSignal.timeout(30_000) }).then((r) => r.json(), () => ({}));
-      state = String(st.status ?? "");
-      if (state === "COMPLETED") break;
-      if (state && !["IN_QUEUE", "IN_PROGRESS"].includes(state)) throw new Error(`status ${state}`);
-    }
-    if (state !== "COMPLETED") throw new Error("timeout");
-    const res = await fetch(resultUrl, { headers: H, signal: AbortSignal.timeout(60_000) });
-    if (!res.ok) throw new Error(`result ${res.status}: ${(await res.text()).slice(0, 160)}`);
-    const url = String((await res.json())?.video?.[0]?.url ?? "");
-    if (!/^https:\/\/[a-z0-9.-]+\.fal\.media\//i.test(url)) throw new Error("no video in the answer"); // only the service's own file host is read
-    const file = await fetch(url, { signal: AbortSignal.timeout(300_000) });
-    if (!file.ok) throw new Error(`download ${file.status}`);
-    const matte = join(dir, "matte.webm");
-    await writeFile(matte, Buffer.from(await file.arrayBuffer()));
-    noteUsage({ provider: "fal", model: CUT_MODEL, units: Math.ceil(seconds) }); // counted per second of video
-    // SYNC GUARD: the cut-out must be as long as the video it was cut from
-    const len = (await d.probe(matte).catch(() => ({ duration: 0 }))).duration;
-    if (Math.abs(len - seconds) > 0.6) throw new Error(`FX_SYNC|cut|base=${seconds.toFixed(2)}s|cut=${Number(len).toFixed(2)}s`);
-    await db.storage.from("results").upload(`${base}.matte.webm`, await readFile(matte), { contentType: "video/webm", upsert: true });
-    return matte;
-  } catch (e) { const m = String(e?.message ?? e); if (m.startsWith("FX_")) throw e; console.error("fx cut", m); throw new Error("FX_CUT_FAILED"); }
-  finally { try { await db.storage.from("results").remove([tmp]); } catch {} }
+    const txt = await sub.text();
+    if (!sub.ok) throw new Error(`${sub.status} ${txt}`);
+    const q = JSON.parse(txt);
+    statusUrl = String(q.status_url ?? ""); resultUrl = String(q.response_url ?? "");
+    if (!/^https:\/\/queue\.fal\.run\//.test(statusUrl) || !/^https:\/\/queue\.fal\.run\//.test(resultUrl)) throw new Error(`unexpected answer ${txt}`);
+  } catch (e) { await clean(); console.error("fx cut submit", e?.message ?? e); throw why("submit", e); }
+  // Step 2 (runs while the designers work): wait, download, check the length, keep it beside the montage.
+  const wait = (async () => {
+    let step = "wait";
+    try {
+      const until = Date.now() + 25 * 60_000; let state = "", lastTxt = "";
+      while (Date.now() < until) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const r = await fetch(statusUrl, { headers: H, signal: AbortSignal.timeout(30_000) }).catch(() => null);
+        if (!r) continue;
+        lastTxt = await r.text(); let st = {}; try { st = JSON.parse(lastTxt); } catch { /* keep waiting */ }
+        state = String(st.status ?? "");
+        if (state === "COMPLETED") break;
+        if (!r.ok && r.status !== 202) throw new Error(`${r.status} ${lastTxt}`);
+        if (state && !["IN_QUEUE", "IN_PROGRESS"].includes(state)) throw new Error(`status ${state} ${lastTxt}`);
+      }
+      if (state !== "COMPLETED") throw new Error(`still ${state || "no status"} after 25 minutes ${lastTxt}`);
+      step = "result";
+      const res = await fetch(resultUrl, { headers: H, signal: AbortSignal.timeout(60_000) });
+      const body = await res.text();
+      if (!res.ok) throw new Error(`${res.status} ${body}`);
+      const j = JSON.parse(body), v = j?.video;
+      const url = String((Array.isArray(v) ? v[0]?.url : v?.url) ?? "");
+      // only the service's own file hosts are read
+      let host = ""; try { const u = new URL(url); host = u.protocol === "https:" ? u.hostname : ""; } catch { /* not a url */ }
+      if (!host || !(/(^|\.)fal\.(media|run|ai)$/i.test(host) || /(^|\.)fal-cdn\.com$/i.test(host) || host === "storage.googleapis.com")) throw new Error(`no video link in the answer ${body}`);
+      step = "download";
+      const file = await fetch(url, { signal: AbortSignal.timeout(300_000) });
+      if (!file.ok) throw new Error(`${file.status}`);
+      const matte = join(dir, "matte.webm");
+      await writeFile(matte, Buffer.from(await file.arrayBuffer()));
+      noteUsage({ provider: "fal", model: CUT_MODEL, units: Math.ceil(seconds) }); // counted per second of video
+      // SYNC GUARD: the cut-out must be as long as the video it was cut from
+      const len = (await d.probe(matte).catch(() => ({ duration: 0 }))).duration;
+      if (Math.abs(len - seconds) > 0.6) throw new Error(`FX_SYNC|cut|base=${seconds.toFixed(2)}s|cut=${Number(len).toFixed(2)}s`);
+      await db.storage.from("results").upload(`${base}.matte.webm`, await readFile(matte), { contentType: "video/webm", upsert: true });
+      return matte;
+    } catch (e) { const m = String(e?.message ?? e); console.error("fx cut", step, m); throw m.startsWith("FX_SYNC") ? e : why(step, e); }
+    finally { await clean(); }
+  })();
+  wait.catch(() => {});
+  return { wait };
 }
 const BEHIND = /class\s*=\s*["'][^"']*\bfx-behind\b/i;
 const onlyLayer = (page, which) => { const css = `<style>${which === "back" ? ".cue:not(.fx-behind)" : ".cue.fx-behind"}{display:none!important}</style>`; const at = page.toLowerCase().lastIndexOf("</head>"); return at > 0 ? page.slice(0, at) + css + page.slice(at) : css + page; };
@@ -398,8 +420,8 @@ export async function fxJob(job, d) {
     const skill = await skillFor("free-montage").catch(() => "");
     // the speaker is cut out while the designers work (only when a cue really sits behind him)
     const needCut = wantBehind && plan.cues.some((c) => c.layer === "behind");
-    const cutting = needCut ? cutPerson({ db, d, norm, base, dir, seconds }) : Promise.resolve("");
-    cutting.catch(() => {});
+    if (needCut) await stage("يرسل الفيديو لقص المتحدث…", 22);
+    const cutting = needCut ? (await cutPerson({ db, d, norm, base, dir, seconds })).wait : Promise.resolve(""); // a refused request stops here, before the paid design work
     // several pieces: one design system first, shared by all of them (a short video is one page and needs none)
     let kit = "";
     if (chunks.length > 1) { await stage("يبني نظام التصميم للفيديو…", 23); kit = await makeKit({ spec: plan.spec, look: plan.look, aspect, model: inp.model }).catch(() => ""); }
