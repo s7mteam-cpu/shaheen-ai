@@ -31,7 +31,7 @@ export const FX_EMPTY = `<!doctype html><html lang="ar" dir="rtl"><head><meta ch
 /** «صور العميل» (the same as worker/fxflow.mjs injectPhotos): the page marks the place with <img data-shot="p1">; the picture is put in only for showing. */
 export function injectPhotos(html: string, photos: Record<string, string> | null | undefined) {
   if (!photos || !Object.keys(photos).length) return html;
-  return String(html).replace(/<img\b[^>]*\bdata-shot\s*=\s*["']?(p[1-3])["']?[^>]*>/gi, (tag: string, k: string) => {
+  return String(html).replace(/<img\b[^>]*\bdata-shot\s*=\s*["']?(p[1-3]|g[1-9])["']?[^>]*>/gi, (tag: string, k: string) => {
     const src = photos[String(k).toLowerCase()];
     if (typeof src !== "string" || !/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(src)) return tag;
     return tag.replace(/\ssrc\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/<img\b/i, `<img src="${src}"`);

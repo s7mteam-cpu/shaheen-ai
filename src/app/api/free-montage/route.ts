@@ -5,6 +5,7 @@ import { guardContent } from "@/lib/server/moderation";
 import { getFreeEngine } from "@/lib/server/freeEngine";
 import { FX_IDS } from "@/lib/fxStyles";
 import { cleanEls } from "@/lib/htmlKit";
+import { config } from "@/lib/tools/run";
 
 export const maxDuration = 30;
 const TOOL = "free-montage";
@@ -70,8 +71,11 @@ export async function POST(req: Request) {
   const noteBlock = photos.map((x) => x.note).join(" ").trim();
   if (noteBlock) { const blockedN = await guardContent(user.id, noteBlock, TOOL); if (blockedN) return blockedN; }
   const behind = b.behind === true && eng.fxBehind; // «عناصر ورا المتحدث»: only when the admin offers it
-  const cost = Math.max(1, Math.ceil(secs / 60)) * (tool.credit_cost + (behind ? eng.fxBehindCost : 0));
-  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(eng.fxReview ? { review: true } : {}), ...(behind ? { behind: true } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
+  // «صور مولّدة»: only when the admin offers it; the model is the image tool's own (the admin's choice), never the customer's
+  const aiImg = b.aiImages === true && eng.fxImages ? await config("image").catch(() => null) : null;
+  const img = aiImg && (aiImg.provider === "google" || aiImg.provider === "fal") && aiImg.model ? { provider: aiImg.provider, model: aiImg.model } : null;
+  const cost = Math.max(1, Math.ceil(secs / 60)) * (tool.credit_cost + (behind ? eng.fxBehindCost : 0) + (img ? eng.fxImagesCost : 0));
+  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(eng.fxReview ? { review: true } : {}), ...(behind ? { behind: true } : {}), ...(img ? { img } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: (notes || "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء المونتاج." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
@@ -114,8 +118,8 @@ export async function GET(req: Request) {
       admin.from("tools").select("edit_cost").eq("id", TOOL).maybeSingle(),
     ]);
     const photos: Record<string, string> = {};
-    for (const ph of Array.isArray(fr.photos) ? fr.photos.slice(0, 3) : []) {
-      if (!/^p[1-3]$/.test(String(ph?.id)) || !mine(ph?.path)) continue;
+    for (const ph of Array.isArray(fr.photos) ? fr.photos.slice(0, 12) : []) {
+      if (!/^(p[1-3]|g[1-9])$/.test(String(ph?.id)) || !mine(ph?.path)) continue;
       const r = await admin.storage.from("results").download(ph.path);
       if (!r.error) photos[String(ph.id)] = `data:image/${ph.path.endsWith(".png") ? "png" : "jpeg"};base64,${Buffer.from(await r.data.arrayBuffer()).toString("base64")}`;
     }
