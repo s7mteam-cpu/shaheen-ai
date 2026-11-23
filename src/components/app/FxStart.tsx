@@ -156,7 +156,7 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
         </div>
       </div>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("شنو تبي بالمونتاج؟ (اختياري)")}</span>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={800} rows={4} className="field" placeholder={L("مثال: ابدأ بهوك قوي، كل رقم أذكره يطلع كبير، ولما أذكر دولة تطلع خريطتها، والنقاط المهمة تطلع قائمة على اليمين. الإيقاع سريع.")} />
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={800} rows={4} className="field" placeholder={L("كل ما وصفت أدق طلع أحسن: وين تطلع العناصر (فوق، تحت، بالنص، حتى فوق وجهك)، حجمها، سرعتها، وشنو يطلع مع كل جملة. مثال: ابدأ بهوك قوي يغطي الشاشة، كل رقم أذكره يطلع كبير بالنص، ولما أذكر دولة تطلع خريطتها تحت. الإيقاع سريع.")} />
         <span className="text-[12px] text-subtle">{L("شاهين ما يحط صور أو وجوه أشخاص حقيقيين ولا شعارات وجرائد حقيقية: كل شي ينرسم من جديد.")}</span></label>
       <label className="flex items-center gap-3"><input type="checkbox" checked={captions} onChange={(e) => setCaptions(e.target.checked)} className="h-5 w-5" /><span className="text-[15px]">{L("ترجمة عربية متحركة كلمة كلمة")}</span></label>
       {hasKit && <label className="flex items-center gap-3"><input type="checkbox" checked={useIdentity} onChange={(e) => setUseIdentity(e.target.checked)} className="h-5 w-5" /><span className="text-[15px]">{L("استخدم ألوان هويتي")}</span></label>}
