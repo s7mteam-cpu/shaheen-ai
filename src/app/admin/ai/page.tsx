@@ -191,6 +191,8 @@ export default async function AiHub() {
               <select name="plan" defaultValue={fe.plan} className="field"><option value="scenes">{L("نص مع مشاهد (أرخص وأسرع)")}</option><option value="full">{L("خطة كاملة (أغنى وأغلى)")}</option></select></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("سقف التصاميم لكل عميل بالـ24 ساعة")}</label>
               <input name="dailyCap" type="number" min={1} max={100} defaultValue={fe.dailyCap} className="field" /></div>
+            <div className="flex flex-col gap-1.5"><label className="label">{L("أقصى مدة لفيديو «مونتاج مبتكر» (بالدقائق، من 1 إلى 30)")}</label>
+              <input name="fxMaxMin" type="number" min={1} max={30} defaultValue={fe.fxMaxMin} className="field" /></div>
           </div>
           <p className="text-sm"><code dir="ltr">GEMINI_API_KEY</code> ({L("بـRailway للـWorker")})</p>
           <button className="btn btn-primary self-start px-6 py-2.5">{L("حفظ")}</button>

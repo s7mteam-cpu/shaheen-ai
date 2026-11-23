@@ -6,18 +6,35 @@ import Link from "next/link";
 import { Progress } from "@/components/app/Progress";
 import { createClient } from "@/lib/supabase/client";
 import { compressVideo } from "@/lib/compressVideo";
-import { FX_STYLES, FX_MAX_SECONDS } from "@/lib/fxStyles";
+import { FX_STYLES } from "@/lib/fxStyles";
 import { FxStudio } from "@/components/app/FxStudio";
 
 type State = { status: "queued" | "running"; progress: number; step?: string } | { status: "done"; title: string; aspect: string; seconds: number; cues: number; missing: number; note?: string; videoUrl: string; downloadUrl: string } | { status: "failed"; error: string };
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 /** «مونتاج مبتكر»: the customer uploads his own talking video and describes the edit; the AI plans the graphics from his words and draws them over the video. */
-export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: number; balance: number; hasKit: boolean }) {
+export function FxStart({ costPerMinute, balance, hasKit, maxSeconds }: { costPerMinute: number; balance: number; hasKit: boolean; maxSeconds: number }) {
+  const FX_MAX_SECONDS = maxSeconds;
   const router = useRouter();
   const sp = useSearchParams();
   const jobId = sp.get("job");
-  const [video, setVideo] = useState<{ path: string; name: string; seconds: number } | null>(null);
+  const [video, setVideo] = useState<{ path: string; name: string; seconds: number; url: string } | null>(null);
+  const [photos, setPhotos] = useState<{ path: string; url: string; note: string }[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  async function addPhoto(file: File | undefined) {
+    if (!file || photos.length >= 3) return;
+    setErr(""); setPhotoBusy(true);
+    try {
+      if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) throw new Error(L("الصورة لازم تكون PNG أو JPG أو WEBP."));
+      const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "image", type: file.type, size: file.size, name: file.name }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(L(d.error));
+      const { error } = await createClient().storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
+      if (error) throw new Error(L("تعذّر رفع الصورة."));
+      setPhotos((p) => [...p, { path: d.path, url: URL.createObjectURL(file), note: "" }].slice(0, 3));
+    } catch (e) { setErr(e instanceof Error ? e.message : L("تعذّر رفع الصورة.")); }
+    finally { setPhotoBusy(false); }
+  }
   const [upPct, setUpPct] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [notes, setNotes] = useState("");
@@ -81,7 +98,7 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
       if (!r.ok) throw new Error(small.size > 50 * 1024 * 1024 ? L("الفيديو أكبر من 50 ميجا وما قدر متصفحك يصغّره بدون ما يخرب تزامن الصوت. صدّره من جوالك بدقة 1080p وحجم أقل من 50 ميجا، أو قصّه، وارفعه مرة ثانية.") : L(d.error));
       const { error } = await createClient().storage.from("uploads").uploadToSignedUrl(d.path, d.token, small);
       if (error) throw new Error(/size|large|413/i.test(error.message) ? L("الملف أكبر من المسموح. صغّر حجمه وحاول مرة ثانية.") : L("تعذّر رفع الملف."));
-      setVideo({ path: d.path, name: file.name, seconds });
+      setVideo({ path: d.path, name: file.name, seconds, url: URL.createObjectURL(small) });
     } catch (e) { setErr(e instanceof Error ? e.message : L("تعذّر رفع الملف.")); }
     finally { setUploading(false); setUpPct(null); }
   }
@@ -94,7 +111,7 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
     e.preventDefault();
     if (!video || busy) return;
     setBusy(true); setErr("");
-    const r = await fetch("/api/free-montage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ video: video.path, seconds: Math.ceil(video.seconds), notes, styles, styleDesc, depth, captions, useIdentity }) }).catch(() => null);
+    const r = await fetch("/api/free-montage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ video: video.path, seconds: Math.ceil(video.seconds), notes, styles, styleDesc, depth, captions, useIdentity, photos: photos.map((x) => ({ path: x.path, note: x.note })) }) }).catch(() => null);
     const d = r ? await r.json().catch(() => null) : null;
     setBusy(false);
     if (!r || !r.ok || !d?.jobId) { setErr(L(d?.error ?? "تعذّر بدء المونتاج.")); return; }
@@ -134,7 +151,9 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
         <span className="font-semibold">{L("الفيديو")} <span className="text-[13px] font-normal text-subtle">{L("(أنت تتكلم للكاميرا، حتى")} {Math.round(FX_MAX_SECONDS / 60)} {L("دقائق)")}</span></span>
         {video ? (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3"><span className="truncate text-[14px]">🎬 {video.name} · <span dir="ltr">{mmss(video.seconds)}</span></span><button type="button" onClick={() => setVideo(null)} className="text-[13px] font-semibold text-red-700">{L("تغيير")}</button></div>
-        ) : (
+        ) : null}
+        {video && <div className="flex flex-col items-center gap-1.5"><video src={video.url} controls playsInline preload="metadata" className="max-h-72 rounded-xl bg-black" /><span className="text-[12px] text-subtle">{L("تأكد إن هذا هو الفيديو الخام (بدون مونتاج سابق عليه) قبل ما تبدأ.")}</span></div>}
+        {video ? null : (
           <label className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-line bg-tint px-4 py-8 text-center ${uploading ? "pointer-events-none opacity-70" : ""}`}>
             <span className="text-[15px] font-semibold text-navy-900">{uploading ? (upPct !== null ? `${L("تجهيز الفيديو")} ${upPct}%` : L("جارٍ الرفع…")) : `⬆️ ${L("ارفع الفيديو")}`}</span>
             <span className="text-[12px] text-subtle">MP4 / MOV</span>
@@ -158,6 +177,19 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("شنو تبي بالمونتاج؟ (اختياري)")}</span>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={800} rows={4} className="field" placeholder={L("كل ما وصفت أدق طلع أحسن: وين تطلع العناصر (فوق، تحت، بالنص، حتى فوق وجهك)، حجمها، سرعتها، وشنو يطلع مع كل جملة. مثال: ابدأ بهوك قوي يغطي الشاشة، كل رقم أذكره يطلع كبير بالنص، ولما أذكر دولة تطلع خريطتها تحت. الإيقاع سريع.")} />
         <span className="text-[12px] text-subtle">{L("شاهين ما يحط صور أو وجوه أشخاص حقيقيين ولا شعارات وجرائد حقيقية: كل شي ينرسم من جديد.")}</span></label>
+      <div className="flex flex-col gap-2">
+        <span className="font-semibold">{L("صورك داخل المونتاج")} <span className="text-[13px] font-normal text-subtle">{L("(اختياري، حتى 3: منتجك، شعارك، لقطة تملكها)")}</span></span>
+        {photos.map((ph, i) => (
+          <div key={ph.path} className="flex items-center gap-3 rounded-xl border border-line bg-white p-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={ph.url} alt="" className="h-14 w-14 rounded-lg object-cover" />
+            <input value={ph.note} maxLength={80} onChange={(e) => { const v = e.target.value; setPhotos((p) => p.map((x, k) => (k === i ? { ...x, note: v } : x))); }} className="field min-w-0 flex-1" placeholder={L("شنو هالصورة ومتى تطلع؟ مثال: منتجي، تطلع لما أذكر السعر")} />
+            <button type="button" onClick={() => setPhotos((p) => p.filter((_, k) => k !== i))} className="px-2 text-[13px] font-semibold text-red-700">{L("حذف")}</button>
+          </div>
+        ))}
+        {photos.length < 3 && <label className={`inline-flex cursor-pointer items-center gap-2 self-start rounded-xl border border-dashed border-line bg-tint px-4 py-2.5 text-[14px] font-semibold text-navy-900 ${photoBusy ? "pointer-events-none opacity-60" : ""}`}>{photoBusy ? L("جارٍ الرفع…") : `➕ ${L("أضف صورة")}`}<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={photoBusy} onChange={(e) => { void addPhoto(e.target.files?.[0]); e.target.value = ""; }} /></label>}
+        <span className="text-[12px] text-subtle">{L("ارفع صوراً تملكها أنت فقط. الصورة تطلع كما هي بإطار وحركة من الستايل.")}</span>
+      </div>
       <label className="flex items-center gap-3"><input type="checkbox" checked={captions} onChange={(e) => setCaptions(e.target.checked)} className="h-5 w-5" /><span className="text-[15px]">{L("ترجمة عربية متحركة كلمة كلمة")}</span></label>
       {hasKit && <label className="flex items-center gap-3"><input type="checkbox" checked={useIdentity} onChange={(e) => setUseIdentity(e.target.checked)} className="h-5 w-5" /><span className="text-[15px]">{L("استخدم ألوان هويتي")}</span></label>}
       {err && <p className="text-[14px] text-red-700">{err}</p>}

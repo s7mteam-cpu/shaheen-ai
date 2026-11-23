@@ -6,10 +6,10 @@ import Link from "next/link";
 import { withClock } from "@/lib/gemClock";
 import { fontCssFor } from "@/lib/iframeFonts";
 import { applyEdits, applyEls, extractColors, extractTexts, type ElEdit } from "@/lib/htmlKit";
-import { captionLayer, withCaps, FX_EMPTY, FX_FILLER, type FxWord } from "@/lib/fxCaps";
+import { captionLayer, withCaps, injectPhotos, FX_EMPTY, FX_FILLER, type FxWord } from "@/lib/fxCaps";
 
 type Page = { a: number; b: number; html: string; els: ElEdit[] };
-type Data = { title: string; aspect: string; seconds: number; srcUrl: string; pages: Page[]; words: FxWord[]; captions: boolean; accent: string; editCost: number };
+type Data = { title: string; aspect: string; seconds: number; srcUrl: string; pages: Page[]; words: FxWord[]; captions: boolean; accent: string; editCost: number; photos?: Record<string, string> };
 type ElMap = Record<string, { s: number; x: number; y: number; hide?: boolean }>;
 const SIZES: Record<string, [number, number]> = { "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080], "4:5": [1080, 1350] };
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -73,6 +73,7 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
     const id = setTimeout(() => {
       let p = page.html || FX_EMPTY;
       try { p = applyEdits(p, { texts: texts[idx] ?? {}, hex }); p = applyEls(p, elList(idx)); } catch { /* keep the page as it is */ }
+      p = injectPhotos(p, data?.photos);
       p = withCaps(p, captions ? captionLayer(words, page.a, page.b, { tall, accent: data?.accent }) : "");
       const extra = `<style>${fontCss}html,body{margin:0;overflow:hidden;background:transparent!important}</style>`;
       const cur = Math.min(video.current?.currentTime ?? 0, seconds - 0.01);
@@ -81,7 +82,7 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
       setDoc(/<head[^>]*>/i.test(p) ? p.replace(/<head[^>]*>/i, (m) => m + extra) : extra + p); setRev((x) => x + 1);
     }, 350);
     return () => clearTimeout(id);
-  }, [page, idx, texts, hex, elList, captions, words, tall, fontCss, data?.accent, seconds]);
+  }, [page, idx, texts, hex, elList, captions, words, tall, fontCss, data?.accent, data?.photos, seconds]);
   const srcDoc = useMemo(() => (doc && page ? withClock(doc, startAt, false, Math.max(1, page.b - page.a)) : null), [doc, startAt, page]);
 
   const pickRef = useRef({ pick, sel: selEl?.sel ?? null as string | null, bases: {} as Record<string, { x: number; y: number }> });
