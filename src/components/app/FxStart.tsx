@@ -9,7 +9,7 @@ import { compressVideo } from "@/lib/compressVideo";
 import { FX_STYLES, FX_MAX_SECONDS } from "@/lib/fxStyles";
 import { FxStudio } from "@/components/app/FxStudio";
 
-type State = { status: "queued" | "running"; progress: number; step?: string } | { status: "done"; title: string; aspect: string; seconds: number; cues: number; missing: number; videoUrl: string; downloadUrl: string } | { status: "failed"; error: string };
+type State = { status: "queued" | "running"; progress: number; step?: string } | { status: "done"; title: string; aspect: string; seconds: number; cues: number; missing: number; note?: string; videoUrl: string; downloadUrl: string } | { status: "failed"; error: string };
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 /** «مونتاج مبتكر»: the customer uploads his own talking video and describes the edit; the AI plans the graphics from his words and draws them over the video. */
@@ -21,7 +21,9 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
   const [upPct, setUpPct] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [notes, setNotes] = useState("");
-  const [style, setStyle] = useState<string>("paper");
+  const [styles, setStyles] = useState<string[]>(["paper"]);
+  const [depth, setDepth] = useState<"auto" | "2d" | "2.5d">("auto");
+  const pickStyle = (id: string) => setStyles((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id].slice(-2))); // up to two: they are merged into one look
   const [styleDesc, setStyleDesc] = useState("");
   const [captions, setCaptions] = useState(true);
   const [useIdentity, setUseIdentity] = useState(hasKit);
@@ -86,13 +88,13 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
 
   const minutes = video ? Math.max(1, Math.ceil(Math.ceil(video.seconds) / 60)) : 1;
   const cost = minutes * costPerMinute;
-  const descOk = style !== "desc" || styleDesc.trim().length >= 15;
+  const descOk = styles.length > 0 || styleDesc.trim().length >= 15;
 
   async function start(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!video || busy) return;
     setBusy(true); setErr("");
-    const r = await fetch("/api/free-montage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ video: video.path, seconds: Math.ceil(video.seconds), notes, style, styleDesc: style === "desc" ? styleDesc : "", captions, useIdentity }) }).catch(() => null);
+    const r = await fetch("/api/free-montage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ video: video.path, seconds: Math.ceil(video.seconds), notes, styles, styleDesc, depth, captions, useIdentity }) }).catch(() => null);
     const d = r ? await r.json().catch(() => null) : null;
     setBusy(false);
     if (!r || !r.ok || !d?.jobId) { setErr(L(d?.error ?? "تعذّر بدء المونتاج.")); return; }
@@ -108,6 +110,7 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
         <p className="text-[15px] font-semibold text-navy-900">✅ {state.title}</p>
         <video src={state.videoUrl} controls playsInline className={`mx-auto w-full rounded-2xl bg-black ${state.aspect === "16:9" ? "" : state.aspect === "1:1" ? "max-w-md" : "max-w-xs"}`} />
         <p className="text-center text-[13px] text-subtle">{mmss(state.seconds)} · {state.cues} {L("عنصر غرافيكس")}{state.missing ? ` · ${L("جزء من الفيديو طلع بالترجمة فقط")}` : ""}</p>
+        {state.note && <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-center text-[13px] text-amber-900">ℹ️ {state.note}</p>}
         <div className="flex flex-wrap justify-center gap-2">
           <a href={state.downloadUrl} className="btn btn-gold px-6 py-3">⬇️ {L("تحميل الفيديو")}</a>
           <Link href={`/app/tools/free-montage?job=${jobId}&studio=1`} className="btn btn-outline px-5 py-3">🎛️ {L("عدّل بالاستوديو")}</Link>
@@ -140,14 +143,17 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
         )}
       </div>
       <div className="flex flex-col gap-2">
-        <span className="font-semibold">{L("ستايل الغرافيكس")}</span>
+        <span className="font-semibold">{L("ستايل الغرافيكس")} <span className="text-[13px] font-normal text-subtle">{L("(اختر واحد أو اثنين يندمجون، أو اكتب ستايلك تحت)")}</span></span>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {FX_STYLES.map((a) => (
-            <button key={a.id} type="button" aria-pressed={style === a.id} onClick={() => setStyle(a.id)} className={`rounded-xl border p-2.5 text-start ${style === a.id ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}><span className="block text-[14px] font-semibold text-navy-900">{a.icon} {L(a.name)}</span><span className="block text-[12px] leading-5 text-subtle">{L(a.hint)}</span></button>
+            <button key={a.id} type="button" aria-pressed={styles.includes(a.id)} onClick={() => pickStyle(a.id)} className={`rounded-xl border p-2.5 text-start ${styles.includes(a.id) ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}><span className="block text-[14px] font-semibold text-navy-900">{a.icon} {L(a.name)}</span><span className="block text-[12px] leading-5 text-subtle">{L(a.hint)}</span></button>
           ))}
-          <button type="button" aria-pressed={style === "desc"} onClick={() => setStyle("desc")} className={`rounded-xl border p-2.5 text-start ${style === "desc" ? "border-gold-500 bg-gold-500/10" : "border-line bg-white"}`}><span className="block text-[14px] font-semibold text-navy-900">✍️ {L("من وصفي")}</span><span className="block text-[12px] leading-5 text-subtle">{L("اكتب الستايل بكلامك")}</span></button>
         </div>
-        {style === "desc" && <textarea value={styleDesc} onChange={(e) => setStyleDesc(e.target.value)} maxLength={600} rows={3} className="field" placeholder={L("مثال: ورق كرافت بني مع خط يدوي أبيض وملصقات صفراء، حركة هادية، وألوان ترابية دافئة.")} />}
+        <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">✍️ {L("من وصفي")} <span className="font-normal text-subtle">{styles.length ? L("(اختياري: يندمج مع الستايل المختار)") : L("(اكتب الستايل كله بكلامك)")}</span></span>
+          <textarea value={styleDesc} onChange={(e) => setStyleDesc(e.target.value)} maxLength={600} rows={3} className="field" placeholder={L("اكتب الجو العام، الألوان، الخامات، نوع الحركة والمشاهد. مثال: زجاج شفاف بحواف مضيئة فوق ألوان ليلية، بطاقات تدور بعمق، حركة ناعمة وبطيئة، وأرقام كبيرة تعدّ.")} /></label>
+        <div className="flex flex-wrap items-center gap-2"><span className="text-[14px] font-semibold">{L("العمق")}:</span>
+          {([["auto", "تلقائي"], ["2d", "2D مسطح"], ["2.5d", "2.5D طبقات وعمق"]] as const).map(([id, name]) => <button key={id} type="button" aria-pressed={depth === id} onClick={() => setDepth(id)} className={`rounded-lg border px-3 py-1.5 text-[13px] ${depth === id ? "border-gold-500 bg-gold-500/10 font-semibold" : "border-line bg-white"}`}>{L(name)}</button>)}
+        </div>
       </div>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("شنو تبي بالمونتاج؟ (اختياري)")}</span>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={800} rows={4} className="field" placeholder={L("مثال: ابدأ بهوك قوي، كل رقم أذكره يطلع كبير، ولما أذكر دولة تطلع خريطتها، والنقاط المهمة تطلع قائمة على اليمين. الإيقاع سريع.")} />

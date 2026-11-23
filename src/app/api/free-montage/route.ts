@@ -38,10 +38,12 @@ export async function POST(req: Request) {
   const secs = Math.ceil(Number(b.seconds));
   if (!Number.isFinite(secs) || secs < 5) return NextResponse.json({ error: "الفيديو قصير جداً (أقل من 5 ثواني)." }, { status: 400 });
   if (secs > FX_MAX_SECONDS) return NextResponse.json({ error: `الحد الأقصى حالياً ${Math.round(FX_MAX_SECONDS / 60)} دقائق للفيديو.` }, { status: 400 });
-  const fx = FX_IDS.includes(String(b.style)) ? String(b.style) : b.style === "desc" ? "desc" : "";
-  if (!fx) return NextResponse.json({ error: "اختر ستايل المونتاج." }, { status: 400 });
-  const styleDesc = fx === "desc" ? clean(b.styleDesc, 600) : "";
-  if (fx === "desc" && styleDesc.length < 15) return NextResponse.json({ error: "اكتب وصف الستايل بتفصيل أكثر (جملة أو جملتين)." }, { status: 400 });
+  // one or two ready styles (merged into one look), and/or the customer's own description of the style
+  const styles = [...new Set((Array.isArray(b.styles) ? b.styles : [b.style]).map((x) => String(x ?? "")).filter((x) => FX_IDS.includes(x)))].slice(0, 2);
+  const styleDesc = clean(b.styleDesc, 600);
+  if (!styles.length && styleDesc.length < 15) return NextResponse.json({ error: "اختر ستايل، أو اكتب وصف الستايل بتفصيل (جملة أو جملتين)." }, { status: 400 });
+  const depth = b.depth === "2d" || b.depth === "2.5d" ? b.depth : "auto";
+  const fx = styles[0] ?? "desc";
   const notes = clean(b.notes, 800);
   const blocked = await guardContent(user.id, `${notes} ${styleDesc}`, TOOL);
   if (blocked) return blocked;
@@ -57,7 +59,7 @@ export async function POST(req: Request) {
     colors = ((kit?.colors ?? []) as unknown[]).map((c) => String(c ?? "")).filter((c) => /^#[0-9a-fA-F]{6}$/.test(c)).slice(0, 4);
   }
   const cost = Math.max(1, Math.ceil(secs / 60)) * tool.credit_cost;
-  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, ...(colors.length ? { colors } : {}) };
+  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, ...(colors.length ? { colors } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: (notes || "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء المونتاج." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
@@ -80,7 +82,7 @@ export async function GET(req: Request) {
   // SECURITY: only a result inside his own folder is ever signed
   if (!path.startsWith(`${user.id}/`) || path.includes("..")) return NextResponse.json({ status: "failed", error: "ما لقينا الفيديو." });
   const [play, dl] = await Promise.all([admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6), admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6, { download: "shaheen-montage.mp4" })]);
-  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; video?: string; captions?: boolean; colors?: string[]; fxr?: { missing?: number; cues?: unknown[]; wordsPath?: string; pages?: { a?: number; b?: number; path?: string | null; els?: unknown }[] } };
+  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; video?: string; captions?: boolean; colors?: string[]; fxr?: { missing?: number; note?: string; cues?: unknown[]; wordsPath?: string; pages?: { a?: number; b?: number; path?: string | null; els?: unknown }[] } };
   if (new URL(req.url).searchParams.get("studio") === "1") {
     // «استوديو المونتاج»: the saved pieces, the word times and the customer's own video. Every path is checked to sit inside his folder before it is read or signed.
     const mine = (p: unknown): p is string => typeof p === "string" && p.startsWith(`${user.id}/`) && !p.includes("..");
@@ -96,7 +98,7 @@ export async function GET(req: Request) {
     let words: unknown = []; try { words = JSON.parse(wordsTxt || "[]"); } catch { words = []; }
     return NextResponse.json({ status: "studio", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, srcUrl: srcUrl.data?.signedUrl ?? "", pages, words, captions: inp.captions !== false, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400", editCost: tl.data?.edit_cost ?? 8 });
   }
-  return NextResponse.json({ status: "done", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, cues: Array.isArray(inp.fxr?.cues) ? inp.fxr!.cues!.length : 0, missing: inp.fxr?.missing ?? 0, videoUrl: play.data?.signedUrl ?? "", downloadUrl: dl.data?.signedUrl ?? "" });
+  return NextResponse.json({ status: "done", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, cues: Array.isArray(inp.fxr?.cues) ? inp.fxr!.cues!.length : 0, missing: inp.fxr?.missing ?? 0, note: String(inp.fxr?.note ?? "").slice(0, 220), videoUrl: play.data?.signedUrl ?? "", downloadUrl: dl.data?.signedUrl ?? "" });
 }
 
 /** «استوديو المونتاج»: the edits become a NEW job (the montage it edits stays as it is). Drawing again with the customer's own edits is free (limited per day); a request in words for one piece costs the tool's edit price. */

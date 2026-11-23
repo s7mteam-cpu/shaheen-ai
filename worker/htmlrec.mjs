@@ -63,7 +63,7 @@ async function openHtmlPage({ html, width, height, fontCss, browserExecutable, b
   const csp = `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src 'none'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'`;
   const head = `<meta http-equiv="Content-Security-Policy" content="${csp}"><style>${fontCss}html,body{margin:0;overflow:hidden}</style>`;
   const page0 = withHead(html, head);
-  const browser = await openBrowser("chrome", { browserExecutable, chromiumOptions: {}, logLevel: "error", forceDeviceScaleFactor: scale });
+  const browser = await openBrowser("chrome", { browserExecutable: browserExecutable || process.env.SHAHEEN_TEST_CHROME || undefined, chromiumOptions: {}, logLevel: "error", forceDeviceScaleFactor: scale });
   try {
     const page = await browser.newPage({ context: { indent: false, logLevel: "error" }, logLevel: "error", indent: false, pageIndex: 0, onBrowserLog: null, onLog: () => {} });
     const cdp = page._client();
