@@ -160,7 +160,7 @@ export async function startFlow(form: FormData) {
 export async function saveFreeEngine(form: FormData) {
   const u = await requireAdmin("ai");
   if (!u) throw new Error("غير مصرّح");
-  const value = cleanEngine({ engine: form.get("engine"), model: form.get("model"), plan: form.get("plan"), dailyCap: form.get("dailyCap"), fxMaxMin: form.get("fxMaxMin"), fxBehind: form.get("fxBehind"), fxBehindCost: form.get("fxBehindCost"), fxReview: form.get("fxReview"), fxImages: form.get("fxImages"), fxImagesCost: form.get("fxImagesCost") });
+  const value = cleanEngine({ engine: form.get("engine"), model: form.get("model"), plan: form.get("plan"), dailyCap: form.get("dailyCap"), fxMaxMin: form.get("fxMaxMin"), fxBehind: form.get("fxBehind"), fxBehindCost: form.get("fxBehindCost"), fxReview: form.get("fxReview"), fxImages: form.get("fxImages"), fxImagesCost: form.get("fxImagesCost"), gemVia: form.get("gemVia") });
   await createAdminClient().from("site_content").upsert({ key: "free_engine", value, updated_at: new Date().toISOString() });
   revalidatePath("/admin/ai");
 }

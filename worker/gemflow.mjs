@@ -1,6 +1,7 @@
 // «التجربة الكبرى»: Claude directs (plan + words + timing), Gemini builds the motion design as one HTML page, Shaheen records it.
 // Customer text only ever reaches the models as fenced data; the page Gemini returns runs only inside the network-less recorder.
 import { claude } from "./freegen.mjs";
+import { geminiFetch } from "./gemgate.mjs";
 import { modelFor } from "./models.mjs";
 
 const clean = (s, n = 400) => String(s ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
@@ -67,19 +68,13 @@ export function geminiPrompt(plan, idea, retry) {
 
 /** Calls Gemini (key + model come from Railway variables). Returns { html, usage }. */
 export async function geminiHtml({ plan, idea, retry, model: pick, system, user, images = [] }) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("GEMINI_API_KEY غير موجود بإعدادات Railway. أضفه هناك ثم أعد النشر.");
   const model = await modelFor(/^gemini-[a-z0-9.-]{2,40}$/.test(String(pick ?? "")) ? pick : (process.env.GEMINI_MODEL || "gemini-3.8-flash"));
   // streaming (SSE): the answer arrives in pieces, so a long thinking + long code never hits Node's 5-minute "waiting for headers" limit
   let res;
   try {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
-      method: "POST", signal: AbortSignal.timeout(900_000),
-      headers: { "x-goog-api-key": key, "content-type": "application/json" },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: system ?? RULES }] }, contents: [{ role: "user", parts: [...images.map((data) => ({ inlineData: { mimeType: "image/jpeg", data } })), { text: user ?? geminiPrompt(plan, idea, retry) }] }], generationConfig: { temperature: 1, maxOutputTokens: 60000 } }),
-    });
+    ({ res } = await geminiFetch({ model, method: "streamGenerateContent", sse: true, timeout: 900_000, body: JSON.stringify({ systemInstruction: { parts: [{ text: system ?? RULES }] }, contents: [{ role: "user", parts: [...images.map((data) => ({ inlineData: { mimeType: "image/jpeg", data } })), { text: user ?? geminiPrompt(plan, idea, retry) }] }], generationConfig: { temperature: 1, maxOutputTokens: 60000 } }) }));
   } catch (e) { throw new Error(`gemini اتصال فشل (النموذج: ${model}): ${String(e?.cause?.code ?? e?.cause?.message ?? e?.message ?? e).slice(0, 160)}`); }
-  if (!res.ok) throw new Error(`gemini ${res.status} (النموذج: ${model}): ${(await res.text()).replace(key, "***").slice(0, 220)}`);
+  if (!res.ok) throw new Error(`gemini ${res.status} (النموذج: ${model}): ${(await res.text()).slice(0, 220)}`);
   let txt = "", usage = null, finish = "", buf = "";
   try {
     const dec = new TextDecoder();

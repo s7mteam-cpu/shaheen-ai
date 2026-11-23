@@ -18,6 +18,7 @@ import { fxStyleInput } from "./fxstyles.mjs";
 import { TECH_IDS, techNote } from "./fxtech.mjs";
 import { skillFor, skillNote } from "./skills.mjs";
 import { modelFor } from "./models.mjs";
+import { geminiFetch } from "./gemgate.mjs";
 
 export const FX_MAX = 300; // seconds, when the admin set no limit
 const FX_HARD = 1800; // never longer than this, whatever the setting
@@ -268,8 +269,7 @@ const IMG_RULE = " Absolutely no text, no letters, no numbers, no logos, no wate
 async function drawImage(cfg, prompt, shape) {
   const ar = shape === "tall" ? "9:16" : shape === "wide" ? "16:9" : "1:1";
   if (cfg.provider === "google") {
-    const key = process.env.GEMINI_API_KEY; if (!key) throw new Error("no google key");
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(await modelFor(cfg.model))}:generateContent`, { method: "POST", signal: AbortSignal.timeout(180_000), headers: { "x-goog-api-key": key, "content-type": "application/json" }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt + IMG_RULE }] }], generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: ar } } }) });
+    const { res } = await geminiFetch({ model: await modelFor(cfg.model), timeout: 180_000, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt + IMG_RULE }] }], generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: ar } } }) });
     if (!res.ok) throw new Error(`image ${res.status}: ${(await res.text()).slice(0, 160)}`);
     const img = ((await res.json())?.candidates?.[0]?.content?.parts ?? []).find((x) => x.inlineData || x.inline_data);
     const data = img?.inlineData?.data ?? img?.inline_data?.data;
@@ -312,10 +312,7 @@ async function watchFinal({ d, final, dir, seconds, model, spec, overFace }) {
   const ask = `You are a strict senior video editor at the final screening of a ${seconds.toFixed(0)}-second vertical/short video: a person talks to the camera and motion graphics, illustrations and word-by-word captions were added over the video. Watch it WITH its sound.
 Judge only the added graphics and captions (never the person, his words or his filming). Look for: a graphic that hides his face when it should not${overFace ? " (in this video graphics on the face are allowed)" : ""}; text cut by the screen edge or overlapping other text or the captions; text too small or unreadable over the video; a graphic that flashes by too fast to read (under 1.5 seconds) or stays long after its words; a graphic that clearly does not match what he is saying at that moment; graphics that appear clearly before or after the spoken words they belong to; broken drawings (empty boxes, misplaced shapes); long stretches (over 6 seconds) of speech with nothing on screen; an ending that is cut off or empty; graphics that look amateur or all alike. The requested look: palette ${(spec?.palette ?? []).join(" ")}; materials: ${spec?.materials ?? "-"}; depth: ${spec?.depth ?? "-"}.
 Answer ONLY with JSON: {"score":1-10,"summary":"two short sentences in Arabic for the site owner","issues":[{"from":seconds,"to":seconds,"severity":"high|low","fix":"one concrete instruction in English for the designer of that moment"}]}. "high" = a viewer would notice it as a mistake. At most 8 issues. If it is clean, return an empty list.`;
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: "POST", signal: AbortSignal.timeout(240_000), headers: { "x-goog-api-key": key, "content-type": "application/json" },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ inline_data: { mime_type: "video/mp4", data: buf.toString("base64") } }, { text: ask }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 4000 } }),
-  });
+  const { res } = await geminiFetch({ model, timeout: 240_000, studioKey: key, body: JSON.stringify({ contents: [{ role: "user", parts: [{ inline_data: { mime_type: "video/mp4", data: buf.toString("base64") } }, { text: ask }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 4000 } }) });
   if (!res.ok) throw new Error(`watch ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const out = ((await res.json())?.candidates?.[0]?.content?.parts ?? []).map((x) => x.text ?? "").join("");
   const j = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
