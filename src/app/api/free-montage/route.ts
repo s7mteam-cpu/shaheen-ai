@@ -74,8 +74,9 @@ export async function POST(req: Request) {
   // «صور مولّدة»: only when the admin offers it; the model is the image tool's own (the admin's choice), never the customer's
   const aiImg = b.aiImages === true && eng.fxImages ? await config("image").catch(() => null) : null;
   const img = aiImg && (aiImg.provider === "google" || aiImg.provider === "fal") && aiImg.model ? { provider: aiImg.provider, model: aiImg.model } : null;
-  const cost = Math.max(1, Math.ceil(secs / 60)) * (tool.credit_cost + (behind ? eng.fxBehindCost : 0) + (img ? eng.fxImagesCost : 0));
-  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(eng.fxReview ? { review: true } : {}), ...(behind ? { behind: true } : {}), ...(img ? { img } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
+  const music = b.music === true && eng.fxMusic; // «موسيقى خلفية»: only when the admin offers it (it calls a paid music service)
+  const cost = Math.max(1, Math.ceil(secs / 60)) * (tool.credit_cost + (behind ? eng.fxBehindCost : 0) + (img ? eng.fxImagesCost : 0) + (music ? eng.fxMusicCost : 0));
+  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(eng.fxReview ? { review: true } : {}), ...(behind ? { behind: true } : {}), ...(img ? { img } : {}), ...(music ? { music: true } : {}), ...(b.sfx === false ? { sfx: false } : {}), ...(b.moves === false ? { moves: false } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: (notes || "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء المونتاج." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });

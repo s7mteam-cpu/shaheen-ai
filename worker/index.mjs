@@ -1914,7 +1914,7 @@ for (;;) {
   if (!claimed?.length) continue;
   setUsageJob(job);
   if (job.tool_id === "site-video") await captureJob(job);
-  else if (job.tool_id === "free-montage") await fxJob(job, { db, ff, probe, countFrames, streamSeconds, transcribe, sentences, faceTrack, fail, now, FREE_SIZE, htmlFontCss });
+  else if (job.tool_id === "free-montage") await fxJob(job, { db, makeMusic, ff, probe, countFrames, streamSeconds, transcribe, sentences, faceTrack, fail, now, FREE_SIZE, htmlFontCss });
   else if (POST_TOOLS.includes(job.tool_id)) await postJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "ingest") await ingestJob(job);
   else if (job.tool_id === "free-motion" && job.input?.mode === "tplpreview") await tplPreviewJob(job);

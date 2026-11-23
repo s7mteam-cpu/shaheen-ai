@@ -203,6 +203,10 @@ export default async function AiHub() {
               <label className="flex items-center gap-2 text-sm"><input name="fxImages" type="checkbox" defaultChecked={fe.fxImages} className="h-4 w-4" />{L("متاح للعملاء")}</label>
               <input name="fxImagesCost" type="number" min={0} max={1000} defaultValue={fe.fxImagesCost} className="field" aria-label={L("سعره الإضافي لكل دقيقة (ريشة)")} />
               <span className="text-[12px] text-subtle">{L("السعر الإضافي لكل دقيقة (ريشة). صورة لكل 8 ثواني تقريباً، وحد أقصى 8 صور.")}</span></div>
+            <div className="flex flex-col gap-1.5"><label className="label">{L("«موسيقى خلفية» بالمونتاج المبتكر (خدمة موسيقى مدفوعة عبر ElevenLabs)")}</label>
+              <label className="flex items-center gap-2 text-sm"><input name="fxMusic" type="checkbox" defaultChecked={fe.fxMusic} className="h-4 w-4" />{L("متاح للعملاء")}</label>
+              <input name="fxMusicCost" type="number" min={0} max={1000} defaultValue={fe.fxMusicCost} className="field" aria-label={L("سعرها الإضافي لكل دقيقة (ريشة)")} />
+              <span className="text-[12px] text-subtle">{L("السعر الإضافي لكل دقيقة (ريشة). المؤثرات الصوتية والزوم والانتقالات مجانية ومفعّلة دائماً للعميل.")}</span></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("المراجعة النهائية بالفيديو (المونتاج المبتكر)")}</label>
               <label className="flex items-center gap-2 text-sm"><input name="fxReview" type="checkbox" defaultChecked={fe.fxReview} className="h-4 w-4" />{L("Gemini يشاهد الفيديو النهائي بصوته ويعيد المقطع الضعيف مرة (وقت وتكلفة أكثر)")}</label></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("سعره الإضافي لكل دقيقة (ريشة)")}</label>
