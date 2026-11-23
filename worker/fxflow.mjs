@@ -227,8 +227,10 @@ export async function fxJob(job, d) {
     const norm = join(dir, "base.mp4"); // one clean file: the final size, 30 fps exactly, so every drawn frame meets its own video frame
     // a file whose sound runs longer than its picture (common after phone compression): the last picture is held until the voice ends, so no word is lost
     const [vs, as] = await Promise.all([d.streamSeconds(raw, "v:0"), d.streamSeconds(raw, "a:0")]);
-    const hold = vs > 0 && as - vs > 0.15 ? Math.min(20, as - vs) : 0;
-    await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_MAX + 3), "-movflags", "+faststart", norm]);
+    // a picture much shorter than its sound is a damaged file (a bad shrink before upload drops seconds of picture, and the lips then run ahead of the voice): never built on, the customer uploads it again
+    if (vs > 0 && as - vs > 2) throw new Error("FX_BAD_FILE");
+    const hold = vs > 0 && as - vs > 0.15 ? as - vs : 0;
+    await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_MAX + 3), "-movflags", "+faststart", norm]); // the sound starts at 0 too (silence is added if it began late), so the word times match the final video
     await rm(raw, { force: true });
     // the length is the PICTURE's own length (counted frames): a file whose sound runs longer than its picture must not leave the drawing waiting for frames that never come
     const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
@@ -366,9 +368,11 @@ async function fxExport(job, d) {
     if (dl.error) throw new Error("FX_SOURCE_GONE"); // the uploaded video is kept for a limited time
     const raw = join(dir, "raw.mp4"); await writeFile(raw, Buffer.from(await dl.data.arrayBuffer()));
     const [vs, as] = await Promise.all([d.streamSeconds(raw, "v:0"), d.streamSeconds(raw, "a:0")]);
-    const hold = vs > 0 && as - vs > 0.15 ? Math.min(20, as - vs) : 0;
+    // a picture much shorter than its sound is a damaged file (a bad shrink before upload drops seconds of picture, and the lips then run ahead of the voice): never built on, the customer uploads it again
+    if (vs > 0 && as - vs > 2) throw new Error("FX_BAD_FILE");
+    const hold = vs > 0 && as - vs > 0.15 ? as - vs : 0;
     const norm = join(dir, "base.mp4");
-    await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_MAX + 3), "-movflags", "+faststart", norm]);
+    await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_MAX + 3), "-movflags", "+faststart", norm]); // the sound starts at 0 too (silence is added if it began late), so the word times match the final video
     await rm(raw, { force: true });
     const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
     if (seconds < 3) throw new Error("FX_NO_VIDEO");

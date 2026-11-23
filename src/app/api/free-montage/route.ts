@@ -12,6 +12,7 @@ const clean = (v: unknown, n: number) => String(v ?? "").replace(/\s+/g, " ").tr
 /** what the customer reads when the worker stops a job (the feathers are already back) */
 const WHY: Record<string, string> = {
   FX_NO_VIDEO: "ما قدرنا نقرأ الفيديو. ارفعه مرة ثانية بصيغة MP4.",
+  FX_BAD_FILE: "الفيديو المرفوع صورته أقصر من صوته (غالباً انضغط غلط قبل الرفع)، فما كمّلنا عشان ما يطلع الصوت متأخر. ارفعه مرة ثانية.",
   FX_TOO_LONG: "الفيديو أطول من الحد المسموح حالياً.",
   FX_DURATION_MISMATCH: "مدة الفيديو أطول من اللي انحسب سعرها. ارفعه مرة ثانية.",
   FX_NO_SPEECH: "ما لقينا كلام واضح بالفيديو. المونتاج المبتكر يعتمد على كلام المتحدث.",

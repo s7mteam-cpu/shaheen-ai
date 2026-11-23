@@ -27,6 +27,18 @@ export async function compressVideo(file: File, onProgress?: (p: number) => void
     await conversion.execute();
     const buf = output.target.buffer;
     if (!buf || buf.byteLength >= file.size) return file;
+    // The shrunk copy is used ONLY when its picture is the same picture: same start, same length, nearly the same number of frames.
+    // Some browsers' decoders drop the first seconds of a phone video (HEVC): the copy then plays with the picture ahead of the sound. Such a copy is thrown away and the original is kept.
+    try {
+      const check = new mb.Input({ source: new mb.BlobSource(new Blob([buf])), formats: mb.ALL_FORMATS });
+      const out = await check.getPrimaryVideoTrack();
+      if (!out) return file;
+      const [d0, d1, f0, f1, n0, n1] = await Promise.all([track.computeDuration(), out.computeDuration(), track.getFirstTimestamp(), out.getFirstTimestamp(), track.computePacketStats(), out.computePacketStats()]);
+      const sameStart = Math.abs(f1 - f0) <= 0.12, sameEnd = Math.abs(d1 - d0) <= 0.3, sameFrames = n1.packetCount >= n0.packetCount * 0.97;
+      if (!sameStart || !sameEnd || !sameFrames) { console.warn("video compression rejected: the copy does not match the original", { d0, d1, f0, f1, n0: n0.packetCount, n1: n1.packetCount }); return file; }
+      const a0 = await input.getPrimaryAudioTrack(), a1 = await check.getPrimaryAudioTrack();
+      if (a0 && (!a1 || Math.abs((await a1.computeDuration()) - (await a0.computeDuration())) > 0.3)) { console.warn("video compression rejected: the sound does not match"); return file; }
+    } catch (e) { console.warn("video compression could not be verified, the original is kept", e); return file; }
     return new File([buf], file.name.replace(/\.\w+$/, "") + ".mp4", { type: "video/mp4" });
   } catch (e) {
     console.warn("video compression skipped", e);

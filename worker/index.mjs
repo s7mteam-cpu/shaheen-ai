@@ -54,9 +54,9 @@ async function probe(file) {
   return { duration: Number(j.format?.duration ?? 0), width: Number(w) || 1080, height: Number(h) || 1920 };
 }
 
-/** seconds of one stream ("v:0" or "a:0"); 0 when there is none */
+/** the second at which one stream ("v:0" or "a:0") ENDS on the file's own clock (its start + its length); 0 when there is none */
 async function streamSeconds(file, which) {
-  try { const { stdout } = await run("ffprobe", ["-v", "error", "-select_streams", which, "-show_entries", "stream=duration", "-of", "csv=p=0", file]); return Math.max(0, parseFloat(stdout) || 0); } catch { return 0; }
+  try { const { stdout } = await run("ffprobe", ["-v", "error", "-select_streams", which, "-show_entries", "stream=start_time,duration", "-of", "csv=p=0", file]); const [a, b] = stdout.trim().split(",").map((x) => parseFloat(x) || 0); return Math.max(0, a + b); } catch { return 0; }
 }
 /** how many pictures the video really has (its sound may run longer or shorter) */
 async function countFrames(file) {

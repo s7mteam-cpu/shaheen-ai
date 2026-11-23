@@ -78,7 +78,7 @@ export function FxStart({ costPerMinute, balance, hasKit }: { costPerMinute: num
       if (seconds > FX_MAX_SECONDS) throw new Error(`${L("الحد الأقصى حالياً")} ${Math.round(FX_MAX_SECONDS / 60)} ${L("دقائق للفيديو. قصّه وارفعه مرة ثانية.")}`);
       const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "video", type: small.type, size: small.size, name: small.name }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(L(d.error));
+      if (!r.ok) throw new Error(small.size > 50 * 1024 * 1024 ? L("الفيديو أكبر من 50 ميجا وما قدر متصفحك يصغّره بدون ما يخرب تزامن الصوت. صدّره من جوالك بدقة 1080p وحجم أقل من 50 ميجا، أو قصّه، وارفعه مرة ثانية.") : L(d.error));
       const { error } = await createClient().storage.from("uploads").uploadToSignedUrl(d.path, d.token, small);
       if (error) throw new Error(/size|large|413/i.test(error.message) ? L("الملف أكبر من المسموح. صغّر حجمه وحاول مرة ثانية.") : L("تعذّر رفع الملف."));
       setVideo({ path: d.path, name: file.name, seconds });
