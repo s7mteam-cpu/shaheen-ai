@@ -9,7 +9,7 @@ import { compressVideo } from "@/lib/compressVideo";
 import { FX_STYLES } from "@/lib/fxStyles";
 import { FxStudio } from "@/components/app/FxStudio";
 
-type State = { status: "queued" | "running"; progress: number; step?: string } | { status: "done"; title: string; aspect: string; seconds: number; cues: number; missing: number; note?: string; videoUrl: string; downloadUrl: string } | { status: "failed"; error: string };
+type State = { status: "queued" | "running"; progress: number; step?: string } | { status: "done"; title: string; aspect: string; seconds: number; cues: number; missing: number; note?: string; adminView?: { timings: Record<string, number> | null; review: { score?: number | null; summary?: string; issues?: number; redone?: number[] } | null } | null; videoUrl: string; downloadUrl: string } | { status: "failed"; error: string };
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 /** «مونتاج مبتكر»: the customer uploads his own talking video and describes the edit; the AI plans the graphics from his words and draws them over the video. */
@@ -40,7 +40,7 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
   const [uploading, setUploading] = useState(false);
   const [notes, setNotes] = useState("");
   const [styles, setStyles] = useState<string[]>(["paper"]);
-  const [depth, setDepth] = useState<"auto" | "2d" | "2.5d">("auto");
+  const [depth, setDepth] = useState<"auto" | "2d" | "2.5d" | "3d">("auto");
   const pickStyle = (id: string) => setStyles((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id].slice(-2))); // up to two: they are merged into one look
   const [styleDesc, setStyleDesc] = useState("");
   const [captions, setCaptions] = useState(true);
@@ -134,6 +134,11 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
         <p className="text-[15px] font-semibold text-navy-900">✅ {state.title}</p>
         <video src={state.videoUrl} controls playsInline className={`mx-auto w-full rounded-2xl bg-black ${state.aspect === "16:9" ? "" : state.aspect === "1:1" ? "max-w-md" : "max-w-xs"}`} />
         <p className="text-center text-[13px] text-subtle">{mmss(state.seconds)} · {state.cues} {L("عنصر غرافيكس")}{state.missing ? ` · ${L("جزء من الفيديو طلع بالترجمة فقط")}` : ""}</p>
+        {state.adminView && <div className="rounded-xl border border-line bg-tint px-4 py-3 text-[13px] text-navy-900" dir="rtl">
+          <p className="font-semibold">{L("للأدمن فقط")}</p>
+          {state.adminView.timings && (() => { const t = state.adminView!.timings!, steps: [string, string][] = [["prepare", "تجهيز"], ["listen", "تفريغ"], ["plan", "تخطيط"], ["design", "تصميم"], ["draw", "تركيب"], ["watch", "مراجعة"], ["redo", "إعادة"], ["finish", "تسليم"]]; let prev = 0; return <p className="mt-1">{L("وقت كل مرحلة")}: {steps.filter(([k]) => typeof t[k] === "number").map(([k, n]) => { const dur = t[k] - prev; prev = t[k]; return `${L(n)} ${dur}${L("ث")}`; }).join(" · ")} · {L("المجموع")} {Math.round(prev / 60 * 10) / 10} {L("دقيقة")}</p>; })()}
+          {state.adminView.review && <p className="mt-1">{L("المراجعة النهائية")}: {state.adminView.review.score ?? "—"}/10 · {state.adminView.review.issues ?? 0} {L("ملاحظة")}{state.adminView.review.redone?.length ? ` · ${L("أُعيد مقطع")} ${state.adminView.review.redone.join("، ")}` : ""}. {state.adminView.review.summary}</p>}
+        </div>}
         {state.note && <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-center text-[13px] text-amber-900">ℹ️ {state.note}</p>}
         <div className="flex flex-wrap justify-center gap-2">
           <a href={state.downloadUrl} className="btn btn-gold px-6 py-3">⬇️ {L("تحميل الفيديو")}</a>
@@ -178,7 +183,7 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
         <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">✍️ {L("من وصفي")} <span className="font-normal text-subtle">{styles.length ? L("(اختياري: يندمج مع الستايل المختار)") : L("(اكتب الستايل كله بكلامك)")}</span></span>
           <textarea value={styleDesc} onChange={(e) => setStyleDesc(e.target.value)} maxLength={600} rows={3} className="field" placeholder={L("اكتب الجو العام، الألوان، الخامات، نوع الحركة والمشاهد. مثال: زجاج شفاف بحواف مضيئة فوق ألوان ليلية، بطاقات تدور بعمق، حركة ناعمة وبطيئة، وأرقام كبيرة تعدّ.")} /></label>
         <div className="flex flex-wrap items-center gap-2"><span className="text-[14px] font-semibold">{L("العمق")}:</span>
-          {([["auto", "تلقائي"], ["2d", "2D مسطح"], ["2.5d", "2.5D طبقات وعمق"]] as const).map(([id, name]) => <button key={id} type="button" aria-pressed={depth === id} onClick={() => setDepth(id)} className={`rounded-lg border px-3 py-1.5 text-[13px] ${depth === id ? "border-gold-500 bg-gold-500/10 font-semibold" : "border-line bg-white"}`}>{L(name)}</button>)}
+          {([["auto", "تلقائي"], ["2d", "2D مسطح"], ["2.5d", "2.5D طبقات وعمق"], ["3d", "3D مجسّمات حقيقية ✨"]] as const).map(([id, name]) => <button key={id} type="button" aria-pressed={depth === id} onClick={() => setDepth(id)} className={`rounded-lg border px-3 py-1.5 text-[13px] ${depth === id ? "border-gold-500 bg-gold-500/10 font-semibold" : "border-line bg-white"}`}>{L(name)}</button>)}
         </div>
       </div>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("شنو تبي بالمونتاج؟ (اختياري)")}</span>

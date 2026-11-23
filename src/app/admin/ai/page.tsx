@@ -195,6 +195,8 @@ export default async function AiHub() {
               <input name="fxMaxMin" type="number" min={1} max={30} defaultValue={fe.fxMaxMin} className="field" /></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("«عناصر ورا المتحدث» بالمونتاج المبتكر (يستخدم خدمة قص مدفوعة عبر fal)")}</label>
               <label className="flex items-center gap-2 text-sm"><input name="fxBehind" type="checkbox" defaultChecked={fe.fxBehind} className="h-4 w-4" />{L("متاح للعملاء")}</label></div>
+            <div className="flex flex-col gap-1.5"><label className="label">{L("المراجعة النهائية بالفيديو (المونتاج المبتكر)")}</label>
+              <label className="flex items-center gap-2 text-sm"><input name="fxReview" type="checkbox" defaultChecked={fe.fxReview} className="h-4 w-4" />{L("Gemini يشاهد الفيديو النهائي بصوته ويعيد المقطع الضعيف مرة (وقت وتكلفة أكثر)")}</label></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("سعره الإضافي لكل دقيقة (ريشة)")}</label>
               <input name="fxBehindCost" type="number" min={0} max={1000} defaultValue={fe.fxBehindCost} className="field" /></div>
           </div>

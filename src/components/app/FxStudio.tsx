@@ -6,7 +6,7 @@ import Link from "next/link";
 import { withClock } from "@/lib/gemClock";
 import { fontCssFor } from "@/lib/iframeFonts";
 import { applyEdits, applyEls, extractColors, extractTexts, type ElEdit } from "@/lib/htmlKit";
-import { captionLayer, withCaps, injectPhotos, onlyLayer, FX_BEHIND, FX_EMPTY, FX_FILLER, type FxWord } from "@/lib/fxCaps";
+import { captionLayer, withCaps, injectPhotos, injectLibs, onlyLayer, FX_BEHIND, FX_EMPTY, FX_FILLER, type FxWord } from "@/lib/fxCaps";
 
 type Page = { a: number; b: number; html: string; els: ElEdit[] };
 type Data = { title: string; aspect: string; seconds: number; srcUrl: string; pages: Page[]; words: FxWord[]; captions: boolean; accent: string; editCost: number; photos?: Record<string, string>; /** «ورا المتحدث»: the cut-out speaker (a see-through video), when this montage has one */ matteUrl?: string };
@@ -78,7 +78,7 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
     const id = setTimeout(() => {
       let p = page.html || FX_EMPTY;
       try { p = applyEdits(p, { texts: texts[idx] ?? {}, hex }); p = applyEls(p, elList(idx)); } catch { /* keep the page as it is */ }
-      p = injectPhotos(p, data?.photos);
+      p = injectLibs(injectPhotos(p, data?.photos), window.location.origin);
       const caps = captions ? captionLayer(words, page.a, page.b, { tall, accent: data?.accent }) : "";
       // with a cut-out speaker: two pages (behind him / in front of him) with his cut-out between them, as in the exported video
       const layered = !!data?.matteUrl && canAlpha && FX_BEHIND.test(p);

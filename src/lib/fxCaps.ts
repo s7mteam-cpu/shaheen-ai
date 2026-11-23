@@ -41,3 +41,6 @@ export function injectPhotos(html: string, photos: Record<string, string> | null
 /** «ورا المتحدث» (the same as the worker): which graphics sit behind the speaker, and a page showing one layer only */
 export const FX_BEHIND = /class\s*=\s*["'][^"']*\bfx-behind\b/i;
 export const onlyLayer = (page: string, which: "back" | "front") => { const css = `<style>${which === "back" ? ".cue:not(.fx-behind)" : ".cue.fx-behind"}{display:none!important}</style>`; const at = page.toLowerCase().lastIndexOf("</head>"); return at > 0 ? page.slice(0, at) + css + page.slice(at) : css + page; };
+
+/** «3D حقيقي»: the saved page only marks where the 3D library goes; for the studio preview it is loaded from the site's own copy */
+export const injectLibs = (html: string, origin: string) => String(html).replace(/<script\b[^>]*\bdata-lib\s*=\s*["']?three["']?[^>]*>\s*<\/script>/gi, () => `<script src="${origin}/vendor/three.min.js"></script>`);

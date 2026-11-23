@@ -2,10 +2,11 @@
 // Listening (word-timed transcript) → Claude directs (what appears and when) → Gemini writes the layer, piece by piece → every piece is checked → drawn over the video.
 // SECURITY: the video and the customer's words are DATA. The written pages pass unsafeHtml() before anything opens them and are drawn in the sealed browser (no network).
 import { mkdtemp, readFile, writeFile, rm, stat } from "node:fs/promises";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { tmpdir } from "node:os";
+import { tmpdir, availableParallelism } from "node:os";
 import { join } from "node:path";
 import { claude } from "./freegen.mjs";
 import { geminiHtml, geminiEdit, unsafeHtml } from "./gemflow.mjs";
@@ -21,18 +22,20 @@ import { modelFor } from "./models.mjs";
 export const FX_MAX = 300; // seconds, when the admin set no limit
 const FX_HARD = 1800; // never longer than this, whatever the setting
 const FPS = 30, CHUNK = 30;
+/** how many drawings may run side by side on this machine (each is a browser plus an encoder) */
+const LANES = Math.max(1, Math.min(3, Number(process.env.FX_LANES) || Math.floor((availableParallelism?.() ?? 1) / 2) || 1));
 const TYPES = ["photo", "hook", "title", "keyword", "number", "list", "quote", "sticker", "clipping", "map", "compare", "arrow", "lowerthird", "full", "outro"];
 const tidy = (s, n) => String(s ?? "").replace(/[<>`]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 const DIRECTOR = () => `You are a senior video editor and motion-graphics director for Arabic social videos. You get the word-timed transcript of a customer's own video (he talks to the camera), his wishes, and the graphics style. You plan the graphics layer that is drawn OVER his video (the video itself is never changed): what appears, exactly when, and what it looks like. Answer with ONE JSON object only, no markdown:
-{"title":"short Arabic title of the video","spec":{"palette":["#rrggbb","#rrggbb","#rrggbb","#rrggbb","#rrggbb"],"type":"typography in Arabic: weights, sizes feel, how the key word is marked","materials":"surfaces and textures in Arabic (paper, glass, neon, metal, flat…) and how shadows and borders look","depth":"2d|2.5d","motion":"the motion language in Arabic: speed, easing, the ONE family of entrances and exits, the idle motion","elements":"the vocabulary of shapes and graphic elements this style uses, in Arabic","avoid":"what this style never does, in Arabic","techniques":["up to 5 of: ${TECH_IDS.join(", ")}"]},"overFace":false,"note":"empty, or ONE short Arabic sentence for the customer when part of his style request cannot be done exactly and what was done instead","look":"art direction in Arabic, 3 to 5 sentences that sum the spec up for the designers","cues":[{"s":0.0,"e":3.2,"type":"hook|title|keyword|number|list|quote|sticker|clipping|map|compare|arrow|lowerthird|full|outro","layer":"front|behind","text":"the Arabic words shown, taken from his speech, short","visual":"what is drawn and how it moves, in Arabic, concrete and drawable"}]}
+{"title":"short Arabic title of the video","spec":{"palette":["#rrggbb","#rrggbb","#rrggbb","#rrggbb","#rrggbb"],"type":"typography in Arabic: weights, sizes feel, how the key word is marked","materials":"surfaces and textures in Arabic (paper, glass, neon, metal, flat…) and how shadows and borders look","depth":"2d|2.5d|3d","motion":"the motion language in Arabic: speed, easing, the ONE family of entrances and exits, the idle motion","elements":"the vocabulary of shapes and graphic elements this style uses, in Arabic","avoid":"what this style never does, in Arabic","techniques":["up to 5 of: ${TECH_IDS.join(", ")}"]},"overFace":false,"note":"empty, or ONE short Arabic sentence for the customer when part of his style request cannot be done exactly and what was done instead","look":"art direction in Arabic, 3 to 5 sentences that sum the spec up for the designers","cues":[{"s":0.0,"e":3.2,"type":"hook|title|keyword|number|list|quote|sticker|clipping|map|compare|arrow|lowerthird|full|outro","layer":"front|behind","text":"the Arabic words shown, taken from his speech, short","visual":"what is drawn and how it moves, in Arabic, concrete and drawable"}]}
 The style specification ("spec") comes FIRST and everything else obeys it:
 - "style.presets" are ready styles and "style.custom" is the customer's own description of the look. Turn them into ONE coherent visual system. With two presets or a preset plus a description: MERGE them (structure and layout from the first, materials, colours and accents from the second or from the description); never alternate between two looks. With only a description: build the whole system from it with the same completeness as a ready style, filling what he did not say with choices that fit what he did say.
 - Follow every concrete thing the customer described (mood, motion, colours, kind of scenes) exactly. His brand colours, when given, lead the palette.
 - palette: exactly 5 colours: [dark base, light base, main accent, second accent, text-on-accent]. They must read well over any video.
-- depth: "style.depth" is what he asked ("auto" = you choose what fits). "2d" = flat. "2.5d" = layered depth: parallax layers, cards rotating in 3D with CSS perspective, simple extruded shapes, soft camera push.
-- What this engine can do: everything is drawn by code over the video (2D and 2.5D). It cannot place anything BEHIND the speaker, cannot make true rendered 3D or realistic footage, and never shows real people or real logos. When he asks for one of these, do the closest thing possible (for example 2.5D layered depth instead of real 3D) and say so in "note". Otherwise "note" is empty.
+- depth: "style.depth" is what he asked ("auto" = you choose what fits, never "3d" unless his words ask for 3D). "2d" = flat. "2.5d" = layered depth: parallax layers, cards rotating in 3D with CSS perspective, simple extruded shapes, soft camera push. "3d" = real rendered 3D objects (the technique "three" MUST then be in "techniques"): solid lit objects that turn in space (a coin, a globe, cubes, rings, an arrow, a trophy, a 3D chart, big 3D numbers built from shapes), with Arabic text staying as designed HTML cards above them. Use 3D objects for about half of the cues and describe each object by simple solids.
+- What this engine can do: everything is drawn by code over the video: 2D, 2.5D, and real 3D objects made of simple solids. It cannot make realistic footage or photo-real scenes, and never shows real people or real logos. It places graphics behind the speaker only when "behindSpeaker" is true. When he asks for something outside this, do the closest thing possible (for example solid 3D objects instead of a realistic scene) and say so in "note". Otherwise "note" is empty.
 Rules:
 - Timing: a cue starts exactly when its words are spoken (use the transcript times) and lasts 2.5 to 6 seconds (8 at most): the viewer needs time to notice it, read it and enjoy it. An illustration (a clock, a map, a sticker scene) stays at least 3 seconds. When his next words come quickly, let the cue stay on while the next one appears in another place, rather than cutting it short. At most 2 cues on screen at once. Seconds with one decimal. Cues in time order.
 - Density of a professional edit: something new about every 2 to 4 seconds while he speaks. The first cue is a strong hook inside the first 2 seconds. Never more than 5 seconds of speech with nothing on screen.
@@ -87,7 +90,9 @@ async function directFx({ sents, seconds, aspect, notes, style, faceTxt, closeUp
   if (cues.length < 2) throw new Error("FX_NO_PLAN");
   const sp = j.spec && typeof j.spec === "object" ? j.spec : {};
   const palette = (Array.isArray(sp.palette) ? sp.palette : []).map((c) => String(c)).filter((c) => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 5);
-  const spec = { palette, type: tidy(sp.type, 300), materials: tidy(sp.materials, 300), depth: sp.depth === "2.5d" ? "2.5d" : "2d", motion: tidy(sp.motion, 300), elements: tidy(sp.elements, 300), avoid: tidy(sp.avoid, 200), techniques: (Array.isArray(sp.techniques) ? sp.techniques : []).filter((k) => TECH_IDS.includes(k)).slice(0, 5) };
+  const spec = { palette, type: tidy(sp.type, 300), materials: tidy(sp.materials, 300), depth: sp.depth === "3d" ? "3d" : sp.depth === "2.5d" ? "2.5d" : "2d", motion: tidy(sp.motion, 300), elements: tidy(sp.elements, 300), avoid: tidy(sp.avoid, 200), techniques: (Array.isArray(sp.techniques) ? sp.techniques : []).filter((k) => TECH_IDS.includes(k)).slice(0, 5) };
+  if (spec.depth === "3d" && !spec.techniques.includes("three")) spec.techniques = ["three", ...spec.techniques].slice(0, 5);
+  if (spec.depth !== "3d") spec.techniques = spec.techniques.filter((k) => k !== "three");
   return { title: tidy(j.title, 80), look: tidy(j.look, 900), note: tidy(j.note, 220), overFace: j.overFace === true, spec, cues };
 }
 
@@ -117,7 +122,7 @@ const FX_RULES = `أنت مصمم موشن جرافيك ومونتير محتر�
 8. الألوان متغيرات في :root بصيغة #rrggbb وتُستخدم عبر var() حتى داخل SVG.
 9. ممنوع رسم وجه أو ملامح أو كاريكاتير لشخص حقيقي، وممنوع شعارات حقيقية وأسماء جرائد وقنوات وتطبيقات حقيقية. الأشخاص رموز عامة بلا ملامح.
 10. ارسم كل شيء بنفسك بـSVG وCSS بجودة مونتير محترف: ظلال، ملمس، طبقات، منحنيات تسارع (cubic-bezier)، ارتداد، وتفاصيل صغيرة تتحرك. ممنوع إطارات صور فاضية أو أماكن محجوزة.
-11. ممنوع الصوت والفيديو والفأرة وWebGL وأشرطة التقدم. الحجم أقل من 250 ألف حرف.
+11. ممنوع الصوت والفيديو والفأرة وأشرطة التقدم. WebGL مسموح فقط عبر THREE وبالطريقة المشروحة، وعندما تكون تقنية الـ3D مطلوبة لهذا الستايل. الحجم أقل من 250 ألف حرف.
 12. حرفة المونتير المحترف (التزم بها):
    - كل عنصر مبني من طبقات (خلفية، شكل، نص، تفصيلة صغيرة تتحرك)، وليس مستطيلاً فيه نص.
    - الدخول متتابع (stagger): أجزاء العنصر تدخل واحدة بعد الأخرى بفارق 60 إلى 120 ملي ثانية، بتجاوز خفيف ثم استقرار (overshoot)، والخروج أسرع من الدخول.
@@ -135,7 +140,7 @@ const specText = (sp, look) => `مواصفة الستايل (ملزمة في ك�
 - الألوان: ${sp.palette.length ? sp.palette.join("، ") + " (أساس غامق، أساس فاتح، مميّز أول، مميّز ثانٍ، نص فوق المميّز)" : "اخترها من التوجيه الفني"}
 - الخطوط: ${sp.type || "—"}
 - الخامات والأسطح: ${sp.materials || "—"}
-- العمق: ${sp.depth === "2.5d" ? "2.5D: طبقات بعمق وبارالاكس، بطاقات تدور بمنظور CSS، ظلال تدل على الارتفاع" : "2D مسطح ونظيف"}
+- العمق: ${sp.depth === "3d" ? "3D حقيقي: مجسمات مضاءة تدور في الفراغ بـThree.js، والنصوص بطاقات HTML فوقها" : sp.depth === "2.5d" ? "2.5D: طبقات بعمق وبارالاكس، بطاقات تدور بمنظور CSS، ظلال تدل على الارتفاع" : "2D مسطح ونظيف"}
 - لغة الحركة: ${sp.motion || "—"}
 - مفردات العناصر: ${sp.elements || "—"}
 - ممنوع في هذا الستايل: ${sp.avoid || "—"}
@@ -238,8 +243,39 @@ async function fetchUpload(db, path, to) {
   if (!res.ok || !res.body) throw new Error(`download ${res.status}`);
   await pipeline(Readable.fromWeb(res.body), createWriteStream(to));
 }
+/** «3D حقيقي»: the page only marks where the 3D library goes (<script data-lib="three"></script>); the library itself (kept with the worker, never downloaded) is put in when the page is checked or drawn. */
+let THREE_SRC = null;
+export function injectLibs(html) {
+  if (!/data-lib\s*=\s*["']?three/i.test(String(html))) return html;
+  if (THREE_SRC == null) { try { THREE_SRC = readFileSync(fileURLToPath(new URL("./vendor/three.min.js", import.meta.url)), "utf8").replace(/<\/script/gi, "<\\/script"); } catch (e) { console.error("three.js missing", e?.message ?? e); THREE_SRC = ""; } }
+  return String(html).replace(/<script\b[^>]*\bdata-lib\s*=\s*["']?three["']?[^>]*>\s*<\/script>/gi, () => `<script>${THREE_SRC}</script>`);
+}
 const EMPTY = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"></head><body></body></html>`;
 const withCaps = (page, caps) => { if (!caps) return page; const at = page.toLowerCase().lastIndexOf("</body>"); return at > 0 ? page.slice(0, at) + caps + page.slice(at) : page + caps; };
+
+// ---------- «المراجعة النهائية بالفيديو»: a model that WATCHES the finished video with its sound, like a senior editor at the last screening ----------
+/** A small copy of the finished video (picture and sound) goes to Gemini inside the request (under 20 MB). It answers with a score and the moments that need fixing.
+ *  Never fails a montage: any problem here simply means "no review". Sync itself is guarded by arithmetic elsewhere; this is for what needs eyes: motion, layout, rhythm, the ending. */
+async function watchFinal({ d, final, dir, seconds, model, spec, overFace }) {
+  const key = process.env.GEMINI_VIDEO_API_KEY || process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  const small = join(dir, "watch.mp4");
+  await d.ff(["-i", final, "-vf", "scale=-2:640,fps=12", "-c:v", "libx264", "-preset", "veryfast", "-crf", "30", "-c:a", "aac", "-b:a", "48k", "-ac", "1", "-movflags", "+faststart", small]);
+  const buf = await readFile(small);
+  if (buf.length > 14 * 1024 * 1024) return null; // too big to send inline: skipped
+  const ask = `You are a strict senior video editor at the final screening of a ${seconds.toFixed(0)}-second vertical/short video: a person talks to the camera and motion graphics, illustrations and word-by-word captions were added over the video. Watch it WITH its sound.
+Judge only the added graphics and captions (never the person, his words or his filming). Look for: a graphic that hides his face when it should not${overFace ? " (in this video graphics on the face are allowed)" : ""}; text cut by the screen edge or overlapping other text or the captions; text too small or unreadable over the video; a graphic that flashes by too fast to read (under 1.5 seconds) or stays long after its words; a graphic that clearly does not match what he is saying at that moment; graphics that appear clearly before or after the spoken words they belong to; broken drawings (empty boxes, misplaced shapes); long stretches (over 6 seconds) of speech with nothing on screen; an ending that is cut off or empty; graphics that look amateur or all alike. The requested look: palette ${(spec?.palette ?? []).join(" ")}; materials: ${spec?.materials ?? "-"}; depth: ${spec?.depth ?? "-"}.
+Answer ONLY with JSON: {"score":1-10,"summary":"two short sentences in Arabic for the site owner","issues":[{"from":seconds,"to":seconds,"severity":"high|low","fix":"one concrete instruction in English for the designer of that moment"}]}. "high" = a viewer would notice it as a mistake. At most 8 issues. If it is clean, return an empty list.`;
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: "POST", signal: AbortSignal.timeout(240_000), headers: { "x-goog-api-key": key, "content-type": "application/json" },
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ inline_data: { mime_type: "video/mp4", data: buf.toString("base64") } }, { text: ask }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 4000 } }),
+  });
+  if (!res.ok) throw new Error(`watch ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const out = ((await res.json())?.candidates?.[0]?.content?.parts ?? []).map((x) => x.text ?? "").join("");
+  const j = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
+  const issues = (Array.isArray(j.issues) ? j.issues : []).slice(0, 8).flatMap((x) => { const a = Number(x?.from), b = Number(x?.to); return Number.isFinite(a) ? [{ from: Math.max(0, a), to: Number.isFinite(b) ? Math.max(a, b) : a + 2, high: x?.severity === "high", fix: tidy(x?.fix, 260) }] : []; });
+  return { score: Math.max(1, Math.min(10, Math.round(Number(j.score) || 0))) || null, summary: tidy(j.summary, 300), issues };
+}
 
 // ---------- «عناصر ورا المتحدث»: the speaker is cut out of his video by a video-matting service, and some graphics are laid between the background and him ----------
 const CUT_MODEL = "veed/video-background-removal/fast";
@@ -312,12 +348,22 @@ const BEHIND = /class\s*=\s*["'][^"']*\bfx-behind\b/i;
 const onlyLayer = (page, which) => { const css = `<style>${which === "back" ? ".cue:not(.fx-behind)" : ".cue.fx-behind"}{display:none!important}</style>`; const at = page.toLowerCase().lastIndexOf("</head>"); return at > 0 ? page.slice(0, at) + css + page.slice(at) : css + page; };
 /** One piece of the video. Normally: the graphics page drawn straight over the video. With a cut-out speaker and graphics marked «behind»: background video → graphics behind → the speaker → graphics in front (and the captions). */
 async function drawPiece({ d, page, caps, W, H, seconds, start, norm, matte, out, dir, n, onProgress }) {
+  page = injectLibs(page);
   if (!matte || !BEHIND.test(page)) { const html = withCaps(page, caps); return recordOverlay({ html, width: W, height: H, seconds, fps: FPS, base: norm, start, outFile: out, fontCss: d.htmlFontCss(html), onProgress }); }
   const back = join(dir, `back${n}.mov`), front = join(dir, `front${n}.mov`);
   const hb = onlyLayer(page, "back"), hf = withCaps(onlyLayer(page, "front"), caps);
   const frames = Math.max(1, Math.round(seconds * FPS));
-  const r1 = await recordAlpha({ html: hb, width: W, height: H, seconds, fps: FPS, outFile: back, fontCss: d.htmlFontCss(hb), onProgress: (p) => onProgress(p * 0.45) });
-  const r2 = await recordAlpha({ html: hf, width: W, height: H, seconds, fps: FPS, outFile: front, fontCss: d.htmlFontCss(hf), onProgress: (p) => onProgress(0.45 + p * 0.45) });
+  let r1, r2;
+  if (LANES >= 2) { // both layers at once
+    let pa = 0, pb = 0;
+    [r1, r2] = await Promise.all([
+      recordAlpha({ html: hb, width: W, height: H, seconds, fps: FPS, outFile: back, fontCss: d.htmlFontCss(hb), onProgress: (p) => { pa = p; onProgress(((pa + pb) / 2) * 0.9); } }),
+      recordAlpha({ html: hf, width: W, height: H, seconds, fps: FPS, outFile: front, fontCss: d.htmlFontCss(hf), onProgress: (p) => { pb = p; onProgress(((pa + pb) / 2) * 0.9); } }),
+    ]);
+  } else {
+    r1 = await recordAlpha({ html: hb, width: W, height: H, seconds, fps: FPS, outFile: back, fontCss: d.htmlFontCss(hb), onProgress: (p) => onProgress(p * 0.45) });
+    r2 = await recordAlpha({ html: hf, width: W, height: H, seconds, fps: FPS, outFile: front, fontCss: d.htmlFontCss(hf), onProgress: (p) => onProgress(0.45 + p * 0.45) });
+  }
   await d.ff(["-ss", start.toFixed(3), "-i", norm, "-i", back, "-c:v", "libvpx-vp9", "-ss", start.toFixed(3), "-i", matte, "-i", front,
     // The speaker's PICTURE is taken from the customer's own video (full quality); only the SHAPE (the see-through mask) comes from the cutting service, whose own copy of the picture is softer.
     "-filter_complex", `[0:v]fps=${FPS},setpts=PTS-STARTPTS,split[b][sp];[1:v]format=rgba[k];[b][k]overlay=eof_action=pass:format=auto[b1];[2:v]fps=${FPS},setpts=PTS-STARTPTS,scale=${W}:${H}:flags=bicubic,format=yuva420p,alphaextract[m];[sp][m]alphamerge[p];[b1][p]overlay=eof_action=pass:format=auto[b2];[3:v]format=rgba[f];[b2][f]overlay=eof_action=pass:format=auto[v]`,
@@ -340,6 +386,7 @@ export async function fxJob(job, d) {
   const stage = async (txt, progress) => { await alive(); try { await db.from("jobs").update({ title: txt.slice(0, 60), progress: Math.round(progress), updated_at: d.now() }).eq("id", job.id).eq("status", "running"); } catch {} };
   const t0 = Date.now(), timings = {}, lap = (k) => { timings[k] = Math.round((Date.now() - t0) / 1000); };
   const beat = setInterval(() => { db.from("jobs").update({ updated_at: d.now() }).eq("id", job.id).eq("status", "running").select("id").then((x) => { if (x.data && !x.data.length) cancelled = true; }, () => {}); }, 20_000); // a long design step must not look like a stopped job
+  let creep = null;
   try {
     // SECURITY: only a file inside the owner's own folder
     const src = String(inp.video ?? "");
@@ -397,7 +444,7 @@ export async function fxJob(job, d) {
     const faceTxt = !box ? "غير محدد؛ افترض أنه في وسط الشاشة أعلى المنتصف بقليل" : `وجه المتحدث يشغل المستطيل: أفقياً من ${box.l}% إلى ${box.r}% من يسار الشاشة، وعمودياً من ${box.t}% إلى ${box.b}% من أعلاها. الممنوع فقط هذا المستطيل (العينان والأنف والفم)؛ الشعر والكتفان والصدر يجوز أن يغطيها عنصر. المناطق المتاحة: ${zones.length ? zones.join("؛ ") : "أعلى الشاشة وأسفلها"}. وزّع العناصر على هذه المناطق بالتناوب: ممنوع وضع عنصرين متتاليين في المنطقة نفسها، وممنوع حشر كل العناصر في شريط واحد رفيع. العنصر الرئيسي عرضه من 70% إلى 92% من الشاشة وارتفاعه لا يقل عن ${tall ? 9 : 14}% من ارتفاعها، ويملأ منطقته.${closeUp ? " المتحدث قريب جداً من الكاميرا: استخدم بطاقات عريضة تحت الذقن وأسفل الشاشة، ولحظات نصف شاشة (عنصر كبير يغطي النصف السفلي أو العلوي لثانيتين) حتى لا تبدو العناصر صغيرة." : ""}`;
     const capTxt = captions ? `الشريط الأفقي من ${tall ? 66 : 75}% إلى ${tall ? 80 : 90}% من ارتفاع الشاشة محجوز لترجمة متحركة تضيفها المنصة: لا تضع فيه أي عنصر، ولا تكتب أنت كلام المتحدث كترجمة.` : "";
     const identity = Array.isArray(inp.colors) ? inp.colors.filter((c) => /^#[0-9a-f]{6}$/i.test(String(c))).slice(0, 4).join("، ") : "";
-    const style = { ...fxStyleInput(Array.isArray(inp.styles) && inp.styles.length ? inp.styles : inp.fx, inp.styleDesc), depth: ["2d", "2.5d"].includes(inp.depth) ? inp.depth : "auto" };
+    const style = { ...fxStyleInput(Array.isArray(inp.styles) && inp.styles.length ? inp.styles : inp.fx, inp.styleDesc), depth: ["2d", "2.5d", "3d"].includes(inp.depth) ? inp.depth : "auto" };
     lap("listen");
 
     await stage("المخرج يخطط المونتاج…", 20);
@@ -445,11 +492,11 @@ export async function fxJob(job, d) {
       try { await d.ff(["-ss", ((c.a + c.b) / 2).toFixed(2), "-i", norm, "-frames:v", "1", "-vf", "scale=432:-2", "-q:v", "6", f]); bgs.push(`data:image/jpeg;base64,${(await readFile(f)).toString("base64")}`); } catch { bgs.push(""); }
     }
     const report = [];
-    const make = async (c, i) => {
-      const rec = { n: i + 1, attempts: [] }; report[i] = rec;
+    const make = async (c, i, redo = "") => {
+      const rec = redo ? (report[i] ?? { n: i + 1, attempts: [] }) : { n: i + 1, attempts: [] }; report[i] = rec;
       if (!c.cues.length) return "";
-      let retry = "", best = "";
-      for (let attempt = 1; attempt <= 2; attempt++) {
+      let retry = redo, best = "";
+      for (let attempt = 1; attempt <= (redo ? 1 : 2); attempt++) {
         let g;
         try { g = await geminiHtml({ system: FX_RULES, model: inp.model, user: fxPrompt({ c, n: i + 1, total: chunks.length, aspect, spec: plan.spec, kit, look: plan.look, faceTxt, overFace: plan.overFace, capTxt, identity, retry, photos }) + skillNote(skill) }); }
         catch (e) { rec.attempts.push({ attempt, error: String(e?.message ?? e).slice(0, 160) }); continue; }
@@ -460,10 +507,11 @@ export async function fxJob(job, d) {
         const page = withKit((await prepareHtml(g.html)).html, kit);
         const times = c.cues.filter((_, k) => k % Math.max(1, Math.ceil(c.cues.length / 5)) === 0).slice(0, 5).map((x) => Math.min(c.b - c.a - 0.1, (x.s + Math.min(x.e, x.s + 3)) / 2));
         let st;
-        try { st = await overlayStills({ html: injectPhotos(page, photoData), width: W, height: H, times, bg: bgs[i], fontCss: d.htmlFontCss(page) }); }
+        try { st = await overlayStills({ html: injectLibs(injectPhotos(page, photoData)), width: W, height: H, times, bg: bgs[i], fontCss: d.htmlFontCss(page) }); }
         catch (e) { a.error = String(e?.message ?? e).slice(0, 160); retry = "The page failed to open or run. Return a simpler, valid, complete HTML page."; continue; }
         const blanks = st.filter((x) => x.blank).length, errs = (st.errors ?? []).map((x) => String(x).slice(0, 140));
         a.blanks = `${blanks}/${st.length}`; a.errors = errs;
+        if (blanks > st.length / 2 && /webgl|THREE/i.test(errs.join(" "))) { retry = "WebGL could not start on the drawing machine. Do NOT use THREE or any canvas: build the same objects with CSS 3D transforms (perspective, preserve-3d, extruded layers) instead."; continue; }
         if (blanks > st.length / 2) { retry = `Nothing is drawn at ${blanks} of ${st.length} sampled cue midpoints. Every cue must be visible between its data-start and data-end, driven by the timeline (CSS animation-delay or requestAnimationFrame with performance.now()), never by clicks or events.${errs.length ? " Page errors: " + errs.join(" | ") : ""}`; continue; }
         const review = await reviewFx({ frames: st.filter((x) => !x.blank).map((x) => x.frame), aspect, spec: plan.spec, overFace: plan.overFace || c.cues.some((x) => x.layer === "behind") }).catch(() => ({ ok: true, issues: "" }));
         a.review = review; best = page;
@@ -473,44 +521,74 @@ export async function fxJob(job, d) {
       rec.ok = !!best;
       return best;
     };
+    // the bar keeps moving while the designers write (the longest step), so the customer never sees it frozen
+    let shown = 25; creep = setInterval(() => { if (shown < 53) { shown += Math.max(0.4, (53 - shown) * 0.06); stage("يصمّم الغرافيكس…", shown).catch(() => {}); } }, 12_000);
     const pages = new Array(chunks.length); let next = 0, made = 0;
     await Promise.all(Array.from({ length: Math.min(2, chunks.length) }, async () => { // two pieces are written at a time
-      for (;;) { const i = next++; if (i >= chunks.length || cancelled) return; pages[i] = await make(chunks[i], i); made++; await stage(`يصمّم الغرافيكس (${made} من ${chunks.length})…`, 25 + (made / chunks.length) * 30); }
+      for (;;) { const i = next++; if (i >= chunks.length || cancelled) return; pages[i] = await make(chunks[i], i); made++; shown = Math.max(shown, 25 + (made / chunks.length) * 28); await stage(`يصمّم الغرافيكس (${made} من ${chunks.length})…`, shown); }
     }));
+    clearInterval(creep);
     const failed = chunks.filter((c, i) => c.cues.length && !pages[i]).length;
     if (failed > Math.floor(chunks.length / 3)) throw new Error("FX_QUALITY"); // never deliver a video with most of its graphics missing: refunded
     lap("design");
 
     if (needCut) await stage("يقص المتحدث من الخلفية…", 55);
     const matte = await cutting; // a failed cut stops the montage (refunded): the customer paid for this option
-    const parts = []; let last = 0;
-    for (const [i, c] of chunks.entries()) {
-      const out = join(dir, `p${i}.mp4`);
-      const r1 = await drawPiece({ d, dir, n: i, W, H, norm, matte, out, seconds: c.b - c.a, start: c.a, page: injectPhotos(pages[i] || EMPTY, photoData), caps: captions ? captionLayer(words, c.a, c.b, { tall, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400" }) : "", onProgress: (p) => { if (cancelled) throw STOP; if (Date.now() - last > 8000) { last = Date.now(); stage(`يركّب الغرافيكس فوق الفيديو (${i + 1} من ${chunks.length})…`, 56 + ((i + p) / chunks.length) * 36); } } });
-      report[i].drawn = `${r1.drawn}/${r1.frames}`;
-      parts.push(out);
+    // the pieces are drawn side by side when the machine has the room (FX_LANES), in order otherwise
+    const parts = new Array(chunks.length), prog = new Array(chunks.length).fill(0); let last = 0, nextPiece = 0;
+    const drawOne = async (i) => {
+      const c = chunks[i], out = join(dir, `p${i}.mp4`);
+      const r1 = await drawPiece({ d, dir, n: i, W, H, norm, matte, out, seconds: c.b - c.a, start: c.a, page: injectPhotos(pages[i] || EMPTY, photoData), caps: captions ? captionLayer(words, c.a, c.b, { tall, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400" }) : "", onProgress: (p) => { if (cancelled) throw STOP; prog[i] = p; if (Date.now() - last > 8000) { last = Date.now(); stage("يركّب الغرافيكس فوق الفيديو…", 56 + (prog.reduce((x, y) => x + y, 0) / chunks.length) * 36).catch(() => {}); } } });
+      prog[i] = 1; report[i].drawn = `${r1.drawn}/${r1.frames}`; parts[i] = out;
       if (pages[i]) await db.storage.from("results").upload(`${base}.c${i}.html`, Buffer.from(pages[i]), { contentType: "text/html", upsert: true });
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(LANES, chunks.length) }, async () => { for (;;) { const i = nextPiece++; if (i >= chunks.length) return; await drawOne(i); } }));
     lap("draw");
-    await stage("يجهّز الفيديو النهائي…", 94);
+    await stage("يجهّز الفيديو النهائي…", 93);
     const list = join(dir, "list.txt"), final = join(dir, "final.mp4");
-    await writeFile(list, parts.map((p) => `file '${p}'`).join("\n"));
-    await d.ff(["-f", "concat", "-safe", "0", "-i", list, "-i", norm, "-map", "0:v", "-map", "1:a?", "-c:v", "copy", "-c:a", "copy", "-shortest", "-movflags", "+faststart", final]);
-    // SYNC GUARD 2: the delivered video has every frame of the prepared one. A shorter result is never delivered.
-    const outFrames = await d.countFrames(final).catch(() => 0);
-    if (Math.abs(outFrames - frames) > 6) throw new Error(`FX_SYNC|final|base=${frames}f|out=${outFrames}f|parts=${parts.length}`);
+    const join2 = async () => {
+      await writeFile(list, parts.map((p) => `file '${p}'`).join("\n"));
+      await d.ff(["-f", "concat", "-safe", "0", "-i", list, "-i", norm, "-map", "0:v", "-map", "1:a?", "-c:v", "copy", "-c:a", "copy", "-shortest", "-movflags", "+faststart", final]);
+      // SYNC GUARD 2: the delivered video has every frame of the prepared one. A shorter result is never delivered.
+      const outFrames = await d.countFrames(final).catch(() => 0);
+      if (Math.abs(outFrames - frames) > 6) throw new Error(`FX_SYNC|final|base=${frames}f|out=${outFrames}f|parts=${parts.length}`);
+    };
+    await join2();
+    // «المراجعة النهائية بالفيديو» (when the admin turned it on): the finished video is watched with its sound; a piece with a clear mistake is designed and drawn once more.
+    let watched = null;
+    if (inp.review === true) {
+      try {
+        await stage("المراجعة النهائية: يشاهد الفيديو كاملاً…", 94);
+        watched = await watchFinal({ d, final, dir, seconds, model: process.env.FX_REVIEW_MODEL || inp.model, spec: plan.spec, overFace: plan.overFace });
+        lap("watch");
+        const bad = watched ? chunks.map((c, i) => ({ i, fixes: watched.issues.filter((x) => x.high && x.from < c.b && x.to > c.a) })).filter((x) => x.fixes.length && pages[x.i]).slice(0, 2) : [];
+        const redone = [];
+        for (const { i, fixes } of bad) {
+          if (cancelled) break;
+          const c = chunks[i];
+          await stage(`يصلّح ملاحظات المراجعة (مقطع ${i + 1})…`, 95);
+          const note = `A senior editor watched the finished video and found these mistakes in this piece (times are from the start of THIS piece). Fix every one and return the complete page:\n${fixes.map((x) => `- ${Math.max(0, x.from - c.a).toFixed(1)}s to ${Math.max(0, Math.min(c.b, x.to) - c.a).toFixed(1)}s: ${x.fix}`).join("\n")}`;
+          const next = await make(c, i, note).catch(() => "");
+          if (!next) continue; // the redo did not pass its own checks: the first version stays
+          const keep = pages[i]; pages[i] = next;
+          try { prog[i] = 0; await drawOne(i); redone.push(i + 1); } catch (e) { if (cancelled) throw e; pages[i] = keep; console.error("fx redo draw", e?.message ?? e); }
+        }
+        if (redone.length) { await join2(); lap("redo"); }
+        if (watched) watched.redone = redone;
+      } catch (e) { if (cancelled || String(e?.message ?? "").startsWith("FX_SYNC")) throw e; console.error("fx watch", e?.message ?? e); }
+    }
     const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(final), { contentType: "video/mp4", upsert: true });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.words.json`, Buffer.from(JSON.stringify(words)), { contentType: "application/json", upsert: true });
     lap("finish");
-    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: (plan.title || "مونتاج مبتكر").slice(0, 80), input: { ...inp, mode: "done", cseconds: +seconds.toFixed(2), aspect, fxr: { pages: chunks.map((c, i) => ({ a: c.a, b: c.b, path: pages[i] ? `${base}.c${i}.html` : null })), wordsPath: `${base}.words.json`, look: plan.look, spec: plan.spec, note: plan.note, kit: !!kit, photos: photos.map((x) => ({ id: x.id, path: x.path, note: x.note })), matte: matte ? `${base}.matte.webm` : null, cues: plan.cues, face: fx == null ? null : { x: fx, y: fy }, missing: failed, report, timings } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: d.now() }).eq("id", job.id).eq("status", "running");
+    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: (plan.title || "مونتاج مبتكر").slice(0, 80), input: { ...inp, mode: "done", cseconds: +seconds.toFixed(2), aspect, fxr: { pages: chunks.map((c, i) => ({ a: c.a, b: c.b, path: pages[i] ? `${base}.c${i}.html` : null })), wordsPath: `${base}.words.json`, look: plan.look, spec: plan.spec, note: plan.note, kit: !!kit, photos: photos.map((x) => ({ id: x.id, path: x.path, note: x.note })), matte: matte ? `${base}.matte.webm` : null, review: watched ? { score: watched.score, summary: watched.summary, issues: watched.issues.length, redone: watched.redone ?? [] } : null, cues: plan.cues, face: fx == null ? null : { x: fx, y: fy }, missing: failed, report, timings } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: d.now() }).eq("id", job.id).eq("status", "running");
   } catch (e) {
     console.error("fx stopped", job.id, e?.message ?? e);
     const { data: nowRow } = await db.from("jobs").select("status").eq("id", job.id).maybeSingle().then((x) => x, () => ({ data: null }));
     if (cancelled || (nowRow && nowRow.status !== "running")) return; // cancelled by the customer: already marked and refunded by the route, never twice
     await d.fail(job, e);
   }
-  finally { clearInterval(beat); await rm(dir, { recursive: true, force: true }); }
+  finally { clearInterval(beat); clearInterval(creep); await rm(dir, { recursive: true, force: true }); }
 }
 
 const FX_EDIT_NOTE = `\n\nتذكير خاص بهذه الصفحة: هي طبقة غرافيكس شفافة فوق فيديو عميل يتكلم. الخلفية تبقى شفافة تماماً (لا خلفية لـ html أو body ولا طبقة تغطي الشاشة)، لا تغيّر توقيت العناصر الأخرى، ولا ترسم وجه شخص حقيقي ولا شعارات أو أسماء جرائد وقنوات حقيقية. العنصر الجديد يكون داخل <div class="cue" data-start data-end> ومخفياً خارج وقته.`;
@@ -590,7 +668,7 @@ async function fxExport(job, d) {
           const kitWas = before.match(/<style id="fxkit">([\s\S]*?)<\/style>/i)?.[1] ?? "";
           if (kitWas && !/id=["']?fxkit/i.test(next)) next = withKit(next, kitWas);
           const len = c.b - c.a, times = [0.2, 0.4, 0.6, 0.8].map((x) => x * len);
-          let st; try { st = await overlayStills({ html: injectPhotos(next, photoData), width: W, height: H, times, fontCss: d.htmlFontCss(next) }); } catch { retry = "the page failed to run; return a valid complete page"; continue; }
+          let st; try { st = await overlayStills({ html: injectLibs(injectPhotos(next, photoData)), width: W, height: H, times, fontCss: d.htmlFontCss(next) }); } catch { retry = "the page failed to run; return a valid complete page"; continue; }
           if (page && st.every((x) => x.blank)) { retry = "nothing is drawn at any moment: the existing elements must keep working"; continue; }
           done = next;
         }

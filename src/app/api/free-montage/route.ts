@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   const styles = [...new Set((Array.isArray(b.styles) ? b.styles : [b.style]).map((x) => String(x ?? "")).filter((x) => FX_IDS.includes(x)))].slice(0, 2);
   const styleDesc = clean(b.styleDesc, 600);
   if (!styles.length && styleDesc.length < 15) return NextResponse.json({ error: "اختر ستايل، أو اكتب وصف الستايل بتفصيل (جملة أو جملتين)." }, { status: 400 });
-  const depth = b.depth === "2d" || b.depth === "2.5d" ? b.depth : "auto";
+  const depth = b.depth === "2d" || b.depth === "2.5d" || b.depth === "3d" ? b.depth : "auto";
   const fx = styles[0] ?? "desc";
   const notes = clean(b.notes, 800);
   const blocked = await guardContent(user.id, `${notes} ${styleDesc}`, TOOL);
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
   if (noteBlock) { const blockedN = await guardContent(user.id, noteBlock, TOOL); if (blockedN) return blockedN; }
   const behind = b.behind === true && eng.fxBehind; // «عناصر ورا المتحدث»: only when the admin offers it
   const cost = Math.max(1, Math.ceil(secs / 60)) * (tool.credit_cost + (behind ? eng.fxBehindCost : 0));
-  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(behind ? { behind: true } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
+  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(eng.fxReview ? { review: true } : {}), ...(behind ? { behind: true } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: (notes || "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء المونتاج." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
@@ -100,7 +100,7 @@ export async function GET(req: Request) {
   // SECURITY: only a result inside his own folder is ever signed
   if (!path.startsWith(`${user.id}/`) || path.includes("..")) return NextResponse.json({ status: "failed", error: "ما لقينا الفيديو." });
   const [play, dl] = await Promise.all([admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6), admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6, { download: "shaheen-montage.mp4" })]);
-  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; video?: string; captions?: boolean; colors?: string[]; fxr?: { missing?: number; note?: string; cues?: unknown[]; photos?: { id?: string; path?: string }[]; matte?: string | null; wordsPath?: string; pages?: { a?: number; b?: number; path?: string | null; els?: unknown }[] } };
+  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; video?: string; captions?: boolean; colors?: string[]; fxr?: { missing?: number; note?: string; review?: { score?: number | null; summary?: string; issues?: number; redone?: number[] } | null; timings?: Record<string, number>; cues?: unknown[]; photos?: { id?: string; path?: string }[]; matte?: string | null; wordsPath?: string; pages?: { a?: number; b?: number; path?: string | null; els?: unknown }[] } };
   if (new URL(req.url).searchParams.get("studio") === "1") {
     // «استوديو المونتاج»: the saved pieces, the word times and the customer's own video. Every path is checked to sit inside his folder before it is read or signed.
     const mine = (p: unknown): p is string => typeof p === "string" && p.startsWith(`${user.id}/`) && !p.includes("..");
@@ -123,7 +123,9 @@ export async function GET(req: Request) {
     let words: unknown = []; try { words = JSON.parse(wordsTxt || "[]"); } catch { words = []; }
     return NextResponse.json({ status: "studio", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, srcUrl: srcUrl.data?.signedUrl ?? "", pages, words, photos, matteUrl, captions: inp.captions !== false, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400", editCost: tl.data?.edit_cost ?? 8 });
   }
-  return NextResponse.json({ status: "done", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, cues: Array.isArray(inp.fxr?.cues) ? inp.fxr!.cues!.length : 0, missing: inp.fxr?.missing ?? 0, note: String(inp.fxr?.note ?? "").slice(0, 220), videoUrl: play.data?.signedUrl ?? "", downloadUrl: dl.data?.signedUrl ?? "" });
+  // for the admin only: how long each step took, and what the final screening said
+  const adminView = (inp.fxr?.timings || inp.fxr?.review) && (await adminAccess()) ? { timings: inp.fxr?.timings ?? null, review: inp.fxr?.review ?? null } : null;
+  return NextResponse.json({ status: "done", adminView, title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, cues: Array.isArray(inp.fxr?.cues) ? inp.fxr!.cues!.length : 0, missing: inp.fxr?.missing ?? 0, note: String(inp.fxr?.note ?? "").slice(0, 220), videoUrl: play.data?.signedUrl ?? "", downloadUrl: dl.data?.signedUrl ?? "" });
 }
 
 /** «استوديو المونتاج»: the edits become a NEW job (the montage it edits stays as it is). Drawing again with the customer's own edits is free (limited per day); a request in words for one piece costs the tool's edit price. */
