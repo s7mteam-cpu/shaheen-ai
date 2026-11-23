@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (!rule || !rule.types.test(type)) return NextResponse.json({ error: "نوع الملف غير مدعوم." }, { status: 400 });
   if (size > rule.mb * 1024 * 1024) {
     const tip = kind === "video" ? " صوّر الفيديو بدقة 1080p بدل 4K، أو صغّر حجمه قبل الرفع." : "";
-    return NextResponse.json({ error: `حجم الملف ${Math.round(size / 1048576)} ميجا، والحد الأقصى ${rule.mb} ميجا.${tip}` }, { status: 400 });
+    return NextResponse.json({ error: `حجم الملف ${Math.round(size / 1048576)} ميجا، والحد الأقصى ${rule.mb} ميجا.${tip}`, code: "TOO_BIG", maxMb: rule.mb }, { status: 400 });
   }
   // SECURITY: the file's ending comes from a short list per kind (never html, svg, js… which a browser would run if the link is opened)
   const OK_EXT: Record<string, string[]> = { image: ["png", "jpg", "jpeg", "webp"], video: ["mp4", "mov", "webm"], audio: ["mp3", "m4a", "wav", "ogg", "aac", "webm", "mp4", "flac", "opus"] };

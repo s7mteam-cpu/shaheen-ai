@@ -81,9 +81,17 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
     if (!file) return;
     setErr(""); setUploading(true); setVideo(null);
     try {
-      setUpPct(0);
-      const small = await compressVideo(file, setUpPct); // big phone videos are shrunk to 1080p in the browser first
-      setUpPct(null);
+      // The customer's file goes up AS IT IS whenever the upload limit allows it (best quality, nothing re-encoded in the browser).
+      // Only a file above the limit is shrunk in the browser first, and the shrunk copy is used only if it passes the checks in compressVideo.
+      const sign = (f: File) => fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "video", type: f.type, size: f.size, name: f.name }) });
+      let small = file, r = await sign(file), d = await r.json();
+      if (!r.ok && d?.code === "TOO_BIG") {
+        setUpPct(0);
+        small = await compressVideo(file, setUpPct);
+        setUpPct(null);
+        if (small === file) throw new Error(`${L("حجم الفيديو")} ${Math.round(file.size / 1048576)} ${L("ميجا والحد الأقصى")} ${d.maxMb} ${L("ميجا، وما قدر متصفحك يصغّره بدون ما يخرب تزامن الصوت. صدّره من جوالك بدقة 1080p أو قصّه، وارفعه مرة ثانية.")}`);
+        r = await sign(small); d = await r.json();
+      }
       const seconds = await new Promise<number>((res) => {
         const el = document.createElement("video");
         const done = (v: number) => { clearTimeout(t); res(Number.isFinite(v) && v > 0 ? v : 0); };
@@ -94,9 +102,7 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
       if (!seconds) throw new Error(L("ما قدرنا نقرأ مدة الفيديو. جرّب فيديو بصيغة MP4."));
       if (seconds < 5) throw new Error(L("الفيديو قصير جداً (أقل من 5 ثواني)."));
       if (seconds > FX_MAX_SECONDS) throw new Error(`${L("الحد الأقصى حالياً")} ${Math.round(FX_MAX_SECONDS / 60)} ${L("دقائق للفيديو. قصّه وارفعه مرة ثانية.")}`);
-      const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "video", type: small.type, size: small.size, name: small.name }) });
-      const d = await r.json();
-      if (!r.ok) throw new Error(small.size > 50 * 1024 * 1024 ? L("الفيديو أكبر من 50 ميجا وما قدر متصفحك يصغّره بدون ما يخرب تزامن الصوت. صدّره من جوالك بدقة 1080p وحجم أقل من 50 ميجا، أو قصّه، وارفعه مرة ثانية.") : L(d.error));
+      if (!r.ok) throw new Error(L(d.error));
       const { error } = await createClient().storage.from("uploads").uploadToSignedUrl(d.path, d.token, small);
       if (error) throw new Error(/size|large|413/i.test(error.message) ? L("الملف أكبر من المسموح. صغّر حجمه وحاول مرة ثانية.") : L("تعذّر رفع الملف."));
       setVideo({ path: d.path, name: file.name, seconds, url: URL.createObjectURL(small) });

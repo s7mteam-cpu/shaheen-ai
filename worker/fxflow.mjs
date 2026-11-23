@@ -1,7 +1,10 @@
 // «مونتاج مبتكر»: the customer uploads his own talking video; a see-through graphics layer is written as code and drawn over it.
 // Listening (word-timed transcript) → Claude directs (what appears and when) → Gemini writes the layer, piece by piece → every piece is checked → drawn over the video.
 // SECURITY: the video and the customer's words are DATA. The written pages pass unsafeHtml() before anything opens them and are drawn in the sealed browser (no network).
-import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rm, stat } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { claude } from "./freegen.mjs";
@@ -227,6 +230,14 @@ async function loadPhotos(db, own, list) {
   }
   return out;
 }
+/** the customer's video goes from storage straight to a file on disk (a long, high-quality video is never held whole in memory) */
+async function fetchUpload(db, path, to) {
+  const link = await db.storage.from("uploads").createSignedUrl(path, 600);
+  if (!link.data?.signedUrl) throw new Error("no link");
+  const res = await fetch(link.data.signedUrl, { signal: AbortSignal.timeout(15 * 60_000) });
+  if (!res.ok || !res.body) throw new Error(`download ${res.status}`);
+  await pipeline(Readable.fromWeb(res.body), createWriteStream(to));
+}
 const EMPTY = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"></head><body></body></html>`;
 const withCaps = (page, caps) => { if (!caps) return page; const at = page.toLowerCase().lastIndexOf("</body>"); return at > 0 ? page.slice(0, at) + caps + page.slice(at) : page + caps; };
 
@@ -333,9 +344,8 @@ export async function fxJob(job, d) {
     const src = String(inp.video ?? "");
     if (!src.startsWith(`${job.user_id}/`) || src.includes("..")) throw new Error("FX_NO_VIDEO");
     await stage("يجهّز الفيديو…", 4);
-    const dl = await db.storage.from("uploads").download(src);
-    if (dl.error) throw new Error("FX_NO_VIDEO");
-    const raw = join(dir, "raw.mp4"); await writeFile(raw, Buffer.from(await dl.data.arrayBuffer()));
+    const raw = join(dir, "raw.mp4");
+    try { await fetchUpload(db, src, raw); } catch (e) { console.error("fx download", e?.message ?? e); throw new Error("FX_NO_VIDEO"); }
     const pr = await d.probe(raw).catch(() => ({ duration: 0 }));
     if (!(pr.duration > 3)) throw new Error("FX_NO_VIDEO");
     const maxS = Math.max(30, Math.min(FX_HARD, Number(inp.maxSeconds) || FX_MAX)); // the admin's limit, written by the route
@@ -352,7 +362,7 @@ export async function fxJob(job, d) {
     if (vs > 0 && as - vs > 2) throw new Error("FX_BAD_FILE");
     const hold = vs > 0 && as - vs > 0.15 ? as - vs : 0;
     await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_HARD + 3), "-movflags", "+faststart", norm]); // the sound starts at 0 too (silence is added if it began late), so the word times match the final video
-    const rawSize = (await readFile(raw)).length;
+    const rawSize = (await stat(raw)).size;
     // the length is the PICTURE's own length (counted frames): a file whose sound runs longer than its picture must not leave the drawing waiting for frames that never come
     const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
     if (seconds < 3) throw new Error("FX_NO_VIDEO");
@@ -522,16 +532,15 @@ async function fxExport(job, d) {
     const aspect = ["9:16", "16:9", "1:1", "4:5"].includes(src.input.aspect) ? src.input.aspect : "9:16";
     const [W, H] = d.FREE_SIZE[aspect], tall = aspect !== "16:9";
     await stage("يجهّز الفيديو…", 5);
-    const dl = await db.storage.from("uploads").download(src.input.video);
-    if (dl.error) throw new Error("FX_SOURCE_GONE"); // the uploaded video is kept for a limited time
-    const raw = join(dir, "raw.mp4"); await writeFile(raw, Buffer.from(await dl.data.arrayBuffer()));
+    const raw = join(dir, "raw.mp4");
+    try { await fetchUpload(db, src.input.video, raw); } catch { throw new Error("FX_SOURCE_GONE"); } // the uploaded video is kept for a limited time
     const [vs, as] = await Promise.all([d.streamSeconds(raw, "v:0"), d.streamSeconds(raw, "a:0")]);
     // a picture much shorter than its sound is a damaged file (a bad shrink before upload drops seconds of picture, and the lips then run ahead of the voice): never built on, the customer uploads it again
     if (vs > 0 && as - vs > 2) throw new Error("FX_BAD_FILE");
     const hold = vs > 0 && as - vs > 0.15 ? as - vs : 0;
     const norm = join(dir, "base.mp4");
     await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_HARD + 3), "-movflags", "+faststart", norm]); // the sound starts at 0 too (silence is added if it began late), so the word times match the final video
-    const rawSize = (await readFile(raw)).length;
+    const rawSize = (await stat(raw)).size;
     const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
     if (seconds < 3) throw new Error("FX_NO_VIDEO");
     // SYNC GUARD 1: the prepared video must be exactly as long as the uploaded one. If seconds of picture went missing, stop here (before any paid step) and say the numbers.
