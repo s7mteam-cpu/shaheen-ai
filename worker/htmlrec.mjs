@@ -242,3 +242,35 @@ export async function recordOverlay({ html, width, height, seconds, fps = 30, ba
     return { frames, drawn, sent };
   } finally { try { ff?.kill("SIGKILL"); } catch {} try { await p.browser.close({ silent: true }); } catch {} }
 }
+
+/** Records the see-through page ALONE into a video that keeps its transparency (QuickTime Animation, lossless). Used when the graphics are laid in more than one layer
+ *  (behind the speaker / in front of him): each layer is a file, and the layers are then put together by one plain ffmpeg run over files. */
+export async function recordAlpha({ html, width, height, seconds, fps = 30, outFile, fontCss = "", browserExecutable, onProgress = () => {}, ffmpeg = "ffmpeg" }) {
+  const p = await openOverlay({ html, width, height, fontCss, browserExecutable });
+  let ff = null;
+  try {
+    const frames = Math.max(1, Math.round(seconds * fps));
+    ff = spawn(ffmpeg, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "png", "-i", "-", "-frames:v", String(frames), "-vf", `scale=${width}:${height}:flags=lanczos`, "-c:v", "qtrle", "-pix_fmt", "argb", outFile], { stdio: ["pipe", "ignore", "pipe"] });
+    let ffErr = ""; ff.stderr.on("data", (d) => { ffErr += d; });
+    const done = new Promise((res, rej) => { ff.on("close", (c) => (c === 0 ? res() : rej(new Error(`ffmpeg: ${ffErr.slice(0, 300)}`)))); ff.on("error", rej); });
+    ff.stdin.on("error", () => {}); done.catch(() => {});
+    let closed = false; const gone = new Promise((res) => { ff.on("close", () => { closed = true; res(); }); });
+    const deadline = Date.now() + Math.max(15 * 60_000, seconds * 40_000);
+    const guard = (x, what) => Promise.race([x, new Promise((_, rej) => setTimeout(() => rej(new Error(`التسجيل علّق (${what})`)), 120_000).unref())]);
+    let hot = 0, drawn = 0;
+    for (let i = 0; i < frames && !closed; i++) {
+      if (Date.now() > deadline) throw new Error("التسجيل أخذ وقتًا أطول من المسموح، تم إيقافه");
+      await guard(p.step(1000 / fps), "step");
+      let buf;
+      if (hot > 0) { buf = await guard(p.full(), "shot"); hot--; drawn++; }
+      else if ((await guard(p.tiny(), "probe")).equals(p.blankTiny)) buf = p.blankFull;
+      else { buf = await guard(p.full(), "shot"); hot = 5; drawn++; }
+      if (closed) break;
+      if (!ff.stdin.write(buf)) await guard(Promise.race([new Promise((r) => ff.stdin.once("drain", r)), gone]), "pipe");
+      if (i % 15 === 0) onProgress(i / frames);
+    }
+    try { ff.stdin.end(); } catch {}
+    await guard(done, "ffmpeg"); ff = null;
+    return { frames, drawn };
+  } finally { try { ff?.kill("SIGKILL"); } catch {} try { await p.browser.close({ silent: true }); } catch {} }
+}

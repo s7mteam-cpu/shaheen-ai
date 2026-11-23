@@ -52,3 +52,6 @@ export function initUsage(client) {
     } catch { return res; }
   };
 }
+
+/** a paid call that is not counted in tokens (for example a per-second video service): noted under the job the worker is on now */
+export function noteUsage(row) { try { save(als.getStore()?.job ?? null, row); } catch { /* ignore */ } }

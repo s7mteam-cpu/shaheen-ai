@@ -18,6 +18,8 @@ const WHY: Record<string, string> = {
   FX_NO_SPEECH: "ما لقينا كلام واضح بالفيديو. المونتاج المبتكر يعتمد على كلام المتحدث.",
   FX_NO_PLAN: "ما قدرنا نطلع خطة مونتاج من هذا الفيديو. جرّب وصف أوضح.",
   FX_QUALITY: "الغرافيكس ما طلع بجودة كافية بعد محاولتين، فما سلّمناه.",
+  FX_CUT_FAILED: "خدمة قص المتحدث من الخلفية ما اشتغلت هالمرة، فما كمّلنا. جرّب مرة ثانية أو بدون خيار «ورا المتحدث».",
+  FX_CUT_NOKEY: "خيار «ورا المتحدث» غير مفعّل بالنظام حالياً.",
   FX_NO_SOURCE: "ما لقينا المونتاج الأصلي.",
   FX_SOURCE_GONE: "الفيديو الأصلي انحذف بعد مدة الحفظ، فما نقدر نعيد تصديره. ارفعه بمونتاج جديد.",
   FX_EDIT_FAILED: "المصمم ما قدر يطبّق طلبك على هذا المقطع. جرّب صياغة أوضح.",
@@ -67,8 +69,9 @@ export async function POST(req: Request) {
   });
   const noteBlock = photos.map((x) => x.note).join(" ").trim();
   if (noteBlock) { const blockedN = await guardContent(user.id, noteBlock, TOOL); if (blockedN) return blockedN; }
-  const cost = Math.max(1, Math.ceil(secs / 60)) * tool.credit_cost;
-  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
+  const behind = b.behind === true && eng.fxBehind; // «عناصر ورا المتحدث»: only when the admin offers it
+  const cost = Math.max(1, Math.ceil(secs / 60)) * (tool.credit_cost + (behind ? eng.fxBehindCost : 0));
+  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(behind ? { behind: true } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: (notes || "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء المونتاج." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
