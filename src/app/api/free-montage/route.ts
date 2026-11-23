@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   if (blocked) return blocked;
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { count: today } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", TOOL).is("input->>fromJob", null).gte("created_at", since);
-  if ((today ?? 0) >= eng.dailyCap) return NextResponse.json({ error: "وصلت الحد اليومي لعدد المونتاجات، جرّب بكرة." }, { status: 429 });
+  if ((today ?? 0) >= eng.dailyCap && !(await adminAccess())) return NextResponse.json({ error: "وصلت الحد اليومي لعدد المونتاجات، جرّب بكرة." }, { status: 429 });
   const { count: busy } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", TOOL).in("status", ["queued", "running"]);
   if ((busy ?? 0) >= 1) return NextResponse.json({ error: "عندك مونتاج قيد التنفيذ. انتظر يخلص ثم ابدأ الثاني." }, { status: 429 });
   let colors: string[] = [];

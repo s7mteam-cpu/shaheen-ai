@@ -188,7 +188,7 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
         </div>
       </div>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("شنو تبي بالمونتاج؟ (اختياري)")}</span>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={800} rows={4} className="field" placeholder={L("كل ما وصفت أدق طلع أحسن: وين تطلع العناصر (فوق، تحت، بالنص، حتى فوق وجهك)، حجمها، سرعتها، وشنو يطلع مع كل جملة. مثال: ابدأ بهوك قوي يغطي الشاشة، كل رقم أذكره يطلع كبير بالنص، ولما أذكر دولة تطلع خريطتها تحت. الإيقاع سريع.")} />
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={800} rows={4} className="field" placeholder={L("كل ما وصفت أدق طلع أحسن: وين تطلع العناصر (فوق، تحت، بالنص، حتى فوق وجهك)، حجمها، سرعتها، وشنو يطلع مع كل جملة. مثال: ابدأ بهوك قوي يغطي الشاشة، كل رقم أذكره يطلع كبير بالنص، ولما أذكر دولة تطلع خريطتها تحت. الإيقاع سريع. واكتب اسمك والأسماء المهمة هنا بإملائها الصحيح، حتى تنكتب صح بالترجمة.")} />
         <span className="text-[12px] text-subtle">{L("شاهين ما يحط صور أو وجوه أشخاص حقيقيين ولا شعارات وجرائد حقيقية: كل شي ينرسم من جديد.")}</span></label>
       <div className="flex flex-col gap-2">
         <span className="font-semibold">{L("صورك داخل المونتاج")} <span className="text-[13px] font-normal text-subtle">{L("(اختياري، حتى 3: منتجك، شعارك، لقطة تملكها)")}</span></span>
