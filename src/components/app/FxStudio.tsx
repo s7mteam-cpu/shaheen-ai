@@ -6,10 +6,10 @@ import Link from "next/link";
 import { withClock } from "@/lib/gemClock";
 import { fontCssFor } from "@/lib/iframeFonts";
 import { applyEdits, applyEls, extractColors, extractTexts, type ElEdit } from "@/lib/htmlKit";
-import { captionLayer, withCaps, injectPhotos, FX_EMPTY, FX_FILLER, type FxWord } from "@/lib/fxCaps";
+import { captionLayer, withCaps, injectPhotos, onlyLayer, FX_BEHIND, FX_EMPTY, FX_FILLER, type FxWord } from "@/lib/fxCaps";
 
 type Page = { a: number; b: number; html: string; els: ElEdit[] };
-type Data = { title: string; aspect: string; seconds: number; srcUrl: string; pages: Page[]; words: FxWord[]; captions: boolean; accent: string; editCost: number; photos?: Record<string, string> };
+type Data = { title: string; aspect: string; seconds: number; srcUrl: string; pages: Page[]; words: FxWord[]; captions: boolean; accent: string; editCost: number; photos?: Record<string, string>; /** «ورا المتحدث»: the cut-out speaker (a see-through video), when this montage has one */ matteUrl?: string };
 type ElMap = Record<string, { s: number; x: number; y: number; hide?: boolean }>;
 const SIZES: Record<string, [number, number]> = { "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080], "4:5": [1080, 1350] };
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -34,6 +34,10 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
   const [selEl, setSelEl] = useState<{ sel: string; text: string } | null>(null);
   const [fontCss, setFontCss] = useState("");
   const [doc, setDoc] = useState<string | null>(null);
+  const [docBack, setDocBack] = useState<string | null>(null); // «ورا المتحدث»: the graphics that sit behind him, shown under his cut-out
+  const [pickBack, setPickBack] = useState(false);
+  const [canAlpha, setCanAlpha] = useState(false);
+  useEffect(() => { setCanAlpha(/Chrome\//.test(navigator.userAgent)); }, []); // see-through video plays in Chrome-family browsers
   const [startAt, setStartAt] = useState(0);
   const [rev, setRev] = useState(0);
   const [cw, setCw] = useState(0);
@@ -41,6 +45,7 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
   const [err, setErr] = useState("");
   const [dirty, setDirty] = useState(false);
   const video = useRef<HTMLVideoElement>(null), iframe = useRef<HTMLIFrameElement>(null), box = useRef<HTMLDivElement>(null);
+  const iframeBack = useRef<HTMLIFrameElement>(null), matteV = useRef<HTMLVideoElement>(null);
   const ready = useRef(false), sent = useRef(0), idxRef = useRef(0), lastOpen = useRef(0), tShown = useRef(0);
 
   useEffect(() => {
@@ -74,25 +79,33 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
       let p = page.html || FX_EMPTY;
       try { p = applyEdits(p, { texts: texts[idx] ?? {}, hex }); p = applyEls(p, elList(idx)); } catch { /* keep the page as it is */ }
       p = injectPhotos(p, data?.photos);
-      p = withCaps(p, captions ? captionLayer(words, page.a, page.b, { tall, accent: data?.accent }) : "");
+      const caps = captions ? captionLayer(words, page.a, page.b, { tall, accent: data?.accent }) : "";
+      // with a cut-out speaker: two pages (behind him / in front of him) with his cut-out between them, as in the exported video
+      const layered = !!data?.matteUrl && canAlpha && FX_BEHIND.test(p);
+      const back = layered ? onlyLayer(p, "back") : "";
+      p = withCaps(layered ? onlyLayer(p, "front") : p, caps);
       const extra = `<style>${fontCss}html,body{margin:0;overflow:hidden;background:transparent!important}</style>`;
       const cur = Math.min(video.current?.currentTime ?? 0, seconds - 0.01);
       ready.current = false; sent.current = cur; lastOpen.current = Date.now();
       setStartAt(Math.max(0, cur - page.a));
-      setDoc(/<head[^>]*>/i.test(p) ? p.replace(/<head[^>]*>/i, (m) => m + extra) : extra + p); setRev((x) => x + 1);
+      const withExtra = (h: string) => (/<head[^>]*>/i.test(h) ? h.replace(/<head[^>]*>/i, (m) => m + extra) : extra + h);
+      setDocBack(back ? withExtra(back) : null); if (!back) setPickBack(false);
+      setDoc(withExtra(p)); setRev((x) => x + 1);
     }, 350);
     return () => clearTimeout(id);
-  }, [page, idx, texts, hex, elList, captions, words, tall, fontCss, data?.accent, data?.photos, seconds]);
+  }, [page, idx, texts, hex, elList, captions, words, tall, fontCss, data?.accent, data?.photos, data?.matteUrl, canAlpha, seconds]);
   const srcDoc = useMemo(() => (doc && page ? withClock(doc, startAt, false, Math.max(1, page.b - page.a)) : null), [doc, startAt, page]);
+  const srcBack = useMemo(() => (docBack && page ? withClock(docBack, startAt, false, Math.max(1, page.b - page.a)) : null), [docBack, startAt, page]);
+  const both = useCallback((msg: unknown) => { iframe.current?.contentWindow?.postMessage(msg, "*"); iframeBack.current?.contentWindow?.postMessage(msg, "*"); }, []);
 
   const pickRef = useRef({ pick, sel: selEl?.sel ?? null as string | null, bases: {} as Record<string, { x: number; y: number }> });
   pickRef.current = { pick, sel: selEl?.sel ?? null, bases: Object.fromEntries(Object.entries(els[idx] ?? {}).map(([k, e]) => [k, { x: e.x, y: e.y }])) };
-  const sendPick = useCallback(() => { const p = pickRef.current; iframe.current?.contentWindow?.postMessage({ type: "pick", on: p.pick, sel: p.sel, bases: p.bases }, "*"); }, []);
+  const sendPick = useCallback(() => { const p = pickRef.current; both({ type: "pick", on: p.pick, sel: p.sel, bases: p.bases }); }, [both]);
   useEffect(() => { sendPick(); }, [pick, selEl, sendPick]);
 
   useEffect(() => {
     const on = (e: MessageEvent) => {
-      if (e.source !== iframe.current?.contentWindow) return;
+      if (e.source !== iframe.current?.contentWindow && e.source !== iframeBack.current?.contentWindow) return;
       const m = (e.data ?? {}) as { type?: string; sel?: string; text?: string; x?: number; y?: number };
       if (m.type === "ready") { ready.current = true; sendPick(); return; }
       if (m.type === "picked" && typeof m.sel === "string") { setSelEl({ sel: m.sel, text: String(m.text ?? "") }); return; }
@@ -112,14 +125,16 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
         const cur = Math.min(v.currentTime, seconds - 0.01), i = chunkAt(cur);
         if (i !== idxRef.current || cur < sent.current - 0.08) { // another piece, or the customer went back: the page is opened again at that second
           if (Date.now() - lastOpen.current > 250) { lastOpen.current = Date.now(); ready.current = false; sent.current = cur; if (i !== idxRef.current) { idxRef.current = i; setIdx(i); setSelEl(null); } else { setStartAt(Math.max(0, cur - pages[i].a)); setRev((x) => x + 1); } }
-        } else if (ready.current && cur > sent.current + 0.001) { iframe.current?.contentWindow?.postMessage({ type: "to", t: cur - pages[i].a }, "*"); sent.current = cur; }
+        } else if (ready.current && cur > sent.current + 0.001) { both({ type: "to", t: cur - pages[i].a }); sent.current = cur; }
+        const m = matteV.current; // the cut-out follows the customer's video
+        if (m) { if (Math.abs(m.currentTime - cur) > 0.12) m.currentTime = cur; if (v.paused !== m.paused) { if (v.paused) m.pause(); else void m.play().catch(() => {}); } }
         if (Math.abs(cur - tShown.current) > 0.05) { tShown.current = cur; setT(cur); }
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [pages, seconds, chunkAt]);
+  }, [pages, seconds, chunkAt, both]);
 
   const toggle = () => { const v = video.current; if (!v) return; if (v.paused) { setPick(false); void v.play(); } else v.pause(); };
   const seek = (sec: number) => { const v = video.current; if (v) v.currentTime = Math.max(0, Math.min(seconds - 0.05, sec)); };
@@ -159,7 +174,9 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
       <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-20 lg:self-start">
         <div ref={box} dir="ltr" className="relative mx-auto w-full overflow-hidden rounded-3xl bg-black shadow-lg" style={{ aspectRatio: `${w} / ${h}`, maxWidth: tall ? "min(100%, calc((100vh - 16rem) * 0.5625))" : undefined }} onClick={() => { if (!pick) toggle(); }}>
           <video ref={video} src={data.srcUrl} playsInline preload="auto" className="absolute inset-0 h-full w-full object-cover" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
-          {srcDoc && <iframe key={`r${rev}`} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={srcDoc} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${cw ? cw / PW : 0.3})`, transformOrigin: "0 0", background: "transparent", pointerEvents: pick ? "auto" : "none" }} />}
+          {srcBack && <iframe key={`b${rev}`} ref={iframeBack} title={L("عناصر الخلف")} sandbox="allow-scripts" srcDoc={srcBack} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${cw ? cw / PW : 0.3})`, transformOrigin: "0 0", background: "transparent", pointerEvents: pick && pickBack ? "auto" : "none" }} />}
+          {srcBack && data.matteUrl && <video ref={matteV} src={data.matteUrl} muted playsInline preload="auto" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />}
+          {srcDoc && <iframe key={`r${rev}`} ref={iframe} title={L("معاينة مباشرة")} sandbox="allow-scripts" srcDoc={srcDoc} className="absolute left-0 top-0 border-0" style={{ width: PW, height: PH, transform: `scale(${cw ? cw / PW : 0.3})`, transformOrigin: "0 0", background: "transparent", pointerEvents: pick && !(srcBack && pickBack) ? "auto" : "none" }} />}
           {!playing && !pick && <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[54px] text-white/85 drop-shadow">▶</span>}
         </div>
         <div className="flex items-center gap-3" dir="ltr">
@@ -176,6 +193,7 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
 
         {tab === "els" && <div className="flex flex-col gap-3">
           <button type="button" onClick={() => { video.current?.pause(); setPick((x) => !x); if (pick) setSelEl(null); }} className={`btn px-4 py-2.5 text-[15px] ${pick ? "btn-gold" : "btn-outline"}`}>{pick ? `✅ ${L("خلصت التحريك")}` : `🖐️ ${L("اختر وحرّك عنصر")}`}</button>
+          {srcBack && <div className="flex gap-2">{([[false, "عناصر الأمام"], [true, "عناصر الخلف (ورا المتحدث)"]] as const).map(([b, name]) => <button key={name} type="button" aria-pressed={pickBack === b} onClick={() => { setPickBack(b); setSelEl(null); }} className={`rounded-lg border px-3 py-1.5 text-[13px] ${pickBack === b ? "border-gold-500 bg-gold-500/10 font-semibold" : "border-line bg-white"}`}>{L(name)}</button>)}</div>}
           <p className="text-[13px] text-subtle">{L("وقّف الفيديو عند العنصر، فعّل الزر، ثم اضغط العنصر بالمعاينة واسحبه لمكانه. اضغط مرة ثانية داخله لاختيار جزء منه.")}</p>
           {selEl && <div className="rounded-xl border border-line bg-tint p-3">
             <p className="truncate text-[14px] font-semibold text-navy-900">{selEl.text || L("عنصر مرسوم")}</p>

@@ -100,7 +100,7 @@ export async function GET(req: Request) {
   // SECURITY: only a result inside his own folder is ever signed
   if (!path.startsWith(`${user.id}/`) || path.includes("..")) return NextResponse.json({ status: "failed", error: "ما لقينا الفيديو." });
   const [play, dl] = await Promise.all([admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6), admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6, { download: "shaheen-montage.mp4" })]);
-  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; video?: string; captions?: boolean; colors?: string[]; fxr?: { missing?: number; note?: string; cues?: unknown[]; photos?: { id?: string; path?: string }[]; wordsPath?: string; pages?: { a?: number; b?: number; path?: string | null; els?: unknown }[] } };
+  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; video?: string; captions?: boolean; colors?: string[]; fxr?: { missing?: number; note?: string; cues?: unknown[]; photos?: { id?: string; path?: string }[]; matte?: string | null; wordsPath?: string; pages?: { a?: number; b?: number; path?: string | null; els?: unknown }[] } };
   if (new URL(req.url).searchParams.get("studio") === "1") {
     // «استوديو المونتاج»: the saved pieces, the word times and the customer's own video. Every path is checked to sit inside his folder before it is read or signed.
     const mine = (p: unknown): p is string => typeof p === "string" && p.startsWith(`${user.id}/`) && !p.includes("..");
@@ -119,8 +119,9 @@ export async function GET(req: Request) {
       const r = await admin.storage.from("results").download(ph.path);
       if (!r.error) photos[String(ph.id)] = `data:image/${ph.path.endsWith(".png") ? "png" : "jpeg"};base64,${Buffer.from(await r.data.arrayBuffer()).toString("base64")}`;
     }
+    const matteUrl = mine(fr.matte) ? ((await admin.storage.from("results").createSignedUrl(fr.matte, 60 * 60 * 3)).data?.signedUrl ?? "") : "";
     let words: unknown = []; try { words = JSON.parse(wordsTxt || "[]"); } catch { words = []; }
-    return NextResponse.json({ status: "studio", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, srcUrl: srcUrl.data?.signedUrl ?? "", pages, words, photos, captions: inp.captions !== false, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400", editCost: tl.data?.edit_cost ?? 8 });
+    return NextResponse.json({ status: "studio", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, srcUrl: srcUrl.data?.signedUrl ?? "", pages, words, photos, matteUrl, captions: inp.captions !== false, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400", editCost: tl.data?.edit_cost ?? 8 });
   }
   return NextResponse.json({ status: "done", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, cues: Array.isArray(inp.fxr?.cues) ? inp.fxr!.cues!.length : 0, missing: inp.fxr?.missing ?? 0, note: String(inp.fxr?.note ?? "").slice(0, 220), videoUrl: play.data?.signedUrl ?? "", downloadUrl: dl.data?.signedUrl ?? "" });
 }

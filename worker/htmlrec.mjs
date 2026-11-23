@@ -216,7 +216,7 @@ export async function recordOverlay({ html, width, height, seconds, fps = 30, ba
     const frames = Math.max(1, Math.round(seconds * fps));
     ff = spawn(ffmpeg, ["-y", "-loglevel", "error", "-ss", start.toFixed(3), "-i", base, "-f", "image2pipe", "-framerate", String(fps), "-c:v", "png", "-i", "-",
       "-filter_complex", `[0:v]fps=${fps},setpts=PTS-STARTPTS[b];[1:v]scale=${width}:${height}:flags=lanczos,format=rgba[o];[b][o]overlay=eof_action=pass:format=auto[v]`,
-      "-map", "[v]", "-an", "-frames:v", String(frames), "-r", String(fps), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", outFile], { stdio: ["pipe", "ignore", "pipe"] });
+      "-map", "[v]", "-an", "-frames:v", String(frames), "-r", String(fps), "-c:v", "libx264", "-preset", "faster", "-crf", "16", "-pix_fmt", "yuv420p", outFile], { stdio: ["pipe", "ignore", "pipe"] });
     let ffErr = ""; ff.stderr.on("data", (d) => { ffErr += d; });
     const done = new Promise((res, rej) => { ff.on("close", (c) => (c === 0 ? res() : rej(new Error(`ffmpeg: ${ffErr.slice(0, 300)}`)))); ff.on("error", rej); });
     ff.stdin.on("error", () => {}); done.catch(() => {});

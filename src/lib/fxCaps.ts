@@ -37,3 +37,7 @@ export function injectPhotos(html: string, photos: Record<string, string> | null
     return tag.replace(/\ssrc\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/<img\b/i, `<img src="${src}"`);
   });
 }
+
+/** «ورا المتحدث» (the same as the worker): which graphics sit behind the speaker, and a page showing one layer only */
+export const FX_BEHIND = /class\s*=\s*["'][^"']*\bfx-behind\b/i;
+export const onlyLayer = (page: string, which: "back" | "front") => { const css = `<style>${which === "back" ? ".cue:not(.fx-behind)" : ".cue.fx-behind"}{display:none!important}</style>`; const at = page.toLowerCase().lastIndexOf("</head>"); return at > 0 ? page.slice(0, at) + css + page.slice(at) : css + page; };
