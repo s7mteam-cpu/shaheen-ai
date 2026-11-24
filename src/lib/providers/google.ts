@@ -10,7 +10,7 @@ type Part = { text?: string; inlineData?: { mimeType: string; data: string } };
 type Content = { role: "user" | "model"; parts: Part[] };
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  // text and pictures (generateContent) go through «مصدر Gemini» (Vertex AI when the admin chose it, AI Studio otherwise or when Vertex fails)
+  // text and pictures (generateContent) go through «مصدر Gemini» (AI Studio)
   const gc = /^models\/([^/:]+):generateContent$/.exec(path);
   const res = gc ? (await geminiFetch(gc[1], JSON.stringify(body))).res : await fetch(`${API}/${path}`, { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key() }, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`google ${res.status}: ${(await res.text()).slice(0, 300)}`);

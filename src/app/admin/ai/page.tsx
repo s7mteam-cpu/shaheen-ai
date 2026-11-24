@@ -5,7 +5,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { providerInfo, textProviders, toolProviders, type ProviderId } from "@/lib/providers/registry";
 import { saveAi } from "../actions";
 import { saveFreeEngine } from "../templates/actions";
-import { VertexTest } from "@/components/admin/VertexTest";
 import { getFreeEngine, GEM_MODELS } from "@/lib/server/freeEngine";
 import { getL } from "@/lib/server/lang";
 import { MODEL_CATALOG, FAMILY_NAME, cleanModelMap, type ModelFamily } from "@/lib/models";
@@ -188,9 +187,6 @@ export default async function AiHub() {
               <select name="engine" defaultValue={fe.engine} className="field"><option value="classic">{L("القديم (مبتكر بالكود)")}</option><option value="gemini">{L("الجديد (جيميناي)")}</option></select></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("نموذج جيميناي")}</label>
               <select name="model" defaultValue={fe.model} className="field">{GEM_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
-            <div className="flex flex-col gap-1.5"><label className="label">{L("مصدر Gemini (من أي حساب ينخصم)")}</label>
-              <select name="gemVia" defaultValue={fe.gemVia} className="field"><option value="studio">{L("AI Studio (الرصيد المسبق)")}</option><option value="vertex">{L("Vertex AI (حساب Google Cloud)، وإذا فشل يرجع لـAI Studio")}</option></select>
-              <VertexTest hasKey={!!process.env.VERTEX_API_KEY} /></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("وضع التخطيط")}</label>
               <select name="plan" defaultValue={fe.plan} className="field"><option value="scenes">{L("نص مع مشاهد (أرخص وأسرع)")}</option><option value="full">{L("خطة كاملة (أغنى وأغلى)")}</option></select></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("سقف التصاميم لكل عميل بالـ24 ساعة")}</label>

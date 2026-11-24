@@ -89,7 +89,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
         const d = await r.json();
         if (!r.ok) throw new Error(L(d.error));
         setPct(100);
-        router.push(`/app/tools/free-motion?job=${d.jobId}`);
+        router.push(`/app/tools/site-free?fm=${d.jobId}`);
       } catch (err) { setError((err as Error).message || L("صار خطأ.")); setBusy(false); }
       return;
     }

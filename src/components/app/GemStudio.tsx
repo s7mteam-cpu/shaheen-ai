@@ -62,7 +62,7 @@ const Sub = ({ children }: { children: React.ReactNode }) => <h3 className="text
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 /** لوحة استوديو الفيديو الجاهز (محرك جيميناي): مشغّل واحد بإيقاف وتشغيل وشريط وقت، تعديل النصوص والألوان والخط والشعار فوريًا، مازج صوت (التعليق والموسيقى وصوتك)، وقص الفيديو. زر الحفظ يرسم فيديو جديد. */
-export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId: string; data: GemData; balance: number; onSent: (newJob: string) => void; voices?: VoiceItem[] }) {
+export function GemStudio({ jobId, data, balance, onSent, voices = [], newHref = "/app/tools/free-motion" }: { newHref?: string; jobId: string; data: GemData; balance: number; onSent: (newJob: string) => void; voices?: VoiceItem[] }) {
   const seconds = Math.max(5, Math.round(data.seconds || 30));
   const saved = data.mix ?? {};
   const [raw, setRaw] = useState<string | null>(null);
@@ -400,7 +400,7 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [] }: { jobId
           <p className="text-center text-[12px] text-subtle">{balance < cost ? L("رصيدك ما يكفي للتعديل.") : L("الفيديو المعدّل يستغرق من 7 إلى 10 دقائق، ويضاف لأعمالك والأصلي يبقى.")}</p>
           <div className="flex flex-wrap gap-2">
             <a href={data.downloadUrl} download className="btn btn-gold px-5 py-2.5">⬇ {L("نزّل الفيديو الجاهز")}</a>
-            <Link href="/app/tools/free-motion" className="btn btn-outline px-5 py-2.5">{L("تصميم جديد")}</Link>
+            <Link href={newHref} className="btn btn-outline px-5 py-2.5">{L("تصميم جديد")}</Link>
           </div>
           <RetentionNote />
           <details className="rounded-xl border border-line p-3 text-[13px]"><summary className="cursor-pointer font-semibold text-subtle">{L("الفيديو المرسوم (آخر نسخة محفوظة)")}</summary><video src={data.videoUrl} controls playsInline className="mx-auto mt-3 max-h-[60vh] w-full max-w-sm rounded-xl bg-black" /></details>

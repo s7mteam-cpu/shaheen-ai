@@ -7,7 +7,7 @@ import { Progress } from "@/components/app/Progress";
 import type { StudioData } from "@/components/app/FreeStudio";
 
 /** After «تصدير»: the same screen as the other motion tool. The customer can leave; editing again costs the edit price. */
-export function FreeSent({ data, busy, editCost, balance, onUnlock }: { data: StudioData; busy: StudioData["busy"]; editCost: number; balance: number; onUnlock: () => Promise<string | null> }) {
+export function FreeSent({ data, busy, editCost, balance, onUnlock, newHref = "/app/tools/free-motion" }: { newHref?: string; data: StudioData; busy: StudioData["busy"]; editCost: number; balance: number; onUnlock: () => Promise<string | null> }) {
   const [working, setWorking] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const exporting = !!busy && busy.kind === "export";
@@ -31,7 +31,7 @@ export function FreeSent({ data, busy, editCost, balance, onUnlock }: { data: St
       {err && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{err}</p>}
       <div className="flex flex-wrap justify-center gap-3">
         <Link href="/app/works" className="btn btn-primary px-6 py-3">{L("روح لأعمالي")}</Link>
-        <Link href="/app/tools/free-motion" className="btn border border-line bg-white px-6 py-3">{L("تصميم جديد")}</Link>
+        <Link href={newHref} className="btn border border-line bg-white px-6 py-3">{L("تصميم جديد")}</Link>
       </div>
       {!exporting && data.exportUrl && (
         <div className="flex w-full flex-col items-center gap-2 border-t border-emerald-200 pt-4">

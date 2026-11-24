@@ -22,10 +22,11 @@ const sizes = [["9:16", "📱 ريلز 9:16"], ["16:9", "▶️ يوتيوب 16:
 const social = Object.keys(BRANDS) as BrandId[];
 
 /** «تصميم مبتكر ✨»: the customer writes an idea; the AI writes a motion design as code and the worker renders it. Texts and colours can be edited afterwards. */
-export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, voices = [], hasStyle = false, animTool = false }: { hasStyle?: boolean; animTool?: boolean; voices?: VoiceItem[]; costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null; kit?: { name: string; colors: string[]; font: string } | null }) {
+export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, voices = [], hasStyle = false, animTool = false, base = "free-motion", jobKey = "job" }: { hasStyle?: boolean; animTool?: boolean; base?: string; jobKey?: string; voices?: VoiceItem[]; costPer15: number; editCost: number; balance: number; kitLogo?: { path: string; url: string } | null; kit?: { name: string; colors: string[]; font: string } | null }) {
   const router = useRouter();
   const sp = useSearchParams();
-  const jobId = sp.get("job");
+  const jobId = sp.get(jobKey);
+  const path = `/app/tools/${base}`;
   const [idea, setIdea] = useState("");
   const [brand, setBrand] = useState(kit?.name ?? "");
   const [useIdentity, setUseIdentity] = useState(true);
@@ -88,7 +89,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
     const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idea: ideaText, aspect: studio?.aspect ?? "9:16", seconds: [15, 30, 60, 120].reduce((a, c) => (Math.abs(c - (studio?.cseconds ?? 15)) < Math.abs(a - (studio?.cseconds ?? 15)) ? c : a), 15), brand: studio?.brand ?? "", colors: studio?.colors, font: studio?.font, contact: studio?.contact, fromJob: from, voiceover: studio?.voiceover, dialect: opts.dialect, vtype: opts.vtype, music: opts.music }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) return d.error ?? L("تعذّر البدء.");
-    router.replace(`/app/tools/free-motion?job=${d.jobId}`);
+    router.replace(`${path}?${jobKey}=${d.jobId}`);
     router.refresh();
     return null;
   }
@@ -108,7 +109,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setError(d.error ?? L("تعذّر البدء.")); return; }
-    router.replace(`/app/tools/free-motion?job=${d.jobId}`);
+    router.replace(`${path}?${jobKey}=${d.jobId}`);
     router.refresh();
   }
   const colorRow = (c: Colors) => (
@@ -139,11 +140,11 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
     return null;
   }
   const showSent = !!studio && !unlockedNow && ((sentLocal && (!!busyNow || !!studio.exportUrl)) || (!!studio.locked && !busyNow));
-  if (jobId && studio && showSent) return <FreeSent data={studio} busy={busyNow} editCost={editCost} balance={balance} onUnlock={unlock} />;
+  if (jobId && studio && showSent) return <FreeSent newHref={path} data={studio} busy={busyNow} editCost={editCost} balance={balance} onUnlock={unlock} />;
   if (jobId && studio) return <FreeStudio key={`${jobId}-${epoch}`} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={(k) => { stopped.current = false; waitBusy.current = Date.now() + 30000; setBusyNow({ kind: k, progress: 3 }); if (k === "export") { setSentLocal(true); setUnlockedNow(false); } poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
-  if (jobId && state?.status === "gemini") return <GemStudio key={jobId} jobId={jobId} data={state} balance={balance} voices={voices} onSent={(id) => { router.replace(`/app/tools/free-motion?job=${id}`); router.refresh(); }} />;
+  if (jobId && state?.status === "gemini") return <GemStudio newHref={path} key={jobId} jobId={jobId} data={state} balance={balance} voices={voices} onSent={(id) => { router.replace(`${path}?${jobKey}=${id}`); router.refresh(); }} />;
   if (jobId && state?.status === "failed") {
-    return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p>{state.reason && <p dir="ltr" className="mt-3 rounded-lg bg-neutral-100 p-3 text-start text-[12px] text-neutral-600">{state.reason}</p>}<button onClick={() => router.replace("/app/tools/free-motion")} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
+    return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p>{state.reason && <p dir="ltr" className="mt-3 rounded-lg bg-neutral-100 p-3 text-start text-[12px] text-neutral-600">{state.reason}</p>}<button onClick={() => router.replace(path)} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
   }
   if (jobId) {
     const pr = state && "progress" in state ? state.progress : 3;
