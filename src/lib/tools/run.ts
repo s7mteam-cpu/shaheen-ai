@@ -195,7 +195,7 @@ export async function runJob(job: Job): Promise<OutFile[] | null> {
         image_url: img,
         audio_url: audioUrl?.signedUrl,
         prompt: "Natural, friendly presenter talking to camera.",
-      }, `${site()}/api/webhooks/fal?job=${job.id}&key=${process.env.WORKER_SECRET}`);
+      }, `${site()}/api/webhooks/fal?job=${job.id}&key=${process.env.WORKER_SECRET}`, Math.round(audio.byteLength / 16000)); // fal bills the avatar per second of talking: the mp3 is 128 kbps, so bytes / 16000 ≈ seconds
       await admin.from("jobs").update({ provider_request_id: reqId, status: "running" }).eq("id", job.id);
       return null;
     }

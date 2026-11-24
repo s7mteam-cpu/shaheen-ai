@@ -16,10 +16,10 @@ export async function falRun<T = Record<string, unknown>>(model: string, input: 
 }
 
 /** Queue a long job (videos); fal calls our webhook when it finishes. */
-export async function falQueue(model: string, input: Record<string, unknown>, webhookUrl: string) {
+export async function falQueue(model: string, input: Record<string, unknown>, webhookUrl: string, units = 1) {
   model = await modelFor(model);
   const { request_id } = await fal.queue.submit(model, { input, webhookUrl });
-  noteUsage({ provider: "fal", model, source: "فيديو fal", units: 1 });
+  noteUsage({ provider: "fal", model, source: "فيديو fal", units: Math.max(1, Math.round(units)) });
   return request_id;
 }
 
