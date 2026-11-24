@@ -87,3 +87,16 @@ export async function readShots(shots: { img: string; label: string }[]): Promis
     return m;
   } catch (e) { console.error("readShots", e); return {}; }
 }
+
+/** One reference photo of a person (the customer's own, or his earlier works): small JPEG as base64, for Google's video model to keep the same face in every clip. */
+export async function loadPerson(userId: string, raw: unknown): Promise<{ data: string; mime: string } | null> {
+  const [p] = cleanPhotos(raw, userId);
+  if (!p) return null;
+  try {
+    const { data, error } = await createAdminClient().storage.from(p.bucket ?? "uploads").download(p.path);
+    if (error || !data) return null;
+    const sharp = (await import("sharp")).default;
+    const buf = await sharp(Buffer.from(await data.arrayBuffer())).rotate().resize({ width: 1024, height: 1024, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer();
+    return { data: buf.toString("base64"), mime: "image/jpeg" };
+  } catch (e) { console.error("loadPerson", e); return null; }
+}

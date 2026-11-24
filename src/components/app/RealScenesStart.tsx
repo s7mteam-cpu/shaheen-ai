@@ -26,6 +26,8 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
   useEffect(() => { setDialect(myDialect()); }, []);
   const [industry, setIndustry] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [person, setPerson] = useState<Photo[]>([]);
+  const [endCard, setEndCard] = useState(false);
   const [voiceover, setVoiceover] = useState(true);
   const availD = voiceDialects(voices);
   useEffect(() => { if (voiceover && availD && !availD.has(dialect)) setDialect(dialects.find(([v]) => availD.has(v))?.[0] ?? "kuwaiti"); }, [availD, voiceover, dialect]);
@@ -55,7 +57,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
         tool: "real-scenes", source: ai ? "ai" : "stock", topic: mine ? `${text.trim()}${text.trim() ? "\n\n" : ""}الكلام الذي يُقرأ بالحرف:\n${spoken.trim()}` : text, notes: mine ? "اقرأ «الكلام الذي يُقرأ بالحرف» كتعليق صوتي بدون أي تغيير أو إضافة أو حذف، وقسّمه لجمل فقط، واختر لكل جملة مشهداً يناسبها. باقي النص وصف للمشاهد فقط ولا يُقرأ." : "", brand, industry, seconds, aspect, dialect,
-        voiceover, voice, vgender, vage, tone, music: withMusic, photos: photos.map((p) => ({ path: p.path, bucket: p.bucket, label: p.label })) }) });
+        voiceover, voice, vgender, vage, tone, music: withMusic, photos: photos.map((p) => ({ path: p.path, bucket: p.bucket, label: p.label })), ...(ai ? { endCard, person: person.map((p) => ({ path: p.path, bucket: p.bucket })) } : {}) }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -97,6 +99,8 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
       <More label={L("خيارات إضافية (المجال، صورك أنت، الموسيقى)")}>
         <IndustryPicker value={industry} onChange={setIndustry} title={false} optional hint="مجالك (اختياري): يساعد شاهين يختار لقطات ونبرة تناسبك." />
         <PhotoPicker photos={photos} onChange={setPhotos} title="صورك أنت (منتج، مكان…)" hint="تنحط بين اللقطات الجاهزة." />
+        {ai && <PhotoPicker photos={person} onChange={setPerson} max={1} title="شخص ثابت بالفيديو (صورة وجه واضحة)" hint="يظهر نفس الشخص باللقطات. ما نضمن التطابق 100%." />}
+        {ai && <label className="flex items-center gap-3"><input type="checkbox" checked={endCard} onChange={(e) => setEndCard(e.target.checked)} className="h-5 w-5" /><span>{L("بطاقة ختام بالتفاصيل (تاريخ، سعر، تواصل)")}</span></label>}
         <label className="flex items-center gap-3"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} className="h-5 w-5" /><span>{L("موسيقى خلفية")}</span></label>
       </More>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}

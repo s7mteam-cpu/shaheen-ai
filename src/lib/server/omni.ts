@@ -32,14 +32,14 @@ let lastErr = "";
 export const omniError = () => lastErr;
 
 /** One AI-made clip from a description. Null when Google refuses or it does not finish before the deadline. */
-export async function generateClip(desc: string, aspect: string, userId: string, jobId: string, deadline: number): Promise<{ img: string; cdur: number } | null> {
+export async function generateClip(desc: string, aspect: string, userId: string, jobId: string, deadline: number, ref?: { data: string; mime: string } | null): Promise<{ img: string; cdur: number } | null> {
   const key = process.env.GEMINI_VIDEO_API_KEY;
   if (!key || !desc.trim()) return null;
   const prompt = `${desc.trim().slice(0, 900)}. Photorealistic cinematic video, natural smooth motion, steady camera, modest formal professional attire, clean bright elegant setting, no on-screen text, no logos, no subtitles.`;
   try {
     const r = await fetch(`${BASE}/interactions`, {
       method: "POST", headers: { "x-goog-api-key": key, "content-type": "application/json" },
-      body: JSON.stringify({ model: await modelFor(MODEL), input: prompt, background: true, store: true, response_format: { type: "video", aspect_ratio: aspect === "16:9" ? "16:9" : "9:16", resolution: "720p" } }),
+      body: JSON.stringify({ model: await modelFor(MODEL), input: ref ? [{ type: "image", data: ref.data, mime_type: ref.mime }, { type: "text", text: `The person in the attached reference photo is the main person of this shot: keep exactly the same face, hair, skin tone and build, never change who he or she is. ${prompt}` }] : prompt, background: true, store: true, response_format: { type: "video", aspect_ratio: aspect === "16:9" ? "16:9" : "9:16", resolution: "720p" } }),
     });
     let d = (await r.json().catch(() => ({}))) as Record<string, unknown> & { id?: string; name?: string; status?: string; error?: { message?: string } };
     if (!r.ok) { lastErr = `Google ${r.status}: ${d.error?.message ?? ""}`.slice(0, 200); return null; }
@@ -63,11 +63,11 @@ export async function generateClip(desc: string, aspect: string, userId: string,
 }
 
 /** Makes every "clip" scene with AI, a few at a time (they run at Google, so this is waiting, not computing). */
-export async function fillAiClips<G extends { kind: string; q?: string; img?: string; cdur?: number; credit?: string }>(graphics: G[], aspect: string, userId: string, jobId: string, deadline: number): Promise<G[]> {
+export async function fillAiClips<G extends { kind: string; q?: string; img?: string; cdur?: number; credit?: string }>(graphics: G[], aspect: string, userId: string, jobId: string, deadline: number, ref?: { data: string; mime: string } | null): Promise<G[]> {
   const todo = graphics.filter((g) => g.kind === "clip" && g.q && !g.img);
   for (let i = 0; i < todo.length; i += 6) {
     await Promise.all(todo.slice(i, i + 6).map(async (g) => {
-      const c = await generateClip(g.q!, aspect, userId, jobId, deadline);
+      const c = await generateClip(g.q!, aspect, userId, jobId, deadline, ref);
       if (c) { g.img = c.img; g.cdur = c.cdur; g.credit = ""; }
     }));
   }
