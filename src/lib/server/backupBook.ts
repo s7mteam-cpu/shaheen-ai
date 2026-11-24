@@ -255,10 +255,11 @@ export async function backupBook(t: Record<string, Row[]>) {
   const refs = users.filter((p) => p.referred_by);
   const rf = styledSheet(wb, "الدعوات", { title: "الدعوات والإحالات", columns: [
     { header: "تاريخ تسجيل المدعو", key: "d", width: 18, fmt: FMT.date }, { header: "المدعو", key: "u", width: 24 }, { header: "الداعي", key: "by", width: 24 },
+    { header: "اشترك؟", key: "sub", width: 10, align: "center" }, { header: "دفع (د.ك)", key: "pd", width: 12, fmt: FMT.num },
     { header: "إجمالي ريش الإحالة التي حصل عليها الداعي", key: "cr", width: 22, fmt: FMT.num },
   ] });
   const refCredits = (id: unknown) => (t.credit_ledger ?? []).filter((l) => l.user_id === id && l.reason === "referral").reduce((a, l) => a + Number(l.amount ?? 0), 0);
-  for (const p of sortDesc(refs, "created_at")) rf.add({ d: kwDate(s(p.created_at)), u: s(p.full_name) || s(p.email), by: who(p.referred_by), cr: refCredits(p.referred_by) });
+  for (const p of sortDesc(refs, "created_at")) rf.add({ d: kwDate(s(p.created_at)), u: s(p.full_name) || s(p.email), by: who(p.referred_by), sub: p.plan_id ? "نعم" : "لا", pd: paidKwd.get(s(p.id)) ?? 0, cr: refCredits(p.referred_by) });
   rf.finish();
 
   const bl = styledSheet(wb, "قائمة الحظر", { title: "البريد المحظور من التسجيل", tab: "FFC62828", columns: [
