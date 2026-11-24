@@ -203,6 +203,8 @@ export async function POST(req: Request) {
     const style = illus ?? (ILLUS_STYLES.some((x) => x[0] === plan.illus) ? plan.illus : pack?.illus[0] ?? "gulf-cartoon");
     // website video: a sentence the writer gave no scene to still shows the page, at the next section in order
     if (siteData && shot) timed.forEach((l, i) => { if (!l.scene) l.scene = { kind: "site", sec: Math.round((i * (shot.sections.length - 1)) / Math.max(1, timed.length - 1)) } as unknown as typeof l.scene; });
+    // «مشاهد واقعية»: a sentence the writer gave no scene to still gets a clip made from its own words
+    if (ai) timed.forEach((l) => { if (!l.scene) { const w = String((l as { say?: string }).say ?? "").trim(); if (w) l.scene = { kind: "clip", q: `Realistic cinematic scene that illustrates this sentence: ${w}`.slice(0, 400) } as unknown as typeof l.scene; } });
     const cleaned = cleanGraphics(timed.filter((l) => l.scene).map((l, i, all) => ({ ...l.scene, at: Math.max(0, l.s - 0.1), dur: Math.max(1.6, ((all[i + 1]?.s ?? total) - l.s) - 0.05) })), total);
     // scenes made from the customer's own photos are kept apart: the pack rules and the cartoon switch must not remove them
     const photoScenes = cleaned.filter((g) => g.kind === "scene" && g.photo && photoOut.some((p) => p.n === g.photo))
@@ -223,9 +225,9 @@ export async function POST(req: Request) {
     else graphics = graphics.filter((g) => g.kind !== "scene");
     const endG = endCard ? [...cleaned].reverse().find((g) => g.kind === "contact") : undefined; // taken from the director's own list: the pack rules must not drop it
     if (endG) graphics = graphics.filter((g) => !(g.kind === "contact" && g.at === endG.at));
-    if (ai && clipScenes.length && graphics.length) { // «لقطات بالذكاء الاصطناعي»: every scene is a real-looking clip. A card the director added anyway becomes a clip too, with the previous clip's description (same people and place)
+    if (ai && graphics.length) { // «لقطات بالذكاء الاصطناعي»: every scene is a real-looking clip. A card the director added anyway becomes a clip too, with the previous clip's description (same people and place)
       const qs = clipScenes.map((g) => ({ at: g.at, q: g.q }));
-      for (const g of graphics) { const prev = [...qs].reverse().find((x) => x.at <= g.at) ?? qs[0]; clipScenes.push({ kind: "clip", at: g.at, dur: g.dur, q: prev.q } as (typeof clipScenes)[number]); }
+      for (const g of graphics) { const prev = [...qs].reverse().find((x) => x.at <= g.at) ?? qs[0]; clipScenes.push({ kind: "clip", at: g.at, dur: g.dur, q: prev?.q ?? `Realistic cinematic scene that illustrates: ${g.text ?? g.sub ?? topic}`.slice(0, 400) } as (typeof clipScenes)[number]); }
       clipScenes.sort((x, y) => x.at - y.at);
       graphics = [];
     }

@@ -176,7 +176,7 @@ export function cleanGraphics(arr: unknown, len: number): Graphic[] {
       bad: str(x?.bad, 50), good: str(x?.good, 50),
       values: Array.isArray(x?.values) ? (x.values as unknown[]).slice(0, 12).map(Number).filter(Number.isFinite) : undefined,
       fx: (["marker", "circle", "underline", "typewriter"] as const).find((f) => f === x?.fx),
-      q: str(x?.q, 80), credit: str(x?.credit, 80), cdur: Number.isFinite(Number(x?.cdur)) && x?.cdur !== undefined && x?.cdur !== null && x?.cdur !== "" ? c(Number(x.cdur), 0.5, 600) : undefined,
+      q: str(x?.q, 400), credit: str(x?.credit, 80), cdur: Number.isFinite(Number(x?.cdur)) && x?.cdur !== undefined && x?.cdur !== null && x?.cdur !== "" ? c(Number(x.cdur), 0.5, 600) : undefined,
       photo: Number.isFinite(Number(x?.photo)) && x?.photo !== undefined && x?.photo !== null && x?.photo !== "" ? c(Math.round(Number(x.photo)), 1, 6) : undefined,
       prompt: str(x?.prompt, 400), img: typeof x?.img === "string" && /^[\w-]+\/[\w./-]+$/.test(x.img as string) ? (x.img as string) : undefined,
       url: typeof x?.url === "string" ? (x.url as string) : undefined, style: str(x?.style, 20),
