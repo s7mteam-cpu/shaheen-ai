@@ -1,13 +1,13 @@
-import type { AgentKey } from "@/lib/agents";
+import type { Look } from "@/lib/agents";
 
 /** One team member of «كلّم شاهين» at his desk: an original cartoon figure (ghutra and agal, dishdasha) drawn in SVG and animated with CSS: he types, his head moves, he blinks, his screen writes.
  *  Drawn facing LEFT; `flip` mirrors it so two members sit back to back. Purely decorative: the button around it carries the name. */
-export function AgentFigure({ agent, color, flip = false, small = false }: { agent: AgentKey; color: string; flip?: boolean; small?: boolean }) {
-  const red = agent === "faisal" || agent === "saad"; // red-checked shemagh for two of them, white ghutra for the others
-  const skin = agent === "turki" ? "#D9A074" : agent === "saad" ? "#E2AE84" : "#E8B58A";
-  const pid = `shc-chk-${agent}`;
+export function AgentFigure({ id, look, color, flip = false, small = false }: { /** unique on the page (used for the cloth pattern) */ id: string; look: Look; color: string; flip?: boolean; small?: boolean }) {
+  const red = look.cloth === "red"; // red-checked shemagh or white ghutra
+  const skin = look.face === "glasses" ? "#D9A074" : look.face === "headset" ? "#E2AE84" : "#E8B58A";
+  const pid = `shc-chk-${id}${small ? "s" : ""}`;
   return (
-    <svg viewBox={small ? "96 30 70 70" : "0 0 200 214"} className={`shc-fig ${small ? "shc-fig-s" : ""}`} style={{ transform: flip ? "scaleX(-1)" : undefined, ["--ac" as string]: color }} aria-hidden="true" focusable="false">
+    <svg viewBox={small ? "96 30 70 70" : "0 0 200 214"} className={`shc-fig ${small ? "shc-fig-s" : ""}`} style={{ transform: flip ? "scaleX(-1)" : undefined, ["--ac" as string]: color, ...(small ? { display: "block", width: "100%", height: "100%" } : {}) }} aria-hidden="true" focusable="false">
       <defs>
         <pattern id={pid} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="7" height="7" fill="#FBFBFD" /><rect width="3.2" height="7" fill="#D7373F" opacity=".9" /><rect width="7" height="3.2" fill="#D7373F" opacity=".55" />
@@ -56,15 +56,15 @@ export function AgentFigure({ agent, color, flip = false, small = false }: { age
           <ellipse className="shc-eye" cx="119" cy="68" rx="1.9" ry="2.5" fill="#1B1B22" />
           <path d="M115 62.5 Q119 60.5 123 62.5" fill="none" stroke="#2A1D14" strokeWidth="1.6" strokeLinecap="round" />
           <path d="M115 78 Q118.5 81 122 78.6" fill="none" stroke="#8A4B33" strokeWidth="1.5" strokeLinecap="round" />
-          {agent === "nasser" && <path d="M112 76 Q114 89 128 88 Q139 87 142 76 Q134 82 126 81 Q118 81 114 75 Z" fill="#2A1D14" />}
-          {agent === "faisal" && <path d="M112.5 75.6 Q117 73.6 123 76.2 Q117 78 112.5 77.4 Z" fill="#2A1D14" />}
-          {agent === "saad" && <path d="M113 78 Q116 87 128 87.5 Q137 87 140 79 Q133 84 126 83.4 Q119 83 115 78 Z" fill="#3A2A1E" opacity=".9" />}
-          {agent === "turki" && <g fill="none" stroke="#10131A" strokeWidth="1.5"><circle cx="119" cy="68" r="5" /><path d="M124 67.5 L138 65" /></g>}
+          {look.face === "beard" && <path d="M112 76 Q114 89 128 88 Q139 87 142 76 Q134 82 126 81 Q118 81 114 75 Z" fill="#2A1D14" />}
+          {look.face === "mustache" && <path d="M112.5 75.6 Q117 73.6 123 76.2 Q117 78 112.5 77.4 Z" fill="#2A1D14" />}
+          {look.face === "headset" && <path d="M113 78 Q116 87 128 87.5 Q137 87 140 79 Q133 84 126 83.4 Q119 83 115 78 Z" fill="#3A2A1E" opacity=".9" />}
+          {look.face === "glasses" && <g fill="none" stroke="#10131A" strokeWidth="1.5"><circle cx="119" cy="68" r="5" /><path d="M124 67.5 L138 65" /></g>}
           {/* ghutra over the head, and the agal */}
           <path d="M110.5 63 Q110 45 129 44.5 Q151 44 150.5 66 Q144 58 132 57.5 Q120 57 110.5 63 Z" fill={red ? `url(#${pid})` : "#FBFBFD"} stroke="#D5DAE3" />
           <path d="M113 53.5 Q130 45.5 148.5 54" fill="none" stroke="#0E0E12" strokeWidth="4.6" strokeLinecap="round" />
           <path d="M112.2 57.6 Q130 50 149.6 58.4" fill="none" stroke="#0E0E12" strokeWidth="3.4" strokeLinecap="round" />
-          {agent === "saad" && <g fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round"><path d="M129 71 Q118 86 110 80" /><circle cx="109" cy="80" r="2.4" fill={color} /><rect x="125" y="64" width="8" height="12" rx="4" fill="#12233D" /></g>}
+          {look.face === "headset" && <g fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round"><path d="M129 71 Q118 86 110 80" /><circle cx="109" cy="80" r="2.4" fill={color} /><rect x="125" y="64" width="8" height="12" rx="4" fill="#12233D" /></g>}
         </g>
         {!small && <g className="shc-arm">
           <path d="M132 106 Q118 124 96 132" fill="none" stroke="#F7F8FB" strokeWidth="12" strokeLinecap="round" />
@@ -73,10 +73,12 @@ export function AgentFigure({ agent, color, flip = false, small = false }: { age
         </g>}
       </g>
       {/* what each one works with */}
-      {!small && agent === "nasser" && <g className="shc-prop"><rect x="23" y="150" width="20" height="14" rx="3" fill="none" stroke={color} strokeWidth="1.6" /><circle cx="29" cy="157" r="2.4" fill={color} /><path d="M35 161 L40 153" stroke={color} strokeWidth="1.6" strokeLinecap="round" /></g>}
-      {!small && agent === "faisal" && <g className="shc-prop" fill="none" stroke={color} strokeWidth="1.6"><rect x="22" y="152" width="22" height="13" rx="2.5" /><path d="M22 156 L44 156 M27 152 L30 156 M33 152 L36 156 M39 152 L42 156" /><path d="M31 158.5 L36 161 L31 163.5 Z" fill={color} /></g>}
-      {!small && agent === "turki" && <g className="shc-prop" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round"><rect x="24" y="150" width="17" height="17" rx="2.5" /><path d="M28 155 L37 155 M28 159 L37 159 M28 163 L33 163" /></g>}
-      {!small && agent === "saad" && <g className="shc-prop" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round"><path d="M24 153 h18 a3 3 0 0 1 3 3 v6 a3 3 0 0 1 -3 3 h-10 l-5 4 v-4 h-3 a3 3 0 0 1 -3 -3 v-6 a3 3 0 0 1 3 -3 Z" /><path d="M29 159 h.1 M33 159 h.1 M37 159 h.1" strokeWidth="2.4" /></g>}
+      {!small && look.prop === "design" && <g className="shc-prop"><rect x="23" y="150" width="20" height="14" rx="3" fill="none" stroke={color} strokeWidth="1.6" /><circle cx="29" cy="157" r="2.4" fill={color} /><path d="M35 161 L40 153" stroke={color} strokeWidth="1.6" strokeLinecap="round" /></g>}
+      {!small && look.prop === "video" && <g className="shc-prop" fill="none" stroke={color} strokeWidth="1.6"><rect x="22" y="152" width="22" height="13" rx="2.5" /><path d="M22 156 L44 156 M27 152 L30 156 M33 152 L36 156 M39 152 L42 156" /><path d="M31 158.5 L36 161 L31 163.5 Z" fill={color} /></g>}
+      {!small && look.prop === "write" && <g className="shc-prop" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round"><rect x="24" y="150" width="17" height="17" rx="2.5" /><path d="M28 155 L37 155 M28 159 L37 159 M28 163 L33 163" /></g>}
+      {!small && look.prop === "chat" && <g className="shc-prop" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round"><path d="M24 153 h18 a3 3 0 0 1 3 3 v6 a3 3 0 0 1 -3 3 h-10 l-5 4 v-4 h-3 a3 3 0 0 1 -3 -3 v-6 a3 3 0 0 1 3 -3 Z" /><path d="M29 159 h.1 M33 159 h.1 M37 159 h.1" strokeWidth="2.4" /></g>}
+      {!small && look.prop === "calc" && <g className="shc-prop" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round"><rect x="25" y="149" width="16" height="20" rx="2.5" /><path d="M28.5 153.5 h9" strokeWidth="2.4" /><path d="M29 159 h.1 M33 159 h.1 M37 159 h.1 M29 164 h.1 M33 164 h.1 M37 164 h.1" strokeWidth="2.2" /></g>}
+      {!small && look.prop === "idea" && <g className="shc-prop" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round"><path d="M27 158 a6 6 0 1 1 12 0 c0 3 -3 4 -3 7 h-6 c0 -3 -3 -4 -3 -7 Z" /><path d="M30.5 168 h5" /></g>}
     </svg>
   );
 }

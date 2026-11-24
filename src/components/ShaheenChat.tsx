@@ -4,13 +4,14 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { tr, type Lang } from "@/lib/i18n";
-import { AGENTS, agentOf, isAgent, type AgentKey } from "@/lib/agents";
+import { AGENTS, CLOTHS, COLORS, FACES, PROPS, type Agent, type AgentKey, type Look } from "@/lib/agents";
 import { AgentFigure } from "@/components/AgentFigure";
 
 type Act =
   | { kind: "make"; format: string; label: string; cost: number; enough: boolean; url: string; body?: Record<string, unknown>; form?: Record<string, string>; open: string }
   | { kind: "open"; label: string; href: string }
-  | { kind: "handoff"; to: AgentKey };
+  | { kind: "handoff"; to: AgentKey }
+  | { kind: "gate"; to: AgentKey | null; signedIn: boolean };
 type Msg = { role: "user" | "assistant"; content: string; action?: Act };
 type ActState = { st: "idle" | "working" | "done" | "error"; msg?: string; job?: string };
 const KEY = "shaheen-team"; // a visitor's conversations (one per team member) live in this tab only
@@ -23,6 +24,17 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
   // «الفريق»: the lobby shows the four of them at their desks; choosing one opens his own conversation
   const [agent, setAgent] = useState<AgentKey | null>(null);
   const [threads, setThreads] = useState<Threads>({});
+  // the team comes from the server (the admin edits it); the built-in one shows until it arrives. `mine`: members this customer added for himself.
+  const [team, setTeam] = useState<Agent[]>(AGENTS);
+  const [mine, setMine] = useState<Agent[]>([]);
+  const [canAdd, setCanAdd] = useState(false);
+  const [maxMine, setMaxMine] = useState(2);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState<{ name: string; role: string; focus: string; color: string; look: Look }>({ name: "", role: "", focus: "", color: COLORS[4], look: { cloth: "white", face: "clean", prop: "idea" } });
+  const [addErr, setAddErr] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
+  const everyone = [...team, ...mine];
+  const agentOf = (k: unknown): Agent => everyone.find((a) => a.key === k) ?? team[0];
   const me = agent ? agentOf(agent) : null;
   const msgs = (agent && threads[agent]) || [];
   const setMsgs = (list: Msg[], who: AgentKey | null = agent) => { if (who) setThreads((m) => ({ ...m, [who]: list })); };
@@ -123,10 +135,12 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
   }, []);
 
   useEffect(() => {
-    try { const s = JSON.parse(sessionStorage.getItem(KEY) ?? "null"); if (s && typeof s === "object" && !Array.isArray(s)) setThreads(Object.fromEntries(Object.entries(s).filter(([k, v]) => isAgent(k) && Array.isArray(v))) as Threads); } catch {}
+    try { const s = JSON.parse(sessionStorage.getItem(KEY) ?? "null"); if (s && typeof s === "object" && !Array.isArray(s)) setThreads(Object.fromEntries(Object.entries(s).filter(([k, v]) => /^[a-z0-9_]{2,24}$/.test(k) && Array.isArray(v))) as Threads); } catch {}
     // signed-in customers get their saved conversations (last 30 days) back, on any device
-    fetch("/api/assistant").then((r) => r.json()).then((d: { signedIn?: boolean; threads?: Threads }) => {
+    fetch("/api/assistant").then((r) => r.json()).then((d: { signedIn?: boolean; threads?: Threads; team?: Agent[]; mine?: Agent[]; canAdd?: boolean; maxCustom?: number }) => {
+      if (Array.isArray(d.team) && d.team.length) setTeam(d.team);
       if (!d.signedIn) return;
+      setMine(Array.isArray(d.mine) ? d.mine : []); setCanAdd(d.canAdd === true); setMaxMine(Number(d.maxCustom) || 2);
       setSaved(true);
       setThreads(d.threads && typeof d.threads === "object" ? d.threads : {});
     }).catch(() => null);
@@ -174,8 +188,39 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
     const last = [...msgs].reverse().find((m) => m.role === "user")?.content ?? "";
     setAgent(to); setText(last); setTimeout(() => input.current?.focus(), 60);
   }
+  async function addMine(e: React.FormEvent) {
+    e.preventDefault();
+    if (addBusy) return;
+    setAddErr(""); setAddBusy(true);
+    try {
+      const r = await fetch("/api/assistant/agents", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.agent) { setAddErr(L(String(d.error || "تعذّر الحفظ."))); return; }
+      setMine((m) => [...m, d.agent as Agent]); setAdding(false); setDraft((x) => ({ ...x, name: "", role: "", focus: "" }));
+    } catch { setAddErr(T("تعذّر الاتصال.", "Connection failed.")); }
+    finally { setAddBusy(false); }
+  }
+  function removeMine(k: AgentKey) {
+    setMine((m) => m.filter((a) => a.key !== k)); setThreads((m) => { const n = { ...m }; delete n[k]; return n; });
+    fetch(`/api/assistant/agents?key=${k}`, { method: "DELETE" }).catch(() => null);
+    fetch(`/api/assistant?agent=${k}`, { method: "DELETE" }).catch(() => null);
+  }
   function pick(k: AgentKey) { if (rec !== "idle") stopRec(false); setAgent(k); setVoiceNote(""); setTimeout(() => input.current?.focus(), 80); }
-  const pods = [AGENTS.slice(0, 2), AGENTS.slice(2, 4)];
+  // an odd team: the first one (the manager) sits alone at the head of the office, the rest sit two by two, back to back
+  const head = everyone.length % 2 === 1 ? everyone[0] : null;
+  const rest = head ? everyone.slice(1) : everyone;
+  const pods = Array.from({ length: Math.ceil(rest.length / 2) }, (_, i) => rest.slice(i * 2, i * 2 + 2));
+  const seat = (a: Agent, flip: boolean, boss = false) => (
+    <div key={a.key} className={`shc-seatw ${boss ? "shc-boss" : ""}`}>
+      <button type="button" onClick={() => pick(a.key)} className="shc-seat" style={{ ["--ac" as string]: a.color }} aria-label={`${nm(a)}، ${en ? a.roleEn : a.role}`}>
+        <span className="shc-tag"><span className="shc-dot" />{nm(a)}{(threads[a.key]?.length ?? 0) > 0 && <span className="shc-badge" title={T("عندك محادثة معه", "You have a chat with him")} />}</span>
+        <span className="shc-role">{en ? a.roleEn : a.role}{a.custom ? T(" · موظفك", " · yours") : ""}</span>
+        <AgentFigure id={a.key} look={a.look} color={a.color} flip={flip} />
+        <span className="shc-line">{a.custom ? "" : en ? a.lineEn : a.line}</span>
+      </button>
+      {a.custom && <button type="button" onClick={() => removeMine(a.key)} className="shc-del" aria-label={T(`احذف ${a.name}`, `Remove ${a.nameEn}`)}>×</button>}
+    </div>
+  );
 
   return (
     <>
@@ -192,26 +237,48 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
           {!me ? (
             <>
               <header className="shc-top">
-                <span className="shc-brand"><Image src="/brand/eagle.png" alt="" width={30} height={30} /><span><b>{T("فريق شاهين", "Team Shaheen")}</b><i>{T("أربعة مساعدين أذكياء، كل واحد بتخصصه", "Four AI assistants, each with a specialty")}</i></span></span>
+                <span className="shc-brand"><Image src="/brand/eagle.png" alt="" width={30} height={30} /><span><b>{T("فريق شاهين", "Team Shaheen")}</b><i>{T("مساعدين أذكياء، كل واحد بتخصصه", "AI assistants, each with a specialty")}</i></span></span>
                 <button type="button" aria-label={T("إغلاق", "Close")} onClick={() => setOpen(false)} className="shc-x">×</button>
               </header>
               <div className="shc-office">
                 <p className="shc-ask">{en ? `Hi${name ? ` ${name}` : ""}, who would you like to talk to?` : `هلا${name ? ` ${name}` : ""}، مع منو تبي تتكلم؟`}</p>
+                {head && (
+                  <div className="shc-headrow">
+                    <button type="button" onClick={() => pick(head.key)} className="shc-bosspill" style={{ ["--ac" as string]: head.color }}>
+                      <span className="shc-ava"><AgentFigure id={head.key} look={head.look} color={head.color} small /></span>
+                      <span className="shc-bosst"><b><span className="shc-dot" />{en ? `Talk to ${head.nameEn}, the ${head.roleEn.toLowerCase()}` : `كلّم ${head.role} ${head.name}`}{(threads[head.key]?.length ?? 0) > 0 && <span className="shc-badge" />}</b><i>{en ? head.lineEn : head.line}</i></span>
+                    </button>
+                  </div>
+                )}
                 <div className="shc-pods">
-                  {pods.map((pair, pi) => (
-                    <div key={pi} className="shc-pod">
-                      {pair.map((a, ai) => (
-                        <button key={a.key} type="button" onClick={() => pick(a.key)} className="shc-seat" style={{ ["--ac" as string]: a.color }} aria-label={`${nm(a)}، ${en ? a.roleEn : a.role}`}>
-                          <span className="shc-tag"><span className="shc-dot" />{nm(a)}{(threads[a.key]?.length ?? 0) > 0 && <span className="shc-badge" title={T("عندك محادثة معه", "You have a chat with him")} />}</span>
-                          <span className="shc-role">{en ? a.roleEn : a.role}</span>
-                          {/* the first of each pair looks at his screen on the outer side, the second is mirrored: they sit back to back */}
-                          <AgentFigure agent={a.key} color={a.color} flip={en ? ai === 1 : ai === 0} />
-                          <span className="shc-line">{en ? a.lineEn : a.line}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
+                  {/* in each pair the first looks at his screen on the outer side and the second is mirrored: they sit back to back */}
+                  {pods.map((pair, pi) => <div key={pi} className="shc-pod">{pair.map((a, ai) => seat(a, en ? ai === 1 : ai === 0))}</div>)}
                 </div>
+                {canAdd && saved && !adding && mine.length < maxMine && <button type="button" onClick={() => { setAdding(true); setAddErr(""); }} className="shc-add">{T("＋ أضف موظفك الخاص", "+ Add your own team member")}</button>}
+                {adding && (
+                  <form onSubmit={addMine} className="shc-new">
+                    <b>{T("موظف جديد لك أنت بس", "A new member, just for you")}</b>
+                    <div className="shc-new2">
+                      <input value={draft.name} maxLength={24} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder={T("اسمه (مثال: أبو خالد)", "Name")} aria-label={T("اسم الموظف", "Name")} required />
+                      <input value={draft.role} maxLength={30} onChange={(e) => setDraft({ ...draft, role: e.target.value })} placeholder={T("وظيفته (مثال: محاسب)", "Role")} aria-label={T("وظيفته", "Role")} required />
+                    </div>
+                    <textarea value={draft.focus} maxLength={400} rows={2} onChange={(e) => setDraft({ ...draft, focus: e.target.value })} placeholder={T("شنو شغله؟ مثال: يساعدني أرتب مصاريف محلي ويحسب لي الأرباح ويشرح لي ببساطة", "What does he do for you?")} aria-label={T("شنو شغله", "What he does")} required />
+                    <div className="shc-pick">
+                      <div className="shc-prev" style={{ ["--ac" as string]: draft.color }}><AgentFigure id="draft" look={draft.look} color={draft.color} flip={!en} /></div>
+                      <div className="shc-opts">
+                        <span className="shc-sw">{COLORS.map((c) => <button key={c} type="button" aria-label={c} aria-pressed={draft.color === c} onClick={() => setDraft({ ...draft, color: c })} style={{ background: c }} />)}</span>
+                        <span className="shc-row3">
+                          <select value={draft.look.cloth} onChange={(e) => setDraft({ ...draft, look: { ...draft.look, cloth: e.target.value as Look["cloth"] } })} aria-label={T("الغترة", "Head cloth")}>{CLOTHS.map((c) => <option key={c} value={c}>{L(LOOK_AR[c])}</option>)}</select>
+                          <select value={draft.look.face} onChange={(e) => setDraft({ ...draft, look: { ...draft.look, face: e.target.value as Look["face"] } })} aria-label={T("الوجه", "Face")}>{FACES.map((c) => <option key={c} value={c}>{L(LOOK_AR[c])}</option>)}</select>
+                          <select value={draft.look.prop} onChange={(e) => setDraft({ ...draft, look: { ...draft.look, prop: e.target.value as Look["prop"] } })} aria-label={T("على مكتبه", "On his desk")}>{PROPS.map((c) => <option key={c} value={c}>{L(LOOK_AR[c])}</option>)}</select>
+                        </span>
+                      </div>
+                    </div>
+                    {addErr && <p role="alert" className="shc-err">{addErr}</p>}
+                    <div className="shc-new2"><button type="submit" disabled={addBusy} className="shc-go">{addBusy ? T("لحظة…", "One moment…") : T("أضفه للفريق", "Add him")}</button><button type="button" onClick={() => setAdding(false)} className="shc-ghost">{T("إلغاء", "Cancel")}</button></div>
+                    <i>{T("وصفك يحدد مجاله ونبرته. هو مساعد ذكي، ومعلوماته عامة وليست بديلاً عن مختص مرخّص.", "Your description sets his field and tone. He is an AI assistant; his answers are general, not professional advice.")}</i>
+                  </form>
+                )}
                 <p className="shc-foot">{T("مساعدين بالذكاء الاصطناعي. ما يتنفذ شي ولا تنخصم ريش إلا بعد ما تضغط «أكّد».", "AI assistants. Nothing runs and no credits are used until you press Confirm.")}</p>
               </div>
             </>
@@ -219,7 +286,7 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
             <>
               <header className="shc-top">
                 <span className="shc-brand">
-                  <span className="shc-ava"><AgentFigure agent={me.key} color={me.color} small /></span>
+                  <span className="shc-ava"><AgentFigure id={me.key} look={me.look} color={me.color} small /></span>
                   <span><b>{nm(me)}</b><i><span className="shc-dot" />{en ? me.roleEn : me.role}</i></span>
                 </span>
                 <span className="shc-tools">
@@ -245,6 +312,12 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
                       </div>
                     ); })()}
                     {m.action?.kind === "open" && <a href={m.action.href} className="shc-ghost">{T(`افتح أداة «${m.action.label}»`, `Open “${m.action.label}”`)}</a>}
+                    {m.action?.kind === "gate" && (() => { const g = m.action as Extract<Act, { kind: "gate" }>; const to = g.to ? agentOf(g.to) : null; return (
+                      <div className="shc-gate">
+                        <a href={g.signedIn ? "/app/account" : "/signup"} className="shc-go">{g.signedIn ? T("اشترك الحين", "Subscribe now") : T("سجّل واشترك", "Sign up")}</a>
+                        {to && <button type="button" onClick={() => handoff(to.key)} className="shc-ghost" style={{ ["--ac" as string]: to.color }}>{T(`كلّم ${to.role} ${to.name}`, `Talk to ${to.nameEn}`)}</button>}
+                      </div>
+                    ); })()}
                     {m.action?.kind === "handoff" && (() => { const to = agentOf((m.action as Extract<Act, { kind: "handoff" }>).to); return (
                       <button type="button" onClick={() => handoff(to.key)} className="shc-ghost" style={{ ["--ac" as string]: to.color }}>{T(`كلّم ${to.name} (${to.role})`, `Talk to ${to.nameEn} (${to.roleEn})`)}</button>
                     ); })()}
@@ -280,6 +353,8 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
   );
 }
 
+const LOOK_AR: Record<string, string> = { white: "غترة بيضاء", red: "شماغ أحمر", beard: "لحية", mustache: "شنب", glasses: "نظارة", headset: "سماعة", clean: "بدون", design: "تصميم", video: "فيديو", write: "كتابة", chat: "محادثة", calc: "حاسبة", idea: "فكرة" };
+
 /** The window is always dark and self-contained: none of the site's light/dark classes are used inside it. */
 const CSS = `
 .shc-launch{position:fixed;bottom:16px;inset-inline-end:16px;z-index:40;display:flex;align-items:center;gap:8px;padding:8px;border-radius:999px;border:1px solid rgba(201,164,92,.6);background:linear-gradient(135deg,#0B2A4A,#061A30);color:#fff;font-weight:700;font-size:15px;box-shadow:0 10px 30px -10px rgba(6,26,48,.7),0 0 0 0 rgba(201,164,92,.5);animation:shc-ring 2.8s ease-out infinite}
@@ -289,7 +364,7 @@ const CSS = `
 @media(min-width:640px){.shc-launch{bottom:20px;inset-inline-end:20px}.shc-launch-t{display:inline}}
 @keyframes shc-ring{0%{box-shadow:0 10px 30px -10px rgba(6,26,48,.7),0 0 0 0 rgba(201,164,92,.45)}70%,100%{box-shadow:0 10px 30px -10px rgba(6,26,48,.7),0 0 0 14px rgba(201,164,92,0)}}
 .shc{--ac:#C9A45C;position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;overflow:hidden;background:#04101F;color:#EAF0F8;font-size:15px;box-shadow:0 30px 80px -20px rgba(0,0,0,.75);animation:shc-in .28s ease-out both}
-@media(min-width:640px){.shc{inset:auto;bottom:16px;inset-inline-end:16px;width:430px;height:660px;max-height:calc(100vh - 32px);border-radius:26px;border:1px solid rgba(255,255,255,.1)}.shc.shc-lobby{width:min(760px,calc(100vw - 32px));height:560px}}
+@media(min-width:640px){.shc{inset:auto;bottom:16px;inset-inline-end:16px;width:430px;height:660px;max-height:calc(100vh - 32px);border-radius:26px;border:1px solid rgba(255,255,255,.1)}.shc.shc-lobby{width:min(760px,calc(100vw - 32px));height:auto;min-height:520px}}
 @keyframes shc-in{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 .shc-bg{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 70% at 50% -10%,rgba(30,82,135,.55),transparent 60%),radial-gradient(60% 40% at 50% 105%,color-mix(in srgb,var(--ac) 22%,transparent),transparent 70%),linear-gradient(180deg,#061A30,#030B16)}
 .shc-grid{position:absolute;left:-30%;right:-30%;bottom:-6%;height:52%;background-image:linear-gradient(rgba(120,190,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(120,190,255,.16) 1px,transparent 1px);background-size:44px 44px;transform:perspective(520px) rotateX(62deg);transform-origin:50% 0;mask-image:linear-gradient(180deg,transparent,#000 30%,transparent 96%);-webkit-mask-image:linear-gradient(180deg,transparent,#000 30%,transparent 96%);animation:shc-floor 9s linear infinite}
@@ -311,7 +386,7 @@ const CSS = `
 @keyframes shc-blink{50%{opacity:.45}}
 .shc-office{position:relative;display:flex;flex:1;flex-direction:column;gap:6px;overflow-y:auto;padding:14px 12px 12px}
 .shc-ask{text-align:center;font-size:17px;font-weight:700;color:#fff}
-.shc-pods{display:grid;flex:1;grid-template-columns:1fr;gap:6px;align-content:center}
+.shc-pods{display:grid;grid-template-columns:1fr;gap:6px;align-content:center}
 @media(min-width:640px){.shc-pods{grid-template-columns:1fr 1fr;gap:14px}}
 .shc-pod{position:relative;display:grid;grid-template-columns:1fr 1fr;align-items:end}
 .shc-pod::after{content:"";position:absolute;left:8%;right:8%;bottom:34px;height:1px;background:linear-gradient(90deg,transparent,rgba(120,190,255,.35),transparent)}
@@ -324,6 +399,38 @@ const CSS = `
 .shc-badge{position:absolute;top:-3px;inset-inline-end:-3px;height:9px;width:9px;border-radius:999px;background:var(--ac);box-shadow:0 0 8px var(--ac)}
 .shc-role{font-size:12px;font-weight:700;color:var(--ac);letter-spacing:.2px}
 .shc-line{min-height:30px;max-width:150px;text-align:center;font-size:11px;line-height:1.35;color:rgba(234,240,248,.62)}
+.shc-headrow{display:flex;justify-content:center;margin:2px 0 4px}
+.shc-bosspill{position:relative;display:flex;align-items:center;gap:8px;padding:4px 14px 4px 5px;border-radius:999px;border:1px solid var(--ac);background:rgba(4,16,31,.74);box-shadow:0 0 16px -5px var(--ac),inset 0 0 12px -9px var(--ac);transition:transform .25s ease;animation:shc-float 4.5s ease-in-out infinite}
+[dir="rtl"] .shc-bosspill{padding:4px 5px 4px 14px}
+.shc-bosspill .shc-ava{height:32px;width:32px}
+.shc-bosspill:hover,.shc-bosspill:focus-visible{transform:translateY(-3px);outline:none;background:color-mix(in srgb,var(--ac) 14%,rgba(4,16,31,.8))}
+.shc-bosst{display:flex;flex-direction:column;align-items:flex-start;line-height:1.3}
+.shc-bosst b{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:800;color:#fff;white-space:nowrap}
+.shc-bosst i{font-style:normal;font-size:10.5px;color:var(--ac)}
+.shc-bosspill .shc-badge{position:static;margin-inline-start:2px}
+.shc-seatw{position:relative;display:flex;justify-content:center}
+.shc-seatw>.shc-seat{width:100%}
+.shc-boss{width:min(240px,62%)}
+.shc-boss .shc-tag{font-size:17px;border-width:1.5px;box-shadow:0 0 22px -3px var(--ac),inset 0 0 14px -8px var(--ac)}
+.shc-del{position:absolute;top:2px;inset-inline-end:8px;height:22px;width:22px;border-radius:999px;background:rgba(255,255,255,.1);color:#fff;font-size:15px;line-height:1}
+.shc-del:hover{background:#B3261E}
+.shc-add{align-self:center;margin-top:2px;padding:7px 16px;border-radius:999px;border:1px dashed rgba(255,255,255,.35);color:#EAF0F8;font-size:13px;font-weight:700}
+.shc-add:hover{border-color:#F2C55C;color:#fff}
+.shc-new{display:flex;flex-direction:column;gap:8px;margin-top:4px;padding:12px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:rgba(4,16,31,.78);font-size:14px}
+.shc-new b{color:#fff}.shc-new>i{font-style:normal;font-size:11px;color:rgba(234,240,248,.55)}
+.shc-new2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.shc-new input,.shc-new textarea,.shc-new select{width:100%;min-width:0;padding:8px 11px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#fff;font-size:14px}
+.shc-new select option{color:#061A30}
+.shc-new input:focus,.shc-new textarea:focus,.shc-new select:focus{outline:none;border-color:#F2C55C}
+.shc-new .shc-go,.shc-new .shc-ghost{margin-top:0}
+.shc-pick{display:flex;align-items:center;gap:10px}
+.shc-prev{width:96px;flex:none}
+.shc-opts{display:flex;flex:1;min-width:0;flex-direction:column;gap:8px}
+.shc-sw{display:flex;flex-wrap:wrap;gap:6px}
+.shc-sw button{height:22px;width:22px;border-radius:999px;border:2px solid transparent}
+.shc-sw button[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 10px currentColor}
+.shc-row3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.shc-gate{display:flex;width:100%;flex-direction:column;gap:7px}.shc-gate .shc-go{margin-top:0}
 .shc-foot{text-align:center;font-size:11px;color:rgba(234,240,248,.5)}
 .shc-fig{display:block;width:100%;max-width:168px;height:auto;overflow:visible;filter:drop-shadow(0 0 10px color-mix(in srgb,var(--ac) 35%,transparent))}
 .shc-fig-s{max-width:none;height:100%;filter:none}
