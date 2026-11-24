@@ -19,7 +19,7 @@ import { TECH_IDS, techNote } from "./fxtech.mjs";
 import { skillFor, skillNote } from "./skills.mjs";
 import { modelFor } from "./models.mjs";
 import { geminiFetch } from "./gemgate.mjs";
-import { cleanZooms, cleanBeats, zoomBase, sfxPlan, mixSound, beatLayer } from "./fxpro.mjs";
+import { cleanZooms, cleanBeats, zoomBase, sfxPlan, mixSound, beatLayer, cleanCuts, findCuts, applyCuts, previewBase } from "./fxpro.mjs";
 
 export const FX_MAX = 300; // seconds, when the admin set no limit
 const FX_HARD = 1800; // never longer than this, whatever the setting
@@ -460,13 +460,23 @@ export async function fxJob(job, d) {
     await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_HARD + 3), "-movflags", "+faststart", norm]); // the sound starts at 0 too (silence is added if it began late), so the word times match the final video
     const rawSize = (await stat(raw)).size;
     // the length is the PICTURE's own length (counted frames): a file whose sound runs longer than its picture must not leave the drawing waiting for frames that never come
-    const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
+    let frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS); let seconds = frames / FPS;
     if (seconds < 3) throw new Error("FX_NO_VIDEO");
     // SYNC GUARD 1: the prepared video must be exactly as long as the uploaded one. If seconds of picture went missing, stop here (before any paid step) and say the numbers.
     const srcLen = Math.max(vs, as), rawFrames = await d.countFrames(raw).catch(() => 0);
     await rm(raw, { force: true });
     if (Math.abs(seconds - srcLen) > 0.5) throw new Error(`FX_SYNC|prepare|src=${srcLen.toFixed(2)}s v=${vs.toFixed(2)} a=${as.toFixed(2)} f=${rawFrames}|base=${seconds.toFixed(2)}s f=${frames}|size=${rawSize}`);
     lap("prepare");
+    // «قص السكتات» (when asked): the long silences leave the prepared video now, before the transcript, so every later time is a time of the tight video
+    let cuts = [];
+    if (inp.tight === true) {
+      await stage("يقص السكتات…", 10);
+      const keep = await findCuts({ d, norm, seconds, FPS });
+      const c = keep.length ? await applyCuts({ d, norm, out: join(dir, "basec.mp4"), keep, FPS }) : "";
+      const f2 = c ? await d.countFrames(c).catch(() => 0) : 0;
+      if (f2 >= FPS * 3) { norm = c; frames = f2; seconds = f2 / FPS; cuts = keep; }
+      lap("cuts");
+    }
 
     await stage("يسمع كلامك ويفرّغه…", 12);
     const [words, face] = await Promise.all([d.transcribe(norm, dir).catch((e) => { console.error("fx transcribe", e?.message ?? e); return []; }), d.faceTrack(norm)]);
@@ -552,7 +562,9 @@ export async function fxJob(job, d) {
     }
     // «لمسات المونتير»: the punch-ins are baked into the prepared video now, so the cut-out speaker and every later step see the same picture. The music is asked for now and waits until the end.
     if (plan.zooms.length) { await stage("يضيف حركة الكاميرا…", 22); const z = await zoomBase({ d, norm, out: join(dir, "basez.mp4"), zooms: plan.zooms, fx, fy, W, H, FPS, frames }); if (z) norm = z; else plan.zooms = []; }
-    const musicP = wantMusic ? d.makeMusic(plan.music || "calm modern instrumental background music, soft and warm, suitable under a person talking", Math.min(120, seconds + 3)).then(async (buf) => { const f = join(dir, "music.mp3"); await writeFile(f, buf); noteUsage({ provider: "elevenlabs", model: "music", units: Math.round(Math.min(120, seconds + 3)) }); return f; }).catch((e) => { console.error("fx music", e?.message ?? e); return ""; }) : Promise.resolve("");
+    // the customer's own music or nasheed (his file, his responsibility) comes before a made one; it is re-encoded here, so only clean sound is kept
+    const ownMusicP = own(inp.musicFile) ? (async () => { const inF = join(dir, "music.in"), f = join(dir, "music.mp3"); await fetchUpload(db, inp.musicFile, inF); await d.ff(["-i", inF, "-vn", "-t", "600", "-c:a", "libmp3lame", "-b:a", "160k", "-ar", "44100", "-ac", "2", f]); return f; })().catch((e) => { console.error("fx own music", e?.message ?? e); return ""; }) : null;
+    const musicP = ownMusicP ?? (wantMusic ? d.makeMusic(plan.music || "calm modern instrumental background music, soft and warm, suitable under a person talking", Math.min(120, seconds + 3)).then(async (buf) => { const f = join(dir, "music.mp3"); await writeFile(f, buf); noteUsage({ provider: "elevenlabs", model: "music", units: Math.round(Math.min(120, seconds + 3)) }); return f; }).catch((e) => { console.error("fx music", e?.message ?? e); return ""; }) : Promise.resolve(""));
     const chunks = splitChunks(plan.cues, seconds);
     const skill = await skillFor("free-montage").catch(() => "");
     // the speaker is cut out while the designers work (only when a cue really sits behind him)
@@ -619,6 +631,7 @@ export async function fxJob(job, d) {
       const c = chunks[i], out = join(dir, `p${i}.mp4`);
       const r1 = await drawPiece({ d, dir, n: i, W, H, norm, matte, out, seconds: c.b - c.a, start: c.a, page: injectPhotos(pages[i] || EMPTY, photoData), caps: (captions ? captionLayer(words, c.a, c.b, { tall, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400" }) : "") + beatLayer(plan.beats, c.a, c.b), onProgress: (p) => { if (cancelled) throw STOP; prog[i] = p; if (Date.now() - last > 8000) { last = Date.now(); stage("يركّب الغرافيكس فوق الفيديو…", 56 + (prog.reduce((x, y) => x + y, 0) / chunks.length) * 36).catch(() => {}); } } });
       prog[i] = 1; report[i].drawn = `${r1.drawn}/${r1.frames}`; parts[i] = out;
+      await db.storage.from("results").upload(`${base}.p${i}.mp4`, await readFile(out), { contentType: "video/mp4", upsert: true }).catch(() => {}); // kept: a studio export draws again only the pieces that changed
       if (pages[i]) await db.storage.from("results").upload(`${base}.c${i}.html`, Buffer.from(pages[i]), { contentType: "text/html", upsert: true });
     };
     await Promise.all(Array.from({ length: Math.min(LANES, chunks.length) }, async () => { for (;;) { const i = nextPiece++; if (i >= chunks.length) return; await drawOne(i); } }));
@@ -627,8 +640,18 @@ export async function fxJob(job, d) {
     const list = join(dir, "list.txt"), final = join(dir, "final.mp4");
     // the sound: his own voice at its own level, with the effects and the music quietly under it (when asked). Kept as one file, so a studio export reuses it.
     const sfxList = wantSfx ? sfxPlan(plan.cues, plan.beats) : [];
-    const sound = await mixSound({ d, norm, out: join(dir, "sound.m4a"), sfx: sfxList, music: await musicP, seconds });
+    const musicFile = await musicP;
+    const sound = await mixSound({ d, voice: norm, out: join(dir, "sound.m4a"), sfx: sfxList, music: musicFile, seconds });
     if (sound) await db.storage.from("results").upload(`${base}.sound.m4a`, await readFile(sound), { contentType: "audio/mp4", upsert: true });
+    // the ingredients are kept apart too (his voice, the music), so the studio can change the volumes later without drawing anything
+    const kept = { voice: "", music: "", pv: "" };
+    try {
+      const vf = join(dir, "voice.m4a"); await d.ff(["-i", norm, "-vn", "-c:a", "copy", vf]);
+      if (!(await db.storage.from("results").upload(`${base}.voice.m4a`, await readFile(vf), { contentType: "audio/mp4", upsert: true })).error) kept.voice = `${base}.voice.m4a`;
+      if (musicFile && !(await db.storage.from("results").upload(`${base}.music.mp3`, await readFile(musicFile), { contentType: "audio/mpeg", upsert: true })).error) kept.music = `${base}.music.mp3`;
+      const pv = await previewBase({ d, base: norm, sound, out: join(dir, "pv.mp4"), W, H }); // what the studio plays: the same cuts, zooms and sound as the result
+      if (pv && !(await db.storage.from("results").upload(`${base}.pv.mp4`, await readFile(pv), { contentType: "video/mp4", upsert: true })).error) kept.pv = `${base}.pv.mp4`;
+    } catch (e) { console.error("fx keep", e?.message ?? e); }
     lap("sound");
     const join2 = async () => {
       await writeFile(list, parts.map((p) => `file '${p}'`).join("\n"));
@@ -665,7 +688,7 @@ export async function fxJob(job, d) {
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.words.json`, Buffer.from(JSON.stringify(words)), { contentType: "application/json", upsert: true });
     lap("finish");
-    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: (plan.title || "مونتاج مبتكر").slice(0, 80), input: { ...inp, mode: "done", cseconds: +seconds.toFixed(2), aspect, fxr: { pages: chunks.map((c, i) => ({ a: c.a, b: c.b, path: pages[i] ? `${base}.c${i}.html` : null })), wordsPath: `${base}.words.json`, look: plan.look, spec: plan.spec, note: plan.note, kit: !!kit, photos: photos.map((x) => ({ id: x.id, path: x.path, note: x.note })), matte: matte ? `${base}.matte.webm` : null, sound: sound ? `${base}.sound.m4a` : null, zooms: plan.zooms, beats: plan.beats, review: watched ? { score: watched.score, summary: watched.summary, issues: watched.issues.length, redone: watched.redone ?? [] } : null, cues: plan.cues, face: fx == null ? null : { x: fx, y: fy }, missing: failed, report, timings } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: d.now() }).eq("id", job.id).eq("status", "running");
+    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: (plan.title || "مونتاج مبتكر").slice(0, 80), input: { ...inp, mode: "done", cseconds: +seconds.toFixed(2), aspect, fxr: { pages: chunks.map((c, i) => ({ a: c.a, b: c.b, path: pages[i] ? `${base}.c${i}.html` : null, piece: `${base}.p${i}.mp4` })), frames, voice: kept.voice || null, music: kept.music || null, pv: kept.pv || null, sfx: sfxList, cuts, gains: { sfx: 1, music: 1 }, wordsPath: `${base}.words.json`, look: plan.look, spec: plan.spec, note: plan.note, kit: !!kit, photos: photos.map((x) => ({ id: x.id, path: x.path, note: x.note })), matte: matte ? `${base}.matte.webm` : null, sound: sound ? `${base}.sound.m4a` : null, zooms: plan.zooms, beats: plan.beats, review: watched ? { score: watched.score, summary: watched.summary, issues: watched.issues.length, redone: watched.redone ?? [] } : null, cues: plan.cues, face: fx == null ? null : { x: fx, y: fy }, missing: failed, report, timings } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: d.now() }).eq("id", job.id).eq("status", "running");
   } catch (e) {
     console.error("fx stopped", job.id, e?.message ?? e);
     const { data: nowRow } = await db.from("jobs").select("status").eq("id", job.id).maybeSingle().then((x) => x, () => ({ data: null }));
@@ -695,55 +718,75 @@ async function fxExport(job, d) {
     const aspect = ["9:16", "16:9", "1:1", "4:5"].includes(src.input.aspect) ? src.input.aspect : "9:16";
     const [W, H] = d.FREE_SIZE[aspect], tall = aspect !== "16:9";
     await stage("يجهّز الفيديو…", 5);
-    const raw = join(dir, "raw.mp4");
-    try { await fetchUpload(db, src.input.video, raw); } catch { throw new Error("FX_SOURCE_GONE"); } // the uploaded video is kept for a limited time
-    const [vs, as] = await Promise.all([d.streamSeconds(raw, "v:0"), d.streamSeconds(raw, "a:0")]);
-    // a picture much shorter than its sound is a damaged file (a bad shrink before upload drops seconds of picture, and the lips then run ahead of the voice): never built on, the customer uploads it again
-    if (vs > 0 && as - vs > 2) throw new Error("FX_BAD_FILE");
-    const hold = vs > 0 && as - vs > 0.15 ? as - vs : 0;
     const norm = join(dir, "base.mp4");
-    await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_HARD + 3), "-movflags", "+faststart", norm]); // the sound starts at 0 too (silence is added if it began late), so the word times match the final video
-    const rawSize = (await stat(raw)).size;
-    const frames = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS), seconds = frames / FPS;
-    if (seconds < 3) throw new Error("FX_NO_VIDEO");
-    // SYNC GUARD 1: the prepared video must be exactly as long as the uploaded one. If seconds of picture went missing, stop here (before any paid step) and say the numbers.
-    const srcLen = Math.max(vs, as), rawFrames = await d.countFrames(raw).catch(() => 0);
-    await rm(raw, { force: true });
-    if (Math.abs(seconds - srcLen) > 0.5) throw new Error(`FX_SYNC|prepare|src=${srcLen.toFixed(2)}s v=${vs.toFixed(2)} a=${as.toFixed(2)} f=${rawFrames}|base=${seconds.toFixed(2)}s f=${frames}|size=${rawSize}`);
+    let frames = 0, seconds = 0, prepared = "";
+    const cutsKept = cleanCuts(fr.cuts, FPS);
+    // The prepared video (with the same cuts and zooms as the first run) is built only when a piece really has to be drawn again.
+    const prepare = async () => {
+      if (prepared) return prepared;
+      const raw = join(dir, "raw.mp4");
+      try { await fetchUpload(db, src.input.video, raw); } catch { throw new Error("FX_SOURCE_GONE"); } // the uploaded video is kept for a limited time
+      const [vs, as] = await Promise.all([d.streamSeconds(raw, "v:0"), d.streamSeconds(raw, "a:0")]);
+      // a picture much shorter than its sound is a damaged file (a bad shrink before upload drops seconds of picture, and the lips then run ahead of the voice): never built on, the customer uploads it again
+      if (vs > 0 && as - vs > 2) throw new Error("FX_BAD_FILE");
+      const hold = vs > 0 && as - vs > 0.15 ? as - vs : 0;
+      await d.ff(["-i", raw, "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}${hold ? `,tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}` : ""},format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-t", String(FX_HARD + 3), "-movflags", "+faststart", norm]); // the sound starts at 0 too (silence is added if it began late), so the word times match the final video
+      const rawSize = (await stat(raw)).size;
+      let f = await d.countFrames(norm).catch(() => 0) || Math.floor((await d.probe(norm)).duration * FPS);
+      if (f / FPS < 3) throw new Error("FX_NO_VIDEO");
+      // SYNC GUARD 1: the prepared video must be exactly as long as the uploaded one. If seconds of picture went missing, stop here and say the numbers.
+      const srcLen = Math.max(vs, as), rawFrames = await d.countFrames(raw).catch(() => 0);
+      await rm(raw, { force: true });
+      if (Math.abs(f / FPS - srcLen) > 0.5) throw new Error(`FX_SYNC|prepare|src=${srcLen.toFixed(2)}s v=${vs.toFixed(2)} a=${as.toFixed(2)} f=${rawFrames}|base=${(f / FPS).toFixed(2)}s f=${f}|size=${rawSize}`);
+      let cur = norm;
+      if (cutsKept.length) { // the very same silences leave the video again
+        const c = await applyCuts({ d, norm: cur, out: join(dir, "basec.mp4"), keep: cutsKept, FPS });
+        const f2 = c ? await d.countFrames(c).catch(() => 0) : 0;
+        if (!f2) throw new Error("FX_SYNC|cut|export");
+        cur = c; f = f2;
+      }
+      const zs = cleanZooms(fr.zooms, f / FPS);
+      if (zs.length) { const z = await zoomBase({ d, norm: cur, out: join(dir, "basez.mp4"), zooms: zs, fx: Number(fr.face?.x) || 0.5, fy: Number(fr.face?.y) || 0.35, W, H, FPS, frames: f }); if (z) cur = z; }
+      if (!frames) { frames = f; seconds = f / FPS; }
+      prepared = cur; return cur;
+    };
+    // a montage made since the pieces are kept knows its own length: nothing is prepared until a piece must be drawn
+    const known = Number.isInteger(Number(fr.frames)) && Number(fr.frames) >= FPS * 3;
+    if (known) { frames = Number(fr.frames); seconds = frames / FPS; } else await prepare();
 
     const wl = await db.storage.from("results").download(fr.wordsPath);
     const words = wl.error ? [] : JSON.parse(Buffer.from(await wl.data.arrayBuffer()).toString("utf8"));
     const edit = inp.edit && typeof inp.edit === "object" ? inp.edit : {};
-    for (const [k, v] of Object.entries(edit.words && typeof edit.words === "object" ? edit.words : {}).slice(0, 3000)) { const i = Number(k); if (Number.isInteger(i) && words[i] && typeof v === "string") words[i].t = tidy(v, 40); }
-    const captions = edit.captions !== false;
+    const touched = []; // the start times of the caption words the customer really changed
+    for (const [k, v] of Object.entries(edit.words && typeof edit.words === "object" ? edit.words : {}).slice(0, 3000)) { const i = Number(k); if (Number.isInteger(i) && words[i] && typeof v === "string") { const nv = tidy(v, 40); if (nv !== words[i].t) { touched.push(Number(words[i].s) || 0); words[i].t = nv; } } }
+    const captions = edit.captions !== false, captionsSame = captions === (src.input.captions !== false);
     const accent = (Array.isArray(src.input.colors) && src.input.colors[1]) || "#ffd400";
     // the pieces as saved; the last one ends with the video
-    const chunks = fr.pages.map((p) => ({ a: Number(p.a) || 0, b: Number(p.b) || 0, path: p.path, els: p.els })).filter((c) => c.a < seconds - 0.2);
+    const chunks = fr.pages.map((p) => ({ a: Number(p.a) || 0, b: Number(p.b) || 0, path: p.path, els: p.els, piece: p.piece })).filter((c) => c.a < seconds - 0.2);
     chunks.forEach((c, i) => { c.b = i === chunks.length - 1 ? seconds : Math.min(c.b, seconds); });
     const ask = inp.ask && typeof inp.ask === "object" && tidy(inp.ask.text, 600).length >= 4 ? { chunk: Number(inp.ask.chunk) || 0, text: tidy(inp.ask.text, 600) } : null;
-
-    // «لمسات المونتير» of the first run are kept exactly: the same punch-ins on the picture (so the cut-out still fits), the same light sweeps, the same sound
-    const zooms = cleanZooms(fr.zooms, seconds), beats = cleanBeats(fr.beats, seconds);
-    let base2 = norm;
-    if (zooms.length) { const z = await zoomBase({ d, norm, out: join(dir, "basez.mp4"), zooms, fx: Number(fr.face?.x) || 0.5, fy: Number(fr.face?.y) || 0.35, W, H, FPS, frames }); if (z) base2 = z; }
-    let sound = "";
-    if (own(fr.sound)) { const s0 = await db.storage.from("results").download(fr.sound); if (!s0.error) { sound = join(dir, "sound.m4a"); await writeFile(sound, Buffer.from(await s0.data.arrayBuffer())); } }
+    const beats = cleanBeats(fr.beats, seconds);
     const photoData = await loadPhotos(db, own, fr.photos);
-    // the cut-out speaker of this montage, if it has one (kept from the first run: never paid twice)
-    let matte = "";
-    if (own(fr.matte)) { const m = await db.storage.from("results").download(fr.matte); if (!m.error) { matte = join(dir, "matte.webm"); await writeFile(matte, Buffer.from(await m.data.arrayBuffer())); } }
-    const parts = [], saved = []; let last = 0;
+    // the cut-out speaker of this montage, if it has one (kept from the first run: never paid twice). Fetched only when a piece is drawn.
+    let matte = null;
+    const getMatte = async () => { if (matte != null) return matte; matte = ""; if (own(fr.matte)) { const m = await db.storage.from("results").download(fr.matte); if (!m.error) { matte = join(dir, "matte.webm"); await writeFile(matte, Buffer.from(await m.data.arrayBuffer())); } } return matte; };
+    const parts = [], saved = []; let last = 0, drawnAgain = 0;
     for (const [i, c] of chunks.entries()) {
-      let page = "";
-      if (own(c.path)) { const r = await db.storage.from("results").download(c.path); if (!r.error) page = Buffer.from(await r.data.arrayBuffer()).toString("utf8"); }
       const ed = edit.chunks && typeof edit.chunks === "object" && edit.chunks[i] && typeof edit.chunks[i] === "object" ? edit.chunks[i] : {};
       let els = cleanEls(ed.els ?? c.els ?? []);
-      if (page && unsafeHtml(page).length) page = ""; // never open a stored page that would not pass today's check
-      if (page) {
-        const texts = {}; for (const [k, v] of Object.entries(ed.texts && typeof ed.texts === "object" ? ed.texts : {})) if (/^t\d{1,3}$/.test(k) && typeof v === "string") texts[k] = tidy(v, 300);
-        const hex = {}; for (const [k, v] of Object.entries(ed.hex && typeof ed.hex === "object" ? ed.hex : {})) if (/^#[0-9a-f]{6}$/i.test(k) && /^#[0-9a-f]{6}$/i.test(String(v))) hex[k] = String(v);
-        page = applyEdits(page, { texts, hex });
+      const texts = {}; for (const [k, v] of Object.entries(ed.texts && typeof ed.texts === "object" ? ed.texts : {})) if (/^t\d{1,3}$/.test(k) && typeof v === "string") texts[k] = tidy(v, 300);
+      const hex = {}; for (const [k, v] of Object.entries(ed.hex && typeof ed.hex === "object" ? ed.hex : {})) if (/^#[0-9a-f]{6}$/i.test(k) && /^#[0-9a-f]{6}$/i.test(String(v)) && String(v).toLowerCase() !== k.toLowerCase()) hex[k] = String(v);
+      const out = join(dir, `p${i}.mp4`);
+      // FAST EXPORT: a piece nothing touched (no text, colour, position, caption word or request) is taken as it was drawn the first time
+      const untouched = known && own(c.piece) && captionsSame && !Object.keys(texts).length && !Object.keys(hex).length && !(ask && ask.chunk === i) && JSON.stringify(els) === JSON.stringify(cleanEls(c.els ?? [])) && !touched.some((s) => s >= c.a - 0.01 && s < c.b);
+      if (untouched) {
+        const got = await db.storage.from("results").download(c.piece);
+        if (!got.error) { await writeFile(out, Buffer.from(await got.data.arrayBuffer())); parts.push(out); saved.push({ a: c.a, b: c.b, path: own(c.path) ? c.path : null, els, piece: c.piece }); await stage(`يجهّز المقاطع (${i + 1} من ${chunks.length})…`, 15 + ((i + 1) / chunks.length) * 77); continue; }
       }
+      let page = "";
+      if (own(c.path)) { const r = await db.storage.from("results").download(c.path); if (!r.error) page = Buffer.from(await r.data.arrayBuffer()).toString("utf8"); }
+      if (page && unsafeHtml(page).length) page = ""; // never open a stored page that would not pass today's check
+      if (page) page = applyEdits(page, { texts, hex });
       if (ask && ask.chunk === i) {
         // «عدّل بالوصف»: the designer rewrites this piece only. The request is the customer's text, passed as text; the answer is checked like any new page.
         await stage("المصمم يطبّق طلبك…", 12);
@@ -765,25 +808,40 @@ async function fxExport(job, d) {
         if (!done) throw new Error("FX_EDIT_FAILED"); // the edit price goes back
         page = done; els = []; // the page was rewritten: the old element positions no longer point at the same elements
       }
-      const out = join(dir, `p${i}.mp4`);
-      await drawPiece({ d, dir, n: i, W, H, norm: base2, matte, out, seconds: c.b - c.a, start: c.a, page: injectPhotos(applyEls(page || EMPTY, els), photoData), caps: (captions ? captionLayer(words, c.a, c.b, { tall, accent }) : "") + beatLayer(beats, c.a, c.b), onProgress: (p) => { if (cancelled) throw STOP; if (Date.now() - last > 8000) { last = Date.now(); stage(`يركّب الغرافيكس فوق الفيديو (${i + 1} من ${chunks.length})…`, 15 + ((i + p) / chunks.length) * 77).catch(() => {}); } } });
-      parts.push(out);
+      const base2 = await prepare();
+      await drawPiece({ d, dir, n: i, W, H, norm: base2, matte: await getMatte(), out, seconds: c.b - c.a, start: c.a, page: injectPhotos(applyEls(page || EMPTY, els), photoData), caps: (captions ? captionLayer(words, c.a, c.b, { tall, accent }) : "") + beatLayer(beats, c.a, c.b), onProgress: (p) => { if (cancelled) throw STOP; if (Date.now() - last > 8000) { last = Date.now(); stage(`يركّب الغرافيكس فوق الفيديو (${i + 1} من ${chunks.length})…`, 15 + ((i + p) / chunks.length) * 77).catch(() => {}); } } });
+      parts.push(out); drawnAgain++;
       const path = page ? `${base}.c${i}.html` : null;
       if (path) await db.storage.from("results").upload(path, Buffer.from(page), { contentType: "text/html", upsert: true });
-      saved.push({ a: c.a, b: c.b, path, els });
+      const pieceUp = await db.storage.from("results").upload(`${base}.p${i}.mp4`, await readFile(out), { contentType: "video/mp4", upsert: true }).then((x) => !x.error, () => false);
+      saved.push({ a: c.a, b: c.b, path, els, ...(pieceUp ? { piece: `${base}.p${i}.mp4` } : {}) });
     }
-    await stage("يجهّز الفيديو النهائي…", 94);
+    await stage("يجهّز الصوت والفيديو النهائي…", 94);
+    // THE SOUND: mixed again from its kept ingredients with the studio's volumes; an older montage keeps the sound it was delivered with
+    const clampG = (v, dflt) => { const n = Number(v); return Number.isFinite(n) ? Math.min(2, Math.max(0, n)) : dflt; };
+    const gains = { sfx: clampG(edit.sound?.sfx, clampG(fr.gains?.sfx, 1)), music: clampG(edit.sound?.music, clampG(fr.gains?.music, 1)) };
+    const pull = async (p, name) => { if (!own(p)) return ""; const r = await db.storage.from("results").download(p); if (r.error) return ""; const f = join(dir, name); await writeFile(f, Buffer.from(await r.data.arrayBuffer())); return f; };
+    const sfxList = (Array.isArray(fr.sfx) ? fr.sfx : []).filter((e) => e && typeof e.k === "string" && Number.isFinite(Number(e.t))).slice(0, 60);
+    const voiceF = await pull(fr.voice, "voice.m4a"), musicF = await pull(fr.music, "music.mp3");
+    let sound = "", mixed = false;
+    if (voiceF) { sound = await mixSound({ d, voice: voiceF, out: join(dir, "sound.m4a"), sfx: sfxList, music: musicF, seconds, gSfx: gains.sfx, gMusic: gains.music }); mixed = !!sound; if (!sound) sound = voiceF; }
+    else sound = await pull(fr.sound, "sound0.m4a");
     const list = join(dir, "list.txt"), final = join(dir, "final.mp4");
     await writeFile(list, parts.map((p) => `file '${p}'`).join("\n"));
-    await d.ff(["-f", "concat", "-safe", "0", "-i", list, "-i", sound || norm, "-map", "0:v", "-map", "1:a?", "-c:v", "copy", "-c:a", "copy", "-shortest", "-movflags", "+faststart", final]);
+    await d.ff(["-f", "concat", "-safe", "0", "-i", list, "-i", sound || await prepare(), "-map", "0:v", "-map", "1:a?", "-c:v", "copy", "-c:a", "copy", "-shortest", "-movflags", "+faststart", final]);
     // SYNC GUARD 2: the delivered video has every frame of the prepared one. A shorter result is never delivered.
     const outFrames = await d.countFrames(final).catch(() => 0);
     if (Math.abs(outFrames - frames) > 6) throw new Error(`FX_SYNC|final|base=${frames}f|out=${outFrames}f|parts=${parts.length}`);
+    if (mixed) await db.storage.from("results").upload(`${base}.sound.m4a`, await readFile(sound), { contentType: "audio/mp4", upsert: true });
+    // the studio's preview keeps its picture and gets the new sound
+    let pvPath = own(fr.pv) ? fr.pv : null;
+    if (pvPath && sound) { try { const pv0 = await pull(fr.pv, "pv0.mp4"), pv1 = join(dir, "pv.mp4"); if (pv0) { await d.ff(["-i", pv0, "-i", sound, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "112k", "-shortest", "-movflags", "+faststart", pv1]); if (!(await db.storage.from("results").upload(`${base}.pv.mp4`, await readFile(pv1), { contentType: "video/mp4", upsert: true })).error) pvPath = `${base}.pv.mp4`; } } catch (e) { console.error("fx export preview", e?.message ?? e); } }
+    const zooms = cleanZooms(fr.zooms, seconds);
     const up = await db.storage.from("results").upload(`${base}.mp4`, await readFile(final), { contentType: "video/mp4", upsert: true });
     if (up.error) throw new Error(`upload: ${up.error.message}`);
     await db.storage.from("results").upload(`${base}.words.json`, Buffer.from(JSON.stringify(words)), { contentType: "application/json", upsert: true });
     const keep = src.input;
-    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(src.title ?? "مونتاج مبتكر").slice(0, 80), input: { kind: "fx", mode: "done", fromJob: inp.fromJob, video: keep.video, seconds: keep.seconds, notes: keep.notes, fx: keep.fx, ...(keep.styleDesc ? { styleDesc: keep.styleDesc } : {}), captions, model: keep.model, ...(keep.colors ? { colors: keep.colors } : {}), cseconds: +seconds.toFixed(2), aspect, fxr: { pages: saved, wordsPath: `${base}.words.json`, look: fr.look, cues: fr.cues, face: fr.face ?? null, photos: Array.isArray(fr.photos) ? fr.photos : [], matte: own(fr.matte) ? fr.matte : null, sound: own(fr.sound) ? fr.sound : null, zooms, beats, missing: 0 } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: d.now() }).eq("id", job.id).eq("status", "running");
+    await db.from("jobs").update({ status: "done", progress: 100, error: null, title: String(src.title ?? "مونتاج مبتكر").slice(0, 80), input: { kind: "fx", mode: "done", fromJob: inp.fromJob, video: keep.video, seconds: keep.seconds, notes: keep.notes, fx: keep.fx, ...(keep.styleDesc ? { styleDesc: keep.styleDesc } : {}), captions, model: keep.model, ...(keep.colors ? { colors: keep.colors } : {}), cseconds: +seconds.toFixed(2), aspect, fxr: { pages: saved, wordsPath: `${base}.words.json`, look: fr.look, cues: fr.cues, face: fr.face ?? null, photos: Array.isArray(fr.photos) ? fr.photos : [], matte: own(fr.matte) ? fr.matte : null, sound: mixed ? `${base}.sound.m4a` : (!voiceF && own(fr.sound) ? fr.sound : null), frames: known ? frames : null, voice: own(fr.voice) ? fr.voice : null, music: own(fr.music) ? fr.music : null, pv: pvPath, sfx: sfxList, cuts: cutsKept, gains, redrawn: drawnAgain, zooms, beats, missing: 0 } }, output: { files: [{ path: `${base}.mp4`, type: "video/mp4" }] }, updated_at: d.now() }).eq("id", job.id).eq("status", "running");
   } catch (e) {
     console.error("fx export stopped", job.id, e?.message ?? e);
     const { data: nowRow } = await db.from("jobs").select("status").eq("id", job.id).maybeSingle().then((x) => x, () => ({ data: null }));

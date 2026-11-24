@@ -68,15 +68,18 @@ export async function POST(req: Request) {
     const o = (x ?? {}) as Record<string, unknown>, path = String(o.path ?? "");
     return /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(png|jpe?g|webp)$/i.test(path) && path.startsWith(`${user.id}/`) && !path.includes("..") ? [{ path, note: clean(String(o.note ?? "").replace(/[<>`]/g, ""), 80) }] : [];
   });
+  // «موسيقتك»: the customer's own sound file, inside his own folder (the worker checks again and re-encodes it)
+  const mf = String(b.musicFile ?? "");
+  const musicFile = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(mp3|m4a|wav|ogg|aac|flac|opus)$/i.test(mf) && mf.startsWith(`${user.id}/`) && !mf.includes("..") ? mf : "";
   const noteBlock = photos.map((x) => x.note).join(" ").trim();
   if (noteBlock) { const blockedN = await guardContent(user.id, noteBlock, TOOL); if (blockedN) return blockedN; }
   const behind = b.behind === true && eng.fxBehind; // «عناصر ورا المتحدث»: only when the admin offers it
   // «صور مولّدة»: only when the admin offers it; the model is the image tool's own (the admin's choice), never the customer's
   const aiImg = b.aiImages === true && eng.fxImages ? await config("image").catch(() => null) : null;
   const img = aiImg && (aiImg.provider === "google" || aiImg.provider === "fal") && aiImg.model ? { provider: aiImg.provider, model: aiImg.model } : null;
-  const music = b.music === true && eng.fxMusic; // «موسيقى خلفية»: only when the admin offers it (it calls a paid music service)
+  const music = !musicFile && b.music === true && eng.fxMusic; // «موسيقى خلفية»: only when the admin offers it (it calls a paid music service)
   const cost = Math.max(1, Math.ceil(secs / 60)) * (tool.credit_cost + (behind ? eng.fxBehindCost : 0) + (img ? eng.fxImagesCost : 0) + (music ? eng.fxMusicCost : 0));
-  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(eng.fxReview ? { review: true } : {}), ...(behind ? { behind: true } : {}), ...(img ? { img } : {}), ...(music ? { music: true } : {}), ...(b.sfx === false ? { sfx: false } : {}), ...(b.moves === false ? { moves: false } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
+  const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(eng.fxReview ? { review: true } : {}), ...(behind ? { behind: true } : {}), ...(img ? { img } : {}), ...(music ? { music: true } : {}), ...(musicFile ? { musicFile } : {}), ...(b.tight === true ? { tight: true } : {}), ...(b.sfx === false ? { sfx: false } : {}), ...(b.moves === false ? { moves: false } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: (notes || "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء المونتاج." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
@@ -105,7 +108,7 @@ export async function GET(req: Request) {
   // SECURITY: only a result inside his own folder is ever signed
   if (!path.startsWith(`${user.id}/`) || path.includes("..")) return NextResponse.json({ status: "failed", error: "ما لقينا الفيديو." });
   const [play, dl] = await Promise.all([admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6), admin.storage.from("results").createSignedUrl(path, 60 * 60 * 6, { download: "shaheen-montage.mp4" })]);
-  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; video?: string; captions?: boolean; colors?: string[]; fxr?: { missing?: number; note?: string; review?: { score?: number | null; summary?: string; issues?: number; redone?: number[] } | null; timings?: Record<string, number>; cues?: unknown[]; photos?: { id?: string; path?: string }[]; matte?: string | null; wordsPath?: string; pages?: { a?: number; b?: number; path?: string | null; els?: unknown }[] } };
+  const inp = (job.input ?? {}) as { aspect?: string; cseconds?: number; video?: string; captions?: boolean; colors?: string[]; fxr?: { missing?: number; note?: string; review?: { score?: number | null; summary?: string; issues?: number; redone?: number[] } | null; timings?: Record<string, number>; cues?: unknown[]; photos?: { id?: string; path?: string }[]; matte?: string | null; wordsPath?: string; pages?: { a?: number; b?: number; path?: string | null; els?: unknown }[]; pv?: string | null; voice?: string | null; music?: string | null; sfx?: unknown[]; gains?: { sfx?: number; music?: number } } };
   if (new URL(req.url).searchParams.get("studio") === "1") {
     // «استوديو المونتاج»: the saved pieces, the word times and the customer's own video. Every path is checked to sit inside his folder before it is read or signed.
     const mine = (p: unknown): p is string => typeof p === "string" && p.startsWith(`${user.id}/`) && !p.includes("..");
@@ -113,7 +116,8 @@ export async function GET(req: Request) {
     if (!fr || !Array.isArray(fr.pages) || !mine(inp.video)) return NextResponse.json({ error: "هذا المونتاج ما ينفتح بالاستوديو." }, { status: 400 });
     const read = async (p: unknown) => { if (!mine(p)) return ""; const r = await admin.storage.from("results").download(p); return r.error ? "" : await r.data.text(); };
     const [srcUrl, wordsTxt, pages, tl] = await Promise.all([
-      admin.storage.from("uploads").createSignedUrl(inp.video, 60 * 60 * 3),
+      // the studio plays the montage's own prepared copy when it has one (same cuts, zooms and sound as the result); the uploaded video otherwise
+      mine(fr.pv) ? admin.storage.from("results").createSignedUrl(fr.pv, 60 * 60 * 3) : admin.storage.from("uploads").createSignedUrl(inp.video, 60 * 60 * 3),
       read(fr.wordsPath),
       Promise.all(fr.pages.slice(0, 12).map(async (p) => ({ a: Number(p.a) || 0, b: Number(p.b) || 0, html: await read(p.path), els: cleanEls(p.els) }))),
       admin.from("tools").select("edit_cost").eq("id", TOOL).maybeSingle(),
@@ -126,7 +130,7 @@ export async function GET(req: Request) {
     }
     const matteUrl = mine(fr.matte) ? ((await admin.storage.from("results").createSignedUrl(fr.matte, 60 * 60 * 3)).data?.signedUrl ?? "") : "";
     let words: unknown = []; try { words = JSON.parse(wordsTxt || "[]"); } catch { words = []; }
-    return NextResponse.json({ status: "studio", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, srcUrl: srcUrl.data?.signedUrl ?? "", pages, words, photos, matteUrl, captions: inp.captions !== false, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400", editCost: tl.data?.edit_cost ?? 8 });
+    return NextResponse.json({ status: "studio", title: job.title, aspect: inp.aspect ?? "9:16", seconds: inp.cseconds ?? 0, srcUrl: srcUrl.data?.signedUrl ?? "", pages, words, photos, matteUrl, sound: mine(fr.voice) ? { sfx: Array.isArray(fr.sfx) && fr.sfx.length > 0, music: mine(fr.music), gSfx: Number(fr.gains?.sfx ?? 1), gMusic: Number(fr.gains?.music ?? 1) } : null, captions: inp.captions !== false, accent: (Array.isArray(inp.colors) && inp.colors[1]) || "#ffd400", editCost: tl.data?.edit_cost ?? 8 });
   }
   // for the admin only: how long each step took, and what the final screening said
   const adminView = (inp.fxr?.timings || inp.fxr?.review) && (await adminAccess()) ? { timings: inp.fxr?.timings ?? null, review: inp.fxr?.review ?? null } : null;
@@ -171,7 +175,9 @@ export async function PUT(req: Request) {
   if ((today ?? 0) >= 15) return NextResponse.json({ error: "وصلت الحد اليومي لعدد مرات التصدير من الاستوديو، جرّب بكرة." }, { status: 429 });
   const { count: busy } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", TOOL).in("status", ["queued", "running"]);
   if ((busy ?? 0) >= 1) return NextResponse.json({ error: "عندك مونتاج قيد التنفيذ. انتظر يخلص." }, { status: 429 });
-  const input = { kind: "fx", mode: "export", fromJob: from, edit: { chunks, words, captions: e.captions !== false }, ...(ask ? { ask } : {}) };
+  const sRaw = (e.sound && typeof e.sound === "object" ? e.sound : null) as Record<string, unknown> | null;
+  const vol = (v: unknown) => { const x = Number(v); return Number.isFinite(x) ? Math.min(2, Math.max(0, Math.round(x * 100) / 100)) : 1; };
+  const input = { kind: "fx", mode: "export", fromJob: from, edit: { chunks, words, captions: e.captions !== false, ...(sRaw ? { sound: { sfx: vol(sRaw.sfx), music: vol(sRaw.music) } } : {}) }, ...(ask ? { ask } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: String(src.title ?? "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء التصدير." }, { status: 500 });
   if (ask) {

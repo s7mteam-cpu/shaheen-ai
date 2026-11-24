@@ -55,20 +55,70 @@ export function sfxPlan(cues, beats = []) {
 }
 const VOL = { whoosh: 0.3, pop: 0.38, ding: 0.2 };
 
-/** the final sound: the customer's own voice untouched in level, the effects and the music quietly under it. Returns "" when nothing was added or it failed. */
-export async function mixSound({ d, norm, out, sfx = [], music = "", seconds }) {
-  const ev = sfx.filter((e) => VOL[e.k] && existsSync(join(SFX_DIR, `${e.k}.mp3`)));
-  if (!ev.length && !music) return "";
+/** the final sound: the customer's own voice untouched in level, the effects and the music quietly under it. `voice` is any file whose sound is his voice (the prepared video or the kept voice track).
+ *  gSfx / gMusic are the studio's volume sliders (1 = as made, 0 = off). Returns "" when nothing was added or it failed. */
+export async function mixSound({ d, voice, out, sfx = [], music = "", seconds, gSfx = 1, gMusic = 1 }) {
+  const g1 = Math.min(2, Math.max(0, Number(gSfx) || 0)), g2 = Math.min(2, Math.max(0, Number(gMusic) || 0));
+  const ev = g1 > 0 ? sfx.filter((e) => VOL[e?.k] && Number.isFinite(Number(e?.t)) && existsSync(join(SFX_DIR, `${e.k}.mp3`))).slice(0, 60) : [];
+  const mus = g2 > 0 ? music : "";
+  if (!ev.length && !mus) return "";
   try {
-    const args = ["-i", norm], chains = ["[0:a]aresample=44100,aformat=channel_layouts=stereo[a0]"], labels = ["[a0]"];
+    const args = ["-i", voice], chains = ["[0:a]aresample=44100,aformat=channel_layouts=stereo[a0]"], labels = ["[a0]"];
     let n = 1;
-    if (music) { args.push("-stream_loop", "-1", "-i", music); chains.push(`[${n}:a]aresample=44100,aformat=channel_layouts=stereo,atrim=0:${seconds.toFixed(2)},volume=0.11,afade=t=in:st=0:d=1.2,afade=t=out:st=${Math.max(0, seconds - 2.5).toFixed(2)}:d=2.5[m]`); labels.push("[m]"); n++; }
-    for (const e of ev) { args.push("-i", join(SFX_DIR, `${e.k}.mp3`)); const ms = Math.round(e.t * 1000); chains.push(`[${n}:a]aresample=44100,aformat=channel_layouts=stereo,volume=${VOL[e.k]},adelay=${ms}|${ms}[s${n}]`); labels.push(`[s${n}]`); n++; }
-    const script = join(out + ".txt");
+    if (mus) { args.push("-stream_loop", "-1", "-i", mus); chains.push(`[${n}:a]aresample=44100,aformat=channel_layouts=stereo,atrim=0:${seconds.toFixed(2)},volume=${(0.11 * g2).toFixed(3)},afade=t=in:st=0:d=1.2,afade=t=out:st=${Math.max(0, seconds - 2.5).toFixed(2)}:d=2.5[m]`); labels.push("[m]"); n++; }
+    for (const e of ev) { args.push("-i", join(SFX_DIR, `${e.k}.mp3`)); const ms = Math.max(0, Math.round(Number(e.t) * 1000)); chains.push(`[${n}:a]aresample=44100,aformat=channel_layouts=stereo,volume=${(VOL[e.k] * g1).toFixed(3)},adelay=${ms}|${ms}[s${n}]`); labels.push(`[s${n}]`); n++; }
+    const script = out + ".txt";
     await writeFile(script, `${chains.join(";")};${labels.join("")}amix=inputs=${labels.length}:normalize=0:duration=first:dropout_transition=0,alimiter=limit=0.97[o]`);
     await d.ff([...args, "-filter_complex_script", script, "-map", "[o]", "-vn", "-t", seconds.toFixed(3), "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2", out]);
     return out;
   } catch (e) { console.error("fx sound", e?.message ?? e); return ""; }
+}
+
+// ---------- «قص السكتات»: long silences are cut out of the prepared video before anything else, so the talk runs tight ----------
+/** saved cut list → clean [[from,to],…] of the parts that stay */
+export function cleanCuts(raw, FPS = 30) {
+  const out = [];
+  for (const k of (Array.isArray(raw) ? raw : []).slice(0, 80)) {
+    const a = num(k?.[0]), b = num(k?.[1]); if (a == null || b == null || a < 0 || b - a < 0.2 || (out.length && a < out.at(-1)[1])) continue;
+    out.push([Math.round(a * FPS) / FPS, Math.round(b * FPS) / FPS]);
+  }
+  return out;
+}
+/** listens for silences of 0.8 s and more; returns the parts that stay (a short breath is left at every cut), or [] when there is nothing worth cutting */
+export async function findCuts({ d, norm, seconds, FPS }) {
+  try {
+    const { stderr } = await d.ff(["-i", norm, "-vn", "-af", "silencedetect=noise=-34dB:d=0.8", "-f", "null", "-"]);
+    const starts = [...String(stderr).matchAll(/silence_start: (-?[\d.]+)/g)].map((m) => Number(m[1])), ends = [...String(stderr).matchAll(/silence_end: ([\d.]+)/g)].map((m) => Number(m[1]));
+    const keep = []; let at = 0, cut = 0;
+    for (let i = 0; i < starts.length && keep.length < 70; i++) {
+      const s = Math.max(0, starts[i]) + 0.22, e = (ends[i] ?? seconds) - 0.22; // a breath stays on both sides
+      if (e - s < 0.35 || s <= at) continue;
+      if (s - at >= 0.2) keep.push([at, s]);
+      cut += e - s; at = e;
+    }
+    if (seconds - at >= 0.2) keep.push([at, seconds]);
+    const q = cleanCuts(keep, FPS);
+    return cut >= 0.8 && q.length >= 2 && seconds - cut >= 3 ? q : [];
+  } catch (e) { console.error("fx cuts", e?.message ?? e); return []; }
+}
+/** the prepared video with only the kept parts, picture and sound cut at the very same frame times (no drift). Returns "" when it failed. */
+export async function applyCuts({ d, norm, out, keep, FPS }) {
+  if (!keep?.length) return "";
+  try {
+    const parts = keep.map(([a, b], i) => `[0:v]trim=start=${a.toFixed(4)}:end=${b.toFixed(4)},setpts=PTS-STARTPTS[v${i}];[0:a]atrim=start=${a.toFixed(4)}:end=${b.toFixed(4)},asetpts=PTS-STARTPTS[a${i}]`);
+    const script = out + ".txt";
+    await writeFile(script, `${parts.join(";")};${keep.map((_, i) => `[v${i}][a${i}]`).join("")}concat=n=${keep.length}:v=1:a=1[v][a]`);
+    await d.ff(["-i", norm, "-filter_complex_script", script, "-map", "[v]", "-map", "[a]", "-r", String(FPS), "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart", out]);
+    return out;
+  } catch (e) { console.error("fx cuts apply", e?.message ?? e); return ""; }
+}
+
+/** a small copy of the prepared video (with its cuts and zooms) and the finished sound: what the studio plays under the graphics */
+export async function previewBase({ d, base, sound, out, W, H }) {
+  try {
+    await d.ff(["-i", base, ...(sound ? ["-i", sound] : []), "-map", "0:v", "-map", sound ? "1:a" : "0:a?", "-vf", `scale=${Math.round(W / 4) * 2}:${Math.round(H / 4) * 2}`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "27", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "112k", "-shortest", "-movflags", "+faststart", out]);
+    return out;
+  } catch (e) { console.error("fx preview", e?.message ?? e); return ""; }
 }
 
 /** a quick light sweep at a change of topic, for the piece from a to b (pure CSS, timed like the captions) */

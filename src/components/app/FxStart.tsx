@@ -15,6 +15,9 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).
 /** «مونتاج مبتكر»: the customer uploads his own talking video and describes the edit; the AI plans the graphics from his words and draws them over the video. */
 export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost, imagesCost, musicCost }: { costPerMinute: number; balance: number; hasKit: boolean; maxSeconds: number; /** -1: not offered */ behindCost: number; /** -1: not offered */ imagesCost: number; /** -1: not offered */ musicCost: number }) {
   const [sfx, setSfx] = useState(true);
+  const [tight, setTight] = useState(false);
+  const [ownMusic, setOwnMusic] = useState<{ path: string; name: string } | null>(null);
+  const [musicBusy, setMusicBusy] = useState(false);
   const [moves, setMoves] = useState(true);
   const [music, setMusic] = useState(false);
   const [behind, setBehind] = useState(false);
@@ -39,6 +42,20 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
       setPhotos((p) => [...p, { path: d.path, url: URL.createObjectURL(file), note: "" }].slice(0, 3));
     } catch (e) { setErr(e instanceof Error ? e.message : L("تعذّر رفع الصورة.")); }
     finally { setPhotoBusy(false); }
+  }
+  async function addMusic(file: File | undefined) {
+    if (!file) return;
+    setErr(""); setMusicBusy(true);
+    try {
+      if (!/^audio\//.test(file.type)) throw new Error(L("الملف لازم يكون صوت (MP3 أو M4A أو WAV)."));
+      const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "audio", type: file.type, size: file.size, name: file.name }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(L(d.error));
+      const { error } = await createClient().storage.from("uploads").uploadToSignedUrl(d.path, d.token, file);
+      if (error) throw new Error(L("تعذّر رفع الملف."));
+      setOwnMusic({ path: d.path, name: file.name });
+    } catch (e) { setErr(e instanceof Error ? e.message : L("تعذّر رفع الملف.")); }
+    finally { setMusicBusy(false); }
   }
   const [upPct, setUpPct] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -115,14 +132,14 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
   }
 
   const minutes = video ? Math.max(1, Math.ceil(Math.ceil(video.seconds) / 60)) : 1;
-  const cost = minutes * (costPerMinute + (behind && behindCost >= 0 ? behindCost : 0) + (aiImages && imagesCost >= 0 ? imagesCost : 0) + (music && musicCost >= 0 ? musicCost : 0));
+  const cost = minutes * (costPerMinute + (behind && behindCost >= 0 ? behindCost : 0) + (aiImages && imagesCost >= 0 ? imagesCost : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0));
   const descOk = styles.length > 0 || styleDesc.trim().length >= 15;
 
   async function start(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!video || busy) return;
     setBusy(true); setErr("");
-    const r = await fetch("/api/free-montage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ video: video.path, seconds: Math.ceil(video.seconds), notes, styles, styleDesc, depth, captions, useIdentity, behind: behind && behindCost >= 0, aiImages: aiImages && imagesCost >= 0, sfx, moves, music: music && musicCost >= 0, photos: photos.map((x) => ({ path: x.path, note: x.note })) }) }).catch(() => null);
+    const r = await fetch("/api/free-montage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ video: video.path, seconds: Math.ceil(video.seconds), notes, styles, styleDesc, depth, captions, useIdentity, behind: behind && behindCost >= 0, aiImages: aiImages && imagesCost >= 0, sfx, moves, tight, music: music && !ownMusic && musicCost >= 0, ...(ownMusic ? { musicFile: ownMusic.path } : {}), photos: photos.map((x) => ({ path: x.path, note: x.note })) }) }).catch(() => null);
     const d = r ? await r.json().catch(() => null) : null;
     setBusy(false);
     if (!r || !r.ok || !d?.jobId) { setErr(L(d?.error ?? "تعذّر بدء المونتاج.")); return; }
@@ -208,7 +225,14 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
       </div>
       <label className="flex items-start gap-3"><input type="checkbox" checked={sfx} onChange={(e) => setSfx(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("مؤثرات صوتية 🔊")}<span className="block text-[12px] text-subtle">{L("صوت خفيف مع دخول كل عنصر (ووش، نقرة، رنّة مع الأرقام). صوتك يبقى مثل ما هو.")}</span></span></label>
       <label className="flex items-start gap-3"><input type="checkbox" checked={moves} onChange={(e) => setMoves(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("زوم وانتقالات 🎥")}<span className="block text-[12px] text-subtle">{L("تقريب ناعم على وجهك بالجمل المهمة، ولمعة سريعة لما تنتقل لموضوع جديد.")}</span></span></label>
-      {musicCost >= 0 && <label className="flex items-start gap-3"><input type="checkbox" checked={music} onChange={(e) => setMusic(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("موسيقى خلفية 🎵")}{musicCost > 0 ? ` (+${musicCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("موسيقى هادئة بدون غناء تناسب كلامك، بصوت واطي تحت صوتك.")}</span></span></label>}
+      <label className="flex items-start gap-3"><input type="checkbox" checked={tight} onChange={(e) => setTight(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("قص السكتات ✂️")}<span className="block text-[12px] text-subtle">{L("شاهين يشيل السكتات الطويلة من كلامك (ثانية وأكثر) فيطلع الفيديو مشدود وأقصر.")}</span></span></label>
+      <div className="flex flex-col gap-1.5 rounded-xl border border-line p-3">
+        <span className="text-[15px]">{L("موسيقتك أو نشيدك 🎶")} <span className="text-[12px] text-subtle">{L("(اختياري)")}</span></span>
+        {ownMusic ? <div className="flex items-center gap-3"><span className="min-w-0 flex-1 truncate text-[14px]" dir="auto">{ownMusic.name}</span><button type="button" onClick={() => setOwnMusic(null)} className="px-2 text-[13px] font-semibold text-red-700">{L("حذف")}</button></div>
+          : <label className="btn btn-outline w-fit cursor-pointer px-3 py-1.5 text-[14px]">{musicBusy ? L("جارٍ الرفع…") : L("ارفع ملف صوت")}<input type="file" accept="audio/*" className="hidden" disabled={musicBusy} onChange={(e) => { addMusic(e.target.files?.[0]); e.target.value = ""; }} /></label>}
+        <span className="text-[12px] text-subtle">{L("يشتغل بصوت واطي تحت كلامك طول الفيديو. أنت المسؤول عنه: ارفع فقط ما تملك حق استخدامه ونشره.")}</span>
+      </div>
+      {musicCost >= 0 && !ownMusic && <label className="flex items-start gap-3"><input type="checkbox" checked={music} onChange={(e) => setMusic(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("موسيقى خلفية 🎵")}{musicCost > 0 ? ` (+${musicCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("موسيقى هادئة بدون غناء تناسب كلامك، بصوت واطي تحت صوتك.")}</span></span></label>}
       {imagesCost >= 0 && <label className="flex items-start gap-3"><input type="checkbox" checked={aiImages} onChange={(e) => setAiImages(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("صور مولّدة بالذكاء الاصطناعي 🖼️")}{imagesCost > 0 ? ` (+${imagesCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("شاهين يرسم صوراً تناسب كلامك (قطار، مدينة، مشهد تاريخي، منتج…) ويحطها بالمونتاج. بدون أشخاص حقيقيين أو مشاهير أو شعارات. إذا تبي صورة حقيقية بعينها، ارفعها من «صورك داخل المونتاج» وعلى مسؤوليتك.")}</span></span></label>}
       {behindCost >= 0 && <label className="flex items-start gap-3"><input type="checkbox" checked={behind} onChange={(e) => setBehind(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("عناصر ورا المتحدث ✨")}{behindCost > 0 ? ` (+${behindCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("شاهين يقصّك من الخلفية ويحط كلمات وأشكال كبيرة وراك، فتطلع بعمق حقيقي. ياخذ وقت أطول، وفيديوك يمر على خدمة قص خارجية.")}</span></span></label>}
       <label className="flex items-center gap-3"><input type="checkbox" checked={captions} onChange={(e) => setCaptions(e.target.checked)} className="h-5 w-5" /><span className="text-[15px]">{L("ترجمة عربية متحركة كلمة كلمة")}</span></label>

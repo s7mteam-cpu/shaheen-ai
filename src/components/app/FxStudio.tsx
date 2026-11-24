@@ -9,11 +9,11 @@ import { applyEdits, applyEls, extractColors, extractTexts, type ElEdit } from "
 import { captionLayer, withCaps, injectPhotos, injectLibs, onlyLayer, FX_BEHIND, FX_EMPTY, FX_FILLER, type FxWord } from "@/lib/fxCaps";
 
 type Page = { a: number; b: number; html: string; els: ElEdit[] };
-type Data = { title: string; aspect: string; seconds: number; srcUrl: string; pages: Page[]; words: FxWord[]; captions: boolean; accent: string; editCost: number; photos?: Record<string, string>; /** «ورا المتحدث»: the cut-out speaker (a see-through video), when this montage has one */ matteUrl?: string };
+type Data = { title: string; aspect: string; seconds: number; srcUrl: string; pages: Page[]; words: FxWord[]; captions: boolean; accent: string; editCost: number; photos?: Record<string, string>; /** «ورا المتحدث»: the cut-out speaker (a see-through video), when this montage has one */ matteUrl?: string; /** the montage's sound can be mixed again: which parts it has and their volumes (1 = as made) */ sound?: { sfx: boolean; music: boolean; gSfx: number; gMusic: number } | null };
 type ElMap = Record<string, { s: number; x: number; y: number; hide?: boolean }>;
 const SIZES: Record<string, [number, number]> = { "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080], "4:5": [1080, 1350] };
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-const TABS = [["els", "🖐️", "العناصر"], ["texts", "✏️", "النصوص"], ["colors", "🎨", "الألوان"], ["caps", "💬", "الترجمة"], ["ask", "✨", "عدّل بالوصف"]] as const;
+const TABS = [["els", "🖐️", "العناصر"], ["texts", "✏️", "النصوص"], ["colors", "🎨", "الألوان"], ["caps", "💬", "الترجمة"], ["sound", "🔊", "الصوت"], ["ask", "✨", "عدّل بالوصف"]] as const;
 
 /** «استوديو المونتاج المبتكر»: the customer's own video plays under the saved graphics pages; he moves, resizes or removes any element, rewrites texts, changes colours, corrects the caption words, or asks for a change in words. Exporting makes a new video (a new job); the original montage stays. */
 export function FxStudio({ jobId, balance }: { jobId: string; balance: number }) {
@@ -24,6 +24,8 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
   const [hex, setHex] = useState<Record<string, string>>({});
   const [els, setEls] = useState<Record<number, ElMap>>({});
   const [wordEdits, setWordEdits] = useState<Record<number, string>>({});
+  const [gSfx, setGSfx] = useState(1);
+  const [gMusic, setGMusic] = useState(1);
   const [captions, setCaptions] = useState(true);
   const [ask, setAsk] = useState("");
   const [tab, setTab] = useState<(typeof TABS)[number][0]>("els");
@@ -54,7 +56,7 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
       const d = await r.json().catch(() => null);
       if (dead) return;
       if (!r.ok || d?.status !== "studio") { setLoadErr(L(d?.error ?? "تعذّر فتح الاستوديو.")); return; }
-      setData(d as Data); setCaptions(d.captions !== false);
+      setData(d as Data); setCaptions(d.captions !== false); if (d.sound) { setGSfx(Number(d.sound.gSfx) >= 0 ? Number(d.sound.gSfx) : 1); setGMusic(Number(d.sound.gMusic) >= 0 ? Number(d.sound.gMusic) : 1); }
       setEls(Object.fromEntries((d.pages as Page[]).map((p, i) => [i, Object.fromEntries((p.els ?? []).map((e) => [e.sel, { s: e.s ?? 1, x: e.x ?? 0, y: e.y ?? 0, hide: !!e.hide }]))])));
     }).catch(() => { if (!dead) setLoadErr(L("تعذّر فتح الاستوديو.")); });
     fontCssFor("Cairo").then((css) => { if (!dead && css) setFontCss(css); });
@@ -154,7 +156,7 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
     if (!data || busy) return;
     setBusy(true); setErr(""); video.current?.pause();
     const chunks = Object.fromEntries(pages.map((_, i) => [i, { texts: texts[i] ?? {}, hex, els: elList(i) }]));
-    const body = { job: jobId, edit: { chunks, words: wordEdits, captions }, ...(ask.trim().length >= 4 ? { ask: { chunk: idx, text: ask.trim() } } : {}) };
+    const body = { job: jobId, edit: { chunks, words: wordEdits, captions, ...(data.sound ? { sound: { sfx: gSfx, music: gMusic } } : {}) }, ...(ask.trim().length >= 4 ? { ask: { chunk: idx, text: ask.trim() } } : {}) };
     const r = await fetch("/api/free-montage", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
     const d = r ? await r.json().catch(() => null) : null;
     setBusy(false);
@@ -225,6 +227,14 @@ export function FxStudio({ jobId, balance }: { jobId: string; balance: number })
           {captions && <>
             <p className="text-[13px] text-subtle">{L("صحّح أي كلمة غلط فيها التفريغ (اسم، آية، مصطلح). امسح الكلمة عشان ما تطلع. التوقيت ما يتغير.")}</p>
             <div className="flex flex-wrap gap-1.5" dir="rtl">{capWords.map(({ w: x, i }) => { const v = wordEdits[i] ?? x.t; return <input key={i} value={v} maxLength={40} onFocus={() => seek(Math.max(0, x.s - 0.2))} onChange={(e) => { const nv = e.target.value; setWordEdits((p) => ({ ...p, [i]: nv })); setDirty(true); }} className={`rounded-lg border px-2 py-1 text-center text-[14px] ${FX_FILLER.test(v.trim()) || !v.trim() ? "border-dashed border-line text-subtle line-through" : "border-line bg-white"}`} style={{ width: `${Math.max(3, v.length + 2)}ch` }} />; })}</div>
+          </>}
+        </div>}
+
+        {tab === "sound" && <div className="flex flex-col gap-4">
+          {!data.sound || (!data.sound.sfx && !data.sound.music) ? <p className="text-[13px] text-subtle">{L("هذا المونتاج ما فيه مؤثرات صوتية ولا موسيقى تتعدّل.")}</p> : <>
+            {data.sound.sfx && <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("المؤثرات الصوتية")}: {gSfx === 0 ? L("مطفية") : `${Math.round(gSfx * 100)}%`}</span><input type="range" min={0} max={2} step={0.1} value={gSfx} onChange={(e) => { setGSfx(Number(e.target.value)); setDirty(true); }} /></label>}
+            {data.sound.music && <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("الموسيقى")}: {gMusic === 0 ? L("مطفية") : `${Math.round(gMusic * 100)}%`}</span><input type="range" min={0} max={2} step={0.1} value={gMusic} onChange={(e) => { setGMusic(Number(e.target.value)); setDirty(true); }} /></label>}
+            <p className="text-[12px] text-subtle">{L("100% هو المستوى اللي طلع به المونتاج. صوتك ما يتغير. التغيير تسمعه بعد التصدير (المعاينة هنا بالمستوى القديم).")}</p>
           </>}
         </div>}
 
