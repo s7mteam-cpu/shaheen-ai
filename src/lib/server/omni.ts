@@ -1,6 +1,7 @@
 import { saveResult } from "@/lib/providers/storage";
 import { modelFor } from "@/lib/server/models";
 import { geminiImage } from "@/lib/providers/google";
+import { noteUsage } from "@/lib/server/usageCtx";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 const MODEL = "gemini-omni-1.1-flash"; // Google's current video model (Veo 3.1 was retired)
@@ -59,7 +60,9 @@ export async function generateClip(desc: string, aspect: string, userId: string,
     if (v.data) buf = Buffer.from(v.data, "base64");
     else { const res = await fetch(v.uri!, { headers: { "x-goog-api-key": key }, redirect: "follow" }); if (!res.ok) { lastErr = `download ${res.status}`; return null; } buf = Buffer.from(await res.arrayBuffer()); }
     if (buf.length < 10_000) { lastErr = "empty video"; return null; }
-    return { img: await saveResult(userId, jobId, buf, "video/mp4", "mp4"), cdur: Math.max(1, mp4Seconds(buf) || 5) };
+    const cdur = Math.max(1, mp4Seconds(buf) || 5);
+    noteUsage({ provider: "google", model: MODEL, source: "فيديو Google", units: Math.round(cdur) }); // priced per second in «تكلفة كل طلب»
+    return { img: await saveResult(userId, jobId, buf, "video/mp4", "mp4"), cdur };
   } catch (e) { lastErr = (e as Error).message?.slice(0, 200); console.error("omni clip", e); return null; }
 }
 

@@ -23,7 +23,7 @@ async function toInline(url: string): Promise<Part> {
   return { inlineData: { mimeType: r.headers.get("content-type") || "image/png", data: buf.toString("base64") } };
 }
 
-type GenResp = { candidates?: { content?: { parts?: Part[] } }[] };
+type GenResp = { candidates?: { content?: { parts?: Part[] } }[]; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number } };
 
 /** Text / chat with Gemini. */
 export async function geminiText(model: string, system: string, contents: Content[], maxTokens = 1200) {
@@ -38,6 +38,8 @@ export async function geminiText(model: string, system: string, contents: Conten
   });
   const text = (r.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
   if (!text) throw new Error(`google: empty reply (${model})`);
+  const u = r.usageMetadata; // «تكلفة كل طلب»: the writer's tokens (thinking is billed as output)
+  if (u) noteUsage({ provider: "google", model, source: "نص Google", input: u.promptTokenCount, output: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0) });
   return text;
 }
 
