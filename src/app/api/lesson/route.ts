@@ -228,6 +228,7 @@ export async function POST(req: Request) {
       graphics = [];
     }
     if (endG) graphics = [endG];
+    for (const g of clipScenes) g.dur = Math.min(8, +(g.dur + 0.12).toFixed(2)); // each clip runs a little into the next one (which is drawn on top): no empty gap between clips
     if (look === "footage" && clipScenes.length) {
       if (ai) await fillAiClips(clipScenes, aspect, user.id, job.id, t0 + 215_000, personRef); // scenes Google could not make fall through to the library / a neighbour's clip below
       const filled = await fillClips(clipScenes, aspect, user.id, job.id, { topic, industry: ind?.label });

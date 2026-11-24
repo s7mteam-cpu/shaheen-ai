@@ -650,7 +650,7 @@ export function GraphicView({ g, m, f, len, w, h, light, boost = 1 }: { g: Graph
       const cf = Math.max(1, Math.round((g.cdur ?? 0) * MFPS));
       const vid = g.url ? <OffthreadVideo src={g.url} muted style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : null;
       return (
-        <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: out, background: m.colors.bg }}>
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: 1, background: m.colors.bg }}> {/* a clip is cut, not faded: fading to the background colour at the end of every clip showed a flash between clips */}
           {vid ? (g.cdur ? <Loop durationInFrames={cf}>{vid}</Loop> : vid) : <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${th.accent}55, ${m.colors.bg})` }} />}
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,.35), transparent 38%, transparent 70%, rgba(0,0,0,.4))" }} />
           {(g.text || g.sub) && (
