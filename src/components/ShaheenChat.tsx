@@ -403,7 +403,7 @@ const CSS = `
 .shc-badge{position:absolute;top:-3px;inset-inline-end:-3px;height:9px;width:9px;border-radius:999px;background:var(--ac);box-shadow:0 0 8px var(--ac)}
 .shc-role{font-size:12px;font-weight:700;color:var(--ac);letter-spacing:.2px}
 .shc-line{min-height:30px;max-width:150px;text-align:center;font-size:11px;line-height:1.35;color:rgba(234,240,248,.62)}
-.shc-headrow{display:flex;justify-content:center;margin:2px 0 4px}
+.shc-headrow{display:flex;justify-content:center;margin:8px 0 20px}
 .shc-bosspill{position:relative;display:flex;align-items:center;gap:7px;padding:3px 12px 3px 4px;border-radius:999px;border:1px solid var(--ac);background:rgba(4,16,31,.74);box-shadow:0 0 16px -5px var(--ac),inset 0 0 12px -9px var(--ac);transition:transform .25s ease;animation:shc-float 4.5s ease-in-out infinite}
 [dir="rtl"] .shc-bosspill{padding:3px 4px 3px 12px}
 .shc-bosspill .shc-ava{height:27px;width:27px}

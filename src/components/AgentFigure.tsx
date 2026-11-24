@@ -7,7 +7,7 @@ export function AgentFigure({ id, look, color, flip = false, small = false }: { 
   const skin = look.face === "glasses" ? "#D9A074" : look.face === "headset" ? "#E2AE84" : "#E8B58A";
   const pid = `shc-chk-${id}${small ? "s" : ""}`;
   return (
-    <svg viewBox={small ? "96 30 70 70" : "0 0 200 214"} className={`shc-fig ${small ? "shc-fig-s" : ""}`} style={{ transform: flip ? "scaleX(-1)" : undefined, ["--ac" as string]: color, ...(small ? { display: "block", width: "100%", height: "100%" } : {}) }} aria-hidden="true" focusable="false">
+    <svg viewBox={small ? "96 30 70 70" : "0 34 200 180"} className={`shc-fig ${small ? "shc-fig-s" : ""}`} style={{ transform: flip ? "scaleX(-1)" : undefined, ["--ac" as string]: color, ...(small ? { display: "block", width: "100%", height: "100%" } : {}) }} aria-hidden="true" focusable="false">
       <defs>
         <pattern id={pid} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="7" height="7" fill="#FBFBFD" /><rect width="3.2" height="7" fill="#D7373F" opacity=".9" /><rect width="7" height="3.2" fill="#D7373F" opacity=".55" />
