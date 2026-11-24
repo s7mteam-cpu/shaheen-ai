@@ -120,8 +120,9 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
       const r = await fetch("/api/assistant/voice", { method: "POST", body: fd });
       const d = await r.json().catch(() => ({}));
       if (d.text) {
-        setText((t) => (t.trim() ? `${t.trim()} ${d.text}` : d.text));
-        setTimeout(() => input.current?.focus(), 50);
+        // spoken → sent straight away (with anything already typed in the box): no second press
+        const said = String(d.text).trim(), typed = textRef.current.trim();
+        sendRef.current(typed ? `${typed} ${said}` : said);
       } else setVoiceNote(d.error ? L(d.error) : T("ما قدرنا نحوّل الصوت لنص، جرّب مرة ثانية.", "We couldn't convert your voice to text. Please try again."));
     } catch {
       setVoiceNote(T("تعذّر الاتصال، جرّب مرة ثانية.", "Connection failed. Please try again."));
@@ -151,9 +152,9 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
     if (open && list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [threads, agent, open]);
 
-  async function send(e?: React.FormEvent) {
+  async function send(e?: React.FormEvent, spoken?: string) {
     e?.preventDefault();
-    const t = text.trim();
+    const t = (spoken ?? text).trim();
     if (!t || busy || !agent) return;
     const who = agent; // the answer goes to the conversation it was asked in, even if the customer moves to a colleague meanwhile
     const next = [...msgs, { role: "user" as const, content: t }];
@@ -166,6 +167,10 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
       setMsgs([...next, { role: "assistant", content: T("تعذّر الاتصال، حاول مرة ثانية.", "Connection failed. Please try again.") }], who);
     } finally { setBusy(false); }
   }
+
+  // the recorder finishes later than the render it started in: it reaches the latest box text and the latest send through these
+  const textRef = useRef(""); textRef.current = text;
+  const sendRef = useRef<(s: string) => void>(() => {}); sendRef.current = (s) => { send(undefined, s); };
 
   async function confirmAct(i: number, a: Extract<Act, { kind: "make" }>) {
     const k = ak(i);
