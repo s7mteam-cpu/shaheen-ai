@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   if (b.siteJob && !siteData) return NextResponse.json({ error: "قراءة الموقع انتهت صلاحيتها. اقرأ الموقع مرة ثانية." }, { status: 400 });
   if (siteData) { b.mode = "motion"; b.voiceover = b.voiceover !== false; if (String(b.topic ?? "").trim().length < 5) b.topic = `فيديو يعرّف بموقع ${siteData.siteName || siteData.title || siteData.host}: ماذا يقدّم وخدماته ولمن`; }
   const real = b.tool === "real-scenes"; // «مشاهد واقعية»: real stock footage under the voice, its own tool
-  const ai = real && b.source === "ai"; // «لقطات بالذكاء الاصطناعي»: each scene is generated from its sentence, not searched in a library
+  const ai = real; // «مشاهد واقعية» is always AI clips: the stock library (Pixabay/Pexels) option was removed // «لقطات بالذكاء الاصطناعي»: each scene is generated from its sentence, not searched in a library
   const t0 = Date.now();
   const endCard = ai && b.endCard === true; // optional closing card with the details (dates, price, contact); every other scene stays a clip
   const personRef = ai ? await loadPerson(user.id, b.person) : null; // optional reference photo: the same person in every clip
@@ -230,8 +230,14 @@ export async function POST(req: Request) {
     if (endG) graphics = [endG];
     for (const g of clipScenes) g.dur = Math.min(8, +(g.dur + 0.12).toFixed(2)); // each clip runs a little into the next one (which is drawn on top): no empty gap between clips
     if (look === "footage" && clipScenes.length) {
-      if (ai) await fillAiClips(clipScenes, aspect, user.id, job.id, t0 + 215_000, personRef); // scenes Google could not make fall through to the library / a neighbour's clip below
-      const filled = await fillClips(clipScenes, aspect, user.id, job.id, { topic, industry: ind?.label });
+      let filled: typeof clipScenes;
+      if (ai) { // only AI clips: a scene Google could not make borrows the nearest AI clip, never a library clip; none at all means refund
+        await fillAiClips(clipScenes, aspect, user.id, job.id, t0 + 215_000, personRef);
+        const done = clipScenes.filter((g) => g.img);
+        if (!done.length) throw new Error(`no clips found: AI: ${omniError() || "none made"}`);
+        for (const g of clipScenes) if (!g.img) { const n = done.reduce((x, y) => (Math.abs(y.at - g.at) < Math.abs(x.at - g.at) ? y : x)); g.img = n.img; g.cdur = n.cdur; g.credit = ""; }
+        filled = clipScenes;
+      } else filled = await fillClips(clipScenes, aspect, user.id, job.id, { topic, industry: ind?.label });
       // no real clip at all means this is not what the customer asked for: refund instead of handing over a different kind of video
       if (!filled.some((g) => g.kind === "clip")) throw new Error(`no clips found: ${ai ? `AI: ${omniError() || "none made"} | ` : ""}${footageError() || "search returned nothing"} | q=${clipScenes.map((g) => g.q).join(" ; ").slice(0, 200)}`);
       graphics = [...graphics, ...filled].sort((a, b) => a.at - b.at);

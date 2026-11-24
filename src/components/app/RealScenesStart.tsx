@@ -18,7 +18,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
   const router = useRouter();
   const [text, setText] = useState("");
   const [mine, setMine] = useState(false);
-  const [ai, setAi] = useState(false);
+  const ai = true; // real-scenes is AI clips only (the stock-library option was removed)
   const [spoken, setSpoken] = useState("");
   const [aspect, setAspect] = useState<string>("9:16");
   const [seconds, setSeconds] = useState(30);
@@ -56,7 +56,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
     setBusy(true); setError(null);
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        tool: "real-scenes", source: ai ? "ai" : "stock", topic: mine ? `${text.trim()}${text.trim() ? "\n\n" : ""}الكلام الذي يُقرأ بالحرف:\n${spoken.trim()}` : text, notes: mine ? "اقرأ «الكلام الذي يُقرأ بالحرف» كتعليق صوتي بدون أي تغيير أو إضافة أو حذف، وقسّمه لجمل فقط، واختر لكل جملة مشهداً يناسبها. باقي النص وصف للمشاهد فقط ولا يُقرأ." : "", brand, industry, seconds, aspect, dialect,
+        tool: "real-scenes", source: "ai", topic: mine ? `${text.trim()}${text.trim() ? "\n\n" : ""}الكلام الذي يُقرأ بالحرف:\n${spoken.trim()}` : text, notes: mine ? "اقرأ «الكلام الذي يُقرأ بالحرف» كتعليق صوتي بدون أي تغيير أو إضافة أو حذف، وقسّمه لجمل فقط، واختر لكل جملة مشهداً يناسبها. باقي النص وصف للمشاهد فقط ولا يُقرأ." : "", brand, industry, seconds, aspect, dialect,
         voiceover, voice, vgender, vage, tone, music: withMusic, photos: photos.map((p) => ({ path: p.path, bucket: p.bucket, label: p.label })), ...(ai ? { endCard, person: person.map((p) => ({ path: p.path, bucket: p.bucket })) } : {}) }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
@@ -68,9 +68,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
   const showVoice = voiceover && voices.length > 0;
   return (
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
-      <div className="flex flex-col gap-2"><span className="font-semibold">{L("نوع اللقطات")}</span>
-        <div className="flex flex-wrap gap-2">{([[false, "لقطات جاهزة (أرخص وأسرع)"], [true, "بالذكاء الاصطناعي (جودة أعلى، سعر ضعف)"]] as const).map(([v, l]) => <button key={String(v)} type="button" aria-pressed={ai === v} onClick={() => setAi(v)} className="chip">{L(l)}</button>)}</div>
-        {ai && <span className="text-[13px] text-subtle">{L("كل مشهد يتولّد من جملته بالضبط، فياخذ وقت أطول (دقائق).")}</span>}</div>
+      <p className="text-[13px] text-subtle">{L("كل مشهد يتولّد بالذكاء الاصطناعي من جملته بالضبط، فياخذ وقت أطول (دقائق).")}</p>
       <div className="flex flex-col gap-2"><span className="font-semibold">{L("الكلام اللي ينقال بالفيديو")}</span>
         <div className="flex flex-wrap gap-2">{([[false, "شاهين يأخذ الكلام من نصي"], [true, "أنا أكتب الكلام اللي ينقال"]] as const).map(([v, l]) => <button key={String(v)} type="button" aria-pressed={mine === v} onClick={() => setMine(v)} className="chip">{L(l)}</button>)}</div></div>
       <label className="flex flex-col gap-2"><span className="font-semibold">{mine ? L("وصف المشاهد (اختياري): شو تبي يبان بالفيديو؟") : L("اكتب نص الإعلان أو الفكرة")}</span>

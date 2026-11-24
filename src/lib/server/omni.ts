@@ -67,7 +67,9 @@ export async function fillAiClips<G extends { kind: string; q?: string; img?: st
   const todo = graphics.filter((g) => g.kind === "clip" && g.q && !g.img);
   for (let i = 0; i < todo.length; i += 6) {
     await Promise.all(todo.slice(i, i + 6).map(async (g) => {
-      const c = await generateClip(g.q!, aspect, userId, jobId, deadline, ref);
+      let c = await generateClip(g.q!, aspect, userId, jobId, deadline, ref);
+      if (!c && ref) c = await generateClip(g.q!, aspect, userId, jobId, deadline, null); // Google may refuse a face photo: try the same shot without it
+      if (!c) c = await generateClip(g.q!, aspect, userId, jobId, deadline, null); // one more try before the scene borrows a neighbour's clip
       if (c) { g.img = c.img; g.cdur = c.cdur; g.credit = ""; }
     }));
   }
