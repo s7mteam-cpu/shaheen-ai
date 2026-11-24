@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { setUsageCtx } from "@/lib/server/usageCtx";
 import { guardContent } from "@/lib/server/moderation";
 import { box } from "@/design/spec";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -66,6 +67,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       .insert({ user_id: user.id, tool_id: "motion-video", title: idea.slice(0, 80), status: "draft", input: { idea, seconds, aspect } })
       .select("id").single();
     if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
+    setUsageCtx({ jobId: job.id, userId: user.id, toolId: "motion-video" }); // «تكلفة كل طلب»: the AI calls below are noted under this request
     const denied = await charge(job.id, Math.max(1, Math.round(seconds / 15)) * tool.credit_cost);
     if (denied) { await admin.from("jobs").delete().eq("id", job.id); return denied; }
 

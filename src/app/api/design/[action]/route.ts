@@ -1,4 +1,5 @@
 import { loadLike, likeText } from "@/lib/server/like";
+import { setUsageCtx } from "@/lib/server/usageCtx";
 import { designCatalog } from "@/design/recipes";
 import { applyRecipes } from "@/design/styles";
 import { imgStylePrompt, isImgStyle, DEFAULT_IMG_STYLE } from "@/design/imgStyles";
@@ -226,6 +227,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       .insert({ user_id: user.id, tool_id: toolId, title: info.slice(0, 80), status: "draft", progress: 5, input: { info, count, aspect, kind, photos, person } })
       .select("id").single();
     if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
+    setUsageCtx({ jobId: job.id, userId: user.id, toolId: toolId }); // «تكلفة كل طلب»: the AI calls below are noted under this request
     const cost = (kind === "post" || kind === "bcard" || kind === "invite" ? 1 : count) * tool.credit_cost;
     const denied = await charge(job.id, cost);
     if (denied) { await admin.from("jobs").delete().eq("id", job.id); return denied; }

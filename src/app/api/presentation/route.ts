@@ -1,4 +1,5 @@
 import { extraPricing } from "@/lib/server/pricing";
+import { setUsageCtx } from "@/lib/server/usageCtx";
 import { NextResponse } from "next/server";
 import JSZip from "jszip";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -96,6 +97,7 @@ export async function POST(req: Request) {
   const cost = tool.credit_cost * (auto ? ex.pres_auto_units : Math.ceil(n / 10)) + (pics ? ex.pres_image_cost : 0);
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: "presentations", title: (topic || upload?.name || "عرض").slice(0, 80), status: "running", progress: 5, input: { topic: topic.slice(0, 2000), slides: n, lang } }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
+  setUsageCtx({ jobId: job.id, userId: user.id, toolId: "presentations" }); // «تكلفة كل طلب»: the AI calls below are noted under this request
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
   if (payErr) { await admin.from("jobs").delete().eq("id", job.id); return NextResponse.json({ error: payErr.message.includes("INSUFFICIENT") ? "رصيدك من الريش ما يكفي." : "تعذّر خصم الرصيد." }, { status: 402 }); }
 
