@@ -128,3 +128,16 @@ export function beatLayer(beats, a, b) {
   return `<style>.fxbeat{position:fixed;inset:0;z-index:2147482000;pointer-events:none;opacity:0;background:linear-gradient(105deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.85) 50%,rgba(255,255,255,0) 70%);background-size:300% 100%;animation:fxbeat .42s ease-out both}
 @keyframes fxbeat{0%{opacity:0;background-position:120% 0}35%{opacity:.34}100%{opacity:0;background-position:-20% 0}}</style>${mine.map((t) => `<div class="fxbeat" aria-hidden="true" style="animation-delay:${(t - a).toFixed(2)}s"></div>`).join("")}`;
 }
+
+/** «غيّر خلفيتي»: the room behind the speaker becomes a picture. The speaker's own pixels are kept (cut by the matte) and laid over the new background, slightly out of focus like a real room behind a person.
+ *  The result replaces the prepared video for everything after it (drawing, studio preview). Returns "" when it failed. */
+export async function swapBackground({ d, norm, matte, bg, out, W, H, FPS, frames }) {
+  try {
+    await d.ff(["-i", norm, "-c:v", "libvpx-vp9", "-i", matte, "-loop", "1", "-framerate", String(FPS), "-i", bg, "-filter_complex",
+      `[2:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},gblur=sigma=2.2,format=yuv420p,setsar=1[bg];[0:v]fps=${FPS},setpts=PTS-STARTPTS[sp];[1:v]fps=${FPS},setpts=PTS-STARTPTS,scale=${W}:${H}:flags=bicubic,format=yuva420p,alphaextract[m];[sp][m]alphamerge[p];[bg][p]overlay=eof_action=pass:format=auto[v]`,
+      "-map", "[v]", "-map", "0:a?", "-frames:v", String(frames), "-r", String(FPS), "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", out]);
+    const got = await d.countFrames(out).catch(() => 0);
+    if (Math.abs(got - frames) > 1) { console.error("fx background frames", got, frames); return ""; }
+    return out;
+  } catch (e) { console.error("fx background", e?.message ?? e); return ""; }
+}

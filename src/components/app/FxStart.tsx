@@ -13,7 +13,9 @@ type State = { status: "queued" | "running"; progress: number; step?: string } |
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 /** «مونتاج مبتكر»: the customer uploads his own talking video and describes the edit; the AI plans the graphics from his words and draws them over the video. */
-export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost, imagesCost, musicCost }: { costPerMinute: number; balance: number; hasKit: boolean; maxSeconds: number; /** -1: not offered */ behindCost: number; /** -1: not offered */ imagesCost: number; /** -1: not offered */ musicCost: number }) {
+export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost, imagesCost, musicCost, bgCost }: { costPerMinute: number; balance: number; hasKit: boolean; maxSeconds: number; /** -1: not offered */ behindCost: number; /** -1: not offered */ imagesCost: number; /** -1: not offered */ musicCost: number; /** «غيّر خلفيتي»: -1 not offered, otherwise the cut-out price it shares with «ورا المتحدث» */ bgCost: number }) {
+  const [bgOn, setBgOn] = useState(false);
+  const [bgText, setBgText] = useState("");
   const [sfx, setSfx] = useState(true);
   const [tight, setTight] = useState(false);
   const [ownMusic, setOwnMusic] = useState<{ path: string; name: string } | null>(null);
@@ -132,14 +134,15 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
   }
 
   const minutes = video ? Math.max(1, Math.ceil(Math.ceil(video.seconds) / 60)) : 1;
-  const cost = minutes * (costPerMinute + (behind && behindCost >= 0 ? behindCost : 0) + (aiImages && imagesCost >= 0 ? imagesCost : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0));
+  const wantBg = bgOn && bgCost >= 0 && bgText.trim().length >= 3;
+  const cost = minutes * (costPerMinute + ((behind && behindCost >= 0) || wantBg ? Math.max(0, behindCost >= 0 ? behindCost : bgCost) : 0) + (aiImages && imagesCost >= 0 ? imagesCost : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0));
   const descOk = styles.length > 0 || styleDesc.trim().length >= 15;
 
   async function start(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!video || busy) return;
     setBusy(true); setErr("");
-    const r = await fetch("/api/free-montage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ video: video.path, seconds: Math.ceil(video.seconds), notes, styles, styleDesc, depth, captions, useIdentity, behind: behind && behindCost >= 0, aiImages: aiImages && imagesCost >= 0, sfx, moves, tight, music: music && !ownMusic && musicCost >= 0, ...(ownMusic ? { musicFile: ownMusic.path } : {}), photos: photos.map((x) => ({ path: x.path, note: x.note })) }) }).catch(() => null);
+    const r = await fetch("/api/free-montage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ video: video.path, seconds: Math.ceil(video.seconds), notes, styles, styleDesc, depth, captions, useIdentity, behind: behind && behindCost >= 0, aiImages: aiImages && imagesCost >= 0, sfx, moves, tight, ...(wantBg ? { bg: bgText.trim() } : {}), music: music && !ownMusic && musicCost >= 0, ...(ownMusic ? { musicFile: ownMusic.path } : {}), photos: photos.map((x) => ({ path: x.path, note: x.note })) }) }).catch(() => null);
     const d = r ? await r.json().catch(() => null) : null;
     setBusy(false);
     if (!r || !r.ok || !d?.jobId) { setErr(L(d?.error ?? "تعذّر بدء المونتاج.")); return; }
@@ -234,6 +237,10 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
       </div>
       {musicCost >= 0 && !ownMusic && <label className="flex items-start gap-3"><input type="checkbox" checked={music} onChange={(e) => setMusic(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("موسيقى خلفية 🎵")}{musicCost > 0 ? ` (+${musicCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("موسيقى هادئة بدون غناء تناسب كلامك، بصوت واطي تحت صوتك.")}</span></span></label>}
       {imagesCost >= 0 && <label className="flex items-start gap-3"><input type="checkbox" checked={aiImages} onChange={(e) => setAiImages(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("صور مولّدة بالذكاء الاصطناعي 🖼️")}{imagesCost > 0 ? ` (+${imagesCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("شاهين يرسم صوراً تناسب كلامك (قطار، مدينة، مشهد تاريخي، منتج…) ويحطها بالمونتاج. بدون أشخاص حقيقيين أو مشاهير أو شعارات. إذا تبي صورة حقيقية بعينها، ارفعها من «صورك داخل المونتاج» وعلى مسؤوليتك.")}</span></span></label>}
+      {bgCost >= 0 && <div className="flex flex-col gap-2">
+        <label className="flex items-start gap-3"><input type="checkbox" checked={bgOn} onChange={(e) => setBgOn(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("غيّر خلفيتي 🏢")}{bgCost > 0 && !behind ? ` (+${bgCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("شاهين يقصّك من الغرفة ويحط وراك مكان جديد مرسوم بالذكاء الاصطناعي طول الفيديو. يطلع أحسن إذا الكاميرا ثابتة وأنت واضح عن الخلفية. بدون أشخاص حقيقيين أو شعارات.")}</span></span></label>
+        {bgOn && <input value={bgText} maxLength={200} onChange={(e) => setBgText(e.target.value)} className="field" placeholder={L("شنو تبي وراك؟ مثال: مكتب فخم فيه مكتبة خشب وإضاءة دافئة")} />}
+      </div>}
       {behindCost >= 0 && <label className="flex items-start gap-3"><input type="checkbox" checked={behind} onChange={(e) => setBehind(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("عناصر ورا المتحدث ✨")}{behindCost > 0 ? ` (+${behindCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("شاهين يقصّك من الخلفية ويحط كلمات وأشكال كبيرة وراك، فتطلع بعمق حقيقي. ياخذ وقت أطول، وفيديوك يمر على خدمة قص خارجية.")}</span></span></label>}
       <label className="flex items-center gap-3"><input type="checkbox" checked={captions} onChange={(e) => setCaptions(e.target.checked)} className="h-5 w-5" /><span className="text-[15px]">{L("ترجمة عربية متحركة كلمة كلمة")}</span></label>
       {hasKit && <label className="flex items-center gap-3"><input type="checkbox" checked={useIdentity} onChange={(e) => setUseIdentity(e.target.checked)} className="h-5 w-5" /><span className="text-[15px]">{L("استخدم ألوان هويتي")}</span></label>}
