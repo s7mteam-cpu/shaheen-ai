@@ -2,6 +2,7 @@ import { getMoney } from "@/lib/server/money";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getPlans, getSessionProfile } from "@/lib/data";
+import { PlanFold } from "@/components/app/PlanFold";
 import { stripe } from "@/lib/stripe";
 import { PasswordForm } from "@/components/app/PasswordForm";
 import { DeleteAccount } from "@/components/app/DeleteAccount";
@@ -122,17 +123,32 @@ export default async function Account({ searchParams }: { searchParams: Promise<
           </div>
           <section className="flex flex-col gap-3">
             <h2 className="text-xl font-bold text-navy-900">{plan ? T("غيّر باقتك", "Change plan") : T("اختر باقتك", "Choose a plan")}</h2>
-            <div className="grid gap-4 md:grid-cols-3">
-              {plans.map((p) => (
-                <form key={p.id} action={startCheckout.bind(null, p.id)} className={`card flex flex-col gap-2.5 p-5 ${p.id === plan?.id ? "border-2 border-navy-800" : ""}`}>
-                  <span className="font-bold">{p.name}</span>
+            {(() => {
+              // folded like the home page: individuals and companies, each showing one plan on its face (the customer's own, otherwise the most popular) and the rest behind a button
+              const card = (p: (typeof plans)[number]) => (
+                <form key={p.id} action={startCheckout.bind(null, p.id)} className={`flex flex-col gap-2.5 rounded-2xl border p-4 ${p.id === plan?.id ? "border-2 border-navy-800" : p.is_featured ? "border-gold-500" : "border-line"}`}>
+                  <span className="flex flex-wrap items-center gap-2 font-bold">{p.name}{p.is_featured && <span className="rounded-full bg-gold-500 px-2.5 py-0.5 text-[12px] font-bold text-navy-900">{T("الأكثر طلباً", "Most popular")}</span>}</span>
                   <span className="text-sm text-muted">{Number(p.price_kwd)} {T("د.ك", "KWD")} {money(Number(p.price_kwd)).approx ? <span className="opacity-75">(≈ {money(Number(p.price_kwd)).number} {money(Number(p.price_kwd)).symbol})</span> : null} · {p.credits.toLocaleString("en")} {T("ريشة", "credits")}{(p.bonus_credits ?? 0) > 0 ? ` + ${p.bonus_credits!.toLocaleString("en")} ${T("هدية", "bonus")}` : ""}</span>
                   {p.id === plan?.id
                     ? <span className="mt-auto rounded-xl bg-tint py-2.5 text-center text-sm font-bold text-navy-700">{T("باقتك الحالية", "Current plan")}</span>
                     : <div className="mt-auto flex flex-col gap-2.5"><RenewConsent price={Number(p.price_kwd)} /><button className="btn btn-gold py-2.5 text-sm">{plan ? T("التبديل لهذه الباقة", "Switch to this plan") : T("اشترك", "Subscribe")}</button></div>}
                 </form>
-              ))}
-            </div>
+              );
+              const isBiz = (p: { id: string }) => p.id.startsWith("biz-");
+              const groups = [
+                { key: "ind", list: plans.filter((p) => !isBiz(p)), title: T("باقات الأفراد", "Individual plans"), sub: T("لصنّاع المحتوى وأصحاب المشاريع الصغيرة", "For creators and small businesses"), more: T("عرض كل باقات الأفراد", "Show all individual plans") },
+                { key: "biz", list: plans.filter(isBiz), title: T("باقات الشركات", "Business plans"), sub: T("للشركات والوكالات والفرق", "For companies and agencies"), more: T("عرض كل باقات الشركات", "Show all business plans") },
+              ].filter((g) => g.list.length);
+              return (
+                <div className={`grid items-start gap-4 ${groups.length > 1 ? "lg:grid-cols-2" : ""}`}>
+                  {groups.map((g) => {
+                    const top = g.list.find((p) => p.id === plan?.id) ?? g.list.find((p) => p.is_featured) ?? g.list[0];
+                    const others = g.list.filter((p) => p.id !== top.id);
+                    return <PlanFold key={g.key} title={g.title} sub={g.sub} face={card(top)} rest={others.length ? others.map(card) : null} more={`${g.more} (${g.list.length})`} less={T("إخفاء الباقات", "Hide plans")} />;
+                  })}
+                </div>
+              );
+            })()}
           </section>
           {profile?.referral_code && (
             <section className="card flex flex-col gap-2 p-6">
