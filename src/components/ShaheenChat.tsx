@@ -246,7 +246,7 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
                 <button type="button" aria-label={T("إغلاق", "Close")} onClick={() => setOpen(false)} className="shc-x">×</button>
               </header>
               <div className="shc-office">
-                <p className="shc-ask">{en ? `Hi${name ? ` ${name}` : ""}, who would you like to talk to?` : `هلا${name ? ` ${name}` : ""}، مع منو تبي تتكلم؟`}</p>
+                <p className="shc-ask">{en ? `Hi${name ? ` ${name}` : ""} 👋 Who can help you today?` : `هلا${name ? ` ${name}` : ""} 👋 منو يساعدك اليوم؟`}</p>
                 {head && (
                   <div className="shc-headrow">
                     <button type="button" onClick={() => pick(head.key)} className="shc-bosspill" style={{ ["--ac" as string]: head.color }}>

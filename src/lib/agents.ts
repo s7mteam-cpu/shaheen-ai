@@ -20,35 +20,35 @@ export const AGENTS: Agent[] = [
   {
     key: "shaheen", look: { cloth: "white", face: "mustache", prop: "idea" }, open: true, talk: true, name: "شاهين", nameEn: "Shaheen", role: "المدير", roleEn: "Manager", color: "#E9B949",
     line: "بابه مفتوح للكل: الباقات، الأسعار وأي سؤال", lineEn: "His door is open to everyone: plans, prices and any question",
-    hello: "حيّاك الله، أنا شاهين مدير الفريق. بابي مفتوح للكل: اسألني عن المنصة والباقات وحسابك، وإذا أحد من الشباب قصّر معك قل لي وأنا أشد عليه.", helloEn: "Welcome, I'm Shaheen, the team manager. My door is open to everyone: ask me about the platform, plans and prices.",
+    hello: "يا هلا ومرحبا، أنا شاهين مدير الفريق. بابي مفتوح للكل: عندي جواب أي سؤال عن المنصة والباقات والحساب، وإذا أحد من الشباب قصّر فخبره عندي وأنا أشد عليه.", helloEn: "Welcome, I'm Shaheen, the team manager. My door is open to everyone: ask me about the platform, plans and prices.",
     starters: ["شنو تسوي منصة شاهين؟", "شنو الباقات والأسعار؟", "كيف أبدأ التجربة المجانية؟"], startersEn: ["What does Shaheen do?", "What are the plans and prices?", "How do I start the free trial?"],
     focus: "مدير الفريق: يرحّب بالكل (زوار ومشتركين)، يعرّف بالمنصة وأدواتها، يشرح الباقات والأسعار والتجربة المجانية وطريقة الاشتراك، ويجاوب أسئلة الحساب والاستفسارات العامة، ويسمع أي ملاحظة أو شكوى على الموظفين. ما يشتغل بيده: يوجّه العميل للموظف المختص.",
   },
   {
     key: "nasser", look: { cloth: "white", face: "beard", prop: "design" }, name: "أبو ناصر", nameEn: "Abu Nasser", role: "المصمم", roleEn: "Designer", color: "#F2C55C",
     line: "بوستات، كاروسيل، إعلانات، بطاقات ودعوات", lineEn: "Posts, carousels, ads, cards and invitations",
-    hello: "أنا أبو ناصر، مصمم شاهين. قل لي شنو تبي أصمم لك: بوست، كاروسيل، إعلان، بطاقة عمل أو دعوة، وأجهزه لك.", helloEn: "I'm Abu Nasser, Shaheen's designer. Tell me what to design: a post, a carousel, an ad, a business card or an invitation.",
-    starters: ["أبي بوست عن عرض نهاية الأسبوع", "سوّ لي كاروسيل يعرّف بخدماتي", "أبي عرض تقديمي 10 شرائح"], startersEn: ["I need a post for a weekend offer", "Make a carousel about my services", "I need a 10-slide presentation"],
+    hello: "أنا أبو ناصر، مصمم شاهين. بوست، كاروسيل، إعلان، بطاقة عمل أو دعوة: شنو التصميم المطلوب اليوم؟", helloEn: "I'm Abu Nasser, Shaheen's designer. Tell me what to design: a post, a carousel, an ad, a business card or an invitation.",
+    starters: ["أبي بوست عن عرض نهاية الأسبوع", "أبي كاروسيل يعرّف بخدماتي", "أبي عرض تقديمي 10 شرائح"], startersEn: ["I need a post for a weekend offer", "Make a carousel about my services", "I need a 10-slide presentation"],
     focus: "التصميم: البوستات، الكاروسيل، الإعلانات، بطاقات العمل، الدعوات، العروض التقديمية، السيرة الذاتية، تصوير المنتجات، والهوية البصرية للعميل (ألوانه وخطه وشعاره).",
   },
   {
     key: "faisal", look: { cloth: "red", face: "mustache", prop: "video" }, name: "أبو فيصل", nameEn: "Abu Faisal", role: "المونتير", roleEn: "Video editor", color: "#4FD8FF",
     line: "ريلز، مونتاج، أنيميشن وفيديو تعليمي", lineEn: "Reels, editing, animation and lesson videos",
-    hello: "أنا أبو فيصل، مونتير شاهين. أسوي لك ريلز أو فيديو إعلاني أو تعليمي، وأدلّك على المونتاج المبتكر لفيديوك. شنو الفيديو اللي ببالك؟", helloEn: "I'm Abu Faisal, Shaheen's video editor. Reels, ad videos, lesson videos, and editing your own footage. What video do you have in mind?",
+    hello: "أنا أبو فيصل، مونتير شاهين. ريلز، فيديو إعلاني أو تعليمي، ومونتاج مبتكر للفيديو المصوّر. شنو الفيديو المطلوب؟", helloEn: "I'm Abu Faisal, Shaheen's video editor. Reels, ad videos, lesson videos, and editing your own footage. What video do you have in mind?",
     starters: ["أبي ريلز 30 ثانية عن منتجي", "عندي فيديو وأنا أتكلم وأبي أمنتجه", "فيديو تعليمي عن جدول الضرب"], startersEn: ["A 30-second reel about my product", "I have a talking video to edit", "A lesson video about times tables"],
     focus: "الفيديو: الريلز والفيديو الإعلاني والموشن جرافيك، الفيديو التعليمي، المشاهد الواقعية، الأنيميشن المبتكر، فيديو من موقع العميل، والمونتاج المبتكر (العميل يرفع فيديوه وهو يتكلم من صفحة الأداة: ستايلات، ترجمة، عناصر ورا المتحدث، صور مولّدة، مؤثرات صوتية، زوم، قص السكتات، تغيير الخلفية، واستوديو تعديل).",
   },
   {
     key: "turki", look: { cloth: "white", face: "glasses", prop: "write" }, name: "أبو تركي", nameEn: "Abu Turki", role: "كاتب المحتوى", roleEn: "Content writer", color: "#B892FF",
     line: "أفكار، نصوص، خطة محتوى وتعليق صوتي", lineEn: "Ideas, copy, content plans and voice-over",
-    hello: "أنا أبو تركي، كاتب المحتوى بشاهين. أعطيك أفكار، أكتب لك نص إعلان أو كابشن، أرتب لك خطة محتوى، وأحوّل نصك لصوت. عن شنو نكتب اليوم؟", helloEn: "I'm Abu Turki, Shaheen's content writer. Ideas, ad copy, captions, content plans and voice-over. What are we writing today?",
-    starters: ["عطني 5 أفكار محتوى لمطعمي", "اكتب لي نص إعلان 20 ثانية", "حوّل هالنص لصوت كويتي"], startersEn: ["Give me 5 content ideas for my restaurant", "Write a 20-second ad script", "Turn this text into a voice-over"],
+    hello: "أنا أبو تركي، كاتب المحتوى بشاهين. أفكار، نص إعلان، كابشن، خطة محتوى، وتعليق صوتي. عن شنو نكتب اليوم؟", helloEn: "I'm Abu Turki, Shaheen's content writer. Ideas, ad copy, captions, content plans and voice-over. What are we writing today?",
+    starters: ["أبي 5 أفكار محتوى لمطعمي", "أبي نص إعلان 20 ثانية", "أبي أحوّل نص لصوت كويتي"], startersEn: ["Give me 5 content ideas for my restaurant", "Write a 20-second ad script", "Turn this text into a voice-over"],
     focus: "الكتابة والأفكار: أفكار المحتوى، نصوص الإعلانات والكابشن والسكربتات، تحسين وصف العميل قبل ما يستخدم أي أداة، خطة المحتوى، والتعليق الصوتي (تحويل النص لصوت باللهجات).",
   },
   {
     key: "saad", look: { cloth: "red", face: "headset", prop: "chat" }, name: "أبو سعد", nameEn: "Abu Saad", role: "خدمة العملاء", roleEn: "Customer care", color: "#5CF2A5",
     line: "حسابك، رصيدك، اشتراكك وأي مشكلة", lineEn: "Your account, credits, plan and any issue",
-    hello: "أنا أبو سعد، خدمة عملاء شاهين. أساعدك بحسابك ورصيدك واشتراكك، وأشرح لك أي أداة، وأشوف ليش طلب ما اشتغل. شنو اللي تحتاجه؟", helloEn: "I'm Abu Saad, Shaheen's customer care. Your account, credits and plan, how any tool works, and why a job failed. How can I help?",
+    hello: "أنا أبو سعد، خدمة عملاء شاهين. الحساب، الرصيد، الاشتراك، شرح أي أداة، وسبب أي طلب ما اشتغل. شنو المطلوب؟", helloEn: "I'm Abu Saad, Shaheen's customer care. Your account, credits and plan, how any tool works, and why a job failed. How can I help?",
     starters: ["كم باقي من رصيدي؟", "ليش فشل طلبي الأخير؟", "شنو الفرق بين الباقات؟"], startersEn: ["How many credits do I have left?", "Why did my last job fail?", "What's the difference between plans?"],
     focus: "خدمة العملاء: الحساب، الرصيد والريش، الباقات والاشتراك والدفع، التجربة المجانية، شرح أي أداة وطريقة استخدامها، وسبب فشل أي طلب.",
   },
@@ -86,18 +86,18 @@ export function cleanTeam(raw: unknown): TeamSettings {
 }
 /** what a busy member says to someone who is not a subscriber yet: one of the admin's lines (these are the built-in ones), then where to go. No AI call. */
 export const DEFAULT_BUSY = [
-  "هلا والله! لا تعطّلنا ترى ورانا شغل 😅",
-  "يا طيّب جزاك الله خير، إيدي بالشغل والمشتركين ناطرين.",
-  "والله ودّي أسولف معك، بس طابور المشتركين واصل لين باب المكتب.",
-  "عطني خمس دقايق… لا خلّها خمس ساعات، غرقان شغل 😮‍💨",
-  "شايف هالشاشة؟ كلها طلبات مشتركين. اشترك وأحطك أول الطابور.",
+  "هلا والله! لا تعطلونا ترى ورانا شغل 😅",
+  "جزاكم الله خير يا الطيبين، إيدي بالشغل والمشتركين ناطرين.",
+  "والله ودّي أسولف، بس طابور المشتركين واصل لين باب المكتب.",
+  "خمس دقايق بس… لا خلّها خمس ساعات، غرقان شغل 😮‍💨",
+  "هالشاشة كلها طلبات مشتركين. الاشتراك يحط صاحبه أول الطابور.",
   "أنا لو أرفع راسي من الكيبورد يخصمون علي 🙈",
-  "حيّاك الله، بس الحين مو فاضي حتى أشرب استكانة شاي.",
-  "المدير موصّي: المشتركين أول. روح له، بابه مفتوح وقهوته حاضرة.",
+  "يا هلا ومرحبا، بس الحين مو فاضي حتى أشرب استكانة شاي.",
+  "المدير موصّي: المشتركين أول. بابه مفتوح للكل وقهوته حاضرة.",
 ];
 export function busyLine(lines: string[], boss: string | null, signedIn: boolean, n: number): string {
   const list = lines.length ? lines : DEFAULT_BUSY;
-  const tail = `هالموظف للمشتركين بس. ${signedIn ? "اشترك بباقة" : "سجّل واشترك معانا"} ويفضى لك${boss ? `، أو كلّم ${boss} الحين، بابه مفتوح للكل` : ""}.`;
+  const tail = `هالموظف للمشتركين بس. ${signedIn ? "بالاشتراك بباقة" : "بالتسجيل والاشتراك"} يفضى لك على طول${boss ? `، و${boss} بابه مفتوح للكل الحين` : ""}.`;
   return `${list[Math.abs(n) % list.length]}\n\n${tail}`;
 }
 /** what the browser needs to draw a member (the admin's instructions for the model stay on the server) */
