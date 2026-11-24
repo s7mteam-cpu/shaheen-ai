@@ -340,6 +340,6 @@ export async function POST(req: Request) {
     console.error("lesson", e);
     await admin.from("jobs").update({ status: "failed", error: `lesson: ${e instanceof Error ? e.message : String(e)}`.slice(0, 500) }).eq("id", job.id);
     await admin.rpc("refund_job", { p_job: job.id });
-    return NextResponse.json({ error: motion ? (real ? "ما لقينا لقطات تناسب النص الحين، ورجّعنا لك الريش. جرّب تعدّل النص أو تحاول مرة ثانية." : "ما قدرنا نسوي الفيديو الحين، ورجّعنا لك الريش. حاول مرة ثانية.") : "ما قدرنا نسوي الدرس الحين، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
+    return NextResponse.json({ error: motion ? (real ? "في تحديثات حالياً على هالأداة، ورجّعنا لك الريش. حاول مرة ثانية بوقت لاحق." : "ما قدرنا نسوي الفيديو الحين، ورجّعنا لك الريش. حاول مرة ثانية.") : "ما قدرنا نسوي الدرس الحين، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
   }
 }
