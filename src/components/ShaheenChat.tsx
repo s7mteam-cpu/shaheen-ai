@@ -405,13 +405,13 @@ const CSS = `
 .shc-role{font-size:12px;font-weight:700;color:var(--ac);letter-spacing:.2px}
 .shc-line{min-height:30px;max-width:150px;text-align:center;font-size:11px;line-height:1.35;color:rgba(234,240,248,.62)}
 .shc-headrow{display:flex;justify-content:center;margin:2px 0 4px}
-.shc-bosspill{position:relative;display:flex;align-items:center;gap:8px;padding:4px 14px 4px 5px;border-radius:999px;border:1px solid var(--ac);background:rgba(4,16,31,.74);box-shadow:0 0 16px -5px var(--ac),inset 0 0 12px -9px var(--ac);transition:transform .25s ease;animation:shc-float 4.5s ease-in-out infinite}
-[dir="rtl"] .shc-bosspill{padding:4px 5px 4px 14px}
-.shc-bosspill .shc-ava{height:32px;width:32px}
+.shc-bosspill{position:relative;display:flex;align-items:center;gap:7px;padding:3px 12px 3px 4px;border-radius:999px;border:1px solid var(--ac);background:rgba(4,16,31,.74);box-shadow:0 0 16px -5px var(--ac),inset 0 0 12px -9px var(--ac);transition:transform .25s ease;animation:shc-float 4.5s ease-in-out infinite}
+[dir="rtl"] .shc-bosspill{padding:3px 4px 3px 12px}
+.shc-bosspill .shc-ava{height:27px;width:27px}
 .shc-bosspill:hover,.shc-bosspill:focus-visible{transform:translateY(-3px);outline:none;background:color-mix(in srgb,var(--ac) 14%,rgba(4,16,31,.8))}
 .shc-bosst{display:flex;flex-direction:column;align-items:flex-start;line-height:1.3}
-.shc-bosst b{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:800;color:#fff;white-space:nowrap}
-.shc-bosst i{font-style:normal;font-size:10.5px;color:var(--ac)}
+.shc-bosst b{display:flex;align-items:center;gap:5px;font-size:13.5px;font-weight:800;color:#fff;white-space:nowrap}
+.shc-bosst i{font-style:normal;font-size:9.5px;color:var(--ac)}
 .shc-bosspill .shc-badge{position:static;margin-inline-start:2px}
 .shc-seatw{position:relative;display:flex;justify-content:center}
 .shc-seatw>.shc-seat{width:100%}

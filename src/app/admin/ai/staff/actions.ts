@@ -7,7 +7,7 @@ import { getTeam, saveTeam } from "@/lib/server/chatTeam";
 async function guard() { const u = await requireAdmin("ai"); if (!u) throw new Error("غير مصرّح"); }
 const pickFields = (f: FormData) => ({
   name: f.get("name"), nameEn: f.get("nameEn"), role: f.get("role"), roleEn: f.get("roleEn"), color: f.get("color"), line: f.get("line"), hello: f.get("hello"), focus: f.get("focus"),
-  starters: String(f.get("starters") ?? "").split("\n"), open: f.get("open"), look: { cloth: f.get("cloth"), face: f.get("face"), prop: f.get("prop") },
+  starters: String(f.get("starters") ?? "").split("\n"), open: f.get("open"), talk: f.get("talk") === "on", look: { cloth: f.get("cloth"), face: f.get("face"), prop: f.get("prop") },
 });
 
 /** لوحة الإدارة ← فريق «كلّم شاهين»: save one member (an existing key) or add a new one (no key). What the admin writes in «تخصصه» goes to the model as that member's instructions. */

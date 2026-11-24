@@ -29,6 +29,7 @@ function Fields({ a }: { a?: Agent }) {
         <label className="flex flex-col gap-1"><span className="label">{L("الوجه")}</span><select name="face" defaultValue={a?.look.face ?? "clean"} className="field">{FACES.map((c) => <option key={c} value={c}>{L(AR[c])}</option>)}</select></label>
         <label className="flex flex-col gap-1"><span className="label">{L("على مكتبه")}</span><select name="prop" defaultValue={a?.look.prop ?? "idea"} className="field">{PROPS.map((c) => <option key={c} value={c}>{L(AR[c])}</option>)}</select></label>
       </div>
+      <label className="flex items-center gap-2 text-sm"><input name="talk" type="checkbox" defaultChecked={!!a?.talk} className="h-4 w-4" />{L("مدير: كلام بس. يجاوب ويسمع الشكاوي ويحوّل للموظف المختص، وما يجهّز بوست ولا فيديو ولا أي طلب.")}</label>
       <label className="flex items-center gap-2 text-sm"><input name="open" type="checkbox" defaultChecked={!!a?.open} className="h-4 w-4" />{L("بابه مفتوح للكل (يكلم الزوار وغير المشتركين). خلّها للمدير.")}</label>
     </>
   );

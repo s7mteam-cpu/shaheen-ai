@@ -93,14 +93,14 @@ type Act =
   | { kind: "gate"; to: AgentKey | null; signedIn: boolean };
 const SLIDES = 6;
 /** The model may only SUGGEST an action in its own reply. Only a whitelisted, validated kind survives; the customer still has to press «أكّد». */
-function extractAction(raw: string, c: { agent: AgentKey; mates: string[]; signedIn: boolean; credits: number; prefs: PlanPrefs; tools: { id: string; name: string; credit_cost: number }[]; extra: ExtraPricing }): { text: string; action: Act | null } {
+function extractAction(raw: string, c: { agent: AgentKey; mates: string[]; talkOnly: boolean; signedIn: boolean; credits: number; prefs: PlanPrefs; tools: { id: string; name: string; credit_cost: number }[]; extra: ExtraPricing }): { text: string; action: Act | null } {
   const marks = [...raw.matchAll(/\[\[ACTION\s+([a-z0-9:_-]+)\s*\|\s*([^\]]{3,1100})\]\]/gi)];
   const text = raw.replace(/\[\[[\s\S]*?\]\]/g, "").trim();
   const m = marks[marks.length - 1];
   // a colleague is the right one for this: the customer gets a button to move to him (nothing runs, nothing is charged)
   const ho = /\[\[HANDOFF\s+([a-z0-9_]+)\s*\]\]/i.exec(raw)?.[1]?.toLowerCase();
   if (!m && ho && c.mates.includes(ho) && ho !== c.agent) return { text, action: { kind: "handoff", to: ho } };
-  if (!m || !c.signedIn) return { text, action: null };
+  if (!m || !c.signedIn || c.talkOnly) return { text, action: null }; // a manager prepares nothing, whatever the model wrote
   let kind = m[1].toLowerCase();
   const brief = m[2].replace(/\s+/g, " ").trim();
   if (kind === "open:motion-video" || kind === "open:lesson-video") kind = "reel"; // same tool: make it directly instead of linking
@@ -248,7 +248,12 @@ ${me.custom ? `هذا الموظف أضافه العميل لنفسه، ووصف
 ${me.focus}
 </وصف_الموظف_من_العميل>
 إذا كان مجالك مهني (محاسبة، قانون، طب، استثمار)، ساعد بمعلومات عامة ووضّح إنك مساعد ذكي ولست بديلاً عن مختص مرخّص.` : `تخصصك: ${me.focus}`}
-زملاؤك بالفريق: ${mates.map((a) => `${a.name} (${a.role}، رمزه ${a.key}): ${a.focus}`).join(" | ") || "لا يوجد"}
+${me.talk ? `أنت مدير هذا الفريق، وتتكلم كمدير حقيقي: واثق، هادي، وخفيف دم. دورك كلام فقط:
+- تجاوب عن المنصة والباقات والأسعار والاشتراك والحساب والاستفسارات العامة.
+- ما تشتغل بيدك أبداً: لا تجهّز بوست ولا فيديو ولا صوت ولا أي شي، ولا تكتب سطر ACTION نهائياً. إذا العميل يبي شغل، قل له إنك بتحوّله للموظف المختص وإنك موصّيه عليه، وأضف سطر HANDOFF لذاك الموظف.
+- إذا اشتكى العميل من موظف (تأخر عليه، ما فهمه، شغله ما عجبه، أو حتى يمزح معك عنه): خذ الموضوع كمدير. اعتذر له باسم الفريق، قل إنك بتشد على الموظف وتتابع الموضوع بنفسك، وتقدر تمازحه بجو المكتب (مثل: «تبيني أخصم عليه؟» أو «خلّه علي، اليوم ما يطلع من الدوام لين يرضيك»). بعدها اسأله شنو اللي ضايقه بالضبط، وإذا يبي يكمل شغله حوّله للموظف نفسه بسطر HANDOFF.
+- هذا كلام مدير مع عميله، مو إجراء حقيقي بالحساب: لا توعد بتعويض ريش ولا استرجاع فلوس ولا أي تغيير بالرصيد أو الاشتراك. إذا المشكلة حقيقية (طلب فشل، ريش انخصمت بالغلط) اشرح له اللي تعرفه من بياناته ووجّهه للدعم على الواتساب.
+` : ""}زملاؤك بالفريق: ${mates.map((a) => `${a.name} (${a.role}، رمزه ${a.key}): ${a.focus}`).join(" | ") || "لا يوجد"}
 - ابدأ دائماً من تخصصك وتكلّم كمختص فيه. الأسئلة العامة والبسيطة جاوبها أنت حتى لو خارج تخصصك.
 - إذا طلب العميل تنفيذ شي من صميم تخصص زميل (مثلاً طلب منك فيديو وأنت مو المونتير)، قل له بجملة وحدة إن زميلك فلان هو المختص، وأضف بآخر ردّك سطراً واحداً بهالصيغة بالضبط: [[HANDOFF رمز_الزميل]] (مثال: [[HANDOFF ${mates[0]?.key ?? "x"}]]). لا تكتب سطر ACTION مع سطر HANDOFF.
  تكلّم باللهجة الكويتية البيضاء الودودة والمختصرة (بدون كلمات شامية أو مصرية مثل شو، هيك، بدك، لسا، كمان، مش)، وإذا كتب لك العميل بالفصحى فرد بالفصحى، وإذا كتب بالإنجليزي فرد بالإنجليزي، وجاوب على قد السؤال.
@@ -300,7 +305,7 @@ ${legalBlock}
 
   try {
     const raw = await aiChat("chat", system, messages, 900);
-    const { text: reply, action } = extractAction(raw, { agent: me.key, mates: mates.map((a) => a.key), signedIn: !!uid, credits, prefs: kitPrefs, tools, extra: await extraPricing() });
+    const { text: reply, action } = extractAction(raw, { agent: me.key, mates: mates.map((a) => a.key), talkOnly: !!me.talk, signedIn: !!uid, credits, prefs: kitPrefs, tools, extra: await extraPricing() });
     if (uid) {
       // keep the whole thread (not just the 16 messages Claude sees), each message with its own date
       try {

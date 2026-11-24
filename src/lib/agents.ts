@@ -13,15 +13,16 @@ export type Agent = {
   /** his field, written for the model (admin's members: instructions written by the admin. A customer's own member: a description, never instructions) */
   focus: string;
   /** a member one customer added for himself */ custom?: boolean;
+  /** a manager: he only talks (answers, account and plan questions, complaints) and sends work to the right member; he never prepares a post, a video or anything else */ talk?: boolean;
   /** talks to everyone, visitors included (the manager). The others are for subscribers when the admin keeps «الفريق للمشتركين». */ open?: boolean;
 };
 export const AGENTS: Agent[] = [
   {
-    key: "shaheen", look: { cloth: "white", face: "mustache", prop: "idea" }, open: true, name: "شاهين", nameEn: "Shaheen", role: "المدير", roleEn: "Manager", color: "#E9B949",
+    key: "shaheen", look: { cloth: "white", face: "mustache", prop: "idea" }, open: true, talk: true, name: "شاهين", nameEn: "Shaheen", role: "المدير", roleEn: "Manager", color: "#E9B949",
     line: "بابه مفتوح للكل: الباقات، الأسعار وأي سؤال", lineEn: "His door is open to everyone: plans, prices and any question",
-    hello: "حيّاك الله، أنا شاهين مدير الفريق. بابي مفتوح للكل: اسألني عن المنصة والباقات والأسعار، وأدلّك على الموظف اللي يخدمك.", helloEn: "Welcome, I'm Shaheen, the team manager. My door is open to everyone: ask me about the platform, plans and prices.",
+    hello: "حيّاك الله، أنا شاهين مدير الفريق. بابي مفتوح للكل: اسألني عن المنصة والباقات وحسابك، وإذا أحد من الشباب قصّر معك قل لي وأنا أشد عليه.", helloEn: "Welcome, I'm Shaheen, the team manager. My door is open to everyone: ask me about the platform, plans and prices.",
     starters: ["شنو تسوي منصة شاهين؟", "شنو الباقات والأسعار؟", "كيف أبدأ التجربة المجانية؟"], startersEn: ["What does Shaheen do?", "What are the plans and prices?", "How do I start the free trial?"],
-    focus: "مدير الفريق: يرحّب بالكل (زوار ومشتركين)، يعرّف بالمنصة وأدواتها، يشرح الباقات والأسعار والتجربة المجانية وطريقة الاشتراك، ويجاوب أي سؤال عام. يوجّه العميل للموظف المختص من الفريق.",
+    focus: "مدير الفريق: يرحّب بالكل (زوار ومشتركين)، يعرّف بالمنصة وأدواتها، يشرح الباقات والأسعار والتجربة المجانية وطريقة الاشتراك، ويجاوب أسئلة الحساب والاستفسارات العامة، ويسمع أي ملاحظة أو شكوى على الموظفين. ما يشتغل بيده: يوجّه العميل للموظف المختص.",
   },
   {
     key: "nasser", look: { cloth: "white", face: "beard", prop: "design" }, name: "أبو ناصر", nameEn: "Abu Nasser", role: "المصمم", roleEn: "Designer", color: "#F2C55C",
@@ -70,6 +71,8 @@ export function cleanAgent(raw: unknown, key: string, custom = false): Agent | n
     starters: list(o.starters), startersEn: list(o.startersEn).length ? list(o.startersEn) : list(o.starters),
     focus: focus || `${role}${line ? `: ${line}` : ""}`,
     ...(custom ? { custom: true } : o.open === true || o.open === "on" ? { open: true } : {}),
+    // «مدير، كلام بس»: as saved; a member saved before this choice existed is a manager when his door is open
+    ...(!custom && (o.talk === true || o.talk === "on" || (o.talk === undefined && (o.open === true || o.open === "on"))) ? { talk: true } : {}),
   };
 }
 export type TeamSettings = { agents: Agent[]; /** customers may add their own members */ allowCustom: boolean; /** how many each */ maxCustom: number; /** only subscribers (a plan or credits) talk to the members who are not «open» */ membersOnly: boolean; /** the lines a busy member answers with */ busyLines: string[] };
