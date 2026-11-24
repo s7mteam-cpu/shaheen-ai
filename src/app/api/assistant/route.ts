@@ -9,10 +9,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { clean, customerContext } from "@/lib/server/assistantContext";
 import { toolSpecs } from "@/lib/tools/specs";
 import { itemRequest, FORMAT_TOOL, type PlanItem, type PlanPrefs } from "@/lib/plan";
+import { AGENTS, DEFAULT_AGENT, agentOf, isAgent, type AgentKey } from "@/lib/agents";
 
 const KEEP_DAYS = 30;
 const DAY = 86_400_000;
-type Saved = Msg & { at: number };
+/** every saved message carries the team member it was said to/by (`ag`); messages from before the team belong to the default one */
+type Saved = Msg & { at: number; ag?: AgentKey };
+const agOf = (m: { ag?: unknown }): AgentKey => (isAgent(m.ag) ? m.ag : DEFAULT_AGENT);
 let lastPurge = 0;
 
 /** Chats older than 30 days are deleted. Runs from here (at most once an hour) so it does not depend on a cron. */
@@ -34,14 +37,19 @@ export async function GET() {
   if (!user) return NextResponse.json({ signedIn: false, messages: [] });
   purgeOld().catch(() => null);
   const saved = await loadChat(user.id).catch(() => []);
-  return NextResponse.json({ signedIn: true, messages: saved.map(({ role, content }) => ({ role, content })) });
+  const threads = Object.fromEntries(AGENTS.map((a) => [a.key, saved.filter((m) => agOf(m) === a.key).map(({ role, content }) => ({ role, content }))]));
+  return NextResponse.json({ signedIn: true, threads });
 }
 
-/** «محادثة جديدة»: deletes the saved conversation. */
-export async function DELETE() {
+/** «محادثة جديدة»: deletes the saved conversation with one team member (?agent=…), or all of it. */
+export async function DELETE(req: Request) {
   if (!dbReady()) return NextResponse.json({ ok: true });
   const { data: { user } } = await (await createClient()).auth.getUser();
-  if (user) await createAdminClient().from("assistant_chats").delete().eq("user_id", user.id);
+  if (!user) return NextResponse.json({ ok: true });
+  const ag = new URL(req.url).searchParams.get("agent");
+  const rest = isAgent(ag) ? (await loadChat(user.id).catch(() => [])).filter((m) => agOf(m) !== ag) : [];
+  if (rest.length) await createAdminClient().from("assistant_chats").upsert({ user_id: user.id, messages: rest, updated_at: new Date().toISOString() });
+  else await createAdminClient().from("assistant_chats").delete().eq("user_id", user.id);
   return NextResponse.json({ ok: true });
 }
 
@@ -76,13 +84,17 @@ async function visitorAllowed(ip: string): Promise<boolean> {
 
 type Act =
   | { kind: "make"; format: string; label: string; cost: number; enough: boolean; url: string; body?: Record<string, unknown>; form?: Record<string, string>; open: string }
-  | { kind: "open"; label: string; href: string };
+  | { kind: "open"; label: string; href: string }
+  | { kind: "handoff"; to: AgentKey };
 const SLIDES = 6;
 /** The model may only SUGGEST an action in its own reply. Only a whitelisted, validated kind survives; the customer still has to press «أكّد». */
-function extractAction(raw: string, c: { signedIn: boolean; credits: number; prefs: PlanPrefs; tools: { id: string; name: string; credit_cost: number }[]; extra: ExtraPricing }): { text: string; action: Act | null } {
+function extractAction(raw: string, c: { agent: AgentKey; signedIn: boolean; credits: number; prefs: PlanPrefs; tools: { id: string; name: string; credit_cost: number }[]; extra: ExtraPricing }): { text: string; action: Act | null } {
   const marks = [...raw.matchAll(/\[\[ACTION\s+([a-z0-9:_-]+)\s*\|\s*([^\]]{3,1100})\]\]/gi)];
   const text = raw.replace(/\[\[[\s\S]*?\]\]/g, "").trim();
   const m = marks[marks.length - 1];
+  // a colleague is the right one for this: the customer gets a button to move to him (nothing runs, nothing is charged)
+  const ho = /\[\[HANDOFF\s+([a-z]+)\s*\]\]/i.exec(raw)?.[1]?.toLowerCase();
+  if (!m && isAgent(ho) && ho !== c.agent) return { text, action: { kind: "handoff", to: ho } };
   if (!m || !c.signedIn) return { text, action: null };
   let kind = m[1].toLowerCase();
   const brief = m[2].replace(/\s+/g, " ").trim();
@@ -166,7 +178,9 @@ async function userAllowed(uid: string): Promise<boolean> {
 
 /** "كلم شاهين" — the in-app assistant. Knows the platform and (if signed in) the user's account. */
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { messages?: Msg[]; page?: string };
+  const body = (await req.json().catch(() => ({}))) as { messages?: Msg[]; page?: string; agent?: string };
+  const me = agentOf(body.agent); // which team member the customer is talking to (a fixed list: an unknown value is the default one)
+  const mates = AGENTS.filter((a) => a.key !== me.key);
   const messages = (body.messages ?? []).filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
     .slice(-16).map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
   if (!messages.length || messages[messages.length - 1].role !== "user") return NextResponse.json({ error: "رسالة فارغة" }, { status: 400 });
@@ -212,7 +226,12 @@ export async function POST(req: Request) {
     : "";
   const voiceDialectKeys = ((toolSpecs.voice.fields.find((f) => f.type === "choice" && f.name === "dialect") as { options?: { value: string }[] } | undefined)?.options ?? []).map((o) => o.value).filter((v) => v !== "same" && v !== "en").join(" ");
   const wa = content.footer.whatsapp;
-  const system = `أنت «شاهين»، المساعد الذكي داخل منصة شاهين (S7M) لصناعة المحتوى بالذكاء الاصطناعي. تكلّم باللهجة الكويتية البيضاء الودودة والمختصرة (بدون كلمات شامية أو مصرية مثل شو، هيك، بدك، لسا، كمان، مش)، وإذا كتب لك العميل بالفصحى فرد بالفصحى، وإذا كتب بالإنجليزي فرد بالإنجليزي، وجاوب على قد السؤال.
+  const system = `أنت «${me.name}»، ${me.role} ضمن فريق «كلّم شاهين»، فريق المساعدين الأذكياء داخل منصة شاهين (S7M) لصناعة المحتوى بالذكاء الاصطناعي. عرّف نفسك باسمك «${me.name}» إذا سألك العميل من أنت، وقل إنك مساعد ذكي من فريق شاهين (لا تدّعي إنك إنسان).
+تخصصك: ${me.focus}
+زملاؤك بالفريق: ${mates.map((a) => `${a.name} (${a.role}، رمزه ${a.key}): ${a.focus}`).join(" | ")}
+- ابدأ دائماً من تخصصك وتكلّم كمختص فيه. الأسئلة العامة والبسيطة جاوبها أنت حتى لو خارج تخصصك.
+- إذا طلب العميل تنفيذ شي من صميم تخصص زميل (مثلاً طلب منك فيديو وأنت مو المونتير)، قل له بجملة وحدة إن زميلك فلان هو المختص، وأضف بآخر ردّك سطراً واحداً بهالصيغة بالضبط: [[HANDOFF رمز_الزميل]] (مثال: [[HANDOFF ${mates[0].key}]]). لا تكتب سطر ACTION مع سطر HANDOFF.
+ تكلّم باللهجة الكويتية البيضاء الودودة والمختصرة (بدون كلمات شامية أو مصرية مثل شو، هيك، بدك، لسا، كمان، مش)، وإذا كتب لك العميل بالفصحى فرد بالفصحى، وإذا كتب بالإنجليزي فرد بالإنجليزي، وجاوب على قد السؤال.
 
 ما تعرفه عن المنصة:
 - الرصيد اسمه «الريشة». كل أداة تخصم ريش حسب سعرها، وإذا فشل الطلب ترجع الريش تلقائياً.
@@ -261,15 +280,16 @@ ${legalBlock}
 
   try {
     const raw = await aiChat("chat", system, messages, 900);
-    const { text: reply, action } = extractAction(raw, { signedIn: !!uid, credits, prefs: kitPrefs, tools, extra: await extraPricing() });
+    const { text: reply, action } = extractAction(raw, { agent: me.key, signedIn: !!uid, credits, prefs: kitPrefs, tools, extra: await extraPricing() });
     if (uid) {
       // keep the whole thread (not just the 16 messages Claude sees), each message with its own date
       try {
-        const old = await loadChat(uid);
+        const whole = await loadChat(uid);
+        const old = whole.filter((m) => agOf(m) === me.key), others = whole.filter((m) => agOf(m) !== me.key); // only this member's thread is rewritten
         const all = [...(body.messages ?? []).filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-40).map((m) => ({ role: m.role, content: m.content.slice(0, 2000) })), { role: "assistant" as const, content: reply }];
         const pool = [...old];
-        const stamped: Saved[] = all.map((m) => { const k = pool.findIndex((o) => o.role === m.role && o.content === m.content); return { ...m, at: k >= 0 ? pool.splice(k, 1)[0].at : Date.now() }; });
-        await createAdminClient().from("assistant_chats").upsert({ user_id: uid, messages: stamped, updated_at: new Date().toISOString() });
+        const stamped: Saved[] = all.map((m) => { const k = pool.findIndex((o) => o.role === m.role && o.content === m.content); return { ...m, ag: me.key, at: k >= 0 ? pool.splice(k, 1)[0].at : Date.now() }; });
+        await createAdminClient().from("assistant_chats").upsert({ user_id: uid, messages: [...others, ...stamped], updated_at: new Date().toISOString() });
       } catch (e) { console.error("assistant save", e instanceof Error ? e.message : e); }
     }
     return NextResponse.json({ reply, ...(action ? { action } : {}) });
