@@ -124,7 +124,7 @@ export async function POST(req: Request) {
     .insert({ user_id: user.id, tool_id: toolId, title: topic.slice(0, 80), status: "running", progress: 5, input: { topic, seconds, aspect, audience, dialect, industry: ind?.id ?? null, ...(caption ? { caption } : {}) } })
     .select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
-  setUsageCtx({ jobId: job.id, userId: user.id, toolId }); // every AI call below is noted under this request in «تكلفة كل طلب»
+  setUsageCtx({ jobId: job.id, userId: user.id, toolId: siteData ? "site-video" : toolId }); // every AI call below is noted under this request in «تكلفة كل طلب»
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
   if (payErr) {
     await admin.from("jobs").delete().eq("id", job.id);
