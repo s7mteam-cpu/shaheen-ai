@@ -134,8 +134,9 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
   }
 
   const minutes = video ? Math.max(1, Math.ceil(Math.ceil(video.seconds) / 60)) : 1;
+  const picCount = video ? Math.max(1, Math.min(8, Math.round(Math.ceil(video.seconds) / 8))) : 8;
   const wantBg = bgOn && bgCost >= 0 && bgText.trim().length >= 3;
-  const cost = minutes * (costPerMinute + ((behind && behindCost >= 0) || wantBg ? Math.max(0, behindCost >= 0 ? behindCost : bgCost) : 0) + (aiImages && imagesCost >= 0 ? imagesCost : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0));
+  const cost = minutes * (costPerMinute + ((behind && behindCost >= 0) || wantBg ? Math.max(0, behindCost >= 0 ? behindCost : bgCost) : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0)) + (aiImages && imagesCost >= 0 ? picCount * imagesCost : 0);
   const descOk = styles.length > 0 || styleDesc.trim().length >= 15;
 
   async function start(e: { preventDefault(): void }) {
@@ -236,7 +237,7 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
         <span className="text-[12px] text-subtle">{L("يشتغل بصوت واطي تحت كلامك طول الفيديو. أنت المسؤول عنه: ارفع فقط ما تملك حق استخدامه ونشره.")}</span>
       </div>
       {musicCost >= 0 && !ownMusic && <label className="flex items-start gap-3"><input type="checkbox" checked={music} onChange={(e) => setMusic(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("موسيقى خلفية 🎵")}{musicCost > 0 ? ` (+${musicCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("موسيقى هادئة بدون غناء تناسب كلامك، بصوت واطي تحت صوتك.")}</span></span></label>}
-      {imagesCost >= 0 && <label className="flex items-start gap-3"><input type="checkbox" checked={aiImages} onChange={(e) => setAiImages(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("صور مولّدة بالذكاء الاصطناعي 🖼️")}{imagesCost > 0 ? ` (+${imagesCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("شاهين يرسم صوراً تناسب كلامك (قطار، مدينة، مشهد تاريخي، منتج…) ويحطها بالمونتاج. بدون أشخاص حقيقيين أو مشاهير أو شعارات. إذا تبي صورة حقيقية بعينها، ارفعها من «صورك داخل المونتاج» وعلى مسؤوليتك.")}</span></span></label>}
+      {imagesCost >= 0 && <label className="flex items-start gap-3"><input type="checkbox" checked={aiImages} onChange={(e) => setAiImages(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("صور مولّدة بالذكاء الاصطناعي 🖼️")}{imagesCost > 0 ? ` (+${picCount * imagesCost} ${L("ريشة")})` : ""}<span className="block text-[12px] text-subtle">{L("شاهين يرسم صوراً تناسب كلامك (قطار، مدينة، مشهد تاريخي، منتج…) ويحطها بالمونتاج. بدون أشخاص حقيقيين أو مشاهير أو شعارات. إذا تبي صورة حقيقية بعينها، ارفعها من «صورك داخل المونتاج» وعلى مسؤوليتك.")}</span></span></label>}
       {bgCost >= 0 && <div className="flex flex-col gap-2">
         <label className="flex items-start gap-3"><input type="checkbox" checked={bgOn} onChange={(e) => setBgOn(e.target.checked)} className="mt-1 h-5 w-5" /><span className="text-[15px]">{L("غيّر خلفيتي 🏢")}{bgCost > 0 && !behind ? ` (+${bgCost} ${L("ريشة لكل دقيقة")})` : ""}<span className="block text-[12px] text-subtle">{L("شاهين يقصّك من الغرفة ويحط وراك مكان جديد مرسوم بالذكاء الاصطناعي طول الفيديو. يطلع أحسن إذا الكاميرا ثابتة وأنت واضح عن الخلفية. بدون أشخاص حقيقيين أو شعارات.")}</span></span></label>
         {bgOn && <input value={bgText} maxLength={200} onChange={(e) => setBgText(e.target.value)} className="field" placeholder={L("شنو تبي وراك؟ مثال: مكتب فخم فيه مكتبة خشب وإضاءة دافئة")} />}
