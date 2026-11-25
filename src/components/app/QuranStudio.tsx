@@ -148,7 +148,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
           <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
             <label className="flex flex-col gap-1.5"><span className="label">{L("السورة")}</span>
               <select value={spec.surah} onChange={(e) => { const s = +e.target.value; set({ surah: s, from: 1, to: Math.min(SURAHS[s - 1][1], 7) }); }} className="field">
-                {SURAHS.map(([n, c], i) => <option key={i} value={i + 1}>{i + 1}. {n} ({c})</option>)}
+                {SURAHS.map(([n, c], i) => <option key={i} value={i + 1}>{i + 1}. {L(n)} ({c})</option>)}
               </select></label>
             <label className="flex flex-col gap-1.5"><span className="label">{L("من آية")}</span>
               <input type="number" min={1} max={count} value={spec.from} onChange={(e) => { const f = Math.max(1, Math.min(count, +e.target.value || 1)); set({ from: f, to: Math.max(f, Math.min(spec.to, f + MAX_AYAT - 1, count)) }); }} className="field" /></label>

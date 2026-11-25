@@ -13,7 +13,7 @@ export function VoicePick({ voices, value, onChange, auto = "تلقائي (ال�
         {[{ id: "", name: L(auto), note: "" } as VoiceItem, ...list].map((v) => (
           <button key={v.id || "auto"} type="button" aria-pressed={value === v.id} onClick={() => onChange(v.id)}
             className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition ${value === v.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-navy-900 hover:border-gold-500"}`}>
-            {v.name || L("صوت")}
+            {v.id && v.name ? L(v.name) : v.name || L("صوت")}
           </button>
         ))}
       </div>
