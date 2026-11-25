@@ -66,8 +66,23 @@ export async function setMaintenance(on: boolean) {
   const L = await getL();
   const { requireFullAdmin } = await import("@/lib/server/auth");
   if (!(await requireFullAdmin())) throw new Error(L("غير مصرّح"));
-  const { error } = await createAdminClient().from("site_content").upsert({ key: "maintenance", value: { on }, updated_at: new Date().toISOString() });
+  const admin = createAdminClient();
+  const prev = (await admin.from("site_content").select("value").eq("key", "maintenance").maybeSingle()).data?.value as { allow?: string[] } | null;
+  const { error } = await admin.from("site_content").upsert({ key: "maintenance", value: { on, allow: prev?.allow ?? [] }, updated_at: new Date().toISOString() });
   return { ok: !error, error: error?.message };
+}
+
+/** The emails that still get in while the site is closed (a private test group). Owner-level admin only. */
+export async function setMaintenanceAllow(raw: string) {
+  const L = await getL();
+  const { requireFullAdmin } = await import("@/lib/server/auth");
+  if (!(await requireFullAdmin())) throw new Error(L("غير مصرّح"));
+  const { parseAllow } = await import("@/lib/maintenance");
+  const allow = parseAllow(raw);
+  const admin = createAdminClient();
+  const prev = (await admin.from("site_content").select("value").eq("key", "maintenance").maybeSingle()).data?.value as { on?: boolean } | null;
+  const { error } = await admin.from("site_content").upsert({ key: "maintenance", value: { on: prev?.on === true, allow }, updated_at: new Date().toISOString() });
+  return { ok: !error, error: error?.message, allow };
 }
 
 /** Delete a plan only when nobody ever subscribed to it; otherwise it must be hidden (the subscribers' history points at it). */

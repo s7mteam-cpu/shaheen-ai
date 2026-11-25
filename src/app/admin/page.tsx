@@ -13,7 +13,9 @@ export default async function Overview() {
   await guardPage("overview");
   const admin = createAdminClient();
   const isFull = Boolean((await (await import("@/lib/server/auth")).requireFullAdmin()));
-  const mOn = ((await admin.from("site_content").select("value").eq("key", "maintenance").maybeSingle()).data?.value as { on?: boolean } | null)?.on === true;
+  const mRow = (await admin.from("site_content").select("value").eq("key", "maintenance").maybeSingle()).data?.value as { on?: boolean; allow?: string[] } | null;
+  const mOn = mRow?.on === true;
+  const mAllow = Array.isArray(mRow?.allow) ? mRow.allow : [];
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
   const r = await counterResets();
   const since = (k: keyof typeof r, base = "1970-01-01T00:00:00Z") => (r[k] && r[k]! > base ? r[k]! : base);
@@ -50,7 +52,7 @@ export default async function Overview() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-[26px] font-bold text-navy-900">{L("نظرة عامة")}</h1>
-      {isFull && <MaintenanceSwitch initial={mOn} />}
+      {isFull && <MaintenanceSwitch initial={mOn} allow={mAllow} />}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
         {cards.map(([l, v], i) => (
           <div key={l} className={i === 1 ? "flex flex-col gap-2 rounded-2xl bg-navy-800 p-5" : "card flex flex-col gap-2 p-5"}>
