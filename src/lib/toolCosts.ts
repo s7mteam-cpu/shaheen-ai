@@ -6,9 +6,9 @@
 export const TOOL_COST_USD: Record<string, number> = {
   image: 0.134, "product-photo": 0.134, post: 0.07, "ad-design": 0.025, carousel: 0.011, "business-cards": 0.013,
   invitations: 0.021, cv: 0.013, presentations: 0.036,
-  "free-post": 0.108, "free-ad": 0.131, "free-invite": 0.104, "free-card": 0.114, "free-carousel": 0.181, "free-deck": 0.0415, "free-cv": 0.095,
-  "motion-video": 0.105, "site-video": 0.044, "real-scenes": 2.625, "free-motion": 0.825, "anim-video": 0.4825, "site-free": 0.14,
-  "free-montage": 0.45, "video-editing": 0.064, "product-video": 0.355, "avatar-video": 3, "quran-video": 0,
+  "free-post": 0.12, "free-ad": 0.131, "free-invite": 0.104, "free-card": 0.114, "free-carousel": 0.181, "free-deck": 0.0415, "free-cv": 0.095,
+  "motion-video": 0.105, "site-video": 0.044, "real-scenes": 2.625, "free-motion": 0.825, "anim-video": 0.42, "site-free": 0.28,
+  "free-montage": 1, "video-editing": 0.064, "product-video": 0.355, "avatar-video": 3.2, "quran-video": 0,
   voice: 0.093, nasheed: 0.09,
 };
 
