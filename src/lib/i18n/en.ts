@@ -1411,7 +1411,7 @@ export const EN: Record<string, string> = {
   "تعذّر رفع الصوت.": "Couldn't upload the audio.",
   "صوت من جوالي": "Sound from my phone",
   "جاري رفع الصوت…": "Uploading audio…",
-  "📱 ارفع صوت من جوالك": "📱 Upload a sound from your phone",
+  "📱 ارفع صوت من جهازي": "📱 Upload audio from your device",
   "mp3 أو m4a أو wav (أو فيديو من جوالك وناخذ صوته)، لين 25 ميجا. تبي موسيقى مجانية للاستخدام التجاري؟ حمّلها من": "mp3, m4a or wav (or a video from your phone — we take its sound), up to 25 MB. Want free music for commercial use? Download it from",
   "أو": "or",
   "مكتبة يوتيوب الصوتية": "the YouTube Audio Library",

@@ -80,7 +80,7 @@ export function MusicEditor({ music, onChange, total, playhead, disabled }: { mu
   return (
     <div className="flex flex-col gap-4">
       <label className={`btn btn-outline self-start px-5 py-2.5 ${uploading || disabled ? "pointer-events-none opacity-60" : "cursor-pointer"}`}>
-        {uploading ? L("جاري رفع الصوت…") : L("📱 ارفع صوت من جوالك")}
+        {uploading ? L("جاري رفع الصوت…") : L("📱 ارفع صوت من جهازي")}
         <input type="file" accept="audio/*,video/mp4,video/quicktime,.mp3,.m4a,.wav,.aac,.ogg,.opus,.flac,.mp4,.mov" className="sr-only" disabled={uploading || disabled} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
       </label>
       <p className="text-[12px] leading-6 text-subtle">
