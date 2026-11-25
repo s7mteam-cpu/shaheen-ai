@@ -5,7 +5,7 @@ import { refundJob } from "../actions";
 import { getL } from "@/lib/server/lang";
 
 export const dynamic = "force-dynamic";
-const statusAr: Record<string, string> = { queued: "انتظار", running: "قيد التنفيذ", done: "جاهز", failed: "فشل" };
+const statusAr: Record<string, string> = { queued: "انتظار", running: "قيد التنفيذ", done: "جاهز", failed: "فشل", draft: "مسودة (بانتظار العميل)" };
 
 export default async function Jobs({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
   const L = await getL();
@@ -15,6 +15,8 @@ export default async function Jobs({ searchParams }: { searchParams: Promise<{ s
   let q = admin.from("jobs").select("id,tool_id,title,status,error,credits_charged,refunded,created_at,profiles(email)").order("created_at", { ascending: false }).limit(100);
   if (s) q = q.eq("status", s);
   const { data } = await q;
+  const { data: toolRows } = await admin.from("tools").select("id,name");
+  const toolName = new Map((toolRows ?? []).map((t) => [t.id as string, t.name as string]));
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-[26px] font-bold text-navy-900">{L("الطلبات")}</h1>
@@ -27,7 +29,7 @@ export default async function Jobs({ searchParams }: { searchParams: Promise<{ s
               <tr key={j.id} className="border-t border-[#EDF1F6] align-top">
                 <td className="p-3 whitespace-nowrap">{new Date(j.created_at).toLocaleString("ar-KW")}</td>
                 <td className="p-3" dir="ltr">{(j.profiles as unknown as { email: string } | null)?.email}</td>
-                <td className="p-3">{j.tool_id}</td>
+                <td className="p-3">{toolName.get(j.tool_id) ?? j.tool_id}</td>
                 <td className="p-3">{L(statusAr[j.status] ?? j.status)}{j.refunded ? L(" · مُسترجع") : ""}</td>
                 <td className="p-3 font-latin">{j.credits_charged}</td>
                 <td className="max-w-[260px] p-3 text-xs text-red-700" dir="ltr">{j.error}</td>

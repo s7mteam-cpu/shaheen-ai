@@ -22,6 +22,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   const admin = createAdminClient();
   let query = admin.from("profiles").select("*").order("created_at", { ascending: sort === "old" }).limit(100);
   const { data: allPlans } = await admin.from("plans").select("id,name,is_active").order("sort_order");
+  const planName = (id: string | null) => (id ? (allPlans ?? []).find((x) => x.id === id)?.name ?? id : "—");
   if (plan === "hidden") { const ids = (allPlans ?? []).filter((x) => !x.is_active).map((x) => x.id as string); query = ids.length ? query.in("plan_id", ids) : query.eq("plan_id", "__none__"); }
   else if (plan === "active") { const ids = (allPlans ?? []).filter((x) => x.is_active).map((x) => x.id as string); query = ids.length ? query.in("plan_id", ids) : query.eq("plan_id", "__none__"); }
   else if (plan === "managed") { const { data: inc } = await admin.from("income").select("customer_id").ilike("description", "%باقة الإدارة الكاملة%").not("customer_id", "is", null); const ids = [...new Set((inc ?? []).map((x) => x.customer_id as string))]; query = ids.length ? query.in("id", ids) : query.eq("id", "00000000-0000-0000-0000-000000000000"); }
@@ -77,7 +78,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
                 <div className="min-w-0"><div className="font-bold text-navy-900">{u.full_name || "—"}</div><div dir="ltr" className="truncate text-right text-xs text-subtle">{u.email}</div></div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted">
                   {u.phone && <a href={waLink(u.phone)} target="_blank" rel="noopener" dir="ltr" className="font-latin font-semibold text-emerald-700">{u.phone}</a>}
-                  <span>{L("الباقة")}: {u.plan_id ?? "—"}</span><span>{L("الرصيد")}: <span className="font-latin">{u.credits}</span></span><span>{status}</span>
+                  <span>{L("الباقة")}: {planName(u.plan_id)}</span><span>{L("الرصيد")}: <span className="font-latin">{u.credits}</span></span><span>{status}</span>
                 </div>
                 <Link href={`/admin/customers?id=${u.id}${q ? `&q=${q}` : ""}#manage`} className={`btn py-2.5 text-center text-[14px] ${on ? "btn-gold" : "btn-outline"}`}>{on ? L("✓ مفتوح تحت") : L("إدارة العميل")}</Link>
               </li>
@@ -92,7 +93,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
                 <tr key={u.id} className="border-t border-[#EDF1F6]">
                   <td className="p-3"><div className="font-semibold">{u.full_name || "—"}</div><div dir="ltr" className="text-right text-xs text-subtle">{u.email}</div></td>
                   <td className="p-3">{u.phone ? <a href={waLink(u.phone)} target="_blank" rel="noopener" dir="ltr" className="font-latin font-semibold text-emerald-700 hover:underline">{u.phone}</a> : <span className="text-subtle">—</span>}</td>
-                  <td className="p-3">{u.plan_id ?? "—"}</td><td className="p-3 font-latin">{u.credits}</td>
+                  <td className="p-3">{planName(u.plan_id)}</td><td className="p-3 font-latin">{u.credits}</td>
                   <td className="p-3">{blocked.some((b) => b.email === String(u.email ?? "").toLowerCase()) ? <span className="font-semibold text-red-800">{L("محظور")}</span> : u.is_suspended ? <span className="text-red-700">{L("موقوف")}</span> : u.role === "admin" ? <span className="text-navy-700">{L("مدير")}</span> : u.role === "staff" ? <span className="text-navy-700">{L("فريق")}</span> : L("نشط")}</td>
                   <td className="p-3"><Link href={`/admin/customers?id=${u.id}${q ? `&q=${q}` : ""}`} className="font-semibold text-navy-700">{L("إدارة")}</Link></td>
                 </tr>
@@ -120,7 +121,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
               {sub ? (
                 <>
                   <p className="text-[13px] leading-6 text-navy-900">
-                    {SUB_AR[sub.status] ?? sub.status} · {sub.plan_id ?? "—"}
+                    {SUB_AR[sub.status] ?? sub.status} · {planName(sub.plan_id)}
                     {sub.pay_method && <> · {sub.pay_method === "card" ? T(`بطاقة ${sub.card_label ?? ""}`, `Card ${sub.card_label ?? ""}`) : L("كي نت / رابط شهري")}</>}
                     {sub.current_period_end && <><br />{sub.cancel_at_period_end ? L("ينتهي في") : L("التجديد")}: {new Date(sub.current_period_end).toLocaleDateString("ar-KW")}</>}
                   </p>
