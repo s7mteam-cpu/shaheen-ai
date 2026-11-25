@@ -15,7 +15,7 @@ export const DEFAULT_PRICES: AiPrices = {
     "gemini-3-pro-image-preview": { in: 0, out: 0, unit: 0.134 },
   },
   el_per_1k: 0,
-  feather_usd: 0.195, // one feather ≈ 0.06 KWD in the current plans
+  feather_usd: 0.04, // what one feather brings in on average over the six plans (52,000 feathers = 619 KWD ≈ 0.04 USD); the old plans were 0.195
 };
 
 export function cleanPrices(v: unknown): AiPrices {

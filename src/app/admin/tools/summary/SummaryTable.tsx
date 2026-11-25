@@ -4,7 +4,7 @@ import { useFormStatus } from "react-dom";
 import { savePricingSummary } from "../extraActions";
 import { unitsPerMinute } from "@/lib/toolCosts";
 
-type Row = { id: string; name: string; unit: string; price: number; edit: number; on: boolean; cost: number };
+type Row = { id: string; name: string; unit: string; price: number; edit: number; on: boolean; cost: number; mult: number };
 
 function Save() {
   const { pending } = useFormStatus();
@@ -20,7 +20,7 @@ export function SummaryTable({ rows, rish: rish0 }: { rows: Row[]; rish: number 
   const [edit, setEdit] = useState<Record<string, string>>(() => Object.fromEntries(rows.map((x) => [x.id, String(x.edit)])));
   const rc = Number(rish) > 0 ? Number(rish) : 0.01;
   const num = (v: string | undefined) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
-  const below = useMemo(() => rows.filter((x) => num(cost[x.id]) > 0 && num(price[x.id]) * rc < num(cost[x.id]) - 1e-9).length, [rows, cost, price, rc]);
+  const below = useMemo(() => rows.filter((x) => num(cost[x.id]) > 0 && num(price[x.id]) * x.mult * rc < num(cost[x.id]) - 1e-9).length, [rows, cost, price, rc]);
 
   return (
     <form action={act} className="flex flex-col gap-4">
@@ -41,18 +41,18 @@ export function SummaryTable({ rows, rish: rish0 }: { rows: Row[]; rish: number 
           <tbody>
             {rows.map((x) => {
               const c = num(cost[x.id]), p = num(price[x.id]);
-              const sug = c > 0 ? Math.max(1, Math.ceil(c / rc - 1e-9)) : 0;
+              const sug = c > 0 ? Math.max(1, Math.ceil(c / rc / x.mult - 1e-9)) : 0; // x.mult: the price the customer really pays = price × mult
               const per = unitsPerMinute(x.id, x.unit);
-              const low = c > 0 && p * rc < c - 1e-9;
+              const low = c > 0 && p * x.mult * rc < c - 1e-9;
               return (
                 <tr key={x.id} className={`border-t border-line ${x.on ? "" : "opacity-60"}`}>
-                  <td className="p-3 font-semibold text-navy-900">{x.name}{!x.on && <span className="mr-1 text-[11px] text-subtle">(مخفية)</span>}</td>
+                  <td className="p-3 font-semibold text-navy-900">{x.name}{x.mult !== 1 && <span className="mr-1 text-[11px] text-amber-700">(يُضرب ×{x.mult} لقطات AI)</span>}{!x.on && <span className="mr-1 text-[11px] text-subtle">(مخفية)</span>}</td>
                   <td className="p-3 text-subtle">{x.unit}</td>
                   <td className="p-3"><input name={`cost:${x.id}`} type="number" step="0.001" min={0} value={cost[x.id]} onChange={(e) => setCost({ ...cost, [x.id]: e.target.value })} className="field w-28 text-center" /></td>
                   <td className="p-3 text-center tabular-nums">{per ? fmt(c * per, 3) : "—"}</td>
                   <td className="p-3"><input name={`price:${x.id}`} type="number" min={0} value={price[x.id]} onChange={(e) => setPrice({ ...price, [x.id]: e.target.value })} className={`field w-24 text-center ${low ? "!border-red-400 bg-red-50" : ""}`} /></td>
                   <td className="p-3 text-center tabular-nums">{c > 0 ? <button type="button" onClick={() => setPrice({ ...price, [x.id]: String(sug) })} className="rounded-lg border border-line px-2 py-1 text-[13px] hover:bg-canvas" title="اضغط لتطبيقه بالخانة">{sug}</button> : "0"}</td>
-                  <td className="p-3 text-center tabular-nums">{per ? fmt(p * per, 0) : "—"}</td>
+                  <td className="p-3 text-center tabular-nums">{per ? fmt(p * x.mult * per, 0) : "—"}</td>
                   <td className="p-3"><input name={`edit:${x.id}`} type="number" min={0} value={edit[x.id]} onChange={(e) => setEdit({ ...edit, [x.id]: e.target.value })} className="field w-24 text-center" /></td>
                 </tr>
               );

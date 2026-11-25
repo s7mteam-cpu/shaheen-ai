@@ -103,8 +103,8 @@ function ListEdit({ list, onChange, max, placeholder, quick }: { list: DItem[]; 
   );
 }
 
-export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = false, done }: {
-  jobId: string; toolId: string; initial: DesignSpec; editCost: number; kit: Kit; demo?: boolean; done?: { url: string }[];
+export function DesignStudio({ jobId, toolId, initial, editCost, picCost = editCost, kit, demo = false, done }: {
+  jobId: string; toolId: string; initial: DesignSpec; editCost: number; /** price of one AI picture / the 3D icons (admin → أسعار إضافية) */ picCost?: number; kit: Kit; demo?: boolean; done?: { url: string }[];
 }) {
   const [spec, setSpec] = useState<DesignSpec>(initial);
   const [cur, setCur] = useState(0);
@@ -448,7 +448,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
                 <button type="button" disabled={!!busy} onClick={async () => {
                   const d = await call<{ icon3d: Record<string, DImg> }>("icons3d", { spec }, "icons3d");
                   if (d) setSpec((p) => ({ ...p, icon3d: { ...(p.icon3d ?? {}), ...d.icon3d } }));
-                }} className="btn btn-primary self-start px-4 py-2 text-sm">{busy === "icons3d" ? L("جاري الرسم… (دقيقة تقريباً)") : LT(`✨ ${need.length ? "ارسم" : "أعد رسم"} الأيقونات 3D (${editCost} ريشة)`, `✨ ${need.length ? "Draw" : "Redraw"} 3D icons (${editCost} credits)`)}</button>
+                }} className="btn btn-primary self-start px-4 py-2 text-sm">{busy === "icons3d" ? L("جاري الرسم… (دقيقة تقريباً)") : LT(`✨ ${need.length ? "ارسم" : "أعد رسم"} الأيقونات 3D (${picCost} ريشة)`, `✨ ${need.length ? "Draw" : "Redraw"} 3D icons (${picCost} credits)`)}</button>
               </div>
             );
           })()}
@@ -568,7 +568,7 @@ export function DesignStudio({ jobId, toolId, initial, editCost, kit, demo = fal
                       if (!d) return;
                       if (n === 1 || d.imgs.length < 2) { setVariants([]); setSlide({ photo: d.img, imagePrompt: imgPrompt }); }
                       else { setVariants(d.imgs); setSlide({ photo: d.imgs[0], imagePrompt: imgPrompt }); }
-                    }} className={`btn ${n === 1 ? "btn-primary" : "btn-outline"} self-start px-4 py-2 text-sm`}>{busy === "image" ? L("جاري التوليد…") : n === 1 ? LT(`✨ ولّد الصورة (${editCost} ريشة)`, `✨ Generate image (${editCost} credits)`) : LT(`٣ خيارات (${editCost * 3} ريشة)`, `3 options (${editCost * 3} credits)`)}</button>
+                    }} className={`btn ${n === 1 ? "btn-primary" : "btn-outline"} self-start px-4 py-2 text-sm`}>{busy === "image" ? L("جاري التوليد…") : n === 1 ? LT(`✨ ولّد الصورة (${picCost} ريشة)`, `✨ Generate image (${picCost} credits)`) : LT(`٣ خيارات (${picCost * 3} ريشة)`, `3 options (${picCost * 3} credits)`)}</button>
                   ))}
                 </div>
                 {variants.length > 1 && <div className="flex flex-col gap-1.5"><span className="text-[13px] font-semibold">{L("اختر الأنسب:")}</span>

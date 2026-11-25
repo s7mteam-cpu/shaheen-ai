@@ -190,7 +190,7 @@ export async function POST(req: Request) {
     .slice(-16).map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
   if (!messages.length || messages[messages.length - 1].role !== "user") return NextResponse.json({ error: "رسالة فارغة" }, { status: 400 });
 
-  const [content, plans, tools, trial] = await Promise.all([getContent(), getPlans(), getTools(), trialSettings().catch(() => null)]);
+  const [content, plans, tools, trial, extraNow] = await Promise.all([getContent(), getPlans(), getTools(), trialSettings().catch(() => null), extraPricing()]);
   let userBlock = "الزائر غير مسجل دخول.";
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "anon";
   let key = ip;
@@ -306,7 +306,7 @@ ${legalBlock}
   مشاهد واقعية (فيديو بلقطات واقعية بصوت وتعليق من نص العميل، بدون ما العميل يرفع شي): [[ACTION scenes:stock:المدة | ...]] للقطات جاهزة (أرخص وأسرع) أو [[ACTION scenes:ai:المدة | ...]] للقطات تتولّد بالذكاء الاصطناعي من كل جملة (جودة أعلى، سعرها ضعف، وتاخذ دقائق). المدة 15 أو 30 أو 60. مثال: [[ACTION scenes:ai:30 | ...]]. إذا ما حدد العميل النوع اسأله بسطر: جاهزة (أرخص) أو بالذكاء الاصطناعي (أغلى)؟ وانتبه تقول له إن السعر ظاهر بالكرت قبل التأكيد.
   صوت (تحويل نص لصوت): [[ACTION voice:اللهجة:نوع_الصوت:الإحساس | النص بالحرف]]. اللهجة same أو en أو وحدة من: ${voiceDialectKeys} (إذا ما حددها اكتب same)، ونوع الصوت auto أو man أو woman أو young_m أو young_f، والإحساس plain أو calm أو energetic أو happy أو confident أو formal. النص الأقصى 2500 حرف، والسعر حسب الطول. مثال: [[ACTION voice:kuwaiti:woman:calm | هلا بكم في محلنا...]]. إذا ما عرفت اللهجة أو الصوت اكتب same وauto ولا تسأل كثير.
   سيرة ذاتية: [[ACTION cv:ar | كل المعلومات]] أو cv:en بالإنجليزي. قبل الكرت لازم تجمع من العميل: الاسم، الوظيفة المستهدفة، الخبرات (الشركة والمدة والمهام)، التعليم، المهارات، ووسيلة التواصل. اسأله عن الناقص بأسئلة قصيرة، وبعدين اكتب كل شي بالوصف. لا تخترع له معلومات أبداً.
-  عرض تقديمي (باوربوينت): [[ACTION deck:عدد_الشرائح | الموضوع والجمهور والنقاط]]. العدد بين 5 و30، أو deck:auto (شاهين يقرر). أضف :img لصور بالذكاء الاصطناعي (يزيد 8 ريشة)، و:en للإنجليزي. مثال: [[ACTION deck:10:img | عرض عن ...]]. إذا ما حدد العميل العدد اكتب 10.
+  عرض تقديمي (باوربوينت): [[ACTION deck:عدد_الشرائح | الموضوع والجمهور والنقاط]]. العدد بين 5 و30، أو deck:auto (شاهين يقرر). أضف :img لصور بالذكاء الاصطناعي (يزيد ${extraNow.ai_image_cost} ريشة)، و:en للإنجليزي. مثال: [[ACTION deck:10:img | عرض عن ...]]. إذا ما حدد العميل العدد اكتب 10.
   التزم بالمدة اللي طلبها العميل، ولا تغيّرها بدون ما تقول له. لا تحوّل طلب الفيديو لرابط أداة، نفّذه بهالأسطر مباشرة.
   الوصف يكون بالعربي ويشمل كل تفاصيل العميل (المنتج، السعر، العرض، الجمهور، النبرة).
 - إذا التفاصيل ناقصة، اسأله سؤال واحد قصير قبل ما تكتب السطر.

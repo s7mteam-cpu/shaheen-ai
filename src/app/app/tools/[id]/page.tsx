@@ -238,7 +238,7 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number,
       const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null, logo: kitRow.logo_url ? { path: kitRow.logo_url as string, bucket: "uploads" as const, url: logoUrl } : null } : null;
       const files = data.status === "done" ? ((data.output as { files?: { path: string }[] } | null)?.files ?? []) : [];
       const done = files.length ? (await signedResultUrls(files.map((f) => f.path))).map((url) => ({ url })) : undefined;
-      return <DesignStudio key={data.id} jobId={data.id} toolId={tool.id} initial={withUrls(spec, urls)} editCost={tool.edit_cost ?? 2} kit={kit} done={done} />;
+      return <DesignStudio key={data.id} jobId={data.id} toolId={tool.id} initial={withUrls(spec, urls)} editCost={tool.edit_cost ?? 2} picCost={(await extraPricing()).ai_image_cost} kit={kit} done={done} />;
     }
   }
   const { data: kitInd } = await supabase.from("brand_kits").select("industry").maybeSingle();
