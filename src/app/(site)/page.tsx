@@ -9,7 +9,7 @@ import { managedPackages } from "@/lib/managed";
 import { ManagedService } from "@/components/site/ManagedService";
 import { DemoVideo } from "@/components/DemoVideo";
 import { toolCover } from "@/lib/video";
-import { getAllWorks, getContent, getPlans, getSections, getSessionProfile, getTemplates, getTools } from "@/lib/data";
+import { getAllWorks, getContent, getPayGate, getPlans, getSections, getSessionProfile, getTemplates, getTools } from "@/lib/data";
 import { SHOWCASE_CATS } from "@/lib/showcase";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
@@ -25,6 +25,7 @@ export default async function Home() {
   const lang = await getLang();
   const [content, tools0, plans0, gallery0, profile, sections, templates] = await Promise.all([getContent(), getTools(), getPlans(), getAllWorks(), getSessionProfile(), getSections(), getTemplates()]);
   const signedIn = Boolean(profile);
+  const payGate = await getPayGate();
   // Everything the admin writes in Arabic is shown translated when the visitor picks English.
   const { hero, steps, tools_section, gallery: galleryText, pricing, faq, final_cta, managed_service } = content;
   const [c, tools, plans, gallery] = await localize(
@@ -50,7 +51,7 @@ export default async function Home() {
                   {(p.bonus_credits ?? 0) > 0 && <li className={`flex items-center gap-2 font-bold ${p.is_featured ? "text-gold-500" : "text-[#9A7A35]"}`}><span aria-hidden="true" className="w-4 text-center text-[15px]">🎁</span>+ {p.bonus_credits!.toLocaleString("en")} {T("ريشة هدية كل شهر", "bonus credits every month")}</li>}
                   {p.features.map((f) => <li key={f} className="flex items-center gap-2"><Icon name="check" size={16} className={p.is_featured ? "text-gold-500" : "text-navy-700"} strokeWidth={2.2} />{f}</li>)}
                 </ul>
-                <Link href={`/signup?plan=${p.id}`} className={`btn mt-auto py-3.5 ${p.is_featured ? "btn-gold" : "btn-outline"}`}>{T(`اشترك في ${p.name}`, `Get ${p.name}`)}</Link>
+                <Link href={payGate.on ? "/subscribe-soon" : `/signup?plan=${p.id}`} className={`btn mt-auto py-3.5 ${p.is_featured ? "btn-gold" : "btn-outline"}`}>{T(`اشترك في ${p.name}`, `Get ${p.name}`)}</Link>
               </div>
   );
   return (
