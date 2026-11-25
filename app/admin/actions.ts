@@ -1,0 +1,238 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { recordPriceChanges } from "@/lib/server/priceHistory";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/server/auth";
+import type { SectionKey } from "@/lib/admin/sections";
+import { textProviders, toolProviders } from "@/lib/providers/registry";
+import { getL } from "@/lib/server/lang";
+
+async function guard(section: SectionKey) {
+  const L = await getL();
+  const u = await requireAdmin(section);
+  if (!u) throw new Error(L("غير مصرّح"));
+  return u;
+}
+const refresh = () => revalidatePath("/", "layout");
+
+export async function saveContent(key: string, value: unknown) {
+  await guard("content");
+  const { error } = await createAdminClient().from("site_content").upsert({ key, value, updated_at: new Date().toISOString() });
+  refresh();
+  return { ok: !error, error: error?.message };
+}
+
+/** «باقات الإدارة الكاملة»: a list kept with the site content (managed_service.packages). The first package also fills the old single fields, which the legal pages and the assistant read. */
+async function readManaged() {
+  const admin = createAdminClient();
+  const { data: cur } = await admin.from("site_content").select("value").eq("key", "managed_service").maybeSingle();
+  const { defaultContent } = await import("@/lib/defaults");
+  const { managedPackages } = await import("@/lib/managed");
+  const ms = { ...defaultContent.managed_service, ...((cur?.value as object | null) ?? {}) } as typeof defaultContent.managed_service;
+  return { admin, ms, list: managedPackages(ms) };
+}
+async function writeManaged(admin: ReturnType<typeof createAdminClient>, ms: object, list: { enabled: boolean; title: string; price_kwd: string; period: string; features: string[]; cta: string; whatsapp: string; whatsapp_message: string; thanks: string }[]) {
+  const f = list[0];
+  const value = { ...ms, packages: list, ...(f ? { enabled: list.some((x) => x.enabled), title: f.title, price_kwd: f.price_kwd, period: f.period, features: f.features, cta: f.cta, whatsapp: f.whatsapp, whatsapp_message: f.whatsapp_message, thanks: f.thanks } : { enabled: false }) };
+  await admin.from("site_content").upsert({ key: "managed_service", value, updated_at: new Date().toISOString() });
+  refresh();
+}
+export async function saveManaged(form: FormData) {
+  await guard("plans");
+  const { admin, ms, list } = await readManaged();
+  const str = (k: string) => String(form.get(k) ?? "").trim();
+  let id = str("id").toLowerCase().replace(/[^a-z0-9-]/g, "");
+  if (!id) id = `pkg-${Math.random().toString(36).slice(2, 7)}`;
+  const row = {
+    id, enabled: form.get("enabled") === "on",
+    title: str("title"), price_kwd: str("price_kwd"), period: str("period"), cta: str("cta"),
+    features: String(form.get("features") ?? "").split("\n").map((x) => x.trim()).filter(Boolean),
+    whatsapp: str("whatsapp"), whatsapp_message: str("whatsapp_message"), thanks: str("thanks"),
+  };
+  const i = list.findIndex((x) => x.id === id);
+  if (i >= 0) list[i] = row; else list.push(row);
+  await writeManaged(admin, ms, list);
+}
+export async function deleteManagedPkg(form: FormData) {
+  await guard("plans");
+  const { admin, ms, list } = await readManaged();
+  const id = String(form.get("id") ?? "");
+  if (list.length <= 1) return; // the last package stays: hide it instead
+  await writeManaged(admin, ms, list.filter((x) => x.id !== id));
+}
+
+/** «وضع الصيانة»: only the owner-level admin can switch the site off for everyone but the team. */
+export async function setMaintenance(on: boolean) {
+  const L = await getL();
+  const { requireFullAdmin } = await import("@/lib/server/auth");
+  if (!(await requireFullAdmin())) throw new Error(L("غير مصرّح"));
+  const admin = createAdminClient();
+  const prev = (await admin.from("site_content").select("value").eq("key", "maintenance").maybeSingle()).data?.value as { allow?: string[] } | null;
+  const { error } = await admin.from("site_content").upsert({ key: "maintenance", value: { on, allow: prev?.allow ?? [] }, updated_at: new Date().toISOString() });
+  return { ok: !error, error: error?.message };
+}
+
+/** The emails that still get in while the site is closed (a private test group). Owner-level admin only. */
+export async function setMaintenanceAllow(raw: string) {
+  const L = await getL();
+  const { requireFullAdmin } = await import("@/lib/server/auth");
+  if (!(await requireFullAdmin())) throw new Error(L("غير مصرّح"));
+  const { parseAllow } = await import("@/lib/maintenance");
+  const allow = parseAllow(raw);
+  const admin = createAdminClient();
+  const prev = (await admin.from("site_content").select("value").eq("key", "maintenance").maybeSingle()).data?.value as { on?: boolean } | null;
+  const { error } = await admin.from("site_content").upsert({ key: "maintenance", value: { on: prev?.on === true, allow }, updated_at: new Date().toISOString() });
+  return { ok: !error, error: error?.message, allow };
+}
+
+/** Delete a plan only when nobody ever subscribed to it; otherwise it must be hidden (the subscribers' history points at it). */
+export async function deletePlan(form: FormData) {
+  const me = await guard("plans");
+  const id = String(form.get("id") || "").trim();
+  if (!id) return;
+  const admin = createAdminClient();
+  const { count } = await admin.from("subscriptions").select("id", { count: "exact", head: true }).eq("plan_id", id);
+  if ((count ?? 0) > 0) return; // the button is only shown for unused plans, this is the safety net
+  const { data: before } = await admin.from("plans").select("name,price_kwd,credits,bonus_credits,is_active").eq("id", id).maybeSingle();
+  const { error } = await admin.from("plans").delete().eq("id", id);
+  if (!error) await recordPriceChanges("plan", id, before?.name ?? id, before, { ...(before ?? {}), is_active: false, deleted: true }, me.email);
+  refresh();
+}
+
+export async function saveTool(form: FormData) {
+  const me = await guard("tools");
+  const id = String(form.get("id"));
+  const provider = String(form.get("provider") || "");
+  const allowed = toolProviders[id] ?? {};
+  const { data: before } = await createAdminClient().from("tools").select("name,credit_cost,edit_cost,cost_unit,is_enabled").eq("id", id).maybeSingle();
+  const patch = {
+    provider: provider in allowed ? provider : Object.keys(allowed)[0] ?? null,
+    name: String(form.get("name")),
+    description: String(form.get("description")),
+    credit_cost: Math.max(0, Number(form.get("credit_cost")) || 0),
+    edit_cost: Math.max(0, Number(form.get("edit_cost")) || 0),
+    cost_unit: String(form.get("cost_unit")),
+    provider_model: String(form.get("provider_model") || "") || null,
+    icon: String(form.get("icon") || "sparkles"),
+    sort_order: Number(form.get("sort_order")) || 0,
+    is_enabled: form.get("is_enabled") === "on",
+  };
+  const { error } = await createAdminClient().from("tools").update(patch).eq("id", id);
+  if (!error) await recordPriceChanges("tool", id, patch.name, before, patch, me.email);
+  await saveToolDemo(id, form);
+  refresh();
+}
+
+/** Demo video of a tool: a YouTube link, or a short clip uploaded here; plus an optional 9:16 picture for the card. */
+async function saveToolDemo(id: string, form: FormData) {
+  const admin = createAdminClient();
+  const upload = async (file: File, folder: string) => {
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+    const path = `${folder}/${id}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const { error } = await admin.storage.from("site").upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+    return error ? null : admin.storage.from("site").getPublicUrl(path).data.publicUrl;
+  };
+  const patch: { demo_url?: string | null; demo_thumb?: string | null; tutorial_url?: string | null; cover_url?: string | null } = {};
+  if (form.has("demo_url")) patch.demo_url = String(form.get("demo_url") || "").trim() || null;
+  if (form.has("tutorial_url")) patch.tutorial_url = String(form.get("tutorial_url") || "").trim() || null;
+  const cover = form.get("cover_file") as File | null;
+  if (cover && cover.size && cover.type.startsWith("image/")) patch.cover_url = await upload(cover, "covers");
+  if (form.get("cover_clear") === "on") patch.cover_url = null;
+  const pic = form.get("demo_thumb_file") as File | null;
+  if (pic && pic.size && pic.type.startsWith("image/")) patch.demo_thumb = await upload(pic, "demos");
+  if (form.get("demo_thumb_clear") === "on") patch.demo_thumb = null;
+  if (!Object.keys(patch).length) return;
+  const { error } = await admin.from("tools").update(patch).eq("id", id);
+  // before SQL 0022 the card columns don't exist yet — still save the demo video
+  if (error) { const { tutorial_url: _t, cover_url: _c, ...old } = patch; void _t; void _c; if (Object.keys(old).length) await admin.from("tools").update(old).eq("id", id).then(() => null, () => null); }
+}
+
+export async function savePlan(form: FormData) {
+  const me = await guard("plans");
+  let raw = String(form.get("id") || "");
+  // a new plan has no id field: it gets one by itself, and company plans always start with «biz-» (that is how the site tells them apart)
+  if (!raw.trim()) raw = `${form.get("audience") === "biz" ? "biz-" : "plan-"}${Math.random().toString(36).slice(2, 8)}`;
+  const id = raw.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+  if (!id) return;
+  const { data: before } = await createAdminClient().from("plans").select("name,price_kwd,credits,bonus_credits,is_active").eq("id", id).maybeSingle();
+  const row = {
+    id,
+    name: String(form.get("name")),
+    subtitle: String(form.get("subtitle") || ""),
+    price_kwd: Number(form.get("price_kwd")) || 0,
+    credits: Number(form.get("credits")) || 0,
+    bonus_credits: Math.max(0, Number(form.get("bonus_credits")) || 0),
+    features: String(form.get("features") || "").split("\n").map((s) => s.trim()).filter(Boolean),
+    stripe_price_id: String(form.get("stripe_price_id") || "") || null,
+    sort_order: Number(form.get("sort_order")) || 0,
+    is_featured: form.get("is_featured") === "on",
+    is_active: form.get("is_active") === "on",
+  };
+  const { error } = await createAdminClient().from("plans").upsert(row);
+  if (!error) await recordPriceChanges("plan", id, row.name, before, row, me.email);
+  refresh();
+}
+
+export async function refundJob(form: FormData) {
+  await guard("jobs");
+  await createAdminClient().rpc("refund_job", { p_job: String(form.get("job_id")) });
+  revalidatePath("/admin/jobs");
+}
+
+export async function addGalleryItem(form: FormData) {
+  await guard("gallery");
+  const admin = createAdminClient();
+  const file = form.get("file") as File | null;
+  if (!file || !file.size) return;
+  const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+  const path = `gallery/${crypto.randomUUID()}.${ext}`;
+  await admin.storage.from("site").upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+  const url = admin.storage.from("site").getPublicUrl(path).data.publicUrl;
+  await admin.from("gallery_items").insert({
+    title: String(form.get("title") || ""),
+    media_url: url,
+    media_type: file.type.startsWith("video") ? "video" : "image",
+    sort_order: Number(form.get("sort_order")) || 0,
+  });
+  refresh();
+}
+
+export async function updateGalleryItem(form: FormData) {
+  await guard("gallery");
+  const id = String(form.get("id"));
+  const admin = createAdminClient();
+  if (form.get("delete") === "1") await admin.from("gallery_items").delete().eq("id", id);
+  else await admin.from("gallery_items").update({ title: String(form.get("title")), sort_order: Number(form.get("sort_order")) || 0, is_published: form.get("is_published") === "on" }).eq("id", id);
+  refresh();
+}
+
+/** Upload any site image (hero image etc.) and get its public URL. */
+export async function uploadSiteImage(form: FormData) {
+  await guard("content");
+  const file = form.get("file") as File | null;
+  if (!file || !file.size) return { url: "" };
+  const admin = createAdminClient();
+  const path = `media/${crypto.randomUUID()}.${(file.name.split(".").pop() || "bin").toLowerCase()}`;
+  await admin.storage.from("site").upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+  return { url: admin.storage.from("site").getPublicUrl(path).data.publicUrl };
+}
+
+export async function setLeadStatus(form: FormData) {
+  await guard("leads");
+  await createAdminClient().from("leads").update({ status: String(form.get("status")) }).eq("id", String(form.get("id")));
+  revalidatePath("/admin/leads");
+}
+
+export async function saveAi(form: FormData) {
+  await guard("ai");
+  const ok = (p: string) => (p in textProviders ? p : "claude");
+  // The model must belong to the chosen provider (switching Claude → Gemini used to keep «claude-…» and break replies)
+  const fit = (p: string, m: string) => (m.trim().toLowerCase().startsWith(p === "gemini" ? "gemini" : "claude") ? m.trim() : textProviders[p as "claude"] ?? "");
+  const cp = ok(String(form.get("copy_provider"))), hp = ok(String(form.get("chat_provider")));
+  const value = {
+    copy_provider: cp, copy_model: fit(cp, String(form.get("copy_model") || "")),
+    chat_provider: hp, chat_model: fit(hp, String(form.get("chat_model") || "")),
+  };
+  await createAdminClient().from("site_content").upsert({ key: "ai", value, updated_at: new Date().toISOString() });
+  refresh();
+}
