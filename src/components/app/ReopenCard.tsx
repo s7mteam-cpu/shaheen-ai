@@ -25,7 +25,7 @@ export function ReopenCard({ jobId, url, cost, toolId }: { jobId: string; url?: 
       {url && <video src={url} controls playsInline className="max-h-[60vh] w-full rounded-2xl bg-black" />}
       <div className="flex w-full flex-col gap-2 sm:flex-row">
         {url && <a href={url} download className="btn btn-gold flex-1 py-3">{L("⬇️ تحميل")}</a>}
-        <button type="button" disabled={busy} onClick={reopen} className="btn btn-primary flex-1 py-3">{busy ? L("جاري الفتح…") : LT(`✏️ عدّل الفيديو (${cost} ريشة)`, `✏️ Edit video (${cost} credits)`)}</button>
+        <button type="button" disabled={busy} onClick={reopen} className="btn btn-primary flex-1 py-3">{busy ? L("جاري الفتح…") : (cost > 0 ? LT(`✏️ عدّل الفيديو (${cost} ريشة)`, `✏️ Edit video (${cost} credits)`) : LT("✏️ عدّل الفيديو (مجاناً)", "✏️ Edit video (free)"))}</button>
       </div>
       <RetentionNote />
       <p className="text-[13px] text-subtle">{L("يرجع الفيديو للاستوديو بكل تعديلاتك، تعدّل اللي تبيه وتصدّره من جديد.")}</p>

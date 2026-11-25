@@ -11,7 +11,7 @@ export function FreeSent({ data, busy, editCost, balance, onUnlock, newHref = "/
   const [working, setWorking] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const exporting = !!busy && busy.kind === "export";
-  const poor = balance < editCost;
+  const poor = false; void balance; void editCost; // v295: reopening is free
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-8 text-center">
       {exporting || !data.exportUrl ? (
@@ -36,9 +36,9 @@ export function FreeSent({ data, busy, editCost, balance, onUnlock, newHref = "/
       {!exporting && data.exportUrl && (
         <div className="flex w-full flex-col items-center gap-2 border-t border-emerald-200 pt-4">
           <button type="button" disabled={working || poor} onClick={async () => { setWorking(true); setErr(null); const e = await onUnlock(); setWorking(false); if (e) setErr(e); }} className="btn btn-outline px-6 py-3">
-            {working ? L("لحظات…") : `✏️ ${L("تعديل التصميم")} (${editCost} ${L("ريشة")})`}
+            {working ? L("لحظات…") : `✏️ ${L("تعديل التصميم")} (${L("مجاناً")})`}
           </button>
-          <span className="text-[12px] text-emerald-900/70">{poor ? L("رصيدك ما يكفي للتعديل.") : L("التعديل بعد التصدير يكلّف ريش، ثم تصدّر من جديد بدون رسوم إضافية.")}</span>
+          <span className="text-[12px] text-emerald-900/70">{poor ? L("رصيدك ما يكفي للتعديل.") : L("فتح التصميم للتعديل مجاناً. التعديلات اللي تستخدم الذكاء الاصطناعي بس عليها ريش.")}</span>
         </div>
       )}
     </div>

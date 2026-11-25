@@ -26,6 +26,7 @@ export default async function ToolsAdmin() {
         <p className="text-[13px] text-subtle">{L("ترسم صور واقعية لكل أداة بالذكاء الاصطناعي (نفس مزوّد أداة «إنشاء صورة»، تقريباً سنتات بسيطة للصورة) وتنحفظ صورة للبطاقة. تقدر بعدين تغيّر أي صورة برفع صورتك.")}</p>
         <CoversButton />
       </div>
+      <a href="/admin/tools/summary" className="card flex items-center justify-between gap-3 p-4 text-[15px] font-bold text-navy-900 hover:bg-canvas">{L("📊 ملخص كل أداة (للتسعير): تكلفتنا والسعر والتعديل بجدول واحد")}<span aria-hidden>←</span></a>
       <ExtraPricingForm s={extra} />
       {tools.map((t) => (
         <form key={t.id} id={`tool-${t.id}`} action={saveTool} className="card grid scroll-mt-24 gap-4 p-5 md:grid-cols-2">

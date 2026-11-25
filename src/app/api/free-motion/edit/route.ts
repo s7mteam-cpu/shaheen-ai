@@ -42,8 +42,7 @@ export async function POST(req: Request) {
   const exported = !!(job.output as { files?: unknown[] } | null)?.files?.length;
   if (action === "unlock") {
     if (!exported || inp.unlocked) return NextResponse.json({ ok: true, charged: 0 });
-    const { data: tool } = await admin.from("tools").select("edit_cost").eq("id", "free-motion").maybeSingle();
-    const cost = Math.max(0, tool?.edit_cost ?? 8);
+    const cost = 0; // v295: reopening a sent design costs us nothing (no AI call), so it is free. AI edits inside are still charged.
     // flip the flag first (only one request can win), then charge; if the payment fails the flag goes back
     const { data: won } = await admin.from("jobs").update({ input: { ...inp, unlocked: true }, updated_at: new Date().toISOString() }).eq("id", job.id).eq("status", "done").or("input->>unlocked.is.null,input->>unlocked.neq.true").select("id");
     if (!won?.length) return NextResponse.json({ ok: true, charged: 0 });

@@ -1,5 +1,6 @@
 import { loadStyle } from "@/lib/server/myStyle";
 import { NextResponse } from "next/server";
+import { extraPricing } from "@/lib/server/pricing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { guardContent } from "@/lib/server/moderation";
@@ -141,7 +142,7 @@ export async function POST(req: Request) {
       if (desc) { const bad = await guardContent(user.id, { idea: desc }, "free-post-photo"); if (bad) return bad; }
       const { data: imgTool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", "image").maybeSingle();
       if (!imgTool?.is_enabled) return NextResponse.json({ error: "صور الذكاء الاصطناعي متوقفة حالياً. جرّب بدون صورة أو ارفع صورتك." }, { status: 400 });
-      cost += Math.max(0, imgTool.credit_cost);
+      cost += Math.max(0, (await extraPricing()).ai_image_cost); // one price for every AI picture (admin → الأدوات → أسعار إضافية)
       const { data: prof } = await admin.from("profiles").select("credits").eq("id", user.id).maybeSingle();
       if ((prof?.credits ?? 0) < cost) return NextResponse.json({ error: "رصيدك ما يكفي." }, { status: 402 });
       newId = crypto.randomUUID();

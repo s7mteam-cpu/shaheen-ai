@@ -1,5 +1,6 @@
 import { DIALECT_NAME, pickVoice, typeToGA, withTone, type VoiceItem } from "@/lib/voiceMatch";
 import { NextResponse } from "next/server";
+import { extraPricing } from "@/lib/server/pricing";
 import { resolveTerrain } from "@/lib/server/maptiler";
 import { guardContent } from "@/lib/server/moderation";
 import { box } from "@/design/spec";
@@ -144,13 +145,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   const { data: tool } = await admin.from("tools").select("edit_cost").eq("id", "video-editing").single();
   const cost = Math.max(0, tool?.edit_cost ?? 3);
 
-  async function charge() {
-    if (cost <= 0) return null;
-    const { error } = await admin.rpc("spend_credits", { p_user: user!.id, p_amount: cost, p_job: job!.id });
+  async function charge(amount: number = cost) {
+    if (amount <= 0) return null;
+    const { error } = await admin.rpc("spend_credits", { p_user: user!.id, p_amount: amount, p_job: job!.id });
     if (!error) return null;
     return NextResponse.json({ error: error.message.includes("INSUFFICIENT") ? "رصيدك من الريش ما يكفي." : "تعذّر خصم الرصيد." }, { status: 402 });
   }
-  const refund = (why: string) => admin.rpc("grant_credits", { p_user: user.id, p_amount: cost, p_reason: "refund", p_ref: `montage-${why}:${job.id}:${Date.now()}` }).then(() => null, () => null);
+  const refund = (why: string, amount: number = cost) => admin.rpc("grant_credits", { p_user: user.id, p_amount: amount, p_reason: "refund", p_ref: `montage-${why}:${job.id}:${Date.now()}` }).then(() => null, () => null);
 
   if (action === "revise") {
     const instruction = String(body.instruction ?? "").trim().slice(0, 600);
@@ -187,7 +188,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (action === "illustrate") {
     const prompt = String(body.prompt ?? "").trim().slice(0, 400);
     if (prompt.length < 3) return NextResponse.json({ error: "اكتب وش تبي ينرسم." }, { status: 400 });
-    const denied = await charge();
+    const picCost = (await extraPricing()).ai_image_cost; // one AI picture = the AI picture price
+    const denied = await charge(picCost);
     if (denied) return denied;
     try {
       // the customer writes in Arabic: turn it into a clear English picture brief first
@@ -198,7 +200,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       return NextResponse.json({ img, url, prompt: brief.en, style });
     } catch (e) {
       console.error("montage illustrate", e);
-      await refund("illustrate");
+      await refund("illustrate", picCost);
       return NextResponse.json({ error: "ما ضبطت الرسمة، ورجّعنا لك الريش. جرّب وصف ثاني." }, { status: 502 });
     }
   }

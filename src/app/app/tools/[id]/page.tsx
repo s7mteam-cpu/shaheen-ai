@@ -247,13 +247,13 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number,
   return <DesignStart idea={idea} like={like} toolId={tool.id} cost={tool.credit_cost} balance={balance} industry={(kitInd?.industry as string | null) ?? null} />;
 }
 
-/** A finished studio video: watch / download, or reopen it for more edits (costs one edit). */
+/** A finished studio video: watch / download, or reopen it for more edits (free since v295: only the AI edits inside are charged). */
 async function reopen(jobId: string, toolId: string, tool: ToolRow) {
   const { data } = await (await createClient()).from("jobs").select("output,input").eq("id", jobId).single();
   const path = (data?.output as { files?: { path: string }[] } | null)?.files?.[0]?.path;
   const [url] = path ? await signedResultUrls([path]) : [];
   const caption = (data?.input as { caption?: string } | null)?.caption;
-  return <><ReopenCard jobId={jobId} url={url} cost={tool.edit_cost ?? 3} toolId={toolId} />{caption ? <CaptionBox text={caption} /> : null}</>;
+  return <><ReopenCard jobId={jobId} url={url} cost={0} toolId={toolId} />{caption ? <CaptionBox text={caption} /> : null}</>;
 }
 
 /** «فيديو مبتكر من موقعك»: is the innovative video engine open */

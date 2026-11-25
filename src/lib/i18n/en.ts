@@ -629,6 +629,8 @@ export const EN: Record<string, string> = {
   "خطأ داخل التصميم": "Error inside the design",
   "لحظات…": "One moment…",
   "التعديل بعد التصدير يكلّف ريش، ثم تصدّر من جديد بدون رسوم إضافية.": "Editing after export costs credits; exporting again is then free.",
+  "فتح التصميم للتعديل مجاناً. التعديلات اللي تستخدم الذكاء الاصطناعي بس عليها ريش.": "Opening the design to edit is free. Only edits that use AI cost credits.",
+  "مجاناً": "free",
   "رصيدك ما يكفي للتعديل.": "Not enough credits to edit.",
   "تعذّر فتح التعديل.": "Couldn't open editing.",
   "تعديل التصميم": "Edit the design",

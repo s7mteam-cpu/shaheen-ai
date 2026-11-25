@@ -5,6 +5,7 @@ import { applyRecipes } from "@/design/styles";
 import { imgStylePrompt, isImgStyle, DEFAULT_IMG_STYLE } from "@/design/imgStyles";
 import { cleanColors } from "@/lib/plan";
 import { NextResponse } from "next/server";
+import { extraPricing } from "@/lib/server/pricing";
 import { safeFetch } from "@/lib/server/safeFetch";
 import { guardContent } from "@/lib/server/moderation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -344,6 +345,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   const base = { kind: DESIGN_TOOLS[job.tool_id], aspect: (job.input.aspect as DAspect) ?? "4:5" };
   const { data: tool } = await admin.from("tools").select("edit_cost").eq("id", job.tool_id).single();
   const editCost = tool?.edit_cost ?? 2;
+  const picCost = (await extraPricing()).ai_image_cost; // an AI picture inside the design: one price for every tool
   /** Images must be the customer's own files (or results of this job). */
   const clean = (s: DesignSpec): DesignSpec => {
     const ok = (i?: DImg | null) => (i && mine(i.path) ? i : null);
@@ -388,7 +390,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (prompt.length < 3) return NextResponse.json({ error: "اوصف الصورة." }, { status: 400 });
     const n = Math.min(3, Math.max(1, Math.floor(Number(body.n) || 1)));
     const style = isImgStyle(body.imgStyle) ? body.imgStyle : DEFAULT_IMG_STYLE;
-    const denied = await charge(job.id, editCost * n);
+    const denied = await charge(job.id, picCost * n);
     if (denied) return denied;
     try {
       const ref = body.ref && mine(body.ref.path) ? await sign(body.ref.bucket === "results" ? "results" : "uploads", body.ref.path) : "";
@@ -398,11 +400,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         : aiPhoto(job.tool_id, job.id, prompt, asp, [], style);
       const got = (await Promise.allSettled(Array.from({ length: n }, one))).flatMap((g) => (g.status === "fulfilled" ? [g.value] : []));
       if (!got.length) throw new Error("all failed");
-      if (got.length < n) await refund(job.id, editCost * (n - got.length), "image");
+      if (got.length < n) await refund(job.id, picCost * (n - got.length), "image");
       return NextResponse.json({ img: got[0], imgs: got });
     } catch (e) {
       console.error("design image", e);
-      await refund(job.id, editCost * n, "image");
+      await refund(job.id, picCost * n, "image");
       const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
       const why = me?.role === "admin" ? ` [${String(e instanceof Error ? e.message : e).slice(0, 220)}]` : "";
       return NextResponse.json({ error: `ما قدرنا نولّد الصورة، ورجّعنا لك الريش.${why}` }, { status: 502 });
@@ -413,13 +415,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (!body.spec) return NextResponse.json({ error: "ما فيه تصميم." }, { status: 400 });
     const current = normaliseDesign(body.spec as Raw, base);
     if (!usedIcons(current).length) return NextResponse.json({ error: "التصميم ما فيه أيقونات." }, { status: 400 });
-    const denied = await charge(job.id, editCost);
+    const denied = await charge(job.id, picCost);
     if (denied) return denied;
     try {
       return NextResponse.json({ icon3d: await icons3d(job.tool_id, job.id, current) });
     } catch (e) {
       console.error("design icons3d", e);
-      await refund(job.id, editCost, "icons3d");
+      await refund(job.id, picCost, "icons3d");
       const { data: me } = await admin.from("profiles").select("role").eq("id", user.id).single();
       const why = me?.role === "admin" ? ` [${String(e instanceof Error ? e.message : e).slice(0, 220)}]` : "";
       return NextResponse.json({ error: `ما قدرنا نرسم الأيقونات، ورجّعنا لك الريش.${why}` }, { status: 502 });
