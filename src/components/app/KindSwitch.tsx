@@ -4,7 +4,7 @@ type T = { id: string; credit_cost: number; cost_unit: string | null };
 /** the two ways to make this thing: ready templates, or a brand-new design. Two big choices on top of the tool's page. */
 export function KindSwitch({ current, templates, fresh, L }: { current: string; templates: T; fresh: T; L: (s: string) => string }) {
   const opts = [
-    { t: templates, icon: "🎨", title: "قوالب جاهزة", desc: "اختر من مئات الستايلات المجرّبة. نتيجة مضمونة وسريعة." },
+    { t: templates, icon: "🎨", title: "قوالب جاهزة", desc: ["cv", "site-video"].includes(templates.id) ? "اختر من 50 ستايل مجرّب. نتيجة مضمونة وسريعة." : "اختر من مئات الستايلات المجرّبة. نتيجة مضمونة وسريعة." },
     { t: fresh, icon: "✨", title: "مبتكر", desc: "تصميم جديد من الصفر حسب وصفك. كل مرة مختلف. (تجريبي)" },
   ];
   return (

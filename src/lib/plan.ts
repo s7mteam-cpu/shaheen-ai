@@ -9,6 +9,7 @@ export type PlanPrefs = {
   postColors?: PlanColors | null;   // null/undefined = the brand's own colours
   dialect?: string;                 // language/dialect of posts' text and of the reel's voice
   voiceover?: boolean;              // reels come with a voice-over (default yes)
+  voice?: string;                   // a registered voice id ("" = automatic)
   vgender?: "m" | "f" | "";
   vage?: "young" | "adult" | "senior" | "";
   tone?: string;
@@ -23,10 +24,10 @@ export function itemRequest(x: PlanItem, prefs: PlanPrefs | null | undefined, sl
   const dialect = prefs?.dialect || "kuwaiti";
   if (x.format === "reel") {
     const voiceover = prefs?.voiceover !== false;
-    return { url: "/api/lesson", body: { mode: "motion", topic: x.prompt, caption: x.caption, seconds: 30, aspect: "9:16", dialect, voiceover, drawings: true, drawLevel: "few", ...(prefs?.vgender ? { vgender: prefs.vgender } : {}), ...(prefs?.vage ? { vage: prefs.vage } : {}), ...(prefs?.tone ? { tone: prefs.tone } : {}) } };
+    return { url: "/api/lesson", body: { mode: "motion", topic: x.prompt, caption: x.caption, seconds: 30, aspect: "9:16", dialect, voiceover, drawings: true, drawLevel: "few", ...(prefs?.voice ? { voice: prefs.voice } : {}), ...(prefs?.vgender ? { vgender: prefs.vgender } : {}), ...(prefs?.vage ? { vage: prefs.vage } : {}), ...(prefs?.tone ? { tone: prefs.tone } : {}) } };
   }
   const colors = cleanColors(prefs?.postColors);
-  return { url: "/api/design/start", body: { tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? slides : 1, bgMode: x.format === "carousel" ? (prefs?.carouselBg ?? "shapes") : undefined, aspect: "4:5", dialect, photos: [], useBrand: true, aiImages: true, ...(colors ? { colors } : {}) } };
+  return { url: "/api/design/start", body: { tool: FORMAT_TOOL[x.format], info: x.prompt, count: x.format === "carousel" ? slides : 1, bgMode: x.format === "carousel" ? (prefs?.carouselBg ?? "shapes") : undefined, aspect: "4:5", dialect, photos: [], useBrand: true, aiImages: x.format === "carousel" && prefs?.carouselBg === "ai", ...(colors ? { colors } : {}) } };
 }
 /** best posting times in the Gulf */
 export const TIMES = ["12:30 ظهراً", "4:30 عصراً", "11:00 مساءً"] as const;

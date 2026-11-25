@@ -106,6 +106,7 @@ export async function savePlanPrefs(p: Partial<PlanPrefs>) {
   if ("postColors" in p) patch.postColors = cleanColors(p.postColors); // null = the brand's own colours
   if (typeof p.dialect === "string" && /^[a-z]{2,12}$/.test(p.dialect)) patch.dialect = p.dialect;
   if (typeof p.voiceover === "boolean") patch.voiceover = p.voiceover;
+  if (typeof p.voice === "string" && /^[\w-]{0,60}$/.test(p.voice)) patch.voice = p.voice;
   if (p.vgender === "m" || p.vgender === "f" || p.vgender === "") patch.vgender = p.vgender;
   if (p.vage === "young" || p.vage === "adult" || p.vage === "senior" || p.vage === "") patch.vage = p.vage;
   if (typeof p.tone === "string" && /^[a-z]{0,12}$/.test(p.tone)) patch.tone = p.tone;

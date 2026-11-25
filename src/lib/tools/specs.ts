@@ -184,7 +184,6 @@ export const toolSpecs: Record<string, ToolSpec> = {
     fields: [
       { type: "text", name: "text", label: "النص", required: true, max: 2500, rows: 6 },
       { type: "choice", name: "dialect", label: "اللهجة", default: "same", options: [{ value: "same", label: "مثل ما كتبت" }, ...dialects, { value: "en", label: "English" }] },
-      { type: "choice", name: "vtype", label: "نوع الصوت", default: "auto", options: [{ value: "auto", label: "تلقائي" }, { value: "man", label: "رجل" }, { value: "woman", label: "امرأة" }, { value: "young_m", label: "شاب" }, { value: "young_f", label: "شابة" }, { value: "senior_m", label: "رجل كبير بالسن" }, { value: "senior_f", label: "امرأة كبيرة بالسن" }] },
       { type: "choice", name: "tone", label: "إحساس الصوت", default: "plain", options: [{ value: "plain", label: "عادي" }, { value: "calm", label: "هادي" }, { value: "energetic", label: "متحمس" }, { value: "happy", label: "مبسوط" }, { value: "confident", label: "واثق" }, { value: "formal", label: "رسمي" }, { value: "warm", label: "ودود" }] },
       { type: "voice", name: "voice", label: "الصوت" },
       { type: "toggle", name: "polish", label: "جهّز النص للنطق", default: true, hint: "شاهين يعدّل الإملاء والوقفات عشان الصوت يطلع طبيعي، بنفس المعنى وبنفس اللهجة اللي اخترتها." },

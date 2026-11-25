@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanPrices, costOf, type AiPrices, type UsageRow } from "@/lib/aiPrices";
 import { noteUsage } from "@/lib/server/usageCtx";
+import { extraPricing } from "@/lib/server/pricing";
 
 export async function getAiPrices(): Promise<AiPrices> {
   const { data } = await createAdminClient().from("site_content").select("value").eq("key", "ai_prices").maybeSingle();
@@ -52,6 +53,7 @@ export async function costReport(days = 30): Promise<CostReport> {
   }
   const { data: toolRows } = await admin.from("tools").select("id,name,credit_cost,cost_unit");
   const tname = new Map((toolRows ?? []).map((t) => [t.id, t]));
+  const aiX = (await extraPricing()).ai_clip_x; // «مشاهد واقعية» is always AI clips: the customer pays this × the listed price
   const jobs: JobCost[] = ids.map((id) => {
     const list = byJob.get(id)!; const j = info.get(id);
     const parts = new Map<string, JobCost["parts"][number]>();
@@ -67,7 +69,7 @@ export async function costReport(days = 30): Promise<CostReport> {
   for (const j of jobs) { const l = byTool.get(j.toolId) ?? []; l.push(j); byTool.set(j.toolId, l); }
   const tools: ToolCost[] = [...byTool.entries()].map(([toolId, l]) => {
     const paid = l.filter((j) => !j.refunded && j.credits > 0);
-    return { toolId, name: tname.get(toolId)?.name ?? toolId, unit: tname.get(toolId)?.cost_unit ?? "", jobs: l.length, avg: l.reduce((a, j) => a + j.usd, 0) / l.length, max: Math.max(...l.map((j) => j.usd)), creditCost: tname.get(toolId)?.credit_cost ?? 0, avgCredits: paid.length ? paid.reduce((a, j) => a + j.credits, 0) / paid.length : 0, unknown: l.some((j) => j.unknown.length > 0) };
+    return { toolId, name: tname.get(toolId)?.name ?? toolId, unit: tname.get(toolId)?.cost_unit ?? "", jobs: l.length, avg: l.reduce((a, j) => a + j.usd, 0) / l.length, max: Math.max(...l.map((j) => j.usd)), creditCost: (tname.get(toolId)?.credit_cost ?? 0) * (toolId === "real-scenes" ? aiX : 1), avgCredits: paid.length ? paid.reduce((a, j) => a + j.credits, 0) / paid.length : 0, unknown: l.some((j) => j.unknown.length > 0) };
   }).sort((a, b) => b.max - a.max);
   return { ready: true, prices, jobs: jobs.slice(0, 80), tools, site: [...siteMap.values()].sort((a, b) => b.usd - a.usd), days, total };
 }

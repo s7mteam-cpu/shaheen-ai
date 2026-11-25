@@ -244,7 +244,7 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number,
   const { data: kitInd } = await supabase.from("brand_kits").select("industry").maybeSingle();
   if (tool.id === "invitations") { const { data: k } = await supabase.from("brand_kits").select("colors").maybeSingle(); return <InviteStart cost={tool.credit_cost} balance={balance} hasKit={!!(k && (k.colors ?? []).filter(Boolean).length)} />; }
   if (tool.id === "business-cards") { const { data: k } = await supabase.from("brand_kits").select("colors,logo_url").maybeSingle(); return <BCardStart cost={tool.credit_cost} balance={balance} hasKit={!!(k && ((k.colors ?? []).filter(Boolean).length || k.logo_url))} />; }
-  return <DesignStart idea={idea} like={like} toolId={tool.id} cost={tool.credit_cost} balance={balance} industry={(kitInd?.industry as string | null) ?? null} />;
+  return <DesignStart idea={idea} like={like} toolId={tool.id} cost={tool.credit_cost} balance={balance} industry={(kitInd?.industry as string | null) ?? null} picCost={(await extraPricing()).ai_image_cost} />;
 }
 
 /** A finished studio video: watch / download, or reopen it for more edits (free since v295: only the AI edits inside are charged). */

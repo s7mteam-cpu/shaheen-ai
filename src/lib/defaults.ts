@@ -78,7 +78,7 @@ export const defaultTools: Tool[] = [
   { id: "product-video", provider: "google", name: "فيديو المنتج", description: "ارفع صورة منتجك، ونحوّلها لفيديو إعلاني واقعي: إضاءة سينمائية، حركة كاميرا، وموسيقى.", category: "video", icon: "film", credit_cost: 15, edit_cost: 5, cost_unit: "5 ثواني", provider_model: "gemini-omni-1.2-flash", is_enabled: true, sort_order: 6 },
   { id: "avatar-video", provider: "fal", name: "فيديو بشخصية واقعية", description: "شخصية تقدّم منتجك وتتكلم بلهجة جمهورك، بدون تصوير ولا ممثلين.", category: "video", icon: "user", credit_cost: 30, edit_cost: 5, cost_unit: "فيديو", provider_model: "fal-ai/kling-video/ai-avatar/v2/standard", is_enabled: true, sort_order: 5 },
   { id: "ad-design", provider: "fal", name: "تصميم الإعلانات", description: "زاوية تسويقية ونص إعلاني وصورة لكل إعلان، جاهزة للنشر على السوشال ميديا.", category: "image", icon: "megaphone", credit_cost: 5, edit_cost: 2, cost_unit: "إعلان", provider_model: "fal-ai/nano-banana-pro", is_enabled: true, sort_order: 6 },
-  { id: "voice", provider: "elevenlabs", name: "تحويل النص إلى أصوات عربية", description: "أصوات طبيعية بأكثر من 20 لهجة، واستنساخ صوتك بموافقتك.", category: "audio", icon: "mic", credit_cost: 3, edit_cost: 1, cost_unit: "500 حرف", provider_model: null, is_enabled: true, sort_order: 7 },
+  { id: "voice", provider: "elevenlabs", name: "تحويل النص إلى أصوات عربية", description: "أصوات طبيعية بـ 12 لهجة عربية، واستنساخ صوتك بموافقتك.", category: "audio", icon: "mic", credit_cost: 3, edit_cost: 1, cost_unit: "500 حرف", provider_model: null, is_enabled: true, sort_order: 7 },
   { id: "nasheed", provider: "elevenlabs", name: "إنشاء همهمة إسلامية", description: "أناشيد بأصوات بشرية وهمهمات خلفية بدون آلات موسيقية، للمحتوى الديني والمحافظ.", category: "audio", icon: "waves", credit_cost: 10, edit_cost: 3, cost_unit: "30 ثانية", provider_model: null, is_enabled: true, sort_order: 8 },
   { id: "product-photo", provider: "fal", name: "تصوير المنتجات", description: "صوّر منتجك بالجوال، ونحوّله لصور استوديو احترافية بخلفيات وإضاءة فاخرة.", category: "image", icon: "camera", credit_cost: 6, edit_cost: 2, cost_unit: "صورة", provider_model: "fal-ai/nano-banana-pro/edit", is_enabled: true, sort_order: 9 },
 ];
@@ -91,7 +91,7 @@ export const defaultContent: SiteContent = {
     subtitle: "شاهين استوديو المحتوى العربي لمشروعك: صور منتجات، فيديوهات، إعلانات وتعليق صوتي بلهجة جمهورك — كلها من مكان واحد، وبهويتك أنت.",
     cta_primary: "اشترك الآن",
     cta_secondary: "استكشف الأدوات وطريقة استخدامها",
-    points: ["بدون كاميرا أو فريق إنتاج", "أكثر من 20 لهجة عربية", "إلغاء في أي وقت"],
+    points: ["بدون كاميرا أو فريق إنتاج", "12 لهجة عربية", "إلغاء في أي وقت"],
     image: "",
   },
   steps: {

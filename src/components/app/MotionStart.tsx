@@ -10,7 +10,8 @@ import { PhotoPicker, type Photo } from "@/components/app/PhotoPicker";
 import { industryById } from "@/design/industries";
 import { More } from "@/components/app/Collapse";
 import { focusFor } from "@/lib/videoFocus";
-import { TONES, VOICE_AGES, voiceDialects } from "@/lib/voiceMatch";
+import { TONES, voiceDialects } from "@/lib/voiceMatch";
+import { VoicePick } from "@/components/app/VoicePick";
 import { ILLUS_STYLES } from "@/remotion/styles";
 
 const adLengths = [[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"]] as const;
@@ -170,12 +171,8 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       {showVoice && (
         <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">
           <span className="font-semibold">{L("🎙 الصوت")}</span>
-          <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("رجل أو امرأة")}</span>{chips([["", "أي صوت"], ["m", "رجل"], ["f", "امرأة"]] as readonly (readonly [string, string])[], vgender, setVgender)}</div>
-          <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("العمر")}</span>{chips([["", "أي عمر"], ...VOICE_AGES] as readonly (readonly [string, string])[], vage, setVage)}</div>
           <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("نبرة الصوت")}</span>{chips(TONES as readonly (readonly [string, string])[], tone, setTone)}</div>
-          <label className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("أو اختر صوت بعينه")}</span>
-            <select value={voice} onChange={(e) => setVoice(e.target.value)} className="field"><option value="">{L("تلقائي: الأنسب للهجة واختياراتك")}</option>
-              {voices.filter((v) => !v.dialects?.length || v.dialects.includes("any") || v.dialects.includes(dialect) || (v.dialects.includes("gulf") && ["kuwaiti", "saudi", "emirati", "qatari", "bahraini", "omani"].includes(dialect))).map((v) => <option key={v.id} value={v.id}>{v.name}{v.note ? ` — ${v.note}` : ""}</option>)}</select></label>
+          <VoicePick voices={voices} value={voice} onChange={setVoice} auto="تلقائي: الأنسب لاختياراتك" />
         </div>
       )}
       <More label={L("المزيد من الخيارات (الخلفية، مكان النص، الرسومات، الموسيقى)")}>

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Progress } from "@/components/app/Progress";
 import { More } from "@/components/app/Collapse";
-import { TONES, VOICE_AGES, voiceDialects } from "@/lib/voiceMatch";
+import { TONES, voiceDialects } from "@/lib/voiceMatch";
+import { VoicePick } from "@/components/app/VoicePick";
 import { PhotoPicker, type Photo } from "@/components/app/PhotoPicker";
 import { SITE_GROUPS, SITE_STYLES, type SBg } from "@/remotion/siteStyles";
 
@@ -36,6 +37,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
   const [dialect, setDialect] = useState<string>("kuwaiti");
   useEffect(() => { setDialect(myDialect()); }, []);
   const [voiceover, setVoiceover] = useState(true);
+  const [voice, setVoice] = useState("");
   const [vgender, setVgender] = useState("");
   const [vage, setVage] = useState("");
   const [tone, setTone] = useState("auto");
@@ -85,7 +87,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
     if (fresh) {
       try {
         const r = await fetch("/api/free-motion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-          siteJob: jobId, useLogo, useStyle, idea: topic, seconds, aspect, dialect, voiceover, vgender, vage, music: withMusic, useIdentity: false }) });
+          siteJob: jobId, useLogo, useStyle, idea: topic, seconds, aspect, dialect, voiceover, voice, music: withMusic, useIdentity: false }) });
         const d = await r.json();
         if (!r.ok) throw new Error(L(d.error));
         setPct(100);
@@ -95,7 +97,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
     }
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        siteJob: jobId, siteStyle: style, readShots: readImgs, shots: shots.map((x) => ({ path: x.path, bucket: x.bucket, label: x.label })), topic, seconds, aspect, dialect, voiceover, vgender, vage, tone, music: withMusic, brand: site?.title ?? "" }) });
+        siteJob: jobId, siteStyle: style, readShots: readImgs, shots: shots.map((x) => ({ path: x.path, bucket: x.bucket, label: x.label })), topic, seconds, aspect, dialect, voiceover, voice, tone, music: withMusic, brand: site?.title ?? "" }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -171,8 +173,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
         <More label={L("خيارات إضافية (الصوت، الموسيقى)")}>
           {voiceover && (
             <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">
-              <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("رجل أو امرأة")}</span>{chips([["", "أي صوت"], ["m", "رجل"], ["f", "امرأة"]] as readonly (readonly [string, string])[], vgender, setVgender)}</div>
-              <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("العمر")}</span>{chips([["", "أي عمر"], ...VOICE_AGES] as readonly (readonly [string, string])[], vage, setVage)}</div>
+            <VoicePick voices={voices} value={voice} onChange={setVoice} />
               {!fresh && <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("نبرة الصوت")}</span>{chips(TONES as readonly (readonly [string, string])[], tone, setTone)}</div>}
             </div>
           )}

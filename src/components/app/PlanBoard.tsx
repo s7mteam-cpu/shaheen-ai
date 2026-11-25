@@ -6,11 +6,12 @@ import { savePlan, savePlanPrefs, setAutoWeekly, tagPlanJob } from "@/app/app/br
 import { FORMAT_LABEL, FORMAT_TOOL, itemRequest, type Analysis, type Plan, type PlanColors, type PlanItem, type PlanPrefs } from "@/lib/plan";
 import { PALETTES, lum, onColor } from "@/design/spec";
 import { ARAB_DIALECTS } from "@/lib/countries";
-import { TONES, VOICE_TYPES, typeToGA } from "@/lib/voiceMatch";
+import { TONES, VOICE_TYPES, typeToGA, type VoiceItem } from "@/lib/voiceMatch";
+import { VoicePick } from "@/components/app/VoicePick";
 
 const FORMAT_ICON: Record<string, string> = { post: "🖼️", reel: "🎬", carousel: "🗂️" };
 
-export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCostPrice, prefs: prefs0, dialects: availD, unit, auto: auto0 }: { weekCostPrice: number; prefs: PlanPrefs; dialects: string[] | null; identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number } }) {
+export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCostPrice, prefs: prefs0, voices = [], dialects: availD, unit, auto: auto0 }: { voices?: VoiceItem[]; weekCostPrice: number; prefs: PlanPrefs; dialects: string[] | null; identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number } }) {
   const [plan, setPlan] = useState<Plan | null>(p0);
   const [analysis, setAnalysis] = useState<Analysis | null>(a0);
   const [busy, setBusy] = useState(false);
@@ -158,7 +159,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
             <div className="flex flex-wrap gap-2">{dialectList.map(([v, l]) => <button key={v} type="button" aria-pressed={dialect === v} onClick={() => setPref({ dialect: v })} className={chip(dialect === v)}>{L(l)}</button>)}</div>
             <label className="flex items-center gap-3 text-[14.5px]"><input type="checkbox" checked={voiceover} onChange={(e) => setPref({ voiceover: e.target.checked })} className="h-5 w-5" />{L("الريلز تجي مع تعليق صوتي (نص وصوت)")}</label>
             {voiceover && <>
-              <div className="flex flex-wrap gap-2">{VOICE_TYPES.map(([id, l, g, a]) => <button key={id} type="button" aria-pressed={typeNow === id} onClick={() => setPref({ vgender: (g ?? "") as "m" | "f" | "", vage: (a ?? "") as "young" | "adult" | "senior" | "" })} className={chip(typeNow === id)}>{L(l)}</button>)}</div>
+              <VoicePick voices={voices} value={prefs.voice ?? ""} onChange={(id) => setPref({ voice: id })} auto="تلقائي" />
               <div className="flex flex-wrap gap-2">{TONES.map(([v, l]) => <button key={v} type="button" aria-pressed={(prefs.tone || "auto") === v} onClick={() => setPref({ tone: v === "auto" ? "" : v })} className={chip((prefs.tone || "auto") === v)}>{L(l)}</button>)}</div>
             </>}
             <span className="text-[13px] text-subtle">{L("اللهجة تنطبق على نص الريلز وصوتها، وعلى نصوص البوستات.")}</span>

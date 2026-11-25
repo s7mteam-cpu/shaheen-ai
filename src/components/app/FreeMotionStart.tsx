@@ -141,7 +141,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
   }
   const showSent = !!studio && !unlockedNow && ((sentLocal && (!!busyNow || !!studio.exportUrl)) || (!!studio.locked && !busyNow));
   if (jobId && studio && showSent) return <FreeSent newHref={path} data={studio} busy={busyNow} editCost={editCost} balance={balance} onUnlock={unlock} />;
-  if (jobId && studio) return <FreeStudio key={`${jobId}-${epoch}`} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={(k) => { stopped.current = false; waitBusy.current = Date.now() + 30000; setBusyNow({ kind: k, progress: 3 }); if (k === "export") { setSentLocal(true); setUnlockedNow(false); } poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
+  if (jobId && studio) return <FreeStudio voices={voices} key={`${jobId}-${epoch}`} jobId={jobId} data={studio} busy={busyNow} kitLogo={kitLogo} editCost={editCost} balance={balance} onRefresh={(k) => { stopped.current = false; waitBusy.current = Date.now() + 30000; setBusyNow({ kind: k, progress: 3 }); if (k === "export") { setSentLocal(true); setUnlockedNow(false); } poll(); }} onSimilar={(i, o) => startFrom(i, o, jobId)} />;
   if (jobId && state?.status === "gemini") return <GemStudio newHref={path} key={jobId} jobId={jobId} data={state} balance={balance} voices={voices} onSent={(id) => { router.replace(`${path}?${jobKey}=${id}`); router.refresh(); }} />;
   if (jobId && state?.status === "failed") {
     return <div className="card max-w-2xl p-6"><p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{state.error}</p>{state.reason && <p dir="ltr" className="mt-3 rounded-lg bg-neutral-100 p-3 text-start text-[12px] text-neutral-600">{state.reason}</p>}<button onClick={() => router.replace(path)} className="btn btn-gold mt-4 px-5 py-2.5">{L("جرّب فكرة ثانية")}</button></div>;
@@ -171,9 +171,9 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
       <div className="flex flex-col gap-3 rounded-xl border p-4">
         <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} />{L("تعليق صوتي (والصورة تمشي مع الكلام)")}</label>
         {voiceover && (<>
-          <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field w-48">{GULF_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}{voices.length && !voicesFor(voices, v).length ? ` — ${L("قريبًا")}` : ""}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field w-48">{GULF_DIALECTS.filter(([v]) => !voices.length || voicesFor(voices, v).length).map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
           {voices.length > 0
-            ? <VoicePick voices={voices} dialect={dialect} value={voiceId} onChange={setVoiceId} />
+            ? <VoicePick voices={voices} value={voiceId} onChange={setVoiceId} />
             : <label className="flex items-center gap-2 text-[14px]">{L("الصوت")}<select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field w-48">{VOICE_TYPES.map(([v, l]) => <option key={v} value={v}>{L(l)}</option>)}</select></label>}
         </>)}
       </div>

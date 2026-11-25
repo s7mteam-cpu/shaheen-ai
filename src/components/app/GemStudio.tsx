@@ -367,12 +367,9 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [], newHref =
                       ))}
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="flex flex-col gap-1 text-[13px]">{L("اللهجة")}
-                          <select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field"><option value="">{L("كما هي")}</option>{ARAB_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}{voices.length && !voicesFor(voices, v).length ? ` — ${L("قريبًا")}` : ""}</option>)}</select></label>
-                        {voices.length > 0 && dialect ? null : (
-                        <label className="flex flex-col gap-1 text-[13px]">{L("نوع الصوت")}
-                          <select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field"><option value="keep">{L("كما هو")}</option>{VOICE_TYPES.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>)}
+                          <select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field"><option value="">{L("كما هي")}</option>{ARAB_DIALECTS.filter(([v]) => !voices.length || voicesFor(voices, v).length).map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
                       </div>
-                      {voices.length > 0 && dialect && <VoicePick voices={voices} dialect={dialect} value={voiceId} onChange={setVoiceId} />}
+                      {voices.length > 0 && <VoicePick voices={voices} value={voiceId} onChange={setVoiceId} auto="كما هو" />}
                       <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={rewrite} disabled={!!lang} onChange={(e) => setRewrite(e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("أعد صياغة الجمل باللهجة المختارة (بالذكاء)")}</label>
                       <label className="flex flex-col gap-1 text-[13px]">{L("ترجمة إلى لغة ثانية (الصوت والنصوص)")}
                         <select value={lang} onChange={(e) => setLang(e.target.value)} className="field"><option value="">{L("بدون ترجمة")}</option>{([["en", "English"], ["fr", "Français"], ["es", "Español"], ["tr", "Türkçe"], ["de", "Deutsch"], ["it", "Italiano"]] as const).map(([v, n]) => <option key={v} value={v}>{n}</option>)}</select></label>

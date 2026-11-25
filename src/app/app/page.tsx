@@ -7,6 +7,7 @@ import { exampleCats } from "@/lib/showcase";
 import { listWorks } from "@/lib/works";
 import { getL } from "@/lib/server/lang";
 import { extraPricing } from "@/lib/server/pricing";
+import { getFreeEngine } from "@/lib/server/freeEngine";
 
 
 export async function generateMetadata() { return { title: (await getL())("الرئيسية") }; }
@@ -17,13 +18,14 @@ export default async function Dashboard() {
   const tools = mainTools(tools0);
   const ex = exampleCats(shown);
   const aiX = (await extraPricing()).ai_clip_x;
+  const fxMin = (await getFreeEngine().catch(() => null))?.fxMinCost ?? 0;
 
   return (
     <div className="flex flex-col gap-8">
       <h2 className="sr-only">{L("الرئيسية")}</h2>
       <section aria-label={L("الأدوات")}>
         <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-          {tools.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} exampleCat={ex[t.id]} price={t.id === "real-scenes" ? t.credit_cost * aiX : undefined} /></li>)}
+          {tools.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} exampleCat={ex[t.id]} price={t.id === "real-scenes" ? t.credit_cost * aiX : undefined} from={t.id === "free-montage" && fxMin > t.credit_cost ? fxMin : undefined} /></li>)}
         </ul>
       </section>
 

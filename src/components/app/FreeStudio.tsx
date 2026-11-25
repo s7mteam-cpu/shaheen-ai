@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Progress } from "@/components/app/Progress";
 import { BRANDS, type BrandId } from "@/remotion/brandIcons";
 import { GULF_DIALECTS } from "@/lib/countries";
-import { VOICE_TYPES } from "@/lib/voiceMatch";
+import type { VoiceItem } from "@/lib/voiceMatch";
+import { VoicePick } from "@/components/app/VoicePick";
 import { Card } from "@/components/app/Collapse";
 import { FreeTimeline, type Trim } from "@/components/app/FreeTimeline";
 import { MusicEditor } from "@/components/app/MusicEditor";
@@ -32,8 +33,8 @@ const card = "card flex flex-col gap-3 p-4";
 
 /** «تصميم مبتكر»: the finished design plays LIVE inside a sandboxed frame; every edit shows at once. The mp4 is drawn only on export. */
 /** Put in front of the sandboxed page: tells this page the first error that happens inside it (so a blank picture shows its cause). */
-export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRefresh, onSimilar }: {
-  jobId: string; data: StudioData; busy: StudioData["busy"]; kitLogo?: { path: string; url: string } | null; editCost: number; balance: number;
+export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRefresh, onSimilar, voices = [] }: {
+  voices?: VoiceItem[]; jobId: string; data: StudioData; busy: StudioData["busy"]; kitLogo?: { path: string; url: string } | null; editCost: number; balance: number;
   onRefresh: (kind: "export" | "revoice") => void; onSimilar: (idea: string, opts: { dialect: string; vtype: string; music: boolean }) => Promise<string | null>;
 }) {
   const router = useRouter();
@@ -57,6 +58,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
   const [narr, setNarr] = useState(data.narration);
   const [dialect, setDialect] = useState(data.dialect);
   const [vtype, setVtype] = useState("");
+  const [voiceId, setVoiceId] = useState("");
   const [simIdea, setSimIdea] = useState(data.idea);
   const [html, setHtml] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState(false);
@@ -171,7 +173,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
 
   async function act(action: "revoice" | "export") {
     setErr(null); setMsg(null);
-    const r = await fetch("/api/free-motion/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body(), action, narration: narr, dialect, ...(vtype ? { vtype } : {}) }) });
+    const r = await fetch("/api/free-motion/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body(), action, narration: narr, dialect, ...(voiceId ? { voice: voiceId } : {}) }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { setErr(d.error ?? L("تعذّر البدء.")); return; }
     send({ type: "pause" });
@@ -233,7 +235,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
             {narr.map((n, i) => <textarea key={i} rows={2} maxLength={220} value={n} onChange={(e) => setNarr(narr.map((x, j) => (j === i ? e.target.value : x)))} className="field text-[14px]" aria-label={`${L("نص التعليق")} ${i + 1}`} />)}
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => setDialect(e.target.value)} className="field w-44">{GULF_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
-              <label className="flex items-center gap-2 text-[14px]">{L("الصوت")}<select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field w-40"><option value="">{L("نفس الصوت الحالي")}</option>{VOICE_TYPES.map(([v, l]) => <option key={v} value={v}>{L(l)}</option>)}</select></label>
+              {voices.length > 0 && <VoicePick voices={voices} value={voiceId} onChange={setVoiceId} auto="نفس الصوت الحالي" />}
             </div>
             <button type="button" disabled={!!busy} onClick={() => act("revoice")} className="btn btn-outline self-start px-4 py-2 text-[14px]">🎙️ {L("أعد تسجيل التعليق")}</button>
             <span className="text-[12px] text-subtle">{L("إذا غيّرت جملة أو الصوت، التسجيل ياخذ دقيقة تقريباً. عدد الجمل ثابت عشان الصورة تمشي مع الصوت.")}</span>

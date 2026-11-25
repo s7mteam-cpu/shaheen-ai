@@ -99,7 +99,7 @@ export async function POST(req: Request) {
     const { data: vc } = await admin.from("site_content").select("value").eq("key", "voices").maybeSingle();
     const voices = ((vc?.value as { items?: VoiceItem[] })?.items ?? []);
     const { gender, age } = typeToGA(String(b.vtype ?? "auto"));
-    const v = String(b.vtype ?? "") ? pickVoice(voices, { dialect, gender, age }) : voices.find((x) => x.id === (inp.voice as { id?: string } | undefined)?.id);
+    const v = typeof b.voice === "string" && b.voice ? voices.find((x) => x.id === b.voice) : String(b.vtype ?? "") ? pickVoice(voices, { dialect, gender, age }) : voices.find((x) => x.id === (inp.voice as { id?: string } | undefined)?.id);
     const voice = v ? { id: v.id, ...(v.model ? { model: v.model } : {}), ...(v.settings ? { settings: v.settings } : {}) } : inp.voice;
     saved.mode = "revoice"; saved.narration = newN; saved.voice = voice; saved.dialect = dialect; saved.dialectLabel = DIALECT_NAME[dialect];
   } else saved.mode = "export";

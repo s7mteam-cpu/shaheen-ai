@@ -242,7 +242,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
 
                 {f.type === "voice" && (
                   <select id={`f-${f.name}`} value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)} className="field">
-                    {tool.id === "voice" && f.name === "voice" && <option value="auto">{L("تلقائي (حسب اللهجة والنوع والعمر)")}</option>}
+                    {tool.id === "voice" && f.name === "voice" && <option value="auto">{L("تلقائي (حسب اللهجة)")}</option>}
                     {voices.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                   </select>
                 )}

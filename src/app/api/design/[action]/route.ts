@@ -293,25 +293,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       spec = applyRecipes(spec, (raw as { design?: unknown }).design);
       await admin.from("jobs").update({ progress: 60 }).eq("id", job.id);
 
+      // AI pictures cost the customer one fixed price each (same as everywhere else); not enough balance → the design is made without them
+      const aiPic = (await extraPricing()).ai_image_cost;
+      let skipBg = false, picsPaid = 0, picsOk = 0;
+      const picsWanted = aiWanted.length + (bgAi ? spec.slides.length : 0);
+      if (picsWanted > 0 && aiPic > 0) {
+        const d = await charge(job.id, aiPic * picsWanted);
+        if (d) { aiWanted.length = 0; skipBg = true; } else picsPaid = picsWanted;
+      }
       const gen = await Promise.allSettled(aiWanted.map(async ({ i, ref }) => {
         const p = String(spec.slides[i].imagePrompt);
         if (!ref) return aiPhoto(toolId, job.id, p, aspect, [], imgStyle);
         return aiPhoto(toolId, job.id, `Professional advertising photo of the exact same product from the reference image (keep its shape, label, logo, colors and details unchanged). Scene: ${p}`, aspect, [await sign("uploads", ref)]);
       }));
-      gen.forEach((g, n) => { if (g.status === "fulfilled") spec.slides[aiWanted[n].i].photo = g.value; else console.error("design ai photo", g.reason); });
+      gen.forEach((g, n) => { if (g.status === "fulfilled") { spec.slides[aiWanted[n].i].photo = g.value; picsOk++; } else console.error("design ai photo", g.reason); });
       // «خلفيات بالذكاء الاصطناعي»: one background per slide; the first sets the scene, the rest continue it (same reference) so the slides read as one picture
-      if (bgAi) {
+      if (bgAi && !skipBg) {
         const style = String((raw as { bgStyle?: unknown }).bgStyle ?? "").slice(0, 320) || `Soft atmospheric abstract background in the colours ${spec.colors.bg} and ${spec.colors.accent}`;
         const n = spec.slides.length;
         const mkBg = (i: number, ref?: string) => aiPhoto(toolId, job.id, `${style}. A full-bleed ${aspect} background for slide ${i + 1} of ${n} of an Instagram carousel. Abstract and atmospheric, no text, no people, no logos, soft and low-contrast, with a calm empty area in the centre for text.${ref ? " Continue the exact same scene, colours, lighting and style as the reference image, as if the camera moved on to the next part of one long panoramic picture." : ""}`, aspect, ref ? [ref] : [], imgStyle);
         let ref: string | undefined;
-        try { const first = await mkBg(0); spec.slides[0].bg = first; ref = await sign("results", first.path); } catch (e) { console.error("design ai bg 0", e); }
+        try { const first = await mkBg(0); spec.slides[0].bg = first; picsOk++; ref = await sign("results", first.path); } catch (e) { console.error("design ai bg 0", e); }
         const rest = spec.slides.map((_, i) => i).slice(1);
         for (let k = 0; k < rest.length; k += 3) {
           const part = await Promise.allSettled(rest.slice(k, k + 3).map((i) => mkBg(i, ref)));
-          part.forEach((g, m) => { if (g.status === "fulfilled") spec.slides[rest[k + m]].bg = g.value; else console.error("design ai bg", g.reason); });
+          part.forEach((g, m) => { if (g.status === "fulfilled") { spec.slides[rest[k + m]].bg = g.value; picsOk++; } else console.error("design ai bg", g.reason); });
         }
       }
+      if (picsPaid > picsOk) await refund(job.id, aiPic * (picsPaid - picsOk), "image");
       if (industryById(body.industry)) {
         const { data: has } = await admin.from("brand_kits").select("user_id").eq("user_id", user.id).maybeSingle();
         if (has) await admin.from("brand_kits").update({ industry: body.industry }).eq("user_id", user.id);
@@ -319,9 +328,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       }
       if (spec.icons === "3d") {
         if (body.aiImages === false) spec.icons = "duo";
+        else if (aiPic > 0 && await charge(job.id, aiPic)) spec.icons = "duo"; // the 3D icon sheet is one AI picture: not enough balance → flat icons
         else {
           try { spec.icon3d = await icons3d(toolId, job.id, spec); }
-          catch (e) { console.error("design 3d icons", e); spec.icons = "duo"; }
+          catch (e) { console.error("design 3d icons", e); spec.icons = "duo"; if (aiPic > 0) await refund(job.id, aiPic, "icons3d"); }
         }
       }
       // A photo layout without a photo looks empty: fall back to a text layout.

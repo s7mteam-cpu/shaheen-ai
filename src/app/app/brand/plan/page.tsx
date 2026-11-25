@@ -31,7 +31,7 @@ export default async function PlanPage() {
         <p className="mt-1 max-w-2xl text-muted">{L("تحليل لنشاطك وخطة نشر لشهر: سبت واثنين وأربعاء كل أسبوع، بوست وريلز وكاروسيل. لكل منشور برومبت احترافي جاهز تعدّله وتشغّله بأداة شاهين.")}</p>
       </div>
       <PlanIntro seen={!!(kit?.plan_prefs as { introSeen?: boolean } | null)?.introSeen} content={intro}>
-        <PlanBoard identityName={idName} plan={(kit?.content_plan ?? null) as Plan | null} analysis={(kit?.analysis ?? null) as Analysis | null} cost={tool?.credit_cost ?? 4} weekCostPrice={tool?.edit_cost || 2} prefs={(kit?.plan_prefs as PlanPrefs | null) ?? {}} dialects={vd ? [...vd] : null} auto={!!kit?.auto_weekly} unit={{ post: price("post"), carousel: price("carousel"), reel: price("motion-video") }} />
+        <PlanBoard voices={siteContent.voices.items} identityName={idName} plan={(kit?.content_plan ?? null) as Plan | null} analysis={(kit?.analysis ?? null) as Analysis | null} cost={tool?.credit_cost ?? 4} weekCostPrice={tool?.edit_cost || 2} prefs={(kit?.plan_prefs as PlanPrefs | null) ?? {}} dialects={vd ? [...vd] : null} auto={!!kit?.auto_weekly} unit={{ post: price("post"), carousel: price("carousel"), reel: price("motion-video") }} />
       </PlanIntro>
     </div>
   );

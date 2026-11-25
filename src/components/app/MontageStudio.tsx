@@ -618,12 +618,10 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                 <div className="flex flex-col gap-2">
                   <Sub>{L("اللهجة")}</Sub>
                   <div className="flex flex-wrap gap-2">{([["same", "مثل ما كتبت"], ...ARAB_DIALECTS.map(([v, ar]) => [v, ar] as const), ["en", "English"]] as (readonly [string, string])[]).filter(([v]) => v === "same" || !availD || availD.has(v)).map(([v, l]) => <button key={v} type="button" aria-pressed={voDialect === v} onClick={() => setVoDialect(v)} className="chip">{L(l)}</button>)}</div>
-                  <Sub>{L("نوع الصوت")}</Sub>
-                  <div className="flex flex-wrap gap-2">{VOICE_TYPES.map(([v, l]) => <button key={v} type="button" aria-pressed={voType === v} onClick={() => setVoType(v)} className="chip">{L(l)}</button>)}</div>
                   <Sub>{L("إحساس الصوت")}</Sub>
                   <div className="flex flex-wrap gap-2">{[["plain", "عادي"], ...TONES.filter(([v]) => v !== "auto")].map(([v, l]) => <button key={v} type="button" aria-pressed={voTone === v} onClick={() => setVoTone(v)} className="chip">{L(l)}</button>)}</div>
                   <Sub>{L("اختر الصوت")}</Sub>
-                  <button type="button" aria-pressed={voVoice === "auto"} onClick={() => setVoVoice("auto")} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-start ${voVoice === "auto" ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white"}`}><span aria-hidden>✨</span><span className="flex-1 font-semibold">{L("تلقائي (حسب اللهجة والنوع)")}</span>{voVoice === "auto" && <span aria-hidden>✓</span>}</button>
+                  <button type="button" aria-pressed={voVoice === "auto"} onClick={() => setVoVoice("auto")} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-start ${voVoice === "auto" ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white"}`}><span aria-hidden>✨</span><span className="flex-1 font-semibold">{L("تلقائي (حسب اللهجة)")}</span>{voVoice === "auto" && <span aria-hidden>✓</span>}</button>
                   {voices.map((v) => (
                     <button key={v.id} type="button" aria-pressed={voVoice === v.id} onClick={() => setVoVoice(v.id)}
                       className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-start ${voVoice === v.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white"}`}>
