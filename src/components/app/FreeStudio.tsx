@@ -255,7 +255,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
               <label key={k} className="flex items-center gap-2 text-[14px]"><input type="color" value={colors[k]} onChange={(e) => setColors({ ...colors, [k]: e.target.value })} className="h-9 w-12 cursor-pointer rounded border" />{L(l)}</label>
             ))}
           </div>
-          <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{FONT_LIBRARY.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-[14px]">{L("الخط")}<select value={font} onChange={(e) => setFont(e.target.value)} className="field w-40">{FONT_LIBRARY.map((f) => <option key={f.id} value={f.id}>{L(f.label)}</option>)}</select></label>
         </Card>
 
         <Card more title={L("صوتك من جهازك")} icon="🎧">
