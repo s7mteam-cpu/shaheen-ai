@@ -134,7 +134,7 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
       const kitLogo = kitRow?.logo_url ? { path: kitRow.logo_url as string, url: (await admin.storage.from("uploads").createSignedUrl(kitRow.logo_url, 60 * 60 * 6)).data?.signedUrl ?? "" } : null;
       const logo = spec.logo?.path && String(spec.logo.path).startsWith(`${data.user_id}/`) && !String(spec.logo.path).includes("..") ? { ...spec.logo, url: (await admin.storage.from("uploads").createSignedUrl(spec.logo.path, 60 * 60 * 6)).data?.signedUrl ?? "" } : spec.logo ?? null;
       const cap = (data.input as { caption?: string } | null)?.caption;
-      return <><MotionStudio jobId={data.id} initial={{ ...spec, logo }} editCost={tool.edit_cost ?? 3} tracks={tracks} voices={content.voices.items} kitLogo={kitLogo} />{cap ? <CaptionBox text={cap} /> : null}</>;
+      return <><MotionStudio jobId={data.id} initial={{ ...spec, logo }} editCost={tool.edit_cost ?? 3} tracks={tracks} voices={content.voices.items} kitLogo={kitLogo} newHref={`/app/tools/${toolId}`} />{cap ? <CaptionBox text={cap} /> : null}</>;
     }
     if (data && data.status === "done" && spec) return await reopen(data.id, toolId, tool);
     if (data && data.status !== "draft") {
@@ -186,7 +186,7 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
   const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name").maybeSingle();
   const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null } : null;
   const caption = (data.input as { caption?: string } | null)?.caption;
-  return <><MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed?.signedUrl ?? "", logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo, graphics }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} />
+  return <><MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed?.signedUrl ?? "", logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo, graphics }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} newHref={`/app/tools/${toolId}`} />
     {caption ? <CaptionBox text={caption} /> : null}</>;
 }
 

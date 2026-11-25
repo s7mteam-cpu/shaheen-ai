@@ -42,7 +42,7 @@ const colorLabels = { text: "لون النص", accent: "اللون المميز"
 
 type Kit = { colors: string[]; font: string | null; handle: string | null; name: string | null } | null;
 
-export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, voices = [] }: { jobId: string; initial: MontageSpec; editCost: number; tracks: Track[]; kit?: Kit; voices?: { id: string; name: string; note?: string }[] }) {
+export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, voices = [], newHref = "/app/tools/video-editing" }: { newHref?: string; jobId: string; initial: MontageSpec; editCost: number; tracks: Track[]; kit?: Kit; voices?: { id: string; name: string; note?: string }[] }) {
   const key = `montage:${jobId}`;
   const [spec, setSpec] = useState<MontageSpec>(initial);
   const [mounted, setMounted] = useState(false);
@@ -277,7 +277,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
         )}
         <div className="flex flex-wrap justify-center gap-3">
           <Link href="/app/works" className="btn btn-primary px-6 py-3">{L("روح لأعمالي")}</Link>
-          <Link href="/app/tools/video-editing" className="btn border border-line bg-white px-6 py-3">{L("مونتاج جديد")}</Link>
+          <Link href={newHref} className="btn border border-line bg-white px-6 py-3">{L("مونتاج جديد")}</Link>
         </div>
       </div>
     );

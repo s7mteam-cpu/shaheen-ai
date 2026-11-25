@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0F2A3A"/><stop offset="1" stop-color="#1F5A63"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.45" r="0.55"><stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3D58F"/><stop offset="1" stop-color="#C9A45C"/></linearGradient>
+</defs>
+<rect width="800" height="600" fill="url(#bg)"/><rect width="800" height="600" fill="url(#glow)"/>
+<g transform="translate(400 280)">
+<rect x="-220" y="-150" width="440" height="250" rx="22" fill="#0A1822" stroke="url(#gold)" stroke-width="5"/>
+<path d="M-40 -60 L70 -10 L-40 40z" fill="url(#gold)"/>
+<rect x="-180" y="-120" width="130" height="34" rx="17" fill="#F3D58F" opacity=".9"/>
+<rect x="60" y="50" width="130" height="34" rx="17" fill="#ffffff" opacity=".85"/>
+<path d="M150 -110 l8 18 l19 3 l-14 13 l4 19 l-17 -10 l-17 10 l4 -19 l-14 -13 l19 -3z" fill="url(#gold)"/>
+<rect x="-220" y="130" width="440" height="14" rx="7" fill="#ffffff" opacity=".25"/><rect x="-220" y="130" width="250" height="14" rx="7" fill="url(#gold)"/>
+</g>
+</svg>

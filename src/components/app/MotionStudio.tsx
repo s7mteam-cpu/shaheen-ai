@@ -27,7 +27,8 @@ type Track = { name: string; mood?: string; url: string };
 type Voice = { id: string; name: string; note?: string };
 
 
-export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = false, kitLogo }: {
+export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = false, kitLogo, newHref = "/app/tools/motion-video" }: {
+  newHref?: string;
   jobId: string; initial: MotionSpec; editCost: number; tracks: Track[]; voices: Voice[]; demo?: boolean; kitLogo?: { path: string; url: string } | null;
 }) {
   const [spec, setSpec] = useState<MotionSpec>(initial);
@@ -115,7 +116,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
         )}
         <div className="flex flex-wrap justify-center gap-3">
           <Link href="/app/works" className="btn btn-primary px-6 py-3">{L("روح لأعمالي")}</Link>
-          <Link href="/app/tools/motion-video" className="btn border border-line bg-white px-6 py-3">{L("إنشاء فيديو جديد")}</Link>
+          <Link href={newHref} className="btn border border-line bg-white px-6 py-3">{L("إنشاء فيديو جديد")}</Link>
         </div>
       </div>
     );
