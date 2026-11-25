@@ -35,7 +35,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
   const [vage, setVage] = useState("");
   const [tone, setTone] = useState("auto");
   const [voice, setVoice] = useState("");
-  const [withMusic, setWithMusic] = useState(true);
+  const [withMusic] = useState(false); // v302: no AI background music (customers add their own sound in the studio)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pct, setPct] = useState(0);
@@ -99,7 +99,6 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
         <PhotoPicker photos={photos} onChange={setPhotos} title="صورك أنت (منتج، مكان…)" hint="تنحط بين اللقطات الجاهزة." />
         {ai && <PhotoPicker photos={person} onChange={setPerson} max={1} title="شخص ثابت بالفيديو (صورة وجه واضحة)" hint="يظهر نفس الشخص باللقطات. ما نضمن التطابق 100%." />}
         {ai && <label className="flex items-center gap-3"><input type="checkbox" checked={endCard} onChange={(e) => setEndCard(e.target.checked)} className="h-5 w-5" /><span>{L("بطاقة ختام بالتفاصيل (تاريخ، سعر، تواصل)")}</span></label>}
-        <label className="flex items-center gap-3"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} className="h-5 w-5" /><span>{L("موسيقى خلفية")}</span></label>
       </More>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{L(error)}</p>}
       {busy ? <Progress value={pct} label={L("شاهين يكتب ويدوّر على اللقطات ويركّب الفيديو…")} /> : (

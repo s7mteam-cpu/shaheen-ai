@@ -118,6 +118,8 @@ async function brightness(video) {
   } catch { return 110; }
 }
 async function makeMusic(prompt, seconds) {
+  return null; // v302: AI background music is off (it was a hidden cost); the customer uploads their own sound
+  // eslint-disable-next-line no-unreachable
   const res = await fetch("https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128", {
     method: "POST", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "", "content-type": "application/json" },
     body: JSON.stringify({ prompt: /hum|همهم|a cappella|vocal/i.test(prompt) ? `Wordless soft vocal humming only, no lyrics, no instruments, no drums. ${prompt}` : `Instrumental only, no vocals. ${prompt}`, music_length_ms: Math.round(Math.min(120, Math.max(10, seconds)) * 1000) }),

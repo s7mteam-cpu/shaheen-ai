@@ -48,7 +48,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   const [vgender, setVgender] = useState("");
   const [vage, setVage] = useState("");
   const [tone, setTone] = useState("auto");
-  const [withMusic, setWithMusic] = useState(true);
+  const [withMusic] = useState(false); // v302: no AI background music (customers add their own sound in the studio)
   const [drawings, setDrawings] = useState(true);
   const [mix, setMix] = useState<"full" | "mixed">("mixed");
   const [board, setBoard] = useState<string>("auto");
@@ -186,7 +186,6 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
       <label className={look !== "images" ? "hidden" : "flex items-center gap-3"}><input type="checkbox" checked={drawings} onChange={(e) => setDrawings(e.target.checked)} className="h-5 w-5" /><span>{L("🎨 مشاهد مرسومة بالذكاء الاصطناعي (قصص وأمثلة وشخصيات)")}</span></label>
       {drawings && look === "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("ستايل الرسومات")}</span>{chips([["auto", "شاهين يختار"], ...ILLUS_STYLES.map(([v, l]) => [v, l] as const)] as readonly (readonly [string, string])[], illus, setIllus)}</div>}
       {drawings && look === "images" && <div className="flex flex-col gap-2"><span className="font-semibold">{L("كم رسمة بالفيديو؟")}</span>{chips([["few", "قليلة (2-4 مشاهد)"], ["half", "متوسطة (نص المشاهد)"], ["all", "كل المشاهد"]] as readonly (readonly [string, string])[], level, (v) => setLevel(v as "few" | "half" | "all"))}<span className="text-[13px] text-subtle">{L("كل رسمة تنرسم بالذكاء الاصطناعي وتحتاج وقت أكثر. «كل المشاهد» يعطي فيديو كله بالستايل.")}</span></div>}
-      <label className="flex items-center gap-3"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} className="h-5 w-5" /><span>{L("موسيقى خلفية هادئة")}</span></label>
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("ملاحظات")} <span className="font-normal text-subtle">{L("(اختياري)")}</span></span>
         <input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} className="field" placeholder={L("مثال: اختم بسؤال، واذكر اسم الأكاديمية بالنهاية")} /></label>
       </More>

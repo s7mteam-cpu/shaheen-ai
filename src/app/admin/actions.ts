@@ -85,6 +85,18 @@ export async function setMaintenanceAllow(raw: string) {
   return { ok: !error, error: error?.message, allow };
 }
 
+/** «إغلاق الاشتراك مؤقتاً»: owner-level admin switches the apology on/off and edits its text. */
+export async function setPaymentsGate(on: boolean, message: string) {
+  const L = await getL();
+  const { requireFullAdmin } = await import("@/lib/server/auth");
+  if (!(await requireFullAdmin())) throw new Error(L("غير مصرّح"));
+  const { cleanPayGate, PAYGATE_KEY } = await import("@/lib/payGate");
+  const value = cleanPayGate({ on, message });
+  const { error } = await createAdminClient().from("site_content").upsert({ key: PAYGATE_KEY, value, updated_at: new Date().toISOString() });
+  revalidatePath("/", "layout"); revalidatePath("/app/account"); revalidatePath("/app/subscribe");
+  return { ok: !error, error: error?.message, message: value.message };
+}
+
 /** Delete a plan only when nobody ever subscribed to it; otherwise it must be hidden (the subscribers' history points at it). */
 export async function deletePlan(form: FormData) {
   const me = await guard("plans");

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSessionProfile } from "@/lib/data";
+import { getPayGate, getSessionProfile } from "@/lib/data";
 import { getMoney } from "@/lib/server/money";
 import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
@@ -18,6 +18,7 @@ export default async function PayByTransfer({ searchParams }: { searchParams: Pr
   const kind = (["subscribe", "renew", "managed"].includes(k) ? k : "renew") as "subscribe" | "renew" | "managed";
   const [profile, lang] = await Promise.all([getSessionProfile(), getLang()]);
   if (!profile) redirect("/login");
+  if (kind === "subscribe" && profile.role !== "admin" && profile.role !== "staff" && (await getPayGate()).on) redirect("/app/account?error=soon");
   const T = (ar: string, en: string) => tr(lang, ar, en);
   const admin = createAdminClient();
 

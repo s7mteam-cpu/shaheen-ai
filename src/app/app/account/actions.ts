@@ -8,6 +8,7 @@ import { deleteUserCompletely } from "@/lib/server/deleteUser";
 import { isImpersonating } from "@/lib/server/impersonation";
 import { normalizePhone } from "@/lib/phone";
 import { tapOpenFor } from "@/lib/tap";
+import { getPayGate } from "@/lib/data";
 import { startTapPayment } from "@/lib/server/tapBilling";
 import { getLang, serverT } from "@/lib/server/lang";
 
@@ -34,6 +35,8 @@ export async function startCheckout(planId: string, form?: FormData) {
   // The customer must tick «أعرف إن المبلغ ينخصم كل شهر» before any card payment.
   if (form?.get("renew_ok") !== "on") redirect(`/app/subscribe?plan=${encodeURIComponent(planId)}&error=renew`);
   const profile = await me();
+  // «إغلاق الاشتراك مؤقتاً»: customers see the apology; the admin team can still test the payment
+  if (profile.role !== "admin" && profile.role !== "staff" && (await getPayGate()).on) redirect("/app/account?error=soon");
   const admin = createAdminClient();
 
   // Tap (KNET + cards + Apple Pay) is used as soon as its key is in Vercel.

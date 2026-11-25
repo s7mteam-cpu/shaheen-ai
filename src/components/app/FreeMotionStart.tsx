@@ -50,7 +50,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
   useEffect(() => { setDialect(myDialect()); }, []);
   const [vtype, setVtype] = useState("auto");
   const [voiceId, setVoiceId] = useState("");
-  const [withMusic, setWithMusic] = useState(true);
+  const [withMusic] = useState(false); // v302: no AI background music (customers add their own sound in the studio)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<State | null>(null);
@@ -175,7 +175,6 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
           {voices.length > 0
             ? <VoicePick voices={voices} dialect={dialect} value={voiceId} onChange={setVoiceId} />
             : <label className="flex items-center gap-2 text-[14px]">{L("الصوت")}<select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field w-48">{VOICE_TYPES.map(([v, l]) => <option key={v} value={v}>{L(l)}</option>)}</select></label>}
-          <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} />{L("موسيقى هادية بالخلفية")}</label>
         </>)}
       </div>
       {hasStyle && <label className="flex items-start gap-2.5 text-[14px]"><input type="checkbox" checked={useStyle} onChange={(e) => setUseStyle(e.target.checked)} className="mt-1 size-4" /><span><span className="font-semibold">{L("صمّم بأسلوبي ✨")}</span><span className="block text-[13px] text-subtle">{L("شاهين يستلهم من وصف ذوقك وصورك المرجعية المحفوظة في «هويتي».")}</span></span></label>}

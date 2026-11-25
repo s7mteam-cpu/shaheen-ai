@@ -84,7 +84,7 @@ export async function POST(req: Request) {
   const audience = AUDIENCE[String(b.audience)] ? String(b.audience) : "students";
   const dialect = DIALECT[String(b.dialect)] ? String(b.dialect) : "kuwaiti";
   const panel = b.panel === "dark" ? "dark" : "light";
-  const withMusic = b.music !== false;
+  const withMusic = false; // v302: no AI background music
   const full = b.cartoonMix === "full"; // cartoon in every scene, writing on top
   const portrait = aspect === "9:16" || aspect === "4:5";
   const shot = siteData ? (portrait ? siteData.mobile : siteData.desktop) : null; // phone pictures for tall videos, computer pictures for wide ones

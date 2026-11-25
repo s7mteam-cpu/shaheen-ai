@@ -39,7 +39,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
   const [vgender, setVgender] = useState("");
   const [vage, setVage] = useState("");
   const [tone, setTone] = useState("auto");
-  const [withMusic, setWithMusic] = useState(true);
+  const [withMusic] = useState(false); // v302: no AI background music (customers add their own sound in the studio)
   const availD = voiceDialects(voices);
   useEffect(() => { if (voiceover && availD && !availD.has(dialect)) setDialect(dialects.find(([v]) => availD.has(v))?.[0] ?? "kuwaiti"); }, [availD, voiceover, dialect]);
   const [busy, setBusy] = useState(false);
@@ -176,7 +176,6 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
               {!fresh && <div className="flex flex-col gap-1.5"><span className="text-[13px] text-subtle">{L("نبرة الصوت")}</span>{chips(TONES as readonly (readonly [string, string])[], tone, setTone)}</div>}
             </div>
           )}
-          <label className="flex items-center gap-3"><input type="checkbox" checked={withMusic} onChange={(e) => setWithMusic(e.target.checked)} className="h-5 w-5" /><span>{L("موسيقى خلفية")}</span></label>
         </More>
         {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-800">{error}</p>}
         {busy ? <Progress value={pct} label={fresh ? L("شاهين يجهّز الطلب…") : L("شاهين يكتب السيناريو ويركّب فيديو تصفّح موقعك…")} /> : <button disabled={topic.trim().length < 5 || balance < cost} className="btn btn-gold py-3.5 text-[16px]">🎬 {L("أنشئ الفيديو")} · {cost} {L("ريشة")}</button>}

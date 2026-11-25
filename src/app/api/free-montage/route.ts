@@ -84,7 +84,7 @@ export async function POST(req: Request) {
   const bgCfg = bgText.length >= 3 && eng.fxBehind && eng.fxImages ? (aiImg ?? await config("image").catch(() => null)) : null;
   const bgImg = bgCfg && (bgCfg.provider === "google" || bgCfg.provider === "fal") && bgCfg.model ? { provider: bgCfg.provider, model: bgCfg.model } : null;
   if (bgImg) { const blockedB = await guardContent(user.id, bgText, TOOL); if (blockedB) return blockedB; }
-  const music = !musicFile && b.music === true && eng.fxMusic; // «موسيقى خلفية»: only when the admin offers it (it calls a paid music service)
+  const music = false; // v302: no AI background music (the customer uploads their own); was: !musicFile && b.music === true && eng.fxMusic; // «موسيقى خلفية»: only when the admin offers it (it calls a paid music service)
   // v295: the AI pictures are priced like every AI picture (one price each). The worker draws round(seconds / 8) of them, 1 to 8 per video (see fxflow.mjs).
   const picCount = img ? Math.max(1, Math.min(8, Math.round(secs / 8))) : 0;
   const picsCost = picCount * (await extraPricing()).ai_image_cost;

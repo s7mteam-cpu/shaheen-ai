@@ -7,7 +7,8 @@ import { getLang } from "@/lib/server/lang";
 import { localize } from "@/lib/server/translate";
 import { tr } from "@/lib/i18n";
 import Link from "next/link";
-import { getSessionProfile } from "@/lib/data";
+import { getContent, getPayGate, getSessionProfile } from "@/lib/data";
+import { PayGateNotice } from "@/components/app/PayGateNotice";
 import { methodsFor } from "@/lib/server/transfers";
 
 /** Coming from the pricing section: confirm the plan and the monthly charge, then go to the secure payment page. */
@@ -19,7 +20,16 @@ export default async function Subscribe({ searchParams }: { searchParams: Promis
   const plan = await localize(plan0, lang);
   const T = (ar: string, en: string) => tr(lang, ar, en);
   const { money } = await getMoney();
-  const transfer = await methodsFor((await getSessionProfile())?.country);
+  const prof = await getSessionProfile();
+  const transfer = await methodsFor(prof?.country);
+  const gate = await getPayGate();
+  if (gate.on && prof?.role !== "admin" && prof?.role !== "staff") {
+    return (
+      <div className="mx-auto flex max-w-md flex-col gap-4 py-8">
+        <PayGateNotice message={gate.message} whatsapp={(await getContent()).footer?.whatsapp ?? ""} label={T("تواصل معنا على الواتساب", "Chat with us on WhatsApp")} />
+      </div>
+    );
+  }
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 py-8">
       <h1 className="text-[26px] font-bold text-navy-900">{T("تأكيد الاشتراك", "Confirm your plan")}</h1>

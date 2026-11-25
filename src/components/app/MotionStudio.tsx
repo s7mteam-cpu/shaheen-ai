@@ -31,7 +31,7 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
   jobId: string; initial: MotionSpec; editCost: number; tracks: Track[]; voices: Voice[]; demo?: boolean; kitLogo?: { path: string; url: string } | null;
 }) {
   const [spec, setSpec] = useState<MotionSpec>(initial);
-  const [tab, setTab] = useState<"lib" | "ai">(tracks.length ? "lib" : "ai");
+  const [tab, setTab] = useState<"lib" | "ai">("lib");
   const [instruction, setInstruction] = useState("");
   const [musicPrompt, setMusicPrompt] = useState("");
   const [voiceText, setVoiceText] = useState(() => initial.voice?.text ?? narration(initial));
@@ -206,7 +206,6 @@ export function MotionStudio({ jobId, initial, editCost, tracks, voices, demo = 
         <Card more title={L("موسيقى خلفية")} icon="🎵">
           <div className="flex gap-2">
             <button type="button" onClick={() => setTab("lib")} className={`rounded-xl px-4 py-2 text-[14px] font-semibold ${tab === "lib" ? "bg-navy-800 text-white" : "text-muted"}`}>{L("المكتبة")}</button>
-            <button type="button" onClick={() => setTab("ai")} className={`rounded-xl px-4 py-2 text-[14px] font-semibold ${tab === "ai" ? "bg-navy-800 text-white" : "text-muted"}`}>{L("✨ إنشاء بالذكاء")}</button>
           </div>
           {tab === "lib" ? (
             tracks.length ? (

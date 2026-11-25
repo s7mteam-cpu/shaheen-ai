@@ -51,7 +51,6 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
   const [drawStyle, setDrawStyle] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [instruction, setInstruction] = useState("");
-  const [musicPrompt, setMusicPrompt] = useState("");
   const [sent, setSent] = useState(false);
   const [perScene, setPerScene] = useState(false);
   const [render, setRender] = useState<{ status: string; progress: number; url?: string }>({ status: "queued", progress: 0 });
@@ -708,11 +707,6 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
               })}
             </ul>
           )}
-          <input value={musicPrompt} onChange={(e) => setMusicPrompt(e.target.value)} className="field" placeholder={L("مثال: موسيقى هادئة ملهمة خفيفة تحت الكلام")} />
-          <button type="button" disabled={!musicPrompt.trim() || !!busy} className="btn btn-primary self-start px-5 py-2.5"
-            onClick={async () => { const d = await call<{ url: string }>("music", { prompt: musicPrompt, seconds }); if (d) setSpec({ ...spec, music: { url: d.url, name: musicPrompt } }); }}>
-            {busy === "music" ? L("جاري التأليف…") : LT(`✨ ألّف همهمة (${editCost} ريشة)`, `✨ Compose humming (${editCost} credits)`)}
-          </button>
           <MusicEditor music={spec.music} onChange={(mu) => setSpec((sp) => ({ ...sp, music: mu }))} total={totalFrames(spec) / MFPS} playhead={() => (player.current?.getCurrentFrame() ?? 0) / MFPS} disabled={!!busy} />
         </Card>
 

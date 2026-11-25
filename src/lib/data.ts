@@ -121,6 +121,15 @@ export const getShowcase = cache(async (): Promise<ShowcaseItem[]> => {
   return (data ?? []).map(toItem);
 });
 
+/** «إغلاق الاشتراك مؤقتاً» (see payGate.ts) */
+export const getPayGate = cache(async () => {
+  const { cleanPayGate, PAYGATE_KEY } = await import("@/lib/payGate");
+  if (!dbReady()) return cleanPayGate(null);
+  const supabase = await createClient();
+  const { data } = await supabase.from("site_content").select("value").eq("key", PAYGATE_KEY).maybeSingle();
+  return cleanPayGate(data?.value);
+});
+
 /** «إخفاء مكتبة القوالب»: one switch (site_content key «templates_lib», value {hidden}) that hides the template library everywhere. */
 export const templatesHidden = cache(async (): Promise<boolean> => {
   if (!dbReady()) return false;

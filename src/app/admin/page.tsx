@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { counterResets } from "@/lib/server/overviewReset";
 import { getL, serverT } from "@/lib/server/lang";
 import { MaintenanceSwitch } from "@/components/admin/MaintenanceSwitch";
+import { PaymentsGateSwitch } from "@/components/admin/PaymentsGateSwitch";
+import { cleanPayGate, PAYGATE_KEY } from "@/lib/payGate";
 import { gemSpend } from "@/lib/server/gemSpend";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,7 @@ export default async function Overview() {
   const admin = createAdminClient();
   const isFull = Boolean((await (await import("@/lib/server/auth")).requireFullAdmin()));
   const mRow = (await admin.from("site_content").select("value").eq("key", "maintenance").maybeSingle()).data?.value as { on?: boolean; allow?: string[] } | null;
+  const gate = cleanPayGate((await admin.from("site_content").select("value").eq("key", PAYGATE_KEY).maybeSingle()).data?.value);
   const mOn = mRow?.on === true;
   const mAllow = Array.isArray(mRow?.allow) ? mRow.allow : [];
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
@@ -53,6 +56,7 @@ export default async function Overview() {
     <div className="flex flex-col gap-6">
       <h1 className="text-[26px] font-bold text-navy-900">{L("نظرة عامة")}</h1>
       {isFull && <MaintenanceSwitch initial={mOn} allow={mAllow} />}
+      {isFull && <PaymentsGateSwitch initialOn={gate.on} initialMessage={gate.message} />}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
         {cards.map(([l, v], i) => (
           <div key={l} className={i === 1 ? "flex flex-col gap-2 rounded-2xl bg-navy-800 p-5" : "card flex flex-col gap-2 p-5"}>

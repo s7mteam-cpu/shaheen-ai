@@ -5,7 +5,7 @@ import { box } from "@/design/spec";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson, speechReady } from "@/lib/providers/text";
-import { music, tts } from "@/lib/providers/elevenlabs";
+import { tts } from "@/lib/providers/elevenlabs";
 import { saveResult, signedResultUrls } from "@/lib/providers/storage";
 import { brandHint, config, voiceById } from "@/lib/tools/run";
 import { ICONS, normalise, type Aspect, type MotionSpec } from "@/remotion/spec";
@@ -113,20 +113,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     }
   }
 
-  if (action === "music" || action === "voice") {
+  if (action === "music") return NextResponse.json({ error: "تأليف الموسيقى بالذكاء الاصطناعي متوقف. اختر من المكتبة." }, { status: 410 });
+  if (action === "voice") {
     const denied = await charge(job.id, tool.edit_cost);
     if (denied) return denied;
     try {
-      let audio: ArrayBuffer;
-      if (action === "music") {
-        const prompt = String(body.prompt ?? "").slice(0, 300);
-        audio = await music(`Instrumental background music for a short social media video, no vocals. ${prompt}`, Math.min(base.seconds + 2, 62));
-      } else {
-        const text = String(body.text ?? "").trim().slice(0, 1500);
-        if (!text) return NextResponse.json({ error: "اكتب نص التعليق." }, { status: 400 });
-        const vv = await voiceById(String(body.voice ?? ""));
-        audio = await tts(await speechReady(text), vv.eleven, vv.model, vv.settings);
-      }
+      const text = String(body.text ?? "").trim().slice(0, 1500);
+      if (!text) return NextResponse.json({ error: "اكتب نص التعليق." }, { status: 400 });
+      const vv = await voiceById(String(body.voice ?? ""));
+      const audio: ArrayBuffer = await tts(await speechReady(text), vv.eleven, vv.model, vv.settings);
       const path = await saveResult(user.id, job.id, audio, "audio/mpeg", "mp3");
       const [url] = await signedResultUrls([path], 60 * 60 * 24 * 7);
       return NextResponse.json({ url });

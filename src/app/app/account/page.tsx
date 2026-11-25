@@ -1,7 +1,8 @@
 import { getMoney } from "@/lib/server/money";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getPlans, getSessionProfile } from "@/lib/data";
+import { getPlans, getSessionProfile, getContent, getPayGate } from "@/lib/data";
+import { PayGateNotice } from "@/components/app/PayGateNotice";
 import { PlanFold } from "@/components/app/PlanFold";
 import { stripe } from "@/lib/stripe";
 import { PasswordForm } from "@/components/app/PasswordForm";
@@ -38,6 +39,8 @@ export default async function Account({ searchParams }: { searchParams: Promise<
   const dateFmt = lang === "en" ? "en-GB" : "ar-KW";
   const align = lang === "en" ? "text-left" : "text-right";
   const supabase = await createClient();
+  const gate = await getPayGate();
+  const waNum = (await getContent()).footer?.whatsapp ?? "";
   const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", profile!.id).order("updated_at", { ascending: false }).limit(1).maybeSingle();
   const plan = plans.find((p) => p.id === profile?.plan_id);
   // «الدفع بالتحويل»: a transfer waiting for review, and whether this customer's country has transfer methods
@@ -69,6 +72,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
       {ok === "plan" && <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">{T("✓ تمام، باقتك الجديدة تبدأ من التجديد الجاي، وما ينخصم منك شي الحين.", "✓ Done — your new plan starts at the next renewal. Nothing is charged now.")}</p>}
       {ok === "renew_off" && <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">{T("✓ أوقفنا التجديد. اشتراكك يظل شغّال لين نهاية الشهر المدفوع، وما ينخصم منك شي بعدها.", "✓ Renewal stopped. Your plan stays active until the end of the paid month, and you won't be charged again.")}</p>}
       {ok === "renew_on" && <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">{T("✓ رجّعنا التجديد الشهري.", "✓ Monthly renewal is back on.")}</p>}
+      {error === "soon" && <PayGateNotice message={gate.message} whatsapp={waNum} label={T("تواصل معنا على الواتساب", "Chat with us on WhatsApp")} />}
       {error === "plan" && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">{T("هذه الباقة غير جاهزة للدفع بعد. تواصل مع الدعم.", "This plan isn't available for payment yet. Please contact support.")}</p>}
       {tab !== "spend" && tab !== "access" && <div role="tablist" aria-label={T("أقسام الحساب", "Account sections")} className="card flex w-full gap-1 overflow-x-auto rounded-2xl p-1 sm:w-auto sm:self-start">
         {tabs.map(([id, l]) => <Link key={id} role="tab" aria-selected={tab === id} href={`/app/account?tab=${id}`} className={`flex-1 whitespace-nowrap rounded-xl px-3 py-2.5 text-center text-[15px] font-semibold sm:flex-none sm:px-5 ${tab === id ? "bg-navy-800 text-white" : "text-muted"}`}>{l}</Link>)}

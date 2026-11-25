@@ -8,7 +8,7 @@ import { cleanEls } from "@/remotion/spec";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { aiJson, speechReady } from "@/lib/providers/text";
-import { music, ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
+import { ttsTimed, type VoiceSettings } from "@/lib/providers/elevenlabs";
 import { saveResult } from "@/lib/providers/storage";
 import { falRun } from "@/lib/providers/fal";
 import { config } from "@/lib/tools/run";
@@ -270,20 +270,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   }
 
   if (action === "music") {
-    const denied = await charge();
-    if (denied) return denied;
-    try {
-      const prompt = String(body.prompt ?? "").slice(0, 300);
-      const hum = /hum|همهم|همهمة/i.test(prompt);
-      const audio = await music(hum ? `Soft wordless vocal humming only, no lyrics, no instruments, no drums, gentle background under speech. ${prompt}` : `Soft instrumental background music to sit under speech in a social media video, no vocals, low energy peaks. ${prompt}`, clamp(Math.round(Number(body.seconds) || 30), 10, 120));
-      const path = await saveResult(user.id, job.id, audio, "audio/mpeg", "mp3");
-      const [url] = await signedResultUrls([path], 60 * 60 * 24 * 7);
-      return NextResponse.json({ url });
-    } catch (e) {
-      console.error("montage music", e);
-      await refund("music");
-      return NextResponse.json({ error: "ما ضبطت الموسيقى، ورجّعنا لك الريش. حاول مرة ثانية." }, { status: 502 });
-    }
+    // v302: AI music is off: customers add their own sound (the studio's «موسيقى» card)
+    return NextResponse.json({ error: "تأليف الموسيقى بالذكاء الاصطناعي متوقف. ارفع موسيقاك من جهازك." }, { status: 410 });
   }
 
   // ✂️ remove the background of one of the customer's photos (b-roll) → transparent PNG that floats over the video
