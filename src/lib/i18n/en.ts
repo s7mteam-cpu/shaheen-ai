@@ -1,5 +1,7 @@
 // English for the Arabic UI texts (L("…")). Written by hand.
+import { EN_EXTRA } from "./en_extra";
 export const EN: Record<string, string> = {
+  ...EN_EXTRA,
   " · مُسترجع": " · refunded",
   "## عنوان": "## Heading",
   "$ دولار": "$ USD",
