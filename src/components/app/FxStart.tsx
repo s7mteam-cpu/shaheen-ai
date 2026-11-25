@@ -133,11 +133,11 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
     finally { setUploading(false); setUpPct(null); }
   }
 
-  const units = video ? Math.max(1, Math.ceil((Math.ceil(video.seconds) - 1) / 15)) : 1; // one second of grace: a "15 s" clip is often 15.3 s
+  const baseCost = video ? Math.max(costPerMinute, Math.ceil((Math.ceil(video.seconds) * costPerMinute) / 15)) : costPerMinute; // priced by the second (price per 15 s ÷ 15), never below one 15 s step
   const minutes = video ? Math.max(1, Math.ceil((Math.ceil(video.seconds) - 1) / 60)) : 1;
   const picCount = video ? Math.max(1, Math.min(8, Math.round(Math.ceil(video.seconds) / 8))) : 8;
   const wantBg = bgOn && bgCost >= 0 && bgText.trim().length >= 3;
-  const cost = units * costPerMinute + minutes * (((behind && behindCost >= 0) || wantBg ? Math.max(0, behindCost >= 0 ? behindCost : bgCost) : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0)) + (aiImages && imagesCost >= 0 ? picCount * imagesCost : 0);
+  const cost = baseCost + minutes * (((behind && behindCost >= 0) || wantBg ? Math.max(0, behindCost >= 0 ? behindCost : bgCost) : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0)) + (aiImages && imagesCost >= 0 ? picCount * imagesCost : 0);
   const descOk = styles.length > 0 || styleDesc.trim().length >= 15;
 
   async function start(e: { preventDefault(): void }) {
@@ -248,7 +248,7 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
       {hasKit && <label className="flex items-center gap-3"><input type="checkbox" checked={useIdentity} onChange={(e) => setUseIdentity(e.target.checked)} className="h-5 w-5" /><span className="text-[15px]">{L("استخدم ألوان هويتي")}</span></label>}
       {err && <p className="text-[14px] text-red-700">{err}</p>}
       <button disabled={busy || uploading || !video || !descOk || balance < cost} className="btn btn-gold py-3.5 text-[16px]">{busy ? L("لحظات…") : `✨ ${L("ابدأ المونتاج")} (${cost} ${L("ريشة")})`}</button>
-      <p className="text-center text-[12px] text-subtle">{L("السعر لكل 15 ثانية")}: {costPerMinute} {L("ريشة")}{video ? ` × ${units}` : ""}</p>
+      <p className="text-center text-[12px] text-subtle">{L("السعر لكل 15 ثانية")}: {costPerMinute} {L("ريشة")}{video ? ` · ${Math.ceil(video.seconds)} ${L("ثانية")}` : ""}</p>
       {video && balance < cost && <p className="text-center text-[13px] text-red-700">{L("رصيدك ما يكفي.")}</p>}
     </form>
   );
