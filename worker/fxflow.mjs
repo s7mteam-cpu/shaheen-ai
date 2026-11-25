@@ -597,22 +597,22 @@ export async function fxJob(job, d) {
       for (let attempt = 1; attempt <= (redo ? 1 : 2); attempt++) {
         let g;
         try { g = await geminiHtml({ system: FX_RULES, model: inp.model, user: fxPrompt({ c, n: i + 1, total: chunks.length, aspect, spec: plan.spec, kit, look: plan.look, faceTxt, overFace: plan.overFace, capTxt, identity, retry, photos }) + skillNote(skill) }); }
-        catch (e) { rec.attempts.push({ attempt, error: String(e?.message ?? e).slice(0, 160) }); continue; }
+        catch (e) { rec.attempts.push({ attempt, error: String(e?.message ?? e).slice(0, 160) }); console.error("fx draw", i + 1, "attempt", attempt, "gemini:", String(e?.message ?? e).slice(0, 300)); continue; }
         const a = { attempt, model: g.model, usage: g.usage, chars: g.html.length }; rec.attempts.push(a);
         // SECURITY: the raw answer is checked BEFORE anything reads or opens it
         const bad = unsafeHtml(g.html);
-        if (bad.length) { a.unsafe = bad; retry = `The page uses forbidden code (${bad.join(", ")}). It must be self-contained: no network, no storage, no iframes or forms, no eval, no external files. Remove all of it.`; continue; }
+        if (bad.length) { a.unsafe = bad; console.error("fx draw", i + 1, "attempt", attempt, "unsafe:", bad.join(",")); retry = `The page uses forbidden code (${bad.join(", ")}). It must be self-contained: no network, no storage, no iframes or forms, no eval, no external files. Remove all of it.`; continue; }
         const page = withKit((await prepareHtml(g.html)).html, kit);
         const times = c.cues.filter((_, k) => k % Math.max(1, Math.ceil(c.cues.length / 5)) === 0).slice(0, 5).map((x) => Math.min(c.b - c.a - 0.1, (x.s + Math.min(x.e, x.s + 3)) / 2));
         let st;
         try { st = await overlayStills({ html: injectLibs(injectPhotos(page, photoData)), width: W, height: H, times, bg: bgs[i], fontCss: d.htmlFontCss(page) }); }
-        catch (e) { a.error = String(e?.message ?? e).slice(0, 160); retry = "The page failed to open or run. Return a simpler, valid, complete HTML page."; continue; }
+        catch (e) { a.error = String(e?.message ?? e).slice(0, 160); console.error("fx draw", i + 1, "attempt", attempt, "stills:", a.error); retry = "The page failed to open or run. Return a simpler, valid, complete HTML page."; continue; }
         const blanks = st.filter((x) => x.blank).length, errs = (st.errors ?? []).map((x) => String(x).slice(0, 140));
-        a.blanks = `${blanks}/${st.length}`; a.errors = errs;
+        a.blanks = `${blanks}/${st.length}`; a.errors = errs; console.error("fx draw", i + 1, "attempt", attempt, "blanks", a.blanks, errs.join(" | ").slice(0, 300));
         if (blanks > st.length / 2 && /webgl|THREE/i.test(errs.join(" "))) { retry = "WebGL could not start on the drawing machine. Do NOT use THREE or any canvas: build the same objects with CSS 3D transforms (perspective, preserve-3d, extruded layers) instead."; continue; }
         if (blanks > st.length / 2) { retry = `Nothing is drawn at ${blanks} of ${st.length} sampled cue midpoints. Every cue must be visible between its data-start and data-end, driven by the timeline (CSS animation-delay or requestAnimationFrame with performance.now()), never by clicks or events.${errs.length ? " Page errors: " + errs.join(" | ") : ""}`; continue; }
         const review = await reviewFx({ frames: st.filter((x) => !x.blank).map((x) => x.frame), aspect, spec: plan.spec, overFace: plan.overFace || c.cues.some((x) => x.layer === "behind") }).catch(() => ({ ok: true, issues: "" }));
-        a.review = review; best = page;
+        a.review = review; best = page; if (!review.ok) console.error("fx draw", i + 1, "attempt", attempt, "review rejected:", String(review.issues ?? "").slice(0, 300));
         if (review.ok) break;
         retry = review.issues;
       }
