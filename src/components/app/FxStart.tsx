@@ -13,7 +13,7 @@ type State = { status: "queued" | "running"; progress: number; step?: string } |
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 /** «مونتاج مبتكر»: the customer uploads his own talking video and describes the edit; the AI plans the graphics from his words and draws them over the video. */
-export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost, imagesCost, musicCost, bgCost }: { costPerMinute: number; balance: number; hasKit: boolean; maxSeconds: number; /** -1: not offered */ behindCost: number; /** -1: not offered */ imagesCost: number; /** -1: not offered */ musicCost: number; /** «غيّر خلفيتي»: -1 not offered, otherwise the cut-out price it shares with «ورا المتحدث» */ bgCost: number }) {
+export function FxStart({ costPerMinute, minCost = 0, balance, hasKit, maxSeconds, behindCost, imagesCost, musicCost, bgCost }: { costPerMinute: number; minCost?: number; balance: number; hasKit: boolean; maxSeconds: number; /** -1: not offered */ behindCost: number; /** -1: not offered */ imagesCost: number; /** -1: not offered */ musicCost: number; /** «غيّر خلفيتي»: -1 not offered, otherwise the cut-out price it shares with «ورا المتحدث» */ bgCost: number }) {
   const [bgOn, setBgOn] = useState(false);
   const [bgText, setBgText] = useState("");
   const [sfx, setSfx] = useState(true);
@@ -133,11 +133,11 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
     finally { setUploading(false); setUpPct(null); }
   }
 
-  const baseCost = video ? Math.max(costPerMinute, Math.ceil((Math.ceil(video.seconds) * costPerMinute) / 15)) : costPerMinute; // priced by the second (price per 15 s ÷ 15), never below one 15 s step
-  const minutes = video ? Math.max(1, Math.ceil((Math.ceil(video.seconds) - 1) / 60)) : 1;
+  const baseCost = video ? Math.max(costPerMinute, minCost, Math.ceil((Math.ceil(video.seconds) * costPerMinute) / 15)) : Math.max(costPerMinute, minCost); // priced by the second (price per 15 s ÷ 15), never below one 15 s step
+  const secsNow = video ? Math.ceil(video.seconds) : 60; // add-ons are priced per second (their price per minute ÷ 60)
   const picCount = video ? Math.max(1, Math.min(8, Math.round(Math.ceil(video.seconds) / 8))) : 8;
   const wantBg = bgOn && bgCost >= 0 && bgText.trim().length >= 3;
-  const cost = baseCost + minutes * (((behind && behindCost >= 0) || wantBg ? Math.max(0, behindCost >= 0 ? behindCost : bgCost) : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0)) + (aiImages && imagesCost >= 0 ? picCount * imagesCost : 0);
+  const cost = baseCost + Math.ceil(secsNow * (((behind && behindCost >= 0) || wantBg ? Math.max(0, behindCost >= 0 ? behindCost : bgCost) : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0)) / 60) + (aiImages && imagesCost >= 0 ? picCount * imagesCost : 0);
   const descOk = styles.length > 0 || styleDesc.trim().length >= 15;
 
   async function start(e: { preventDefault(): void }) {

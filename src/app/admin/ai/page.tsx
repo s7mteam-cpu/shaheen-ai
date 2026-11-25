@@ -193,6 +193,8 @@ export default async function AiHub() {
               <input name="dailyCap" type="number" min={1} max={100} defaultValue={fe.dailyCap} className="field" /></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("أقصى مدة لفيديو «مونتاج مبتكر» (بالدقائق، من 1 إلى 30)")}</label>
               <input name="fxMaxMin" type="number" min={1} max={30} defaultValue={fe.fxMaxMin} className="field" /></div>
+            <div className="flex flex-col gap-1.5"><label className="label">{L("أقل سعر لفيديو «مونتاج مبتكر» (ريشة)، حتى لو الفيديو قصير")}</label>
+              <input name="fxMinCost" type="number" min={0} max={2000} defaultValue={fe.fxMinCost} className="field" /></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("«عناصر ورا المتحدث» بالمونتاج المبتكر (يستخدم خدمة قص مدفوعة عبر fal)")}</label>
               <label className="flex items-center gap-2 text-sm"><input name="fxBehind" type="checkbox" defaultChecked={fe.fxBehind} className="h-4 w-4" />{L("متاح للعملاء")}</label></div>
             <div className="flex flex-col gap-1.5"><label className="label">{L("«صور مولّدة بالذكاء الاصطناعي» بالمونتاج المبتكر (بنموذج أداة الصور)")}</label>

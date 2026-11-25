@@ -43,7 +43,8 @@ export function costOf(r: UsageRow, p: AiPrices): { usd: number; known: boolean 
   if (!m) return { usd: 0, known: false };
   // pictures, videos, music: billed per picture / per second
   if (r.input_tokens + r.output_tokens === 0 && r.units > 0) return m.unit ? { usd: r.units * m.unit, known: true } : { usd: 0, known: false };
-  if (m.in === 0 && m.out === 0) return { usd: 0, known: false };
+  // a picture model logged with a few tokens (Gemini image): one call = one picture at its per-picture price
+  if (m.in === 0 && m.out === 0) return m.unit ? { usd: (r.units > 0 ? r.units : 1) * m.unit, known: true } : { usd: 0, known: false };
   // Claude reports cached tokens beside input_tokens; Gemini counts them inside promptTokenCount
   const plain = r.provider === "google" ? Math.max(0, r.input_tokens - r.cache_read) : r.input_tokens;
   const cacheRate = m.cache ?? m.in * 0.1;
