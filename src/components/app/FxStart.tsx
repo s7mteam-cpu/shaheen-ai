@@ -248,7 +248,7 @@ export function FxStart({ costPerMinute, minCost = 0, balance, hasKit, maxSecond
       {hasKit && <label className="flex items-center gap-3"><input type="checkbox" checked={useIdentity} onChange={(e) => setUseIdentity(e.target.checked)} className="h-5 w-5" /><span className="text-[15px]">{L("استخدم ألوان هويتي")}</span></label>}
       {err && <p className="text-[14px] text-red-700">{err}</p>}
       <button disabled={busy || uploading || !video || !descOk || balance < cost} className="btn btn-gold py-3.5 text-[16px]">{busy ? L("لحظات…") : `✨ ${L("ابدأ المونتاج")} (${video ? "" : `${L("من")} `}${cost} ${L("ريشة")})`}</button>
-      <p className="text-center text-[12px] text-subtle">{L("أقل سعر")} {Math.max(minCost, costPerMinute)} {L("ريشة")} · {L("بعدها")} {costPerMinute} {L("ريشة لكل 15 ثانية")}{video ? ` · ${Math.ceil(video.seconds)} ${L("ثانية")}` : ""}</p>
+      <p className="text-center text-[12.5px] leading-6 text-subtle">{Math.max(minCost, costPerMinute)} {L("ريشة لأول")} {Math.floor((Math.max(minCost, costPerMinute) * 15) / costPerMinute)} {L("ثانية")}، {L("وبعدها")} {costPerMinute} {L("ريشة لكل 15 ثانية")}.{video ? <><br />{L("مدة فيديوك")}: {Math.ceil(video.seconds)} {L("ثانية")}</> : null}</p>
       {video && balance < cost && <p className="text-center text-[13px] text-red-700">{L("رصيدك ما يكفي.")}</p>}
     </form>
   );
