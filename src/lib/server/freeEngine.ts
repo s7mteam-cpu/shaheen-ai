@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 /** Which engine makes the customers' «تصميم مبتكر» videos. Set by the admin (site_content key "free_engine"); until he switches it, the classic engine runs. */
 export type FreeEngine = { engine: "classic" | "gemini"; model: string; plan: "full" | "scenes" | "text"; dailyCap: number; /** «مونتاج مبتكر»: the longest video a customer may upload, in minutes */ fxMaxMin: number; /** «عناصر ورا المتحدث»: offered to customers or not (it calls a paid matting service), and its extra price in feathers per minute */ fxBehind: boolean; fxBehindCost: number; /** «المراجعة النهائية بالفيديو»: a model watches the finished montage and a weak piece is made once more (more time and cost) */ fxReview: boolean; /** «صور مولّدة بالذكاء الاصطناعي» inside the montage: offered or not, and its extra price in feathers per minute */ fxImages: boolean; fxImagesCost: number; /** «موسيقى خلفية» in the montage (a paid music service): offered or not, and its extra price in feathers per minute */ fxMusic: boolean; fxMusicCost: number };
 export const GEM_MODELS = ["gemini-3.8-flash", "gemini-4-neon"];
-export const DEFAULT_ENGINE: FreeEngine = { engine: "classic", model: "gemini-4-neon", plan: "scenes", dailyCap: 6, fxMaxMin: 5, fxBehind: false, fxBehindCost: 10, fxReview: false, fxImages: false, fxImagesCost: 10, fxMusic: false, fxMusicCost: 10 };
+export const DEFAULT_ENGINE: FreeEngine = { engine: "classic", model: "gemini-4-neon", plan: "scenes", dailyCap: 6, fxMaxMin: 5, fxBehind: false, fxBehindCost: 90, fxReview: false, fxImages: false, fxImagesCost: 10, fxMusic: false, fxMusicCost: 20 };
 
 export function cleanEngine(raw: unknown): FreeEngine {
   const o = (raw ?? {}) as Record<string, unknown>;
