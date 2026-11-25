@@ -258,7 +258,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
                 {(f.type === "toggle" || f.type === "consent") && (
                   <label className="flex items-center gap-3 text-[15px]">
                     <input id={`f-${f.name}`} type="checkbox" checked={Boolean(values[f.name])} onChange={(e) => set(f.name, e.target.checked)} className="h-5 w-5 accent-navy-700" />
-                    {f.type === "toggle" ? (f.hint ?? L("تفعيل")) : L("موافق")}
+                    {f.type === "toggle" ? (f.hint ? L(f.hint) : L("تفعيل")) : L("موافق")}
                   </label>
                 )}
               </div>

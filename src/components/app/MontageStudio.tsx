@@ -625,7 +625,7 @@ export function MontageStudio({ jobId, initial, editCost, tracks, kit = null, vo
                   {voices.map((v) => (
                     <button key={v.id} type="button" aria-pressed={voVoice === v.id} onClick={() => setVoVoice(v.id)}
                       className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-start ${voVoice === v.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white"}`}>
-                      <span aria-hidden>🎙️</span><span className="flex-1 font-semibold">{v.name}</span>{voVoice === v.id && <span aria-hidden>✓</span>}
+                      <span aria-hidden>🎙️</span><span className="flex-1 font-semibold">{L(v.name)}</span>{voVoice === v.id && <span aria-hidden>✓</span>}
                     </button>
                   ))}
                 </div>

@@ -171,7 +171,7 @@ export function FreeMotionStart({ costPer15, editCost, balance, kitLogo, kit, vo
       <div className="flex flex-col gap-3 rounded-xl border p-4">
         <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={voiceover} onChange={(e) => setVoiceover(e.target.checked)} />{L("تعليق صوتي (والصورة تمشي مع الكلام)")}</label>
         {voiceover && (<>
-          <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field w-48">{GULF_DIALECTS.filter(([v]) => !voices.length || voicesFor(voices, v).length).map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field w-48">{GULF_DIALECTS.filter(([v]) => !voices.length || voicesFor(voices, v).length).map(([v, ar]) => <option key={v} value={v}>{L(ar)}</option>)}</select></label>
           {voices.length > 0
             ? <VoicePick voices={voices} value={voiceId} onChange={setVoiceId} />
             : <label className="flex items-center gap-2 text-[14px]">{L("الصوت")}<select value={vtype} onChange={(e) => setVtype(e.target.value)} className="field w-48">{VOICE_TYPES.map(([v, l]) => <option key={v} value={v}>{L(l)}</option>)}</select></label>}

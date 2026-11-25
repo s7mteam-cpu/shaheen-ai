@@ -157,7 +157,7 @@ export function QuranStudio({ costPer30, balance }: { costPer30: number; balance
           </div>
           <label className="flex flex-col gap-1.5"><span className="label">{L("القارئ")}</span>
             <select value={spec.reciter} onChange={(e) => set({ reciter: e.target.value })} className="field">
-              {(reciters.length ? reciters : [{ id: spec.reciter, name: spec.reciterName, folder: "" }]).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {(reciters.length ? reciters : [{ id: spec.reciter, name: spec.reciterName, folder: "" }]).map((r) => <option key={r.id} value={r.id}>{L(r.name)}</option>)}
             </select></label>
           {spec.from === 1 && spec.surah !== 1 && spec.surah !== 9 && (
             <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={basmala} onChange={(e) => setBasmala(e.target.checked)} className="h-5 w-5" />{L("ابدأ بالبسملة")}</label>

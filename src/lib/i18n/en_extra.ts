@@ -1,5 +1,7 @@
 // English for UI texts added by the full language audit (v315). Merged into EN.
 export const EN_EXTRA: Record<string, string> = {
+ "خلفيات بالذكاء الاصطناعي ✨": "AI backgrounds ✨",
+ "لكل شريحة": "per slide",
  "قوالب جاهزة": "Ready templates",
  "اختر من مئات الستايلات المجرّبة. نتيجة مضمونة وسريعة.": "Pick from hundreds of proven styles. Guaranteed, fast results.",
  "مبتكر": "Creative",

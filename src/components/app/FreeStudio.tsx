@@ -234,7 +234,7 @@ export function FreeStudio({ jobId, data, busy, kitLogo, editCost, balance, onRe
           <Card more title={L("تعليق صوتي")} icon="🎙️">
             {narr.map((n, i) => <textarea key={i} rows={2} maxLength={220} value={n} onChange={(e) => setNarr(narr.map((x, j) => (j === i ? e.target.value : x)))} className="field text-[14px]" aria-label={`${L("نص التعليق")} ${i + 1}`} />)}
             <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => setDialect(e.target.value)} className="field w-44">{GULF_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
+              <label className="flex items-center gap-2 text-[14px]">{L("اللهجة")}<select value={dialect} onChange={(e) => setDialect(e.target.value)} className="field w-44">{GULF_DIALECTS.map(([v, ar]) => <option key={v} value={v}>{L(ar)}</option>)}</select></label>
               {voices.length > 0 && <VoicePick voices={voices} value={voiceId} onChange={setVoiceId} auto="نفس الصوت الحالي" />}
             </div>
             <button type="button" disabled={!!busy} onClick={() => act("revoice")} className="btn btn-outline self-start px-4 py-2 text-[14px]">🎙️ {L("أعد تسجيل التعليق")}</button>

@@ -367,7 +367,7 @@ export function GemStudio({ jobId, data, balance, onSent, voices = [], newHref =
                       ))}
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="flex flex-col gap-1 text-[13px]">{L("اللهجة")}
-                          <select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field"><option value="">{L("كما هي")}</option>{ARAB_DIALECTS.filter(([v]) => !voices.length || voicesFor(voices, v).length).map(([v, ar]) => <option key={v} value={v}>{ar}</option>)}</select></label>
+                          <select value={dialect} onChange={(e) => { setDialect(e.target.value); setVoiceId(""); }} className="field"><option value="">{L("كما هي")}</option>{ARAB_DIALECTS.filter(([v]) => !voices.length || voicesFor(voices, v).length).map(([v, ar]) => <option key={v} value={v}>{L(ar)}</option>)}</select></label>
                       </div>
                       {voices.length > 0 && <VoicePick voices={voices} value={voiceId} onChange={setVoiceId} auto="كما هو" />}
                       <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={rewrite} disabled={!!lang} onChange={(e) => setRewrite(e.target.checked)} className="h-4 w-4 accent-navy-700" />{L("أعد صياغة الجمل باللهجة المختارة (بالذكاء)")}</label>

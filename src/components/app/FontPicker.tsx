@@ -17,7 +17,7 @@ export function FontPicker({ value, onChange, none }: { value?: string; onChange
         {none && <button type="button" aria-pressed={none.active} onClick={none.onPick} className="chip justify-center">{none.label}</button>}
         {list.map((f) => (
           <button key={f.id} type="button" aria-pressed={value === f.id} onClick={() => onChange(f.id)} title={f.id}
-            className={`truncate rounded-lg border px-2 py-2 text-[17px] leading-tight ${value === f.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink hover:border-gold-500"}`} style={{ fontFamily: `"${f.id}", "Cairo", sans-serif` }}>{f.label}</button>
+            className={`truncate rounded-lg border px-2 py-2 text-[17px] leading-tight ${value === f.id ? "border-navy-800 bg-navy-800 text-white" : "border-line bg-white text-ink hover:border-gold-500"}`} style={{ fontFamily: `"${f.id}", "Cairo", sans-serif` }}>{L(f.label)}</button>
         ))}
       </div>
     </div>
