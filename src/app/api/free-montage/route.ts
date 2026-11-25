@@ -88,7 +88,7 @@ export async function POST(req: Request) {
   // v295: the AI pictures are priced like every AI picture (one price each). The worker draws round(seconds / 8) of them, 1 to 8 per video (see fxflow.mjs).
   const picCount = img ? Math.max(1, Math.min(8, Math.round(secs / 8))) : 0;
   const picsCost = picCount * (await extraPricing()).ai_image_cost;
-  const cost = Math.max(1, Math.ceil(secs / 15)) * tool.credit_cost + Math.max(1, Math.ceil(secs / 60)) * ((behind || bgImg ? eng.fxBehindCost : 0) + (music ? eng.fxMusicCost : 0)) + picsCost;
+  const cost = Math.max(1, Math.ceil((secs - 1) / 15)) * tool.credit_cost + Math.max(1, Math.ceil((secs - 1) / 60)) * ((behind || bgImg ? eng.fxBehindCost : 0) + (music ? eng.fxMusicCost : 0)) + picsCost;
   const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(eng.fxReview ? { review: true } : {}), ...(behind ? { behind: true } : {}), ...(img ? { img } : {}), ...(music ? { music: true } : {}), ...(bgImg ? { bg: bgText, bgImg } : {}), ...(musicFile ? { musicFile } : {}), ...(b.tight === true ? { tight: true } : {}), ...(b.sfx === false ? { sfx: false } : {}), ...(b.moves === false ? { moves: false } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: (notes || "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء المونتاج." }, { status: 500 });

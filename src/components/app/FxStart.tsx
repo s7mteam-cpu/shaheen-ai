@@ -133,8 +133,8 @@ export function FxStart({ costPerMinute, balance, hasKit, maxSeconds, behindCost
     finally { setUploading(false); setUpPct(null); }
   }
 
-  const units = video ? Math.max(1, Math.ceil(Math.ceil(video.seconds) / 15)) : 1;
-  const minutes = video ? Math.max(1, Math.ceil(Math.ceil(video.seconds) / 60)) : 1;
+  const units = video ? Math.max(1, Math.ceil((Math.ceil(video.seconds) - 1) / 15)) : 1; // one second of grace: a "15 s" clip is often 15.3 s
+  const minutes = video ? Math.max(1, Math.ceil((Math.ceil(video.seconds) - 1) / 60)) : 1;
   const picCount = video ? Math.max(1, Math.min(8, Math.round(Math.ceil(video.seconds) / 8))) : 8;
   const wantBg = bgOn && bgCost >= 0 && bgText.trim().length >= 3;
   const cost = units * costPerMinute + minutes * (((behind && behindCost >= 0) || wantBg ? Math.max(0, behindCost >= 0 ? behindCost : bgCost) : 0) + (music && !ownMusic && musicCost >= 0 ? musicCost : 0)) + (aiImages && imagesCost >= 0 ? picCount * imagesCost : 0);
