@@ -11,6 +11,14 @@ const site = (u: unknown) => typeof u === "string" && /^https:\/\/[^/]+\/storage
 const homeOrder = (f: FormData) => { const v = String(f.get("home_order") ?? "").trim(); return v === "" || Number.isNaN(Number(v)) ? null : Number(v); };
 const done = () => { revalidatePath("/admin/gallery"); revalidatePath("/app/showcase"); revalidatePath("/", "layout"); };
 
+/** «إخفاء مكتبة القوالب»: hides the motion template library from the outer home page, the public page and the app menu (the templates themselves stay saved). */
+export async function setTemplatesHidden(hidden: boolean) {
+  if (!(await requireAdmin("gallery"))) return { ok: false, error: "غير مصرّح" };
+  const { error } = await createAdminClient().from("site_content").upsert({ key: "templates_lib", value: { hidden }, updated_at: new Date().toISOString() });
+  revalidatePath("/", "layout"); revalidatePath("/app/templates"); revalidatePath("/templates"); revalidatePath("/app/showcase");
+  return { ok: !error, error: error?.message };
+}
+
 /** A new work in «معرض شاهين»: files were uploaded straight to storage; this saves the item (first file = cover). */
 export async function addShowcase(_p: Res, form: FormData): Promise<Res> {
   if (!(await requireAdmin("gallery"))) return { error: "غير مصرّح" };

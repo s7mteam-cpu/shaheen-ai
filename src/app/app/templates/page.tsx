@@ -1,10 +1,12 @@
 import { TemplateLibrary } from "@/components/TemplateLibrary";
-import { getTemplates } from "@/lib/data";
+import { redirect } from "next/navigation";
+import { getTemplates, templatesHidden } from "@/lib/data";
 import { getL } from "@/lib/server/lang";
 
 export async function generateMetadata() { return { title: (await getL())("مكتبة القوالب") }; }
 
 export default async function Templates() {
+  if (await templatesHidden()) redirect("/app/showcase");
   const L = await getL();
   const templates = await getTemplates();
   return (

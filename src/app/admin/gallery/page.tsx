@@ -4,6 +4,7 @@ import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SHOWCASE_CATS } from "@/lib/showcase";
 import { AddShowcase, EditShowcase } from "./Forms";
+import { TemplatesSwitch } from "./TemplatesSwitch";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function GalleryAdmin({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   await guardPage("gallery");
   const pick = (await searchParams).cat ?? "all";
+  const tplRow = (await createAdminClient().from("site_content").select("value").eq("key", "templates_lib").maybeSingle()).data?.value as { hidden?: boolean } | null;
   const { data: all } = await createAdminClient().from("gallery_items").select("*").order("sort_order").order("created_at", { ascending: false });
   const count = (k: string) => (all ?? []).filter((g) => (g.category ?? "design") === k).length;
   const data = pick === "all" ? all : (all ?? []).filter((g) => (g.category ?? "design") === pick);
@@ -23,6 +25,7 @@ export default async function GalleryAdmin({ searchParams }: { searchParams: Pro
         <p className="mt-1 text-sm leading-7 text-subtle">نماذج من شغل شاهين (بوستات، كاروسيل، ريلز، فيديو، بطاقات، CV…). تطلع للعملاء داخل المنصة بـ «أعمال صُنعت بشاهين»، وتقدر تختار بعضها يطلع بصفحة الموقع الرئيسية بعد. استخدم أعمالاً حقيقية وبموافقة أصحابها.</p>
       </div>
       <Link href="/admin/gallery/sections" className="card flex items-center justify-between p-4 font-bold text-navy-900">🧭 ترتيب الأقسام وشرحها (وش يشوف الزائر بالصفحة الرئيسية) <span>←</span></Link>
+      <TemplatesSwitch initialHidden={tplRow?.hidden === true} />
       <Link href="/admin/gallery/templates" className="card flex items-center justify-between p-4 font-bold text-navy-900">🎬 مكتبة قوالب الموشن جرافيك <span>←</span></Link>
       <AddShowcase />
       {/* every section (one per tool); the customer sees only the sections that have works */}

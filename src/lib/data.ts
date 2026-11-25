@@ -121,9 +121,17 @@ export const getShowcase = cache(async (): Promise<ShowcaseItem[]> => {
   return (data ?? []).map(toItem);
 });
 
-/** The motion template library (published only), shown on the public pages and inside the app. */
+/** «إخفاء مكتبة القوالب»: one switch (site_content key «templates_lib», value {hidden}) that hides the template library everywhere. */
+export const templatesHidden = cache(async (): Promise<boolean> => {
+  if (!dbReady()) return false;
+  const supabase = await createClient();
+  const { data } = await supabase.from("site_content").select("value").eq("key", "templates_lib").maybeSingle();
+  return (data?.value as { hidden?: boolean } | null)?.hidden === true;
+});
+
+/** The motion template library (published only), shown on the public pages and inside the app. Empty while the library is hidden. */
 export const getTemplates = cache(async (): Promise<TemplateRow[]> => {
-  if (!dbReady()) return [];
+  if (!dbReady() || (await templatesHidden())) return [];
   const supabase = await createClient();
   const { data } = await supabase.from("video_templates").select("id,style,title,seconds,aspect,thumb_url,sort_order,is_published,source").eq("is_published", true).order("sort_order").order("created_at", { ascending: false }).limit(2000);
   return (data ?? []) as TemplateRow[];

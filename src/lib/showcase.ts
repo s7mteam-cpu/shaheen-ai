@@ -10,6 +10,9 @@ export const SHOWCASE_CATS: [string, string, string][] = [
   ["quran", "فيديو قرآني", "Quran videos"],
   ["voice", "أصوات", "Voice"], ["nasheed", "همهمة", "Nasheed"],
   ["design", "تصاميم", "Designs"], ["card", "بطاقات ودعوات", "Cards & invitations"], ["cv", "سيرة ذاتية", "CVs"], ["slides", "عروض تقديمية", "Presentations"],
+  ["animation", "أنيميشن", "Animation"], ["creative-motion", "موشن مبتكر", "Creative motion"], ["creative-montage", "مونتاج مبتكر", "Creative montage"],
+  ["real-scenes", "مشاهد واقعية", "Real scenes"], ["site-video", "فيديو موقع", "Website video"], ["creative-design", "تصميم مبتكر", "Creative design"],
+  ["brand", "هوية تجارية", "Brand identity"],
   ["other", "أخرى", "Other"],
 ];
 export type ShowcaseItem = { id: string; title: string; description: string; category: string; media_url: string; media_type: string; extra_media: string[]; sort_order: number; home_order: number | null; like_on: boolean };
@@ -52,6 +55,13 @@ export const DEFAULT_INTRO: Record<string, string> = {
   card: "بطاقات ودعوات جاهزة للمناسبات.",
   cv: "سيرة ذاتية مرتبة بتصميم احترافي.",
   slides: "عروض تقديمية كاملة من فكرتك.",
+  animation: "فيديوهات أنيميشن برسوم متحركة تحكي فكرتك بأسلوب ممتع.",
+  "creative-motion": "موشن مبتكر: غرافيكس وحركة مصممة خصيصاً لفكرتك.",
+  "creative-montage": "مونتاج مبتكر: غرافيكس ومؤثرات فوق فيديوك وصوتك.",
+  "real-scenes": "مشاهد واقعية بالذكاء الاصطناعي تجسّد فكرتك.",
+  "site-video": "فيديو يعرض موقعك أو منتجك الرقمي بشكل جذاب.",
+  "creative-design": "تصاميم مبتكرة تنولد من فكرتك بشكل فريد.",
+  brand: "هوية تجارية كاملة: شعار وألوان وخطوط.",
   other: "أعمال أخرى من شاهين.",
 };
 export const DEFAULT_STEPS = ["اختر الأداة من حسابك", "اكتب فكرتك أو ارفع صورتك", "استلم النتيجة وحمّلها أو انشرها"];
@@ -60,7 +70,7 @@ export const DEFAULT_STEPS = ["اختر الأداة من حسابك", "اكتب
 export const TOOL_EXAMPLE_CAT: Record<string, string> = {
   post: "post", carousel: "carousel", "ad-design": "ad", image: "image", "motion-video": "motion", "free-motion": "motion",
   "site-video": "motion", "real-scenes": "reel", "quran-video": "quran", "video-editing": "video", "product-video": "product-video",
-  "avatar-video": "avatar", voice: "voice", presentations: "slides", "business-cards": "card", invitations: "card", cv: "cv",
+  "avatar-video": "avatar", "anim-video": "animation", "free-montage": "creative-montage", "site-free": "site-video", "brand-identity": "brand", voice: "voice", presentations: "slides", "business-cards": "card", invitations: "card", cv: "cv",
 };
 /** tool id → gallery category, only for tools that already have at least one example in the gallery */
 export function exampleCats(items: { category: string }[]): Record<string, string> {

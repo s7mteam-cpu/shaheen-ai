@@ -10,7 +10,7 @@ import { SideNav } from "@/components/app/SideNav";
 import { HomeGreeting } from "@/components/app/HomeGreeting";
 import { UserMenu } from "@/components/app/UserMenu";
 import { ShaheenChat } from "@/components/ShaheenChat";
-import { getContent, getSessionProfile, getTools } from "@/lib/data";
+import { getContent, getSessionProfile, getTools, templatesHidden } from "@/lib/data";
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
 import { stopImpersonating } from "@/app/admin/customers/actions";
@@ -111,7 +111,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <HomeGreeting name={profile.full_name?.split(" ")[0]} />
       {trial.state !== "none" && <div className="mx-auto max-w-[1400px] px-4 pt-4 sm:px-6"><TrialBanner state={trial.state} credits={trial.credits ?? 0} hours={trial.hours} expiresAt={trial.expiresAt} /></div>}
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6 lg:flex-row">
-        <div className="lg:w-[250px] lg:shrink-0"><Suspense><SideNav ready={autoWeekly} isAdmin={profile.role === "admin" || profile.role === "staff"} support={wa} tools={tools.map((t) => ({ id: t.id, name: t.name, icon: t.icon, category: t.category }))} /></Suspense></div>
+        <div className="lg:w-[250px] lg:shrink-0"><Suspense><SideNav libHidden={await templatesHidden()} ready={autoWeekly} isAdmin={profile.role === "admin" || profile.role === "staff"} support={wa} tools={tools.map((t) => ({ id: t.id, name: t.name, icon: t.icon, category: t.category }))} /></Suspense></div>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       {needContact ? <CompleteProfile name={profile.full_name ?? ""} /> : gate && ts && <WelcomeGate offer={trial.state === "offer"} credits={ts.credits} hours={ts.hours} name={profile.full_name?.split(" ")[0]} />}

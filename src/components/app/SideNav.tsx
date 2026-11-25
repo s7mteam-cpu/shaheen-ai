@@ -7,7 +7,7 @@ import { useT } from "@/components/LangProvider";
 
 
 /** Simple, fixed menu so customers never feel lost. Tool names/order come from /admin. */
-export function SideNav({ isAdmin, support, ready }: { isAdmin: boolean; ready?: boolean; support?: string; tools: NavTool[] }) {
+export function SideNav({ isAdmin, support, ready, libHidden }: { isAdmin: boolean; ready?: boolean; libHidden?: boolean; support?: string; tools: NavTool[] }) {
   const path = usePathname();
   const T = useT();
   const tab = useSearchParams().get("tab");
@@ -39,7 +39,7 @@ export function SideNav({ isAdmin, support, ready }: { isAdmin: boolean; ready?:
       <Link href="/app/brand" aria-current={brand ? "page" : undefined} className={item(brand)}><Icon name="palette" size={18} className={ic(brand)} />{T("هويتي التجارية", "Brand kit")}</Link>
       <Link href="/app/brand/plan" aria-current={plan ? "page" : undefined} className={item(plan)}><Icon name="calendar" size={18} className={ic(plan)} />{T("خطة المحتوى", "Content plan")}</Link>
       <Link href="/app/showcase" aria-current={show ? "page" : undefined} className={item(show)}><Icon name="sparkles" size={18} className={ic(show)} />{T("أعمال صُنعت بشاهين", "Made with Shaheen")}</Link>
-      <Link href="/app/templates" aria-current={tpl ? "page" : undefined} className={item(tpl)}><Icon name="film" size={18} className={ic(tpl)} />{T("مكتبة القوالب", "Template library")}</Link>
+      {!libHidden && <Link href="/app/templates" aria-current={tpl ? "page" : undefined} className={item(tpl)}><Icon name="film" size={18} className={ic(tpl)} />{T("مكتبة القوالب", "Template library")}</Link>}
       <Link href="/app/account" aria-current={account ? "page" : undefined} className={item(account)}><Icon name="card" size={18} className={ic(account)} />{T("الحساب والاشتراك", "Account & plan")}</Link>
       <Link href="/app/account?tab=spend" aria-current={spend ? "page" : undefined} className={item(spend)}><Icon name="feather" size={18} className={ic(spend)} />{T("مصاريف الريش", "Credit usage")}</Link>
       {support && (
