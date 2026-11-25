@@ -26,7 +26,7 @@ export default async function Overview() {
   const [{ data: allSubs }, { data: allSubsRev }, { data: plans }, { count: users }, { data: spent }, { count: failed }, { count: jobs }, { data: team }] = await Promise.all([
     admin.from("subscriptions").select("plan_id,status,user_id").in("status", active).gte("updated_at", since("subs")),
     admin.from("subscriptions").select("plan_id,user_id").in("status", active).gte("updated_at", since("revenue")),
-    admin.from("plans").select("id,name,price_kwd"),
+    admin.from("plans").select("id,name,price_kwd").order("price_kwd"),
     admin.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", since("accounts")),
     admin.from("credit_ledger").select("amount").eq("reason", "spend").gte("created_at", since("spent", monthStart)),
     admin.from("jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("created_at", since("failed", monthStart)),
