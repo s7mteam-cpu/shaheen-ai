@@ -6,7 +6,7 @@
 import { animNote } from "./animstyles.mjs";
 import { fxJob } from "./fxflow.mjs";
 import { skillFor, skillNote } from "./skills.mjs";
-import { initUsage, setUsageJob } from "./usage.mjs";
+import { initUsage, setUsageJob, noteUsage } from "./usage.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
 import { execFile } from "node:child_process";
@@ -123,6 +123,7 @@ async function makeMusic(prompt, seconds) {
     body: JSON.stringify({ prompt: /hum|همهم|a cappella|vocal/i.test(prompt) ? `Wordless soft vocal humming only, no lyrics, no instruments, no drums. ${prompt}` : `Instrumental only, no vocals. ${prompt}`, music_length_ms: Math.round(Math.min(120, Math.max(10, seconds)) * 1000) }),
   });
   if (!res.ok) throw new Error(`music ${res.status}`);
+  noteUsage({ provider: "elevenlabs", model: "music", units: Math.max(1, Math.round(Number(seconds) || 0)) }); // v295: worker music was never noted in «تكلفة كل طلب»
   return Buffer.from(await res.arrayBuffer());
 }
 

@@ -13,6 +13,9 @@ export const DEFAULT_PRICES: AiPrices = {
     "gemini-3.8-flash": { in: 0.75, out: 3.75 },
     "gemini-2.5-pro": { in: 1.25, out: 10 },
     "gemini-3-pro-image-preview": { in: 0, out: 0, unit: 0.134 },
+    // v295: estimates, so these calls show a dollar amount instead of «بدون سعر» (edit them in «تكلفة كل طلب» once measured)
+    "music": { in: 0, out: 0, unit: 0.003 }, // ElevenLabs music, per second (≈ 900 credits per minute of the plan)
+    "veed/video-background-removal/fast": { in: 0, out: 0, unit: 0.015 }, // speaker cut-out for «عناصر وراء المتحدث», per second of video (fal lists $0.008–0.015 per 30 frames: measure it)
   },
   el_per_1k: 0,
   feather_usd: 0.04, // what one feather brings in on average over the six plans (52,000 feathers = 619 KWD ≈ 0.04 USD); the old plans were 0.195
