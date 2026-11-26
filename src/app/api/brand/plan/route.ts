@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       `اسم النشاط: ${kit?.business_name || planName || "غير محدد"}`,
       kit?.about && `وصف النشاط:\n${kit.about}`,
       (kit?.plan_prefs as { insta?: { voice?: string } } | null)?.insta?.voice && `تحليل حسابه على إنستغرام (من نص ولقطات رفعها العميل بنفسه، استفد منه بنبرة المحتوى والمواضيع ولا تنسخه):\n${(() => { const i = (kit!.plan_prefs as { insta: { voice: string; topics: string[]; formats: string[]; gaps: string[]; ideas: string[]; best: string } }).insta; return `النبرة: ${i.voice}\nمواضيعه: ${i.topics.join("، ")}\nأنواعه: ${i.formats.join("، ")}\nفجوات: ${i.gaps.join("، ")}\nاتجاهات مناسبة: ${i.ideas.join("، ")}${i.best ? `\nالأفضل أداءً: ${i.best}` : ""}`; })()}`,
-      kit?.cv_text && `السيرة الذاتية:\n${String(kit.cv_text).slice(0, 5000)}`,
+      kit?.cv_text && `السيرة الذاتية (للفهم فقط: استخرج منها الخبرة والمهارات والإنجازات المهنية. ممنوع تذكر العمر أو تاريخ الميلاد أو العنوان أو الهاتف أو الحالة الاجتماعية أو الراتب أو أي بيانات شخصية بالمنشورات أو الهوية، ولا تنسخ منها حرفياً):\n${String(kit.cv_text).slice(0, 5000)}`,
       id && `الهوية المعتمدة: ${id.name}. ${id.idea}\nالشخصية: ${id.personality.join("، ")}\nأعمدة المحتوى: ${id.content.pillars.map((p) => `${p.name} (${p.share}): ${p.ideas.join("، ")}`).join(" | ")}\nالبايو: ${id.bio}`,
     ].filter(Boolean).join("\n\n");
     const { data: ft } = await admin.from("tools").select("id,is_enabled").in("id", Object.values(FORMAT_TOOL_ID));
