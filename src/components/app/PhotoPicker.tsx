@@ -3,10 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { L } from "@/lib/i18n/ui";
 import { createClient } from "@/lib/supabase/client";
 
-export type Photo = { path: string; bucket: "uploads" | "results"; url: string; label: string };
+export type Photo = { path: string; bucket: "uploads" | "results"; url: string; label: string; dev?: "phone" | "desktop" };
 
 /** Photos of the customer's own product / dish / property… added from the device or from their earlier works. */
-export function PhotoPicker({ photos, onChange, title, hint, max = 6 }: { photos: Photo[]; onChange: (p: Photo[]) => void; title: string; hint?: string; max?: number }) {
+export function PhotoPicker({ photos, onChange, title, hint, max = 6, devChoice = false }: { devChoice?: boolean; photos: Photo[]; onChange: (p: Photo[]) => void; title: string; hint?: string; max?: number }) {
   const file = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -48,6 +48,7 @@ export function PhotoPicker({ photos, onChange, title, hint, max = 6 }: { photos
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt="" className="aspect-square w-full rounded-xl object-cover" />
               <input value={p.label} maxLength={60} onChange={(e) => onChange(photos.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} className="field !py-1.5 text-[13px]" placeholder={L("وش هذي؟ مثال: منسف، ٣ دنانير")} />
+              {devChoice && <div className="flex gap-1.5 text-[12.5px]">{([[undefined, "تلقائي"], ["phone", "📱 جوال"], ["desktop", "💻 كمبيوتر"]] as const).map(([v, l]) => <button key={l} type="button" aria-pressed={p.dev === v} onClick={() => onChange(photos.map((x, j) => (j === i ? { ...x, dev: v } : x)))} className={`rounded-full border px-2.5 py-1 font-semibold ${p.dev === v ? "border-navy-800 bg-navy-800 text-white" : "border-field bg-white"}`}>{L(l)}</button>)}</div>}
               <button type="button" onClick={() => onChange(photos.filter((_, j) => j !== i))} className="text-[13px] text-red-700 underline">{L("حذف")}</button>
             </div>
           ))}

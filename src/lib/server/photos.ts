@@ -4,7 +4,7 @@ import { saveResult } from "@/lib/providers/storage";
 import { claudeVisionJson } from "@/lib/providers/text";
 import { plain } from "@/lib/server/siteCapture";
 
-export type PhotoIn = { path: string; bucket?: "uploads" | "results"; label?: string };
+export type PhotoIn = { path: string; bucket?: "uploads" | "results"; label?: string; dev?: "phone" | "desktop" };
 export type PhotoOut = { img: string; label: string };
 
 const SIZE: Record<string, [number, number]> = { "9:16": [1080, 1920], "1:1": [1080, 1080], "16:9": [1920, 1080], "4:5": [1080, 1350] };
@@ -15,7 +15,7 @@ export function cleanPhotos(raw: unknown, userId: string): PhotoIn[] {
   return raw.slice(0, 6).flatMap((x: Record<string, unknown>) => {
     const path = typeof x?.path === "string" ? x.path : "";
     if (!path.startsWith(`${userId}/`) || path.includes("..") || !/^[\w-]+\/[\w./-]+$/.test(path)) return [];
-    return [{ path, bucket: x?.bucket === "results" ? "results" as const : "uploads" as const, label: String(x?.label ?? "").replace(/\s+/g, " ").trim().slice(0, 60) }];
+    return [{ path, bucket: x?.bucket === "results" ? "results" as const : "uploads" as const, label: String(x?.label ?? "").replace(/\s+/g, " ").trim().slice(0, 60), ...(x?.dev === "phone" || x?.dev === "desktop" ? { dev: x.dev as "phone" | "desktop" } : {}) }];
   });
 }
 
@@ -57,7 +57,7 @@ export async function importShots(userId: string, jobId: string, photos: PhotoIn
       const meta = await sharp(src).metadata();
       const iw = meta.width ?? 0, ih = meta.height ?? 0;
       if (iw < 200 || ih < 200) return null;
-      const phone = iw <= 900 || (iw < 1000 && iw / ih < 0.8); // phone screenshots are narrow; computer ones are wide
+      const phone = p.dev ? p.dev === "phone" : iw <= 900 || (iw < 1000 && iw / ih < 0.8); // phone screenshots are narrow; computer ones are wide
       let width = Math.min(iw, phone ? 780 : 1920);
       if ((ih * width) / iw > 12000) width = Math.floor((12000 * iw) / ih);
       const buf = await sharp(src).resize({ width }).jpeg({ quality: 88 }).toBuffer();

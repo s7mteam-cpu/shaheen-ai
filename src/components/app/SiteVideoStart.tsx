@@ -97,7 +97,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
     }
     try {
       const r = await fetch("/api/lesson", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        siteJob: jobId, siteStyle: style, readShots: readImgs, shots: shots.map((x) => ({ path: x.path, bucket: x.bucket, label: x.label })), topic, seconds, aspect, dialect, voiceover, voice, tone, music: withMusic, brand: site?.title ?? "" }) });
+        siteJob: jobId, siteStyle: style, readShots: readImgs, shots: shots.map((x) => ({ path: x.path, bucket: x.bucket, label: x.label, dev: x.dev })), topic, seconds, aspect, dialect, voiceover, voice, tone, music: withMusic, brand: site?.title ?? "" }) });
       const d = await r.json();
       if (!r.ok) throw new Error(L(d.error));
       setPct(100);
@@ -145,7 +145,7 @@ export function SiteVideoStart({ costPer15, balance, voices = [], fresh = false,
           {fresh && <span className="text-[13px] text-subtle">{L("اكتب وصفك بحرية: الفكرة، الأسلوب، الألوان، والرسالة. كل فيديو يطلع تصميم جديد مبني على وصفك ومحتوى موقعك.")}</span>}
           <span className="text-[13px] text-subtle">{L("شاهين يشرح الموقع من محتواه الفعلي (ما يخترع أسعار ولا خدمات). تقدر تضيف: ركّز على الخدمات، أو على العروض، أو على التواصل.")}</span></label>
         {!fresh && <>
-        <PhotoPicker photos={shots} onChange={setShots} max={6} title="صفحات من داخل موقعك (لقطات شاشة)" hint="لو موقعك فيه صفحات ما تنفتح إلا بتسجيل دخول (لوحة تحكم، حجوزات، طلبات)، صوّرها بنفسك وارفعها هنا، واكتب تحت كل صورة وش هي. ما نطلب منك يوزر ولا كلمة سر أبداً." />
+        <PhotoPicker devChoice photos={shots} onChange={setShots} max={6} title="صفحات من داخل موقعك (لقطات شاشة)" hint="لو موقعك فيه صفحات ما تنفتح إلا بتسجيل دخول (لوحة تحكم، حجوزات، طلبات)، صوّرها بنفسك وارفعها هنا، واكتب تحت كل صورة وش هي. ما نطلب منك يوزر ولا كلمة سر أبداً." />
         {shots.length > 0 && <label className="flex items-start gap-3 rounded-2xl border border-line p-3"><input type="checkbox" checked={readImgs} onChange={(e) => setReadImgs(e.target.checked)} className="mt-1 h-5 w-5" /><span>{L("خلّ شاهين يقرأ محتوى الصور ويشرح ميزاتها")}<span className="block text-[13px] text-subtle">{L("يقرأ النص والأقسام الظاهرة بكل لقطة، ويتكلم عنها بالتعليق حتى لو ما كتبت وصف.")}</span></span></label>}
         </>}
         {fresh && hasStyle && <label className="flex items-start gap-2.5 text-[14px]"><input type="checkbox" checked={useStyle} onChange={(e) => setUseStyle(e.target.checked)} className="mt-1 size-4" /><span><span className="font-semibold">{L("صمّم بأسلوبي ✨")}</span><span className="block text-[13px] text-subtle">{L("شاهين يستلهم من وصف ذوقك وصورك المرجعية المحفوظة في «هويتي».")}</span></span></label>}
