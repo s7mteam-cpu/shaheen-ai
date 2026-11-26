@@ -1,6 +1,6 @@
 "use client";
 import { useActionState, useState } from "react";
-import { adjustCredits, deleteCustomer } from "@/app/admin/customers/actions";
+import { activatePlan, adjustCredits, deleteCustomer } from "@/app/admin/customers/actions";
 import { L, LT } from "@/lib/i18n/ui";
 
 export function CreditsForm({ userId }: { userId: string }) {
@@ -147,6 +147,37 @@ export function MessageCustomer({ userId, action }: { userId: string; action: Ac
         <button disabled={pending || !!state?.ok} className="btn btn-primary flex-1 py-2.5 text-sm disabled:opacity-40">{pending ? L("جاري الإرسال…") : L("أرسل")}</button>
         <button type="button" onClick={() => setOpen(false)} className="btn btn-outline flex-1 py-2.5 text-sm">{state?.ok ? L("تمام") : L("تراجع")}</button>
       </div>
+    </form>
+  );
+}
+
+export function ActivatePlan({ userId, plans }: { userId: string; plans: { id: string; name: string; price: number }[] }) {
+  const [state, action, pending] = useActionState(activatePlan, undefined);
+  const [planId, setPlanId] = useState(plans[0]?.id ?? "");
+  const [months, setMonths] = useState(1);
+  const [amount, setAmount] = useState<string>("");
+  const plan = plans.find((x) => x.id === planId);
+  const suggested = plan ? Math.round(plan.price * months * 1000) / 1000 : 0;
+  const shown = amount === "" ? String(suggested) : amount;
+  return (
+    <form action={action} className="flex flex-col gap-2 border-t border-[#EDF1F6] pt-3"
+      onSubmit={(e) => { if (!window.confirm(`${L("تفعيل")} ${plan?.name ?? ""} ${L("لمدة")} ${months} ${L("شهر، والمبلغ")} ${shown} ${L("د.ك؟ بتنضاف الريش ويتسجّل الدفع.")}`)) e.preventDefault(); }}>
+      <input type="hidden" name="user_id" value={userId} />
+      <p className="text-sm font-bold">{L("إضافة باقة (اشترك ودفع)")}</p>
+      <select name="plan_id" value={planId} onChange={(e) => { setPlanId(e.target.value); setAmount(""); }} className="field bg-white">
+        {plans.map((x) => <option key={x.id} value={x.id}>{x.name} — {x.price} {L("د.ك")}</option>)}
+      </select>
+      <div className="grid grid-cols-2 gap-2">
+        <select name="months" value={months} onChange={(e) => { setMonths(Number(e.target.value)); setAmount(""); }} className="field bg-white">
+          {[1, 3, 6, 12].map((m) => <option key={m} value={m}>{m} {L("شهر")}</option>)}
+        </select>
+        <input name="amount" type="number" min={0} step="0.001" inputMode="decimal" value={shown} onChange={(e) => setAmount(e.target.value)} className="field" aria-label={L("المبلغ المدفوع بالدينار")} />
+      </div>
+      <input name="method" placeholder={L("طريقة الدفع (نقداً، تحويل…)")} className="field" />
+      <button disabled={pending || !planId} className="btn btn-primary py-2.5">{pending ? L("جارٍ التفعيل…") : L("فعّل الباقة")}</button>
+      <p className="text-[12px] leading-5 text-subtle">{L("المبلغ 0 = هدية (ما يتسجّل دفع). غير هيك يتسجّل بالمالية وبـGoogle Sheets.")}</p>
+      {state?.ok && <p role="status" className="text-sm font-semibold text-emerald-700">{state.ok}</p>}
+      {state?.error && <p role="alert" className="text-sm font-semibold text-red-700">{state.error}</p>}
     </form>
   );
 }

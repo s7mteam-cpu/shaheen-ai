@@ -7,7 +7,7 @@ import { latestAccess } from "@/lib/server/supportAccess";
 import { previousClosed, REASON_AR } from "@/lib/server/archive";
 import { countryOf } from "@/lib/countries";
 import { AUDIT_AR } from "@/lib/server/audit";
-import { CreditsForm, DeleteCustomer, DeleteWork, BlockEmail, Impersonate, RequestAccess, CancelSub, MessageCustomer } from "@/components/admin/CustomerTools";
+import { ActivatePlan, CreditsForm, DeleteCustomer, DeleteWork, BlockEmail, Impersonate, RequestAccess, CancelSub, MessageCustomer } from "@/components/admin/CustomerTools";
 import { getL, serverT } from "@/lib/server/lang";
 import { L } from "@/lib/i18n/ui";
 
@@ -21,7 +21,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   const { q = "", id, deleted, plan = "", sort = "new", from = "", to = "" } = await searchParams;
   const admin = createAdminClient();
   let query = admin.from("profiles").select("*").order("created_at", { ascending: sort === "old" }).limit(100);
-  const { data: allPlans } = await admin.from("plans").select("id,name,is_active").order("sort_order");
+  const { data: allPlans } = await admin.from("plans").select("id,name,is_active,price_kwd").order("sort_order");
   const planName = (id: string | null) => (id ? (allPlans ?? []).find((x) => x.id === id)?.name ?? id : "—");
   if (plan === "hidden") { const ids = (allPlans ?? []).filter((x) => !x.is_active).map((x) => x.id as string); query = ids.length ? query.in("plan_id", ids) : query.eq("plan_id", "__none__"); }
   else if (plan === "active") { const ids = (allPlans ?? []).filter((x) => x.is_active).map((x) => x.id as string); query = ids.length ? query.in("plan_id", ids) : query.eq("plan_id", "__none__"); }
@@ -131,6 +131,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
                   <CancelSub key={`c-${selected.id}`} userId={selected.id} action={cancelCustomerSub} />
                 </>
               ) : <p className="text-[13px] text-subtle">{L("ما عنده اشتراك شغّال.")}</p>}
+              {selected.role === "user" && <ActivatePlan key={`a-${selected.id}`} userId={selected.id} plans={(allPlans ?? []).filter((x) => x.is_active).map((x) => ({ id: x.id as string, name: x.name as string, price: Number(x.price_kwd) }))} />}
             </div>
             <MessageCustomer key={`m-${selected.id}`} userId={selected.id} action={messageCustomer} />
             <form action={setUserFlags} className="flex gap-2">

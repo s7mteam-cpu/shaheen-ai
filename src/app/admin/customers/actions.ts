@@ -13,6 +13,7 @@ import { REMEMBER_COOKIE } from "@/lib/supabase/remember";
 import { latestAccess } from "@/lib/server/supportAccess";
 import { stripe } from "@/lib/stripe";
 import { getL, serverT } from "@/lib/server/lang";
+import { activatePlanManually } from "@/lib/server/manualPlan";
 
 type Res = { ok?: string; error?: string } | undefined;
 const done = () => revalidatePath("/admin/customers");
@@ -257,4 +258,24 @@ export async function resumeCustomerSub(form: FormData) {
   await admin.from("subscriptions").update({ cancel_at_period_end: false, updated_at: new Date().toISOString() }).eq("id", sub.id);
   await audit(me, "resume_sub", p, "");
   done();
+}
+
+/** Activate a plan for a customer (he subscribed and paid outside the site): plan + ريش + payment in «المالية» and Sheets. */
+export async function activatePlan(_prev: Res, form: FormData): Promise<Res> {
+  const L = await getL();
+  const me = await guard();
+  const p = await target(String(form.get("user_id")));
+  if (!p || p.role !== "user") return { error: L("العميل غير موجود.") };
+  const planId = String(form.get("plan_id") || "");
+  const months = Math.trunc(Number(form.get("months")));
+  if (![1, 3, 6, 12].includes(months)) return { error: L("اختر عدد الأشهر.") };
+  const amount = Math.round(Number(form.get("amount")) * 1000) / 1000;
+  if (!planId) return { error: L("اختر الباقة.") };
+  if (!Number.isFinite(amount) || amount < 0) return { error: L("اكتب المبلغ المدفوع (0 إذا هدية).") };
+  const method = String(form.get("method") || "").trim().slice(0, 60) || "من الإدارة";
+  const r = await activatePlanManually({ userId: p.id, planId, months, amount, method, by: me.id });
+  if (r.error) return { error: L(r.error) };
+  await audit(me, "plan_activate", p, `${r.planName} · ${months} · ${amount} KWD · ${method}`);
+  done();
+  return { ok: `${L("تفعّلت باقة")} ${r.planName} ${L("وانضافت ريشها.")}${amount > 0 ? ` ${L("المبلغ")} ${amount} ${L("د.ك سجّلناه بالمالية.")}` : ""}` };
 }
