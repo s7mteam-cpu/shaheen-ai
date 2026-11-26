@@ -23,6 +23,7 @@ export default async function TeamPage() {
         <p className="mt-1 max-w-3xl text-sm leading-7 text-subtle">الفريق واحد لكل العملاء، لكن كل عميل يوصله شغل مختلف حسب مجاله: ملف مخصص لكل مجال + أعضاء الفريق (المخطط، كاتب الهوكات، المخرج الفني، المحرر). كل شي تعدله أو توقفه أو ترجعه للأصلي، والتغيير يطبّق على الطلبات الجديدة خلال نص دقيقة. طلب العميل وهويته أهم منه، وقواعد المقاس والأمان أقوى منه.</p>
       </div>
       <MasterForm on={team.on !== false} />
+      <p className="text-[13.5px]"><Link href="/admin/ai/team/customers" className="font-semibold text-navy-700 underline">👥 تعليمات العملاء (تعليماتي)</Link> — شوف اللي كتبوه وامسحه لو لزم.</p>
       <h2 className="text-[19px] font-bold text-navy-900">أعضاء الفريق</h2>
       {ROLES.map((r) => (
         <RoleForm key={r.id} id={r.id} label={r.label} text={team.roles?.[r.id]?.text ?? r.text} builtIn={r.text} changed={!!team.roles?.[r.id]?.text} on={team.roles?.[r.id]?.on !== false} />
