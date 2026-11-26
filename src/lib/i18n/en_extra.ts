@@ -997,4 +997,6 @@ export const EN_EXTRA: Record<string, string> = {
   "التحليل تأخر. ارفع لقطات من بوستاتك بقسم «أسلوبي» وجرّب مرة ثانية.": "The analysis took too long. Upload screenshots of your posts in the “My style” section and try again.",
   "تعذّر التحليل الحين، جرّب مرة ثانية.": "Could not analyze right now, try again.",
   "وصلت الحد اليومي للتحليل. جرّب بكرة.": "You reached the daily analysis limit. Try tomorrow.",
+  "رقم الهاتف": "Phone number",
+  "مثال: 9999 9999": "Example: 9999 9999",
 };

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { resetBrand, saveBrand } from "@/app/app/brand/actions";
 
 import { FontPicker } from "./FontPicker";
+import { libFont } from "@/lib/fonts";
 import { IdentityAnalyse } from "./IdentityAnalyse";
 import type { InstaRead } from "@/lib/plan";
 
@@ -14,7 +15,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
   const [preview, setPreview] = useState(initial.logo_preview);
   const [colors, setColors] = useState(initial.colors.length ? initial.colors : ["#0B2A4A", "#C9A45C", "#FFFFFF"]);
   const [handle, setHandle] = useState(initial.handle ?? "");
-  const [font, setFont] = useState(initial.font ?? "");
+  const [font, setFont] = useState(initial.font || "Cairo");
   const [msg, setMsg] = useState("");
   const [website, setWebsite] = useState(initial.website ?? "");
   const [instagram, setInstagram] = useState(initial.instagram ?? "");
@@ -57,7 +58,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
     const r = await resetBrand();
     setConfirmReset(false);
     if (!r.ok) { setMsg(L("تعذّر التصفير.")); return; }
-    setName(""); setLogo(null); setPreview(null); setColors([]); setHandle(""); setFont(""); setWebsite(""); setInstagram(""); setRefs([]);
+    setName(""); setLogo(null); setPreview(null); setColors([]); setHandle(""); setFont("Cairo"); setWebsite(""); setInstagram(""); setRefs([]);
     setMsg(L("تم تصفير الهوية. التصاميم الجديدة بتكون بدون هوية لين تحفظ هوية جديدة."));
   }
   async function persist() { return (await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video })).ok; }
@@ -98,15 +99,18 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
           <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("موقعك الإلكتروني")}</span><input dir="ltr" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={200} className="field" placeholder="example.com" /></label>
           <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("حسابك على إنستغرام")}</span><input dir="ltr" value={instagram} onChange={(e) => setInstagram(e.target.value)} maxLength={120} className="field" placeholder={L("@yourbrand أو رابط الحساب")} /></label>
         </div>
-        <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("حسابك أو رقم التواصل")} <span className="font-normal text-subtle">{L("(يطلع بنهاية الفيديوهات والتصاميم)")}</span></span><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder={L("مثال: @aldeira.kw أو 9999 9999")} /></label>
+        <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("رقم الهاتف")} <span className="font-normal text-subtle">{L("(يطلع بنهاية الفيديوهات والتصاميم)")}</span></span><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder={L("مثال: 9999 9999")} /></label>
         <p className="text-[12px] text-subtle">{L("شاهين يقرا موقعك عشان يفهم نشاطك، ويحط حسابك بالتصاميم إذا ما كتبت رقم تواصل.")}</p>
       </div>
-      <div className="flex flex-col gap-2">
-        <span className="label">{L("خط الهوية")}</span>
-        <FontPicker value={font} onChange={setFont} none={{ label: L("يختاره شاهين"), active: !font, onPick: () => setFont("") }} />
-      </div>
-      <div className="flex flex-col gap-4 rounded-2xl bg-tint p-4">
-        <div><span className="label">{L("أسلوبي ✨")}</span><p className="text-[13px] leading-6 text-subtle">{L("علّم شاهين ذوقك مرة وحدة: وصف بالكلام، صور تعجبك، وفيديو مرجعي. الأدوات المبتكرة تستلهم منها الأسلوب (الألوان، الترتيب، الروح) وما تنسخها. تقدر تطفيها من أي أداة بخيار «صمّم بأسلوبي».")}</p></div>
+      <IdentityAnalyse initial={initial.insta ?? null} save={persist} onApply={applyRead} />
+      <details className="group rounded-2xl border border-line p-4">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2"><span className="label">{L("خط الهوية")} <span className="font-normal text-subtle">· {libFont(font)?.label ? L(libFont(font)!.label) : font}</span></span><span aria-hidden className="text-base transition group-open:rotate-180">▾</span></summary>
+        <div className="mt-3"><FontPicker value={font} onChange={setFont} /></div>
+      </details>
+      <details className="group rounded-2xl bg-tint p-4">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2"><span className="label">{L("أسلوبي ✨")}{(note.trim() || refs.length > 0 || video) && <span className="font-normal text-green-700"> ✓</span>}</span><span aria-hidden className="text-base transition group-open:rotate-180">▾</span></summary>
+        <div className="mt-3 flex flex-col gap-4">
+        <p className="text-[13px] leading-6 text-subtle">{L("علّم شاهين ذوقك مرة وحدة: وصف بالكلام، صور تعجبك، وفيديو مرجعي. الأدوات المبتكرة تستلهم منها الأسلوب (الألوان، الترتيب، الروح) وما تنسخها. تقدر تطفيها من أي أداة بخيار «صمّم بأسلوبي».")}</p>
         <label className="flex flex-col gap-1.5">
           <span className="text-[14px] font-semibold">{L("وصف ذوقك بالكلام")}</span>
           <textarea value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} rows={3} className="field" placeholder={L("مثال: أحب التصاميم البسيطة والفخمة، ألوان هادية، مساحات فاضية، خط عريض للعناوين، وبدون زخارف كثيرة.")} />
@@ -135,7 +139,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
           <p className="text-[12px] leading-5 text-subtle">{L("ارفع صور وفيديوهات تملك حقها أو للاستلهام فقط. ممنوع رفع محتوى مخالف لسياسة المحتوى. اضغط «حفظ» بعد الرفع.")}</p>
         </div>
       </div>
-      <IdentityAnalyse initial={initial.insta ?? null} save={persist} onApply={applyRead} />
+      </details>
       {msg && <p role="status" className="text-sm text-navy-700">{L(msg)}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button type="button" onClick={save} className="btn btn-primary px-6 py-3">{L("حفظ الهوية")}</button>

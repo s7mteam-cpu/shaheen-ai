@@ -184,7 +184,7 @@ async function montage(jobId: string, tool: ToolRow, content: Content, toolId = 
   const picUrls = pics.length ? (await createAdminClient().storage.from("results").createSignedUrls(pics, 60 * 60 * 6)).data ?? [] : [];
   const graphics = (spec.graphics ?? []).map((g) => (g.img ? { ...g, url: picUrls[pics.indexOf(g.img)]?.signedUrl ?? "", ...(g.img2 ? { url2: picUrls[pics.indexOf(g.img2)]?.signedUrl ?? "" } : {}) } : g));
   const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name").maybeSingle();
-  const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null } : null;
+  const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: (kitRow.font as string | null) || "Cairo", handle: kitRow.handle as string | null, name: kitRow.business_name as string | null } : null;
   const caption = (data.input as { caption?: string } | null)?.caption;
   return <><MontageStudio voices={content.voices.items} kit={kit} jobId={data.id} initial={{ ...spec, src: signed?.signedUrl ?? "", logo: spec.logo ? { ...spec.logo, url: logoUrl } : null, broll, music, vo, graphics }} editCost={tool.edit_cost ?? 3} tracks={content.motion_music?.items ?? []} newHref={`/app/tools/${toolId}`} />
     {caption ? <CaptionBox text={caption} /> : null}</>;
@@ -235,7 +235,7 @@ async function design(jobId: string | undefined, tool: ToolRow, balance: number,
       }
       const { data: kitRow } = await supabase.from("brand_kits").select("colors,font,handle,business_name,logo_url").maybeSingle();
       const logoUrl = kitRow?.logo_url ? (await admin.storage.from("uploads").createSignedUrl(kitRow.logo_url, 60 * 60 * 6)).data?.signedUrl ?? "" : "";
-      const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: kitRow.font as string | null, handle: kitRow.handle as string | null, name: kitRow.business_name as string | null, logo: kitRow.logo_url ? { path: kitRow.logo_url as string, bucket: "uploads" as const, url: logoUrl } : null } : null;
+      const kit = kitRow ? { colors: (kitRow.colors ?? []) as string[], font: (kitRow.font as string | null) || "Cairo", handle: kitRow.handle as string | null, name: kitRow.business_name as string | null, logo: kitRow.logo_url ? { path: kitRow.logo_url as string, bucket: "uploads" as const, url: logoUrl } : null } : null;
       const files = data.status === "done" ? ((data.output as { files?: { path: string }[] } | null)?.files ?? []) : [];
       const done = files.length ? (await signedResultUrls(files.map((f) => f.path))).map((url) => ({ url })) : undefined;
       return <DesignStudio key={data.id} jobId={data.id} toolId={tool.id} initial={withUrls(spec, urls)} editCost={tool.edit_cost ?? 2} picCost={(await extraPricing()).ai_image_cost} kit={kit} done={done} />;
