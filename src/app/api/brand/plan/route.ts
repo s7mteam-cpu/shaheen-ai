@@ -24,22 +24,24 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: kit } = await admin.from("brand_kits").select("business_name,about,cv_text,identity,website,instagram,analysis,plan_prefs").eq("user_id", user.id).maybeSingle();
   const id = kit?.identity as Concept | null;
-  if (!id) return NextResponse.json({ error: "اعتمد هوية أول، وبعدها نسوي لك الخطة." }, { status: 400 });
+  // a customer who never made an identity can still have a plan, as long as he told Shaheen about his business (name or description) in «هويتي التجارية»
+  if (!id && !String(kit?.business_name ?? "").trim() && String(kit?.about ?? "").trim().length < 15) return NextResponse.json({ error: "اكتب عن نشاطك بهويتك التجارية (أو أنشئ هوية)، وبعدها نسوي لك الخطة." }, { status: 400 });
+  const planName = id?.name ?? String(kit?.business_name ?? "").trim().slice(0, 60) ?? "نشاطك";
 
   const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost").eq("id", "brand-plan").maybeSingle();
   const cost = scope === "week" ? (tool?.edit_cost || 2) : (tool?.credit_cost ?? 4);
-  const { data: job, error: je } = await admin.from("jobs").insert({ user_id: user.id, tool_id: "brand-plan", title: `خطة ${id.name}`.slice(0, 80), status: "draft", progress: 5, input: { kind: "plan" } }).select("id").single();
+  const { data: job, error: je } = await admin.from("jobs").insert({ user_id: user.id, tool_id: "brand-plan", title: `خطة ${planName || "نشاطك"}`.slice(0, 80), status: "draft", progress: 5, input: { kind: "plan" } }).select("id").single();
   if (je || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
   const { error: ce } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });
   if (ce) { await admin.from("jobs").delete().eq("id", job.id); return NextResponse.json({ error: ce.message.includes("INSUFFICIENT") ? "رصيدك من الريش ما يكفي." : "تعذّر خصم الرصيد." }, { status: 402 }); }
 
   try {
     const info = [
-      `اسم النشاط: ${kit?.business_name || id.name}`,
+      `اسم النشاط: ${kit?.business_name || planName || "غير محدد"}`,
       kit?.about && `وصف النشاط:\n${kit.about}`,
       (kit?.plan_prefs as { insta?: { voice?: string } } | null)?.insta?.voice && `تحليل حسابه على إنستغرام (من نص ولقطات رفعها العميل بنفسه، استفد منه بنبرة المحتوى والمواضيع ولا تنسخه):\n${(() => { const i = (kit!.plan_prefs as { insta: { voice: string; topics: string[]; formats: string[]; gaps: string[]; ideas: string[]; best: string } }).insta; return `النبرة: ${i.voice}\nمواضيعه: ${i.topics.join("، ")}\nأنواعه: ${i.formats.join("، ")}\nفجوات: ${i.gaps.join("، ")}\nاتجاهات مناسبة: ${i.ideas.join("، ")}${i.best ? `\nالأفضل أداءً: ${i.best}` : ""}`; })()}`,
       kit?.cv_text && `السيرة الذاتية:\n${String(kit.cv_text).slice(0, 5000)}`,
-      `الهوية المعتمدة: ${id.name}. ${id.idea}\nالشخصية: ${id.personality.join("، ")}\nأعمدة المحتوى: ${id.content.pillars.map((p) => `${p.name} (${p.share}): ${p.ideas.join("، ")}`).join(" | ")}\nالبايو: ${id.bio}`,
+      id && `الهوية المعتمدة: ${id.name}. ${id.idea}\nالشخصية: ${id.personality.join("، ")}\nأعمدة المحتوى: ${id.content.pillars.map((p) => `${p.name} (${p.share}): ${p.ideas.join("، ")}`).join(" | ")}\nالبايو: ${id.bio}`,
     ].filter(Boolean).join("\n\n");
     const { data: ft } = await admin.from("tools").select("id,is_enabled").in("id", Object.values(FORMAT_TOOL_ID));
     const off = PLAN_FORMATS.filter((f) => !ft?.find((t) => t.id === FORMAT_TOOL_ID[f])?.is_enabled || (SITE_FORMATS.includes(f) && !kit?.website));

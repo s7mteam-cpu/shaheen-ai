@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function saveBrand(data: { business_name: string; logo_url: string | null; colors: string[]; handle?: string; font?: string; website?: string; instagram?: string; style_refs?: string[]; style_note?: string; dialect?: string; style_video?: string | null; industry?: string }) {
+export async function saveBrand(data: { business_name: string; logo_url: string | null; colors: string[]; handle?: string; font?: string; website?: string; instagram?: string; style_refs?: string[]; style_note?: string; dialect?: string; about?: string; cv_text?: string; style_video?: string | null; industry?: string }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "" };
@@ -30,8 +30,14 @@ export async function saveBrand(data: { business_name: string; logo_url: string 
     if (own && !industryById(data.industry) && (await guardContent(user.id, { idea: own }, "my-field"))) return { ok: false };
     ind = { industry: val };
   }
-  let { error } = await supabase.from("brand_kits").upsert({ ...base, ...ind, style_note: note, style_video: video });
-  if (error) ({ error } = await supabase.from("brand_kits").upsert({ ...base, ...ind })); // before SQL 0067 is run: the rest of the identity still saves
+  // «عن نشاطك»: the description and CV in his own words (plain text; Shaheen reads them for the plan and the tools)
+  const plain = (v: unknown, n: number) => String(v ?? "").replace(/[<>\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, n);
+  const about: { about?: string | null; cv_text?: string | null } = {};
+  if (typeof data.about === "string") about.about = plain(data.about, 2500) || null;
+  if (typeof data.cv_text === "string") about.cv_text = plain(data.cv_text, 5000) || null;
+  if ((about.about || about.cv_text) && (await guardContent(user.id, { idea: `${about.about ?? ""} ${about.cv_text ?? ""}` }, "my-about"))) return { ok: false };
+  let { error } = await supabase.from("brand_kits").upsert({ ...base, ...ind, ...about, style_note: note, style_video: video });
+  if (error) ({ error } = await supabase.from("brand_kits").upsert({ ...base, ...ind, ...about })); // before SQL 0067 is run: the rest of the identity still saves
   // «لهجة المحتوى»: every post, video and design of this customer is written in it; empty = Standard Arabic
   if (!error && typeof data.dialect === "string" && (data.dialect === "" || ARAB_DIALECTS.some((x) => x[0] === data.dialect))) await mergePrefs({ dialect: data.dialect });
   revalidatePath("/app/brand");

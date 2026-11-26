@@ -14,7 +14,7 @@ export default async function PlanPage() {
   const L = await getL();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const { data: kit } = await supabase.from("brand_kits").select("identity,content_plan,analysis,auto_weekly,plan_prefs,website,instagram").eq("user_id", user!.id).maybeSingle();
+  const { data: kit } = await supabase.from("brand_kits").select("identity,business_name,about,content_plan,analysis,auto_weekly,plan_prefs,website,instagram").eq("user_id", user!.id).maybeSingle();
   const adm = createAdminClient();
   const { data: tool } = await adm.from("tools").select("credit_cost,edit_cost").eq("id", "brand-plan").maybeSingle();
   const { data: tl } = await adm.from("tools").select("id,credit_cost,is_enabled").in("id", Object.values(FORMAT_TOOL_ID));
@@ -22,7 +22,7 @@ export default async function PlanPage() {
   const siteContent = await getContent();
   const intro = siteContent.plan_intro;
   const vd = voiceDialects(siteContent.voices.items);
-  const idName = (kit?.identity as { name?: string } | null)?.name ?? null;
+  const idName = (kit?.identity as { name?: string } | null)?.name ?? ((kit?.business_name || "").trim() || ((kit?.about || "").trim().length >= 15 ? "نشاطك" : null)); // an identity is not required: his business name or description is enough
   return (
     <div className="flex flex-col gap-5">
       <div>

@@ -12,13 +12,15 @@ import { IdentityAnalyse } from "./IdentityAnalyse";
 import type { InstaRead } from "@/lib/plan";
 import { ARAB_DIALECTS, DIALECT_COOKIE } from "@/lib/countries";
 
-export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[]; insta?: InstaRead | null; industry?: string; dialect?: string } }) {
+export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[]; insta?: InstaRead | null; industry?: string; dialect?: string; about?: string; cv_text?: string } }) {
   const [name, setName] = useState(initial.business_name);
   const [logo, setLogo] = useState(initial.logo_url);
   const [preview, setPreview] = useState(initial.logo_preview);
   const [colors, setColors] = useState(initial.colors.length ? initial.colors : ["#0B2A4A", "#C9A45C", "#FFFFFF"]);
   const [handle, setHandle] = useState(initial.handle ?? "");
   const [font, setFont] = useState(initial.font || "Cairo");
+  const [about, setAbout] = useState(initial.about ?? "");
+  const [cvText, setCvText] = useState(initial.cv_text ?? "");
   const [dialect, setDialect] = useState(ARAB_DIALECTS.some((x) => x[0] === initial.dialect) ? String(initial.dialect) : "");
   const [industry, setIndustry] = useState(industryById(initial.industry ?? "")?.id ?? "");
   const [fieldText, setFieldText] = useState(customField(initial.industry));
@@ -71,7 +73,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
   /** saves the identity; returns the reason when it did not save */
   async function persist(): Promise<string | null> {
     const field = industry || (fieldText.trim() ? `${CUSTOM_FIELD}${fieldText.trim()}` : "");
-    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video, industry: field, dialect });
+    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video, industry: field, dialect, about, cv_text: cvText });
     if (r.ok) document.cookie = dialect ? `${DIALECT_COOKIE}=${dialect}; path=/; max-age=31536000; samesite=lax` : `${DIALECT_COOKIE}=; path=/; max-age=0; samesite=lax`;
     return r.ok ? null : L(("error" in r && r.error) || "تعذّر الحفظ.");
   }
@@ -115,6 +117,13 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
         </div>
         <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("رقم الهاتف")} <span className="font-normal text-subtle">{L("(يطلع بنهاية الفيديوهات والتصاميم)")}</span></span><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder={L("مثال: 9999 9999")} /></label>
         <p className="text-[12px] text-subtle">{L("شاهين يقرا موقعك عشان يفهم نشاطك، ويحط حسابك بالتصاميم إذا ما كتبت رقم تواصل.")}</p>
+      </div>
+      <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">
+        <span className="label">{LT("عن نشاطك", "About your business")}</span>
+        <p className="rounded-xl bg-white px-3 py-2 text-[13px] leading-6 text-navy-900">💡 {LT("كل ما عرّفت شاهين على نشاطك أكثر، طلع شغله أقرب لك: الخطة والبوستات والفيديوهات. ما فيه لازم، بس يفيد.", "The more you tell Shaheen about your business, the closer its work is to you: the plan, posts and videos. Optional, but it helps.")}</p>
+        <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{LT("وصف نشاطك أو شخصيتك بأسلوبك", "Describe your business or yourself, in your own words")}</span><textarea value={about} onChange={(e) => setAbout(e.target.value.slice(0, 2500))} rows={4} className="field" placeholder={LT("مثال: أبيع حلويات منزلية بالكويت، أسلوبي بسيط ودافئ، وعملائي أغلبهم عائلات…", "Example: I sell homemade sweets in Kuwait, my style is simple and warm, and my customers are mostly families…")} /></label>
+        <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{LT("سيرتك الذاتية أو نبذة عن أعمالك (اختياري)", "Your CV or a summary of your work (optional)")}</span><textarea value={cvText} onChange={(e) => setCvText(e.target.value.slice(0, 5000))} rows={4} className="field" /></label>
+        <p className="text-[12.5px] text-subtle">{LT("لو عندك حساب إنستغرام، حلّله من «حلّل هويتي» تحت. وتقدر ترفع صور سيرتك أو لقطات حسابك من «إنشاء هوية».", "If you have an Instagram account, analyse it with “Analyse my identity” below. You can also upload CV pictures or account screenshots from “Create identity”.")}</p>
       </div>
       <details open={fieldOpen} onToggle={(e) => setFieldOpen(e.currentTarget.open)} className="group rounded-2xl border border-line p-4">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2"><span className="label">{L("مجالك")} <span className="font-normal text-subtle">{industryById(industry) ? `· ${L(industryById(industry)!.label)}` : fieldText.trim() ? `· ${fieldText.trim()}` : `· ${L("يُفضّل")}`}</span></span><span aria-hidden className="text-base transition group-open:rotate-180">▾</span></summary>
