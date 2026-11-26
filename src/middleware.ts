@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { authUser } from "@/lib/supabase/authUser";
 import { NextResponse, type NextRequest } from "next/server";
 import { MAINTENANCE_KEY, MAINTENANCE_OPEN, parseAllow } from "@/lib/maintenance";
 import { REMEMBER_COOKIE, sessionOnly, wantsRemember } from "@/lib/supabase/remember";
@@ -35,7 +36,7 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await authUser(supabase);
   const path = request.nextUrl.pathname;
   const isPrivate = path.startsWith("/app") || path.startsWith("/admin");
 

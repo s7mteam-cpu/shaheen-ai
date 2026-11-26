@@ -2,6 +2,7 @@ import "server-only";
 import type { TemplateRow } from "@/lib/templates";
 import { toItem, SHOWCASE_CATS, DEFAULT_INTRO, DEFAULT_STEPS, type ShowcaseItem, type SectionInfo } from "@/lib/showcase";
 import { cache } from "react";
+import { authUser } from "@/lib/supabase/authUser";
 import { unstable_cache } from "next/cache";
 import { createClient as createSbClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
@@ -65,7 +66,7 @@ export type Profile = {
 export const getSessionProfile = cache(async (): Promise<Profile | null> => {
   if (!dbReady()) return null;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await authUser(supabase);
   if (!user) return null;
   const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
   return (data as Profile) ?? null;

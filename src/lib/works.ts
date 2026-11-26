@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { authUser } from "@/lib/supabase/authUser";
 import { signedResultUrls } from "@/lib/providers/storage";
 import { getToolsL, getContent } from "@/lib/data";
 import { cleanRetention, daysLeft } from "@/lib/retention";
@@ -8,11 +9,11 @@ import type { Work } from "@/components/app/WorkCard";
 export async function listWorks(opts: { limit?: number; tool?: string; category?: string; ready?: boolean } = {}): Promise<Work[]> {
   const supabase = await createClient();
   // Speed: the user check, the tool list and the site content are independent, so they run side by side.
-  const [{ data: u }, tools, content] = await Promise.all([supabase.auth.getUser(), getToolsL(true), getContent()]);
-  if (!u.user) return [];
+  const [user, tools, content] = await Promise.all([authUser(supabase), getToolsL(true), getContent()]);
+  if (!user) return [];
   const keep = cleanRetention((content as unknown as { retention?: unknown }).retention);
   // admins can read every job (RLS), so «أعمالي» must filter to the signed-in user explicitly
-  let q = supabase.from("jobs").select("id,title,tool_id,status,created_at,output,error,progress,plan:input->plan,site:input->site").eq("user_id", u.user.id).order("created_at", { ascending: false }).not("tool_id", "in", "(brand-identity,brand-plan,site-video)").limit(opts.limit ?? 60);
+  let q = supabase.from("jobs").select("id,title,tool_id,status,created_at,output,error,progress,plan:input->plan,site:input->site").eq("user_id", user.id).order("created_at", { ascending: false }).not("tool_id", "in", "(brand-identity,brand-plan,site-video)").limit(opts.limit ?? 60);
   if (opts.ready) q = q.not("input->plan", "is", null);
   if (opts.tool) q = q.eq("tool_id", opts.tool);
   if (opts.category) q = q.in("tool_id", tools.filter((t) => t.category === opts.category).map((t) => t.id));
