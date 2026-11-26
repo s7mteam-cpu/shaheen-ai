@@ -1848,7 +1848,7 @@ async function postJob(job) {
         // the writing is one long request: the bar keeps moving slowly so the customer sees it is alive
         let shown = p0; const creep = setInterval(() => { if (shown < p0 + 34) { shown += 2; stage(shown); } }, 9000);
         let raw = "";
-        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, identity, retry, kind: POST_KIND[job.tool_id], skill: skillNote(joinTeam(await skillFor(job.tool_id), inp.team_brief)), photo: !!photo, style: styleIn }); }
+        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, contact: from.brand?.contact, identity, retry, kind: POST_KIND[job.tool_id], skill: skillNote(joinTeam(await skillFor(job.tool_id), inp.team_brief)), photo: !!photo, style: styleIn }); }
         catch (e) { if (attempt === 2) throw e; retry = e?.cut ? CUT_NOTE : `The last answer was not a usable page (${String(e?.message ?? e).slice(0, 120)}). Return the full HTML page in one html block.`; continue; }
         finally { clearInterval(creep); }
         // SECURITY: scripts and event handlers are removed first, then the page is checked BEFORE anything opens it

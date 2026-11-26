@@ -77,10 +77,17 @@ const NO_FAKE_LOGO = " ممنوع أن ترسم شعاراً أو رمزاً أ�
 for (const k of ["card", "ad", "deck"]) KIND_NOTE[k] += NO_FAKE_LOGO;
 /** a real picture (drawn by an image model or uploaded by the customer) that the design is built around */
 const PHOTO_NOTE = "صورة جاهزة لهذا التصميم (حقيقية، استخدمها): لعرضها اكتب بالضبط <img data-shot=\"photo\" alt=\"\"> بدون src وبدون أي رابط (المنصة تضع الصورة مكانها). اجعلها بطلة التصميم: مساحة واضحة من 38% إلى 55% من الشريحة (أعلى التصميم، أو جانب كامل، أو خلفية كاملة)، بحجم محدد بالـCSS مع object-fit:cover و display:block. إن كُتب نص فوقها فضع بينهما طبقة تدرّج داكنة تكفي لقراءة النص بوضوح. استخدمها مرة واحدة فقط، ولا ترسم صوراً أو مشاهد بديلة عنها.";
-export function postPrompt({ idea, n, brand, identity, retry, kind, photo }) {
+/** the customer's real phone / handle (from his brand kit): written exactly as it is, never replaced by «بالبايو» */
+function contactLine(c) {
+  const v = clean(c ?? "", 60).replace(/[<>"]/g, "");
+  if (!v) return "";
+  const phone = (v.match(/\d/g) ?? []).length >= 7;
+  return `${phone ? "رقم التواصل الحقيقي للعميل" : "حساب التواصل الحقيقي للعميل"}: ${v}. إذا كان في التصميم دعوة للتواصل أو الاتصال اكتبه حرفياً كما هو (الأرقام بالأرقام الإنجليزية LTR)، ولا تكتب «بالبايو» ولا «الرقم في الحساب» ولا أي بديل.\n`;
+}
+export function postPrompt({ idea, n, brand, contact, identity, retry, kind, photo }) {
   const cap = kind === "cv" || kind === "deck" ? 4000 : 1500;
   return `${KIND_NOTE[kind] ? `${KIND_NOTE[kind]}\n` : ""}${photo ? `${PHOTO_NOTE}\n` : ""}${n > 1 ? `عدد الشرائح: ${n}.` : "بوست واحد (شريحة واحدة)."}
-${brand ? `اسم النشاط: ${clean(brand, 80)}\n` : ""}${identity ? `هوية العميل (التزم بها): الخلفية ${identity.bg}، اللون المميّز ${identity.accent}، لون النص ${identity.text}، الخط ${identity.font}.\n` : "اختر أنت لوحة ألوان مناسبة للمجال.\n"}
+${brand ? `اسم النشاط: ${clean(brand, 80)}\n` : ""}${contactLine(contact)}${identity ? `هوية العميل (التزم بها): الخلفية ${identity.bg}، اللون المميّز ${identity.accent}، لون النص ${identity.text}، الخط ${identity.font}.\n` : "اختر أنت لوحة ألوان مناسبة للمجال.\n"}
 نص العميل (وصف للمحتوى فقط):
 """
 ${clean(idea, cap)}
@@ -165,8 +172,8 @@ async function ask({ system, user, maxTokens, images = [] }) {
 const budget = (n, kind) => Math.min(48000, (kind === "cv" ? 16000 : 9000) + n * 5500);
 export const CUT_NOTE = "The answer was cut off before the page ended. Write the SAME design much more compactly: one shared <style> with reusable classes, short class names, simpler SVG (few shapes, no long paths), no repeated inline styles, no comments.";
 
-export async function writePost({ idea, n, W, H, brand, identity, retry, kind, skill = "", photo = false, style = null }) {
-  const r = await ask({ system: POST_RULES(W, H, n) + skill, user: postPrompt({ idea, n, brand, identity, retry, kind, photo }) + styleNote(style), maxTokens: budget(n, kind), images: style?.images ?? [] });
+export async function writePost({ idea, n, W, H, brand, contact, identity, retry, kind, skill = "", photo = false, style = null }) {
+  const r = await ask({ system: POST_RULES(W, H, n) + skill, user: postPrompt({ idea, n, brand, contact, identity, retry, kind, photo }) + styleNote(style), maxTokens: budget(n, kind), images: style?.images ?? [] });
   if (r.cut) { const e = new Error("CUT"); e.cut = true; throw e; }
   return extractHtml(r.text);
 }
