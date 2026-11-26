@@ -67,7 +67,7 @@ export default async function AiHub() {
       <div>
         <h1 className="text-[26px] font-bold text-navy-900">{L("مركز الذكاء الاصطناعي")}</h1>
         <p className="mt-1 text-sm leading-7 text-subtle">{L("كل مكان بالموقع يستخدم الذكاء الاصطناعي، مرتّب بصفحة وحدة: مين المزوّد، أي نموذج يشتغل، وكيف تبدّله أو توقفه.")}</p>
-        <div className="mt-3 flex flex-wrap gap-2"><Link href="/admin/ai/costs" className="btn btn-gold w-fit px-5 py-2.5">{L("💲 تكلفة كل طلب (للتسعير)")}</Link><Link href="/admin/ai/skills" className="btn btn-outline w-fit px-5 py-2.5">{L("🎓 مهارات الأدوات")}</Link><Link href="/admin/ai/staff" className="btn btn-outline w-fit px-5 py-2.5">{L("🧑‍💼 فريق «كلّم شاهين»")}</Link></div>
+        <div className="mt-3 flex flex-wrap gap-2"><Link href="/admin/ai/costs" className="btn btn-gold w-fit px-5 py-2.5">{L("💲 تكلفة كل طلب (للتسعير)")}</Link><Link href="/admin/ai/skills" className="btn btn-outline w-fit px-5 py-2.5">{L("🎓 مهارات الأدوات")}</Link><Link href="/admin/ai/instagram" className="btn btn-outline w-fit px-5 py-2.5">📷 {L("زيارة حسابات إنستغرام")}</Link><Link href="/admin/ai/staff" className="btn btn-outline w-fit px-5 py-2.5">{L("🧑‍💼 فريق «كلّم شاهين»")}</Link></div>
         <nav className="mt-3 flex flex-wrap gap-2" aria-label={L("أقسام الصفحة")}>
           {[["#providers", "1 · المزوّدون والمفاتيح"], ["#tools", "2 · الأدوات"], ["#models", "3 · النماذج"], ["#background", "4 · المهام الخلفية"], ["#engines", "5 · محركات خاصة"]].map(([h, l]) => <a key={h} href={h} className="chip">{L(l)}</a>)}
         </nav>

@@ -21,6 +21,7 @@ import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { createRequire } from "node:module";
 import { captureSite } from "./site.mjs";
+import { captureInstagram } from "./insta.mjs";
 import { prepareFree, checkFreeCode, MAX_CODE } from "./free.mjs";
 import { normalizeTemplate, verifyTemplate } from "./ingest.mjs";
 import { buildPreview } from "./freepreview.mjs";
@@ -749,7 +750,32 @@ async function renderCV(job) {
 }
 
 // ---------- «فيديو من موقعك»: open the customer's website, take a phone and a computer picture of the whole page ----------
+/** «حلّل حسابي»: one visit to the customer's Instagram profile with the platform's own session (set by the admin). Free for the customer: nothing to refund. */
+async function instaJob(job) {
+  try {
+    const h = String(job.input?.handle ?? "");
+    if (!/^[A-Za-z0-9._]{1,30}$/.test(h)) throw new Error("bad handle");
+    const { data: sec } = await db.from("admin_secrets").select("value").eq("key", "insta_session").maybeSingle();
+    const v = sec?.value && typeof sec.value === "object" ? sec.value : {};
+    if (!v.on || typeof v.sessionid !== "string" || v.sessionid.length < 20) throw new Error("off");
+    await setProgress(job.id, 30);
+    const r = await captureInstagram(h, v.sessionid);
+    if (r.state === "wall") await db.from("admin_secrets").update({ value: { ...v, bad: true, badAt: now() }, updated_at: now() }).eq("key", "insta_session"); // the admin sees «سجّل دخول من جديد»
+    const paths = [];
+    for (const [i, buf] of r.shots.entries()) {
+      const path = `${job.user_id}/${job.id}/insta-${i}.jpg`;
+      const { error } = await db.storage.from("results").upload(path, buf, { contentType: "image/jpeg", upsert: true });
+      if (!error) paths.push(path);
+    }
+    await db.from("jobs").update({ status: "done", progress: 100, title: `@${h}`.slice(0, 80), output: { insta: { handle: h, state: r.state, text: r.text.slice(0, 4000), shots: paths } }, updated_at: now() }).eq("id", job.id);
+  } catch (e) {
+    console.error("insta read failed", job.id, String(e?.message ?? e).slice(0, 200));
+    await db.from("jobs").update({ status: "failed", error: `insta: ${String(e?.message ?? e).slice(0, 200)}`, updated_at: now() }).eq("id", job.id);
+  }
+}
+
 async function captureJob(job) {
+  if (job.input?.kind === "insta") return instaJob(job);
   try {
     const site = await captureSite(job.input.url);
     await setProgress(job.id, 70);
