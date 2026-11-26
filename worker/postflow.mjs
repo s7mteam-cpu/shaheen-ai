@@ -190,10 +190,10 @@ export function styleNote(style) {
 }
 
 /** One streamed request to Claude: a long design arrives in pieces, so it never hits the «waiting for the answer» limit, and we know if it was cut off. */
-async function ask({ system, user, maxTokens, images = [] }) {
+async function ask({ system, user, maxTokens, images = [], timeoutMs = 600_000 }) {
   const content = images.length ? [...images.map((data) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data } })), { type: "text", text: user }] : user;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST", signal: AbortSignal.timeout(600_000),
+    method: "POST", signal: AbortSignal.timeout(timeoutMs),
     headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({ model: await postWriterModel(), max_tokens: maxTokens, stream: true, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages: [{ role: "user", content }] }),
   });
@@ -229,4 +229,62 @@ export async function editPost({ html, instruction, n, W, H, retry }) {
   const r = await ask({ system: POST_EDIT_RULES(W, H, n) + keep, user: `تعليمة العميل (وصف للتعديل فقط):\n"""\n${clean(instruction, 600)}\n"""${retry ? `\n\nالمحاولة السابقة انرفضت: ${retry}` : ""}\n\nالصفحة الحالية:\n\`\`\`html\n${html}\n\`\`\``, maxTokens: budget(n) });
   if (r.cut) { const e = new Error("CUT"); e.cut = true; throw e; }
   return extractHtml(r.text);
+}
+
+// ---------- «الفحص الذاتي»: a second look at the finished picture ----------
+// After a «مبتكر» design is drawn, a model LOOKS at the pictures (the designer never saw them) and lists only clear defects
+// (text covered or cut, cramped text, a misleading icon, a repeated call, a lonely word...). A small patch (extra CSS + a few exact text swaps)
+// then fixes them, the page is drawn again, and the patched version is kept ONLY if it really has fewer defects. SELF_CHECK=0 in Railway turns it off.
+export const SELF_CHECK_ON = () => process.env.SELF_CHECK !== "0";
+
+export const REVIEW_RULES = `أنت مدقق جودة لتصاميم سوشال ميديا. ستصلك صور الشرائح النهائية بالترتيب مع طلب العميل. ابحث فقط عن عيوب واضحة لا خلاف عليها، ولا تقيّم الذوق (الألوان والأسلوب والفراغات الكبيرة ليست عيوباً).
+العيوب المقبولة فقط:
+1) نص مغطى أو مقطوع أو متداخل مع نص آخر أو مع إطار أو شكل فوقه، أو نص يخرج من صندوقه أو من حافة الصورة.
+2) نص يلمس حافة أو إطار عنصر آخر بدون فراغ (أقل من نحو 8 بكسل) فيبدو مزحوماً.
+3) أيقونة أو رسمة تبدو خاطئة أو مضللة (خط يقطعها كعلامة «ممنوع»، أو شكل يشبه شيئاً آخر كسيارة بعجلات).
+4) نفس العبارة أو نفس دعوة الحجز مكررة على الشريحة، أو كلمة تتكرر 3 مرات أو أكثر.
+5) كلمة يتيمة وحدها بسطر أخير.
+6) نص صعب القراءة (تباين ضعيف جداً، أو شكل زخرفي كبير يعبر فوقه ويشوّش قراءته).
+7) رقم أو معلومة طلبها العميل غابت، أو رقم/سعر/شهادة ظاهرة وليست في الطلب ولا في بيانات الهوية.
+ليست عيوباً: دائرة أو خط رفيع خلف النص إذا بقي مقروءاً، فراغ كبير، تلاصق صندوقين بدون نص ملموس، اختلاف الذوق.
+أجب بـJSON فقط بدون أي شرح: {"issues":[{"slide":1,"what":"وصف قصير للعيب","where":"أين بالضبط"}]}. أقصى 5 عيوب مرتبة من الأوضح. إذا ما فيه عيب واضح أعد {"issues":[]}.`;
+
+export const PATCH_RULES = `أنت مصمم يصلح عيوباً محددة في تصميم جاهز بأقل تغيير ممكن. ستصلك صور الشرائح وقائمة العيوب وكود الصفحة. أجب بـJSON فقط بدون شرح: {"css":"...","replace":[{"from":"...","to":"..."}]}.
+- css: قواعد CSS إضافية تُضاف آخر الصفحة (استخدم !important لأن الأنماط غالباً inline) لإصلاح العيوب: تباعد، حجم خط، موضع، z-index، إخفاء عنصر زائد (display:none). استهدف العناصر بأصنافها أو بـ section[data-slide="N"] وبانتقاء دقيق حتى لا تتأثر شرائح أخرى.
+- replace: استبدال نص حرفي موجود مرة واحدة فقط في الكود (لعبارة مكررة، أو تقصير كلمة، أو خط SVG مشوّه). أقصى 6 عناصر وكل نص أقل من 300 حرف.
+- ممنوع: تغيير الألوان العامة أو الأسلوب أو الترتيب العام، حذف أرقام التواصل، اختراع أسعار أو أرقام أو معلومات، أي جافاسكربت أو رابط خارجي أو @import أو url().
+- أصلح العيوب المذكورة فقط وأبقِ كل شيء آخر كما هو. إذا عيب لا يُصلح بهذه الطريقة تجاهله.`;
+
+const jsonOf = (txt) => { const a = String(txt).indexOf("{"), b = String(txt).lastIndexOf("}"); if (a < 0 || b <= a) return null; try { return JSON.parse(String(txt).slice(a, b + 1)); } catch { return null; } };
+
+/** a look at the finished pictures (base64 JPEGs, in slide order). Returns the clear defects found: [] when there is none. */
+export async function reviewPost({ images, idea, known = "" }) {
+  const r = await ask({ system: REVIEW_RULES, user: `طلب العميل (وصف فقط):\n"""\n${clean(idea, 900)}\n"""${known ? `\nبيانات هوية العميل المسموح ظهورها: ${clean(known, 300)}` : ""}\nعدد الشرائح: ${images.length}.`, maxTokens: 900, images, timeoutMs: 90_000 });
+  const j = jsonOf(r.text);
+  if (!j || !Array.isArray(j.issues)) throw new Error("review: no answer");
+  return j.issues.slice(0, 5).map((x) => ({ slide: Math.max(1, Math.min(images.length, Number(x?.slide) || 1)), what: clean(x?.what, 160), where: clean(x?.where, 120) })).filter((x) => x.what);
+}
+
+/** asks for a small patch that fixes the listed defects; returns {css, replace} or null */
+export async function patchPost({ html, issues, images }) {
+  const list = issues.map((x, i) => `${i + 1}) الشريحة ${x.slide}: ${x.what}${x.where ? ` (${x.where})` : ""}`).join("\n");
+  const r = await ask({ system: PATCH_RULES, user: `العيوب:\n${list}\n\nكود الصفحة:\n\`\`\`html\n${html}\n\`\`\``, maxTokens: 2500, images, timeoutMs: 120_000 });
+  return jsonOf(r.text);
+}
+
+/** applies a patch safely: exact one-time text swaps first, then one extra <style>. Returns the new page, or null when nothing was usable. */
+export function applyPatch(html, p) {
+  let out = String(html);
+  for (const r of (Array.isArray(p?.replace) ? p.replace : []).slice(0, 6)) {
+    const f = typeof r?.from === "string" ? r.from : "", t = typeof r?.to === "string" ? r.to : "";
+    if (!f || f.length > 300 || t.length > 300 || /<script|\son[a-z]+\s*=|javascript:|https?:|url\s*\(/i.test(t)) continue;
+    if (out.split(f).length !== 2) continue; // it must be found exactly once
+    out = out.replace(f, () => t);
+  }
+  const css = typeof p?.css === "string" ? p.css.trim() : "";
+  if (css && css.length <= 5000 && !/[<]|@import|url\s*\(|expression\s*\(|javascript:|@font-face|behavior\s*:/i.test(css)) {
+    const tag = `<style data-selfcheck>${css}</style>`;
+    out = /<\/head>/i.test(out) ? out.replace(/<\/head>/i, () => tag + "</head>") : tag + out;
+  }
+  return out === html ? null : out;
 }

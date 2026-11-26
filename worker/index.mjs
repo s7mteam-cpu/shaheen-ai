@@ -32,7 +32,7 @@ import { prepareHtml } from "./htmlprep.mjs";
 import { planVideo, geminiHtml, geminiEdit, geminiPrompt, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { modelFor } from "./models.mjs";
-import { writePost, fillContact, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE, withIcons, styleNote } from "./postflow.mjs";
+import { writePost, fillContact, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE, withIcons, styleNote, SELF_CHECK_ON, reviewPost, patchPost, applyPatch } from "./postflow.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
@@ -1852,7 +1852,7 @@ async function postJob(job) {
         catch (e) { if (attempt === 2) throw e; retry = e?.cut ? CUT_NOTE : `The last answer was not a usable page (${String(e?.message ?? e).slice(0, 120)}). Return the full HTML page in one html block.`; continue; }
         finally { clearInterval(creep); }
         // SECURITY: scripts and event handlers are removed first, then the page is checked BEFORE anything opens it
-        const html = withIcons(applyLogo(fillContact(stripScripts(raw), from.brand?.contact), null)); // the real platform icons the page asked for are put in by us
+        const html = withIcons(applyLogo(fillContact(stripScripts(raw), from.brand?.contact, idea), null)); // the real platform icons the page asked for are put in by us
         const unsafe = unsafeHtml(html);
         if (unsafe.length) { retry = `The page uses forbidden code (${unsafe.join(", ")}). It must be self-contained: no network, no external files, no iframes or forms.`; continue; }
         if (slideCount(html) < n) { retry = `Only ${slideCount(html)} slide(s) found, ${n} needed. Every slide must be <section class="slide" data-slide="N"> with N from 1 to ${n}.`; continue; }
@@ -1863,6 +1863,40 @@ async function postJob(job) {
       }
     }
     if (!page || shots.length !== n) throw new Error(`post: ${retry || "no design"}`.slice(0, 300));
+    // «الفحص الذاتي»: a model looks at the drawn pictures; clear defects are fixed once by a small patch, and the patched
+    // version is kept only if it really has fewer defects. Best effort: any failure keeps the design as it was drawn.
+    if (!restyle && !edit && !POST_PDF.includes(job.tool_id) && SELF_CHECK_ON() && page.length < 120_000) {
+      try {
+        const look = async (list) => {
+          const out = [];
+          for (let i = 0; i < list.length; i++) {
+            const inF = join(workDir, `rv-${job.id}-${i}.png`), outF = `${inF}.jpg`;
+            await writeFile(inF, list[i]);
+            await ff(["-i", inF, "-vf", "scale='min(900,iw)':-2", "-frames:v", "1", "-q:v", "5", outF]);
+            out.push((await readFile(outF)).toString("base64"));
+            await rm(inF, { force: true }); await rm(outF, { force: true });
+          }
+          return out;
+        };
+        await stage(88);
+        const known = [from.brand?.name, from.brand?.contact, from.brand?.instagram].filter(Boolean).join(" · ");
+        const imgs = await look(shots);
+        const issues = await reviewPost({ images: imgs, idea, known });
+        if (issues.length) {
+          await stage(90);
+          const patch = await patchPost({ html: page, issues, images: imgs });
+          const fixed = patch ? applyPatch(page, patch) : null;
+          if (fixed && !unsafeHtml(fixed).length && slideCount(fixed) >= n) {
+            const r2 = await draw(fixed);
+            if (r2.shots.length === n) {
+              const left = await reviewPost({ images: await look(r2.shots), idea, known }).catch(() => null);
+              if (left && left.length < issues.length) { shots = r2.shots; page = fixed; console.log("post selfcheck fixed", job.id, issues.length, "->", left.length); }
+              else console.log("post selfcheck kept the first drawing", job.id, issues.length, "->", left ? left.length : "?");
+            }
+          } else console.log("post selfcheck: no usable patch", job.id, issues.length);
+        } else console.log("post selfcheck: clean", job.id);
+      } catch (e) { console.error("post selfcheck skipped", job.id, e?.message ?? e); }
+    }
     await stage(92);
     const base = `${job.user_id}/${job.id}`;
     const files = [];
