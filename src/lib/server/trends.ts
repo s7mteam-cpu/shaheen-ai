@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { modelFor } from "@/lib/server/models";
 import { cachedSystem } from "@/lib/providers/text";
 import { INDUSTRIES } from "@/design/industries";
+import { cleanTeam, teamBlock, type TeamData } from "@/lib/team";
 
 export type Scope = "all" | "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite";
 export const SCOPES: [Scope, string][] = [["all", "الكل"], ["post", "البوستات"], ["carousel", "الكاروسيل"], ["ads", "الإعلانات"], ["motion", "الموشن جرافيك"], ["montage", "المونتاج"], ["bcard", "بطاقات العمل"], ["invite", "دعوات المناسبات"]];
@@ -9,7 +10,27 @@ export const GROUPS = [...new Set(INDUSTRIES.map((i) => i.group))];
 const DROP_DAYS = 90;               // …and is ignored after three
 
 /** Approved, still-fresh trends for one job, as one block for the AI's instructions. */
+let teamCache: { at: number; v: TeamData } = { at: 0, v: {} };
+/** «فريق التوجيه» (admin can edit it): read at most every 30 seconds */
+async function teamData(): Promise<TeamData> {
+  if (Date.now() - teamCache.at < 30_000) return teamCache.v;
+  try {
+    const { data } = await createAdminClient().from("admin_secrets").select("value").eq("key", "ai_team").maybeSingle();
+    teamCache = { at: Date.now(), v: cleanTeam(data?.value) };
+  } catch { teamCache = { at: Date.now(), v: teamCache.v }; }
+  return teamCache.v;
+}
+
+/** What every tool adds to its instructions: the team's playbook for the customer's field, then the approved trends. */
 export async function trendsFor(industry: string | undefined, scope: Scope) {
+  let team = "";
+  try { team = teamBlock(await teamData(), industry, undefined, scope); } catch { team = ""; }
+  const trends = await approvedTrends(industry, scope);
+  return [team, trends].filter(Boolean).join("\n\n");
+}
+
+/** Approved, still-fresh trends for one job */
+async function approvedTrends(industry: string | undefined, scope: Scope) {
   try {
     const ind = INDUSTRIES.find((i) => i.id === industry);
     const keys = ["all", ...(ind ? [ind.id, ind.group] : [])];

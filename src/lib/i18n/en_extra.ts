@@ -1005,4 +1005,5 @@ export const EN_EXTRA: Record<string, string> = {
   "يُفضّل": "Recommended",
   "ما لقيت مجالك؟ اكتبه بنفسك": "Can't find your field? Write it yourself",
   "مثال: ورشة نجارة وديكور خشبي": "Example: carpentry and wood decor workshop",
+ "🧠 فريق التوجيه": "🧠 Direction team",
 };
