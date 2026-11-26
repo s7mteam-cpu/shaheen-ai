@@ -945,4 +945,5 @@ export const EN_EXTRA: Record<string, string> = {
   "مشاهد واقعية": "Real scenes",
   "📱 جوال": "📱 Phone",
   "💻 كمبيوتر": "💻 Computer",
+  "أنواع المنشورات (للخطة الجديدة)": "Post types (for the new plan)",
 };

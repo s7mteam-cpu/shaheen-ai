@@ -93,6 +93,13 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
   const link = (x: PlanItem) => `/app/tools/${FORMAT_TOOL[x.format]}?idea=${encodeURIComponent(x.prompt.slice(0, 1150))}`;
   const chip = (on: boolean) => `rounded-full border px-4 py-2 text-sm font-semibold transition ${on ? "border-navy-800 bg-navy-800 text-white" : "border-field bg-white hover:border-navy-700"}`;
 
+  const kinds = (
+          <div className="flex flex-col gap-2">
+            <b className="text-[14.5px]">{L("شو أنواع المنشورات اللي تبيها بالخطة؟")}</b>
+            <div className="flex flex-wrap gap-2">{(["post", "carousel", "reel", ...(scenesOn ? ["scenes"] : [])] as PlanFormat[]).map((f) => { const on = chosen.includes(f); return <button key={f} type="button" aria-pressed={on} onClick={() => { const n = on ? chosen.filter((x) => x !== f) : [...chosen, f]; if (n.length) void setPref({ formats: n }); }} className={chip(on)}>{FORMAT_ICON[f]} {L(FORMAT_LABEL[f])}</button>; })}</div>
+            <span className="text-[13px] text-subtle">{L("اختر نوع واحد أو أكثر، والخطة تتوزع عليها.")}</span>
+          </div>
+  );
   if (!identityName) return <div className="card flex flex-col items-start gap-3 p-6"><p>{L("اعتمد هوية أول، وبعدها نسوي لك الخطة.")}</p><Link href="/app/brand/identity" className="btn btn-gold px-6 py-3 font-bold">✨ {L("إنشاء هوية")}</Link></div>;
 
   return (
@@ -100,11 +107,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
       {!plan && (
         <div className="card flex max-w-2xl flex-col gap-3 p-6">
           <p className="leading-7">{L("هويتك المعتمدة")}: <b>{identityName}</b>. {L("شاهين يحلل نشاطك ويكتب لك خطة شهر كاملة مع برومبتات جاهزة.")}</p>
-          <div className="flex flex-col gap-2">
-            <b className="text-[14.5px]">{L("شو أنواع المنشورات اللي تبيها بالخطة؟")}</b>
-            <div className="flex flex-wrap gap-2">{(["post", "carousel", "reel", ...(scenesOn ? ["scenes"] : [])] as PlanFormat[]).map((f) => { const on = chosen.includes(f); return <button key={f} type="button" aria-pressed={on} onClick={() => { const n = on ? chosen.filter((x) => x !== f) : [...chosen, f]; if (n.length) void setPref({ formats: n }); }} className={chip(on)}>{FORMAT_ICON[f]} {L(FORMAT_LABEL[f])}</button>; })}</div>
-            <span className="text-[13px] text-subtle">{L("اختر نوع واحد أو أكثر، والخطة تتوزع عليها.")}</span>
-          </div>
+          {kinds}
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={() => generate("week")} disabled={busy} className="btn btn-gold px-7 py-3.5 text-[16px] font-bold disabled:opacity-50">{busy ? L("شاهين يكتب خطتك...") : `📆 ${L("خطة هذا الأسبوع")} (${LT(`${weekCostPrice} ريشة`, `${weekCostPrice} feathers`)})`}</button>
             <button type="button" onClick={() => generate("month")} disabled={busy} className="btn btn-primary px-7 py-3.5 text-[16px] font-bold disabled:opacity-50">{busy ? L("دقيقة أو دقيقتين...") : `🗓️ ${L("خطة الشهر كامل")} (${LT(`${cost} ريشة`, `${cost} feathers`)})`}</button>
@@ -115,8 +118,9 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
       {msg && <p role="status" className="rounded-xl bg-gold-100 p-3 text-sm font-semibold text-navy-900">{L(msg)}</p>}
 
       {analysis && (
-        <section className="card flex flex-col gap-4 p-5">
-          <h2 className="text-xl font-bold text-navy-900">{L("تحليل نشاطك")}</h2>
+        <details className="card group p-5">
+          <summary className="flex cursor-pointer list-none items-center justify-between text-xl font-bold text-navy-900">{L("تحليل نشاطك")}<span className="text-base transition group-open:rotate-180">▾</span></summary>
+          <div className="mt-4 flex flex-col gap-4">
           <p className="leading-7">{analysis.positioning}</p>
           <div className="grid gap-3 text-[14.5px] leading-7 sm:grid-cols-2">
             <div className="rounded-2xl bg-tint p-3"><b>{L("جمهورك")}</b><p>{analysis.audience}</p></div>
@@ -124,7 +128,8 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
             {([["نقاط قوتك", analysis.strengths], ["فجوات لازم تعالجها", analysis.gaps], ["فرص أمامك", analysis.opportunities], ["اللي يميزك", analysis.differentiators]] as [string, string[]][]).map(([t, l]) => l.length > 0 && <div key={t} className="rounded-2xl bg-tint p-3"><b>{L(t)}</b><ul className="list-disc ps-5">{l.map((x) => <li key={x}>{x}</li>)}</ul></div>)}
           </div>
           {analysis.competitors && <p className="text-[14px] leading-7 text-muted"><b className="text-navy-900">{L("المنافسة")}:</b> {analysis.competitors}</p>}
-        </section>
+        </div>
+        </details>
       )}
 
       {plan && (
@@ -140,11 +145,13 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
             <span className="flex flex-col gap-1"><b className="text-navy-900">{L("جهّز منشوراتي تلقائياً كل أسبوع")}</b>
               <span className="text-[13.5px] leading-6 text-muted">{L("كل سبت الساعة 9 الصبح (بتوقيت الكويت) نجهّز لك منشورات الأسبوع الثلاثة ويوصلك إشعار، وتلقاها بقسم «منشوراتك جاهزة للنشر». ننسحب الريش وقت التجهيز بس، وإذا رصيدك ما يكفي نوقف ونرسل لك إشعار.")} {LT(`التكلفة التقريبية للأسبوع: ${plan.items.filter((x) => x.week === 1).reduce((n, x) => n + itemCost(x), 0)} ريشة`, `About ${plan.items.filter((x) => x.week === 1).reduce((n, x) => n + itemCost(x), 0)} feathers per week`)}</span></span>
           </label>
-          <div className="flex flex-wrap items-center gap-2 text-[14px]"><span className="font-semibold">{L("خلفيات الكاروسيل")}:</span>
+          <details className="card group p-4"><summary className="flex cursor-pointer list-none items-center justify-between font-bold text-navy-900">🧩 {L("أنواع المنشورات (للخطة الجديدة)")}<span className="transition group-open:rotate-180">▾</span></summary><div className="mt-3">{kinds}</div></details>
+          <details className="card group p-4"><summary className="flex cursor-pointer list-none items-center justify-between font-bold text-navy-900">🖼️ {L("خلفيات الكاروسيل")}<span className="transition group-open:rotate-180">▾</span></summary><div className="mt-3 flex flex-wrap items-center gap-2 text-[14px]">
             <button type="button" aria-pressed={bg === "shapes"} onClick={() => pickBg("shapes")} className={chip(bg === "shapes")}>{L("زخارف مصمّمة")}</button>
-            <button type="button" aria-pressed={bg === "ai"} onClick={() => pickBg("ai")} className={chip(bg === "ai")}>{L("بالذكاء الاصطناعي ✨")}</button></div>
-          <div className="card flex flex-col gap-3 p-4">
-            <b className="text-navy-900">🎨 {L("ألوان البوستات والكاروسيل")}</b>
+            <button type="button" aria-pressed={bg === "ai"} onClick={() => pickBg("ai")} className={chip(bg === "ai")}>{L("بالذكاء الاصطناعي ✨")}</button></div></details>
+          <details className="card group p-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between font-bold text-navy-900">🎨 {L("ألوان البوستات والكاروسيل")}<span className="transition group-open:rotate-180">▾</span></summary>
+            <div className="mt-3 flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
               <button type="button" aria-pressed={!prefs.postColors} onClick={() => setPref({ postColors: null })} className={chip(!prefs.postColors)}>{L("ألوان هويتي (تلقائي)")}</button>
               {PALETTES.map((p) => (
@@ -159,9 +166,10 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
               <label className="flex items-center gap-2">{L("اللون المميز")}<input type="color" value={custom.accent} onChange={(e) => pickCustom(custom.bg, e.target.value)} className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0" /></label>
             </div>
             <span className="text-[13px] text-subtle">{L("يطبَّق على المنشورات اللي تجهّزها من هنا (وعلى التجهيز التلقائي). وتقدر تغيّر أي لون بعدها داخل استوديو التصميم.")}</span>
-          </div>
-          <div className="card flex flex-col gap-3 p-4">
-            <b className="text-navy-900">🎙️ {L("اللهجة والتعليق الصوتي")}</b>
+          </div></details>
+          <details className="card group p-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between font-bold text-navy-900">🎙️ {L("اللهجة والتعليق الصوتي")}<span className="transition group-open:rotate-180">▾</span></summary>
+            <div className="mt-3 flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">{dialectList.map(([v, l]) => <button key={v} type="button" aria-pressed={dialect === v} onClick={() => setPref({ dialect: v })} className={chip(dialect === v)}>{L(l)}</button>)}</div>
             <label className="flex items-center gap-3 text-[14.5px]"><input type="checkbox" checked={voiceover} onChange={(e) => setPref({ voiceover: e.target.checked })} className="h-5 w-5" />{L("الريلز تجي مع تعليق صوتي (نص وصوت)")}</label>
             {voiceover && <>
@@ -169,7 +177,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
               <div className="flex flex-wrap gap-2">{TONES.map(([v, l]) => <button key={v} type="button" aria-pressed={(prefs.tone || "auto") === v} onClick={() => setPref({ tone: v === "auto" ? "" : v })} className={chip((prefs.tone || "auto") === v)}>{L(l)}</button>)}</div>
             </>}
             <span className="text-[13px] text-subtle">{L("اللهجة تنطبق على نص الريلز وصوتها، وعلى نصوص البوستات.")}</span>
-          </div>
+          </div></details>
           <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 p-4 text-white">
             <div className="flex-1 text-[14px] leading-7">{weekTodo.length > 0 ? L("جهّز منشورات هذا الأسبوع كلها دفعة وحدة. تلقاها بأعمالي ← «جاهز للنشر» وتراجعها قبل النشر.") : L("منشورات هذا الأسبوع كلها جاهزة ✓")}</div>
             {weekTodo.length > 0 && <button type="button" onClick={prepareWeek} disabled={Object.values(state).includes("جاري التجهيز...")} className="btn btn-gold px-6 py-3 font-bold disabled:opacity-50">⚡ {L("جهّز أسبوع")} {week} ({LT(`${weekCost} ريشة`, `${weekCost} feathers`)})</button>}
