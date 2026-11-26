@@ -2,15 +2,22 @@ import "server-only";
 import type { TemplateRow } from "@/lib/templates";
 import { toItem, SHOWCASE_CATS, DEFAULT_INTRO, DEFAULT_STEPS, type ShowcaseItem, type SectionInfo } from "@/lib/showcase";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { createClient as createSbClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { defaultContent, defaultPlans, defaultTools, type Plan, type SiteContent, type Tool } from "@/lib/defaults";
 
+/** Cookie-less read client for PUBLIC site data (content, tools): safe to cache across visitors. */
+const anonDb = () => createSbClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
+/** Speed: these rarely change, so they're kept for 30 s across all visitors (an admin edit shows up within 30 s). */
+const TTL = 30;
+
 export const dbReady = () => Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
+const siteRows = unstable_cache(async () => (await anonDb().from("site_content").select("key,value")).data ?? [], ["site_content_rows"], { revalidate: TTL });
 export const getContent = cache(async (): Promise<SiteContent> => {
   if (!dbReady()) return defaultContent;
-  const supabase = await createClient();
-  const { data } = await supabase.from("site_content").select("key,value");
+  const data = await siteRows().catch(async () => (await (await createClient()).from("site_content").select("key,value")).data ?? []);
   const merged = { ...defaultContent } as Record<string, unknown>;
   for (const row of data ?? []) {
     let value = row.value as Record<string, unknown>;
@@ -31,12 +38,12 @@ export const getPlans = cache(async (includeInactive = false): Promise<Plan[]> =
   return (data as Plan[] | null)?.length ? (data as Plan[]) : defaultPlans;
 });
 
+const enabledTools = unstable_cache(async () => (await anonDb().from("tools").select("*").order("sort_order").eq("is_enabled", true)).data ?? [], ["tools_enabled"], { revalidate: TTL });
 export const getTools = cache(async (includeDisabled = false): Promise<Tool[]> => {
   if (!dbReady()) return defaultTools;
-  const supabase = await createClient();
-  let q = supabase.from("tools").select("*").order("sort_order");
-  if (!includeDisabled) q = q.eq("is_enabled", true);
-  const { data } = await q;
+  let data: unknown;
+  if (!includeDisabled) data = await enabledTools().catch(async () => (await (await createClient()).from("tools").select("*").order("sort_order").eq("is_enabled", true)).data);
+  else data = (await (await createClient()).from("tools").select("*").order("sort_order")).data;
   return (data as Tool[] | null)?.length ? (data as Tool[]) : defaultTools;
 });
 
@@ -131,10 +138,10 @@ export const getPayGate = cache(async () => {
 });
 
 /** «إخفاء مكتبة القوالب»: one switch (site_content key «templates_lib», value {hidden}) that hides the template library everywhere. */
+const tplLib = unstable_cache(async () => (await anonDb().from("site_content").select("value").eq("key", "templates_lib").maybeSingle()).data, ["templates_lib_row"], { revalidate: TTL });
 export const templatesHidden = cache(async (): Promise<boolean> => {
   if (!dbReady()) return false;
-  const supabase = await createClient();
-  const { data } = await supabase.from("site_content").select("value").eq("key", "templates_lib").maybeSingle();
+  const data = await tplLib().catch(async () => (await (await createClient()).from("site_content").select("value").eq("key", "templates_lib").maybeSingle()).data);
   return (data?.value as { hidden?: boolean } | null)?.hidden === true;
 });
 

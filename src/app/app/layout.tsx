@@ -37,11 +37,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   after(() => sheetsTick().catch(() => null)); // Google Sheets: catch up in the background, the visitor never waits
   const [profile, lang, chosen, { cur }] = await Promise.all([getSessionProfile(), getLang(), getChosenLang(), getMoney()]);
   const T = (ar: string, en: string) => tr(lang, ar, en);
-  const autoWeekly = profile ? !!(await createAdminClient().from("brand_kits").select("auto_weekly").eq("user_id", profile.id).maybeSingle()).data?.auto_weekly : false;
   const impRaw = (await cookies()).get("shaheen_imp")?.value;
   const imp = impRaw ? decodeURIComponent(impRaw) : null;
   if (!profile) redirect("/login");
-  const access = imp ? null : await latestAccess(profile.id);
+  // Speed: every independent read starts now and runs side by side (instead of one after another), so the page waits for the slowest one, not their sum.
+  const isUser = profile.role === "user" && !imp;
+  const deviceId = (await cookies()).get(DEVICE_COOKIE)?.value ?? "";
+  const autoWeeklyP = Promise.resolve(createAdminClient().from("brand_kits").select("auto_weekly").eq("user_id", profile.id).maybeSingle()).then((r) => !!r.data?.auto_weekly, () => false);
+  const accessP = imp ? Promise.resolve(null) : latestAccess(profile.id);
+  const trialP = (async () => {
+    if (isUser) await endExpiredTrials(profile.id).catch(() => null);
+    return isUser && !profile.is_suspended ? await trialStatus(profile.id, [deviceId]).catch(() => ({ state: "none" as const })) : { state: "none" as const };
+  })();
+  const notesP = Promise.resolve(createAdminClient().from("notifications").select("id,kind,title,body,link,read_at,created_at").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(20));
+  const contentP = Promise.all([getContent(), getTools()]);
+  const tplHiddenP = templatesHidden();
   // WhatsApp number: copy it from sign-up, or ask once.
   let needContact = false;
   // Country (dialect, contact): from sign-up, else Kuwait — set once.
@@ -58,16 +68,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     else needContact = true;
   }
   // «التجربة المجانية»: end it if its time is up, then offer it / show the countdown at the very top (above the menu on phones)
-  if (profile.role === "user" && !imp) await endExpiredTrials(profile.id).catch(() => null);
-  const trial = profile.role === "user" && !imp && !profile.is_suspended ? await trialStatus(profile.id, [(await cookies()).get(DEVICE_COOKIE)?.value ?? ""]).catch(() => ({ state: "none" as const })) : { state: "none" as const };
+  const [autoWeekly, access, trial, notesRes, [content, tools0], tplHidden] = await Promise.all([autoWeeklyP, accessP, trialP, notesP, contentP, tplHiddenP]);
   // the welcome screen: a customer with no plan (and no running trial), except on the pages where he pays
   const here = (await headers()).get("x-path") ?? "";
   const payPage = /^\/app\/(pay|subscribe|account)/.test(here);
   const gate = profile.role === "user" && !imp && !profile.is_suspended && !profile.plan_id && trial.state !== "active" && !payPage;
   const ts = gate ? await trialSettings() : null;
-  const notesRes = await createAdminClient().from("notifications").select("id,kind,title,body,link,read_at,created_at").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(20);
   const notes = (notesRes.error ? [] : notesRes.data ?? []) as Note[];
-  const [content, tools0] = await Promise.all([getContent(), getTools()]);
   const tools = mainTools(await localize(tools0, lang));
   const wa = content.footer.whatsapp ? `https://wa.me/${content.footer.whatsapp.replace(/\D/g, "")}` : undefined;
 
@@ -111,7 +118,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <HomeGreeting name={profile.full_name?.split(" ")[0]} />
       {trial.state !== "none" && <div className="mx-auto max-w-[1400px] px-4 pt-4 sm:px-6"><TrialBanner state={trial.state} credits={trial.credits ?? 0} hours={trial.hours} expiresAt={trial.expiresAt} /></div>}
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-6 lg:flex-row">
-        <div className="lg:w-[250px] lg:shrink-0"><Suspense><SideNav libHidden={await templatesHidden()} ready={autoWeekly} isAdmin={profile.role === "admin" || profile.role === "staff"} support={wa} tools={tools.map((t) => ({ id: t.id, name: t.name, icon: t.icon, category: t.category }))} /></Suspense></div>
+        <div className="lg:w-[250px] lg:shrink-0"><Suspense><SideNav libHidden={tplHidden} ready={autoWeekly} isAdmin={profile.role === "admin" || profile.role === "staff"} support={wa} tools={tools.map((t) => ({ id: t.id, name: t.name, icon: t.icon, category: t.category }))} /></Suspense></div>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       {needContact ? <CompleteProfile name={profile.full_name ?? ""} /> : gate && ts && <WelcomeGate offer={trial.state === "offer"} credits={ts.credits} hours={ts.hours} name={profile.full_name?.split(" ")[0]} />}
