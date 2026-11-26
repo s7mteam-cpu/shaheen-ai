@@ -1,3 +1,4 @@
+import { ANIM_IDS } from "@/lib/animStyles";
 export type PlanItem = { week: number; day: "السبت" | "الاثنين" | "الأربعاء"; date: string; time?: string; format: PlanFormat; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string };
 export type Analysis = { positioning: string; audience: string; voice: string; strengths: string[]; gaps: string[]; opportunities: string[]; differentiators: string[]; competitors: string };
 export type Plan = { month: string; start?: string; scope?: "week" | "month"; items: PlanItem[] };
@@ -15,11 +16,13 @@ export type PlanPrefs = {
   tone?: string;
   formats?: PlanFormat[];           // which kinds of posts the plan is made of (empty/undefined = post, carousel and reel as before)
 };
-export type PlanFormat = "post" | "carousel" | "ad" | "reel" | "creative" | "scenes";
-export const PLAN_FORMATS: PlanFormat[] = ["post", "carousel", "ad", "reel", "creative", "scenes"];
+export type PlanFormat = "post" | "carousel" | "ad" | "reel" | "anim" | "site" | "fpost" | "fcarousel" | "fad" | "creative" | "fsite" | "scenes" | "image";
+export const PLAN_FORMATS: PlanFormat[] = ["post", "carousel", "ad", "reel", "anim", "site", "fpost", "fcarousel", "fad", "creative", "fsite", "scenes", "image"];
 /** the tool each kind is made with (its switch in the admin decides whether the customer may pick it) */
-export const FORMAT_TOOL_ID: Record<PlanFormat, string> = { post: "post", carousel: "carousel", ad: "ad-design", reel: "motion-video", creative: "free-motion", scenes: "real-scenes" };
+export const FORMAT_TOOL_ID: Record<PlanFormat, string> = { post: "post", carousel: "carousel", ad: "ad-design", reel: "motion-video", anim: "anim-video", site: "site-video", fpost: "free-post", fcarousel: "free-carousel", fad: "free-ad", creative: "free-motion", fsite: "site-free", scenes: "real-scenes", image: "image" };
 /** the customer's choice, cleaned: known kinds only, in a fixed order; nothing valid = the default three */
+/** kinds that first read the customer's website (his own link, from the identity) */
+export const SITE_FORMATS: PlanFormat[] = ["site", "fsite"];
 export const cleanFormats = (v: unknown, off: PlanFormat[] = []): PlanFormat[] => {
   const a = Array.isArray(v) ? v : [];
   const out = PLAN_FORMATS.filter((f) => a.includes(f) && !off.includes(f));
@@ -33,6 +36,22 @@ export const cleanColors = (c: unknown): PlanColors | null => {
 /** The request that prepares one slot with the normal tools. */
 export function itemRequest(x: PlanItem, prefs: PlanPrefs | null | undefined, slides: number): { url: string; body: Record<string, unknown> } {
   const dialect = prefs?.dialect || "kuwaiti";
+  if (x.format === "image") {
+    return { url: "/api/jobs", body: { tool: "image", input: { prompt: x.prompt.slice(0, 1500), aspect: "4:5", count: 1 } } };
+  }
+  if (x.format === "site") { // the website is read first (by the page), then siteJob is added
+    return { url: "/api/lesson", body: { siteStyle: "auto", readShots: false, shots: [], topic: x.prompt, caption: x.caption, seconds: 30, aspect: "9:16", dialect, voiceover: prefs?.voiceover !== false, music: true, ...(prefs?.voice ? { voice: prefs.voice } : {}) } };
+  }
+  if (x.format === "fsite") {
+    return { url: "/api/free-motion", body: { useLogo: true, useStyle: true, idea: x.prompt, seconds: 30, aspect: "9:16", dialect, voiceover: prefs?.voiceover !== false, music: true, useIdentity: false, ...(prefs?.voice ? { voice: prefs.voice } : {}) } };
+  }
+  if (x.format === "anim") {
+    const style = ANIM_IDS[(x.week * 7 + x.day.length + x.topic.length) % ANIM_IDS.length];
+    return { url: "/api/free-motion", body: { idea: x.prompt, aspect: "9:16", seconds: 30, dialect, voiceover: prefs?.voiceover !== false, animTool: true, anim: style, ...(prefs?.voice ? { voice: prefs.voice } : {}) } };
+  }
+  if (x.format === "fpost" || x.format === "fcarousel" || x.format === "fad") {
+    return { url: "/api/free-post", body: { tool: FORMAT_TOOL[x.format], idea: x.prompt, aspect: "4:5", slides } };
+  }
   if (x.format === "creative") {
     return { url: "/api/free-motion", body: { idea: x.prompt, aspect: "9:16", seconds: 30, dialect, voiceover: prefs?.voiceover !== false, ...(prefs?.voice ? { voice: prefs.voice } : {}) } };
   }
@@ -49,10 +68,10 @@ export function itemRequest(x: PlanItem, prefs: PlanPrefs | null | undefined, sl
 }
 /** best posting times in the Gulf */
 export const TIMES = ["12:30 ظهراً", "4:30 عصراً", "11:00 مساءً"] as const;
-const DEFAULT_TIME: Record<string, string> = { post: TIMES[0], carousel: TIMES[1], reel: TIMES[2], ad: TIMES[0], creative: TIMES[2], scenes: TIMES[2] };
+const DEFAULT_TIME: Record<string, string> = { post: TIMES[0], carousel: TIMES[1], reel: TIMES[2], ad: TIMES[0], anim: TIMES[2], site: TIMES[2], fsite: TIMES[2], image: TIMES[0], fpost: TIMES[0], fcarousel: TIMES[1], fad: TIMES[0], creative: TIMES[2], scenes: TIMES[2] };
 
-export const FORMAT_LABEL: Record<string, string> = { post: "بوست", reel: "ريلز", carousel: "كاروسيل", ad: "إعلان", creative: "موشن مبتكر", scenes: "مشاهد واقعية" };
-export const FORMAT_TOOL: Record<string, string> = { post: "post", carousel: "carousel", reel: "motion-video", ad: "ad-design", creative: "free-motion", scenes: "real-scenes" };
+export const FORMAT_LABEL: Record<string, string> = { post: "بوست", reel: "ريلز موشن", carousel: "كاروسيل", ad: "إعلان", anim: "ريلز أنيميشن", site: "ريلز فيديو من موقعي", fpost: "بوست مبتكر", fcarousel: "كاروسيل مبتكر", fad: "إعلان مبتكر", creative: "ريلز موشن مبتكر", fsite: "ريلز فيديو مبتكر من موقعي", scenes: "مشاهد واقعية", image: "صورة بالذكاء" };
+export const FORMAT_TOOL: Record<string, string> = { post: "post", carousel: "carousel", ad: "ad-design", reel: "motion-video", anim: "anim-video", site: "site-video", fpost: "free-post", fcarousel: "free-carousel", fad: "free-ad", creative: "free-motion", fsite: "site-free", scenes: "real-scenes", image: "image" };
 export const DAYS: PlanItem["day"][] = ["السبت", "الاثنين", "الأربعاء"];
 /** Monday is always the reel; Saturday and Wednesday swap between a carousel and a post every week */
 export const ROTATION: PlanItem["format"][][] = [["carousel", "reel", "post"], ["post", "reel", "carousel"], ["carousel", "reel", "post"], ["post", "reel", "carousel"]];

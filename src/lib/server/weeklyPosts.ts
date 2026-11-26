@@ -1,10 +1,12 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runAsUser } from "@/lib/server/auth";
-import { FORMAT_LABEL, FORMAT_TOOL_ID, itemRequest, planWeekOf, type Plan, type PlanItem, type PlanPrefs } from "@/lib/plan";
+import { FORMAT_LABEL, FORMAT_TOOL_ID, SITE_FORMATS, itemRequest, planWeekOf, type Plan, type PlanItem, type PlanPrefs } from "@/lib/plan";
 import { POST as designPOST } from "@/app/api/design/[action]/route";
 import { POST as lessonPOST } from "@/app/api/lesson/route";
+import { POST as jobsPOST } from "@/app/api/jobs/route";
 import { POST as freePOST } from "@/app/api/free-motion/route";
+import { POST as freeDesignPOST } from "@/app/api/free-post/route";
 
 const CAROUSEL_SLIDES = 6;
 type State = { lock?: number; lowWeek?: number; doneWeek?: number; ended?: boolean };
@@ -31,10 +33,13 @@ async function prepareItem(userId: string, x: PlanItem, prefs: PlanPrefs | null)
     const rq = itemRequest(x, prefs, CAROUSEL_SLIDES);
     const res = await runAsUser(userId, () => x.format === "reel" || x.format === "scenes"
       ? lessonPOST(mk(rq.url, rq.body))
-      : x.format === "creative" ? freePOST(mk(rq.url, rq.body))
+      : x.format === "image" ? jobsPOST(mk(rq.url, rq.body))
+      : x.format === "creative" || x.format === "anim" ? freePOST(mk(rq.url, rq.body))
+      : x.format === "fpost" || x.format === "fcarousel" || x.format === "fad" ? freeDesignPOST(mk(rq.url, rq.body))
       : designPOST(mk(rq.url, rq.body), { params: Promise.resolve({ action: "start" }) }));
-    const d = (await res.json().catch(() => ({}))) as { jobId?: string };
-    if (!res.ok || !d.jobId) return null;
+    const d0 = (await res.json().catch(() => ({}))) as { jobId?: string; id?: string; status?: string };
+    const d = { jobId: d0.jobId ?? d0.id };
+    if (!res.ok || !d.jobId || d0.status === "failed") return null;
     const admin = createAdminClient();
     const { data: job } = await admin.from("jobs").select("input").eq("id", d.jobId).maybeSingle();
     await admin.from("jobs").update({ input: { ...((job?.input as object) ?? {}), plan: { week: x.week, day: x.day, date: x.date, format: x.format } } }).eq("id", d.jobId);
@@ -48,7 +53,7 @@ export async function runWeekly(budgetMs = 240_000) {
   const admin = createAdminClient();
   const { data: tl } = await admin.from("tools").select("id,credit_cost").in("id", Object.values(FORMAT_TOOL_ID));
   const price = (id: string) => tl?.find((t) => t.id === id)?.credit_cost ?? 1;
-  const cost = (x: PlanItem) => (x.format === "post" ? price("post") : x.format === "carousel" ? price("carousel") * CAROUSEL_SLIDES : x.format === "scenes" ? price("real-scenes") : x.format === "ad" ? price("ad-design") : x.format === "creative" ? price("free-motion") * 2 : price("motion-video") * 2);
+  const cost = (x: PlanItem) => (x.format === "post" ? price("post") : x.format === "carousel" ? price("carousel") * CAROUSEL_SLIDES : x.format === "scenes" ? price("real-scenes") : x.format === "ad" ? price("ad-design") : x.format === "creative" ? price("free-motion") * 2 : x.format === "image" ? price("image") : x.format === "anim" ? price("anim-video") * 2 : x.format === "fpost" ? price("free-post") : x.format === "fad" ? price("free-ad") : x.format === "fcarousel" ? price("free-carousel") * CAROUSEL_SLIDES : price("motion-video") * 2);
   const { data: kits } = await admin.from("brand_kits").select("user_id,content_plan,auto_state,plan_prefs").eq("auto_weekly", true);
   const out = { users: kits?.length ?? 0, prepared: 0, skipped: 0 };
 
@@ -62,7 +67,7 @@ export async function runWeekly(budgetMs = 240_000) {
     const w = planWeekOf(start);
     if (w < 0) { out.skipped++; continue; }
     if (w > 3) { if (!state.ended) { await notify(k.user_id, "📅 خطتك الشهرية خلصت", "اكتب خطة الشهر الجاي عشان نكمل نجهز لك منشورات كل أسبوع.", "/app/brand/plan"); await setState({ ended: true }); } out.skipped++; continue; }
-    const todo = plan.items.map((x, i) => [x, i] as const).filter(([x]) => x.week === w + 1 && !x.job);
+    const todo = plan.items.map((x, i) => [x, i] as const).filter(([x]) => x.week === w + 1 && !x.job && !SITE_FORMATS.includes(x.format)); // the website videos wait for his own button (the site is read first)
     if (!todo.length) { out.skipped++; continue; }
     if (state.lock && Date.now() - state.lock < 12 * 60_000) { out.skipped++; continue; }
 

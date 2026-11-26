@@ -3,15 +3,15 @@ import Link from "next/link";
 import { useState } from "react";
 import { L, LT } from "@/lib/i18n/ui";
 import { savePlan, savePlanPrefs, setAutoWeekly, tagPlanJob } from "@/app/app/brand/actions";
-import { FORMAT_LABEL, FORMAT_TOOL, cleanFormats, PLAN_FORMATS, itemRequest, type PlanFormat, type Analysis, type Plan, type PlanColors, type PlanItem, type PlanPrefs } from "@/lib/plan";
+import { FORMAT_LABEL, FORMAT_TOOL, cleanFormats, PLAN_FORMATS, SITE_FORMATS, itemRequest, type PlanFormat, type Analysis, type Plan, type PlanColors, type PlanItem, type PlanPrefs } from "@/lib/plan";
 import { PALETTES, lum, onColor } from "@/design/spec";
 import { ARAB_DIALECTS } from "@/lib/countries";
 import { TONES, VOICE_TYPES, typeToGA, type VoiceItem } from "@/lib/voiceMatch";
 import { VoicePick } from "@/components/app/VoicePick";
 
-const FORMAT_ICON: Record<string, string> = { post: "🖼️", reel: "🎬", carousel: "🗂️", scenes: "🎥", ad: "📣", creative: "✨" };
+const FORMAT_ICON: Record<string, string> = { post: "🖼️", reel: "🎬", carousel: "🗂️", scenes: "🎥", ad: "📣", anim: "🖍️", site: "🌐", fsite: "🌐", image: "🖼️", fpost: "🖼️", fcarousel: "🗂️", fad: "📣", creative: "✨" };
 
-export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCostPrice, prefs: prefs0, voices = [], dialects: availD, unit, auto: auto0, available = ["post", "carousel", "reel"] }: { voices?: VoiceItem[]; weekCostPrice: number; prefs: PlanPrefs; dialects: string[] | null; identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number; scenes: number; ad: number; creative: number }; available?: PlanFormat[] }) {
+export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCostPrice, prefs: prefs0, voices = [], dialects: availD, unit, auto: auto0, website = "", available = ["post", "carousel", "reel"] }: { voices?: VoiceItem[]; weekCostPrice: number; prefs: PlanPrefs; dialects: string[] | null; identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number; scenes: number; ad: number; creative: number; anim: number; site: number; fsite: number; image: number; fpost: number; fcarousel: number; fad: number }; available?: PlanFormat[]; website?: string }) {
   const [plan, setPlan] = useState<Plan | null>(p0);
   const [analysis, setAnalysis] = useState<Analysis | null>(a0);
   const [busy, setBusy] = useState(false);
@@ -40,7 +40,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
   const sameColors = (a?: PlanColors | null, b?: PlanColors) => !!a && !!b && a.bg === b.bg && a.accent === b.accent && a.ink === b.ink;
   const isWeek = plan?.scope === "week";
   async function pickBg(v: "shapes" | "ai") { await setPref({ carouselBg: v }); }
-  const itemCost = (x: PlanItem) => (x.format === "post" ? unit.post : x.format === "carousel" ? unit.carousel * CAROUSEL_SLIDES : x.format === "scenes" ? unit.scenes : x.format === "ad" ? unit.ad : x.format === "creative" ? unit.creative * 2 : unit.reel * 2);
+  const itemCost = (x: PlanItem) => (x.format === "post" ? unit.post : x.format === "carousel" ? unit.carousel * CAROUSEL_SLIDES : x.format === "scenes" ? unit.scenes : x.format === "ad" ? unit.ad : x.format === "creative" ? unit.creative * 2 : x.format === "anim" ? unit.anim * 2 : x.format === "site" ? unit.site * 2 : x.format === "fsite" ? unit.fsite * 2 : x.format === "image" ? unit.image : x.format === "fpost" ? unit.fpost : x.format === "fad" ? unit.fad : x.format === "fcarousel" ? unit.fcarousel * CAROUSEL_SLIDES : unit.reel * 2);
   const weekTodo = plan ? plan.items.map((x, i) => [x, i] as const).filter(([x]) => x.week === week && !x.job) : [];
   const weekCost = weekTodo.reduce((n, [x]) => n + itemCost(x), 0);
 
@@ -50,15 +50,40 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
     setState((m) => ({ ...m, [i]: "جاري التجهيز..." }));
     try {
       const rq = itemRequest(x, { ...prefs, dialect }, CAROUSEL_SLIDES);
-      const r = await fetch(rq.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(rq.body) });
+      let body: Record<string, unknown> = rq.body;
+      if (SITE_FORMATS.includes(x.format)) { // his own website (from the identity) is read first, then the video is made from it
+        const sj = await readSite(i);
+        if (!sj) return base;
+        body = { ...body, siteJob: sj };
+        setState((m) => ({ ...m, [i]: "جاري التجهيز..." }));
+      }
+      const r = await fetch(rq.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
-      if (!r.ok || !d.jobId) { setState((m) => ({ ...m, [i]: d.error || "تعذّر التجهيز." })); return base; }
+      const jid: string | undefined = d.jobId ?? d.id;
+      if (!r.ok || !jid || d.status === "failed") { setState((m) => ({ ...m, [i]: d.error || "تعذّر التجهيز." })); return base; }
+      d.jobId = jid;
       await tagPlanJob(d.jobId, { week: x.week, day: x.day, date: x.date, format: x.format });
       const next = { ...base, items: base.items.map((y, j) => (j === i ? { ...y, job: d.jobId as string } : y)) };
       setPlan(next); await savePlan(next.items, next.month);
       setState((m) => ({ ...m, [i]: "" }));
       return next;
     } catch { setState((m) => ({ ...m, [i]: "تعذّر الاتصال." })); return base; }
+  }
+  /** reads the customer's own website (saved in his identity) with the free reading step, and waits for it. Returns the reading's job id. */
+  async function readSite(i: number): Promise<string | null> {
+    const fail = (t: string) => { setState((m) => ({ ...m, [i]: t })); return null; };
+    if (!website) return fail("أضف رابط موقعك بهويتك التجارية أول.");
+    setState((m) => ({ ...m, [i]: "جاري قراءة موقعك..." }));
+    const r = await fetch("/api/site-video", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: website }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.jobId) return fail(d.error || "تعذّرت قراءة الموقع.");
+    for (let k = 0; k < 80; k++) {
+      await new Promise((res) => setTimeout(res, 3000));
+      const g = await fetch(`/api/site-video?job=${d.jobId}`).then((x) => x.json()).catch(() => null);
+      if (g?.status === "done") return d.jobId as string;
+      if (g?.status === "failed" || g?.error) return fail(g.error || "تعذّرت قراءة الموقع.");
+    }
+    return fail("قراءة الموقع تأخرت. جرّب مرة ثانية.");
   }
   async function toggleAuto(on: boolean) {
     setAuto(on);
@@ -96,9 +121,9 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
   const kinds = (
           <div className="flex flex-col gap-2">
             <b className="text-[14.5px]">{L("شو أنواع المنشورات اللي تبيها بالخطة؟")}</b>
-            {([["قوالب جاهزة (سريعة وأقل سعراً)", ["post", "carousel", "ad", "reel"]], ["مبتكر ✨ (تصميم فريد لكل منشور، أغلى)", ["creative", "scenes"]]] as [string, PlanFormat[]][]).map(([title, list]) => { const here = list.filter((f) => available.includes(f)); return here.length > 0 && (
+            {([["قوالب جاهزة (سريعة وأقل سعراً)", ["post", "carousel", "ad", "reel", "anim", "site"]], ["مبتكر ✨ (تصميم فريد لكل منشور، أغلى)", ["fpost", "fcarousel", "fad", "creative", "fsite"]], ["صور وفيديو بالذكاء 🎥", ["scenes", "image"]]] as [string, PlanFormat[]][]).map(([title, list]) => { const here = list.filter((f) => available.includes(f)); return here.length > 0 && (
               <div key={title} className="flex flex-col gap-1.5"><span className="text-[13.5px] font-semibold text-muted">{L(title)}</span>
-                <div className="flex flex-wrap gap-2">{here.map((f) => { const on = chosen.includes(f); const price = f === "post" ? unit.post : f === "carousel" ? unit.carousel * CAROUSEL_SLIDES : f === "ad" ? unit.ad : f === "reel" ? unit.reel * 2 : f === "creative" ? unit.creative * 2 : unit.scenes; return <button key={f} type="button" aria-pressed={on} onClick={() => { const n = on ? chosen.filter((x) => x !== f) : [...chosen, f]; if (n.length) void setPref({ formats: n }); }} className={chip(on)}>{FORMAT_ICON[f]} {L(FORMAT_LABEL[f])} <span className="text-[12px] opacity-75">· {LT(`${price} ريشة`, `${price} feathers`)}</span></button>; })}</div>
+                <div className="flex flex-wrap gap-2">{here.map((f) => { const on = chosen.includes(f); const price = itemCost({ format: f } as PlanItem); return <button key={f} type="button" aria-pressed={on} onClick={() => { const n = on ? chosen.filter((x) => x !== f) : [...chosen, f]; if (n.length) void setPref({ formats: n }); }} className={chip(on)}>{FORMAT_ICON[f]} {L(FORMAT_LABEL[f])} <span className="text-[12px] opacity-75">· {LT(`${price} ريشة`, `${price} feathers`)}</span></button>; })}</div>
               </div>); })}
             <span className="text-[13px] text-subtle">{L("اختر نوع واحد أو أكثر، والخطة تتوزع عليها.")}</span>
           </div>
@@ -202,11 +227,11 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
               <div className="flex flex-wrap gap-2">
                 {x.job
                   ? <Link href={`/app/tools/${FORMAT_TOOL[x.format]}?job=${x.job}`} className="btn btn-primary px-5 py-2.5 text-[14px] font-bold">✓ {L("جاهز، افتحه وراجعه")}</Link>
-                  : <button type="button" disabled={state[i] === "جاري التجهيز..."} onClick={() => prepare(i, plan)} className="btn btn-gold px-5 py-2.5 text-[14px] font-bold disabled:opacity-50">{state[i] === "جاري التجهيز..." ? L("جاري التجهيز...") : `⚡ ${L("جهّزه لي")} (${LT(`${itemCost(x)} ريشة`, `${itemCost(x)} feathers`)})`}</button>}
+                  : <button type="button" disabled={state[i] === "جاري التجهيز..." || state[i] === "جاري قراءة موقعك..."} onClick={() => prepare(i, plan)} className="btn btn-gold px-5 py-2.5 text-[14px] font-bold disabled:opacity-50">{state[i] === "جاري التجهيز..." ? L("جاري التجهيز...") : state[i] === "جاري قراءة موقعك..." ? L("جاري قراءة موقعك...") : `⚡ ${L("جهّزه لي")} (${LT(`${itemCost(x)} ريشة`, `${itemCost(x)} feathers`)})`}</button>}
                 <Link href={link(x)} className="btn btn-outline px-4 py-2.5 text-[14px]">{L("افتح بالأداة وعدّل بنفسك")}</Link>
                 <button type="button" onClick={() => copy(x.prompt)} className="btn btn-outline px-4 py-2.5 text-[14px]">{L("نسخ البرومبت")}</button>
               </div>
-              {state[i] && state[i] !== "جاري التجهيز..." && <p role="alert" className="text-sm font-semibold text-red-700">{L(state[i])}</p>}
+              {state[i] && state[i] !== "جاري التجهيز..." && state[i] !== "جاري قراءة موقعك..." && <p role="alert" className="text-sm font-semibold text-red-700">{L(state[i])}</p>}
               <label className="flex flex-col gap-1.5"><span className="text-[14px] font-bold">{L("الكابشن")}</span>
                 <textarea rows={4} value={x.caption} onChange={(e) => edit(i, "caption", e.target.value)} maxLength={900} className="field leading-7" /></label>
               <button type="button" onClick={() => copy(x.caption)} className="w-fit text-[13px] font-semibold text-navy-700 underline">{L("نسخ الكابشن")}</button>
