@@ -1,17 +1,18 @@
 /** «فريق شاهين»: a directing layer every tool reads. One team for all customers, but each customer's field gets its own playbook,
  *  so a doctor's post, a café's carousel and a gym's motion video never look alike. Everything here is TEXT for the model; the admin can
  *  switch it on/off and edit it (private: table admin_secrets, key "ai_team"). Platform rules (size, safety, no invented prices) stay stronger. */
-export type Play = { a: string; v: string; x: string }; // a = angle (what to say), v = visual (how it looks), x = avoid
+export type Play = { a: string; v: string; x: string; t?: Partial<Record<"post" | "carousel" | "ads" | "motion" | "scenes" | "hooks", string>> }; // a = angle (what to say), v = visual (how it looks), x = avoid
 export const TEAM_MAX = 4000;
 
 export type RoleId = "strategist" | "hooks" | "art" | "editor";
 export const ROLES: { id: RoleId; label: string; scopes: "all" | "text"; text: string }[] = [
   { id: "strategist", label: "المخطط", scopes: "all", text: "قبل ما تصمم أو تكتب: حدد من هو جمهور هذا العميل بالضبط وش الهدف من الطلب (حجز، رسالة، زيارة، ثقة، وعي)، وابنِ كل شي على هدف واحد وزاوية واحدة واضحة. لا تكرر الفكرة الأشهر بالمجال؛ اختر زاوية تخص هذا العميل وتبيّن وش يميّزه عن غيره بنفس مجاله." },
   { id: "hooks", label: "كاتب الهوكات", scopes: "text", text: "أول سطر أو أول ثانيتين هي الأهم. اختر صيغة واحدة تناسب المجال وطلب العميل: سؤال يمس مشكلة الجمهور، رقم أو تفصيل محدد، خطأ شائع يسويه الناس، «وش لا تسوي…»، مقارنة بين خيارين، قصة قصيرة بسطر، عرض بوقت محدود، تحدي أو سؤال للتفاعل. الهوك يكون جملة قصيرة بدون مبالغة، ويوعد بشي يتحقق بباقي المحتوى." },
-  { id: "art", label: "المخرج الفني", scopes: "all", text: "ابتعد عن القوالب العامة. خذ اللوحة والتخطيط والأجواء والمشاهد من ملف المجال وهوية العميل، ونوّع بين طلبات نفس العميل بدل ما تكرر نفس الشكل. المشاهد والصور تكون محددة وواقعية وتخص المجال (مو صور عامة)، والنص بالتصميم قصير ومقروء وعنصر واحد يكون هو البطل. قواعد الخط والترتيب: مستويين أو ثلاثة بس من الأحجام (عنوان، نص، تفصيل) والفرق بينها واضح؛ العنوان حتى 6 كلمات وبسطرين كحد أقصى؛ الوصف حتى 14 كلمة؛ هوامش واسعة من كل الجهات ولا يلمس النص الحافة؛ محاذاة واحدة لكل النصوص (يمين لليمين)؛ مسافات متساوية بين العناصر؛ تباين قوي بين النص والخلفية؛ لا تحط نص طويل فوق صورة مزدحمة." },
+  { id: "art", label: "المخرج الفني", scopes: "all", text: "ابتعد عن القوالب العامة. خذ اللوحة والتخطيط والأجواء والمشاهد من ملف المجال وهوية العميل، ونوّع بين طلبات نفس العميل بدل ما تكرر نفس الشكل. المشاهد والصور تكون محددة وواقعية وتخص المجال (مو صور عامة)، والنص بالتصميم قصير ومقروء وعنصر واحد يكون هو البطل. قواعد الخط وأماكن النصوص بمهارة «الخط وأماكن النصوص»." },
   { id: "editor", label: "المحرر", scopes: "text", text: "نظّف الكتابة قبل التسليم: جمل قصيرة ومباشرة، بدون حشو عام (مثل «في عالم اليوم» أو «لا تفوّت الفرصة»)، إيموجي قليل جداً، بدون وعود مبالغ فيها أو ضمان نتائج، وأي رقم أو سعر أو اسم يكون من كلام العميل فقط ولا تخترعه. لا تستخدم رموز مخفية أو علامات غريبة، وخل النص يقرا كأن إنسان من أهل المجال كتبه." },
 ];
 
+import { DEEP_MORE } from "./teamDeep";
 const G = (a: string, v: string, x: string): Play => ({ a, v, x });
 
 /** one playbook per field (id of src/design/industries.ts). Short on purpose: the model follows 3 clear lines better than a page. */
@@ -80,6 +81,84 @@ export const PLAYBOOKS: Record<string, Play> = {
   other: G("حدد من كلام العميل وش يميّزه وركّز على عرض واحد وطريقة طلب واضحة.", "ألوان هوية العميل، صور حقيقية من نشاطه، تصميم نظيف.", "أي ادعاء ما ذكره العميل."),
 };
 
+
+/** Deeper, per-tool playbooks (more fields are added in batches). They sit on top of the 3 base lines. */
+const DEEP: Record<string, NonNullable<Play["t"]>> = {
+  restaurant: {
+    post: "صنف واحد بطل بالصورة. العنوان اسم الطبق أو إحساسه («طعم ما ينتسى») مو اسم المطعم. السعر بشارة صغيرة بزاوية، وسطر واحد للطلب (واتساب أو التطبيق). حتى 3 عناصر نصية بالبوست كله. الصورة قريبة وفيها بخار أو لمعة صوص، وإضاءة دافئة من الجنب.",
+    carousel: "أنسب الهياكل: «قائمة قيمة» (5 أطباق لازم تجربها، شريحة لكل طبق مع سعره)، أو «خطوات» (من الطلب لين يوصلك بـ4 خطوات)، أو «أخطاء شائعة» (3 أخطاء تسويها بطلب الشاورما). الشريحة الأخيرة: كيف تطلب وساعات العمل. نفس القالب بكل الشرائح وصورة طبق واحد لكل شريحة.",
+    ads: "زوايا مجرّبة للمطاعم: وجبة بسعر ثابت، «الأكثر طلباً»، عرض بوقت محدد (وقت الغداء مثلاً)، مقارنة بسيطة («وجبة مطعم بسعر وجبة البيت»)، ضمان الطزاجة. التصميم: صورة الطبق تاخذ 60% والسعر بشارة والدعوة سطر واحد. الهوك بأول 125 حرف من النص.",
+    motion: "ترتيب المشاهد: (0-3ث) لقطة قريبة جداً لبخار أو سكب صوص مع نص قصير، ثم لقطة تحضير سريعة (قص، قلي، تقديم)، ثم الطبق كامل، ثم لحظة تذوق أو كسر الخبز، وأخيراً السعر وطريقة الطلب. 15 إلى 25 ثانية، حركة بطيئة للأكل وقطعات سريعة، وترجمة دائماً لأن أغلب المشاهدة بدون صوت.",
+    scenes: "صور المشاهد: لقطة ماكرو لصوص ينسكب على الطبق، يد تقطع الخبز وبخار يطلع، طبق كامل من زاوية 45 درجة على طاولة خشب، مطبخ مفتوح بإضاءة دافئة، لقطة من فوق لعدة أطباق. إضاءة جانبية دافئة، عمق ميدان ضيق، ألوان طبيعية بدون لمعة بلاستيكية.",
+    hooks: "أمثلة: «كم مرة تعشيت نفس الأكل هالأسبوع؟» · «3 أطباق ما تلقاهم إلا عندنا» · «جرّب ولا تقول لي إنه عادي» · «السر بالصوص مو باللحم» · «وجبة الغداء اللي تنتظرها من الصبح».",
+  },
+  clinic: {
+    post: "معلومة واحدة مفيدة وبسيطة (علامة تستاهل ينتبه لها، عادة يومية، أو متى تراجع الطبيب). العنوان سؤال يخص الناس («ليش يصير لك صداع العصر؟»). صورة أو رسم نظيف، بدون وجوه مرضى. تعريف مختصر بالطبيب والتخصص وطريقة الحجز بسطر واحد بالآخر.",
+    carousel: "هيكل «خطوات» أو «أخطاء شائعة»: 3 عادات تضرك بدون ما تدري، أو «5 أسئلة تسألها لطبيبك». كل شريحة فكرة وحدة، آخر شريحة دعوة للحجز أو الاستشارة، وجملة صريحة إن هذا تثقيف عام وليس تشخيصاً.",
+    ads: "إعلان خدمة وليس وعد نتيجة: وش تقدم العيادة، وش تشمل الزيارة، المواعيد، الموقع. زوايا: راحة المريض، سرعة الموعد، خبرة الطبيب المعلنة فعلاً، أجهزة العيادة. ممنوع: ضمان نتيجة، قبل/بعد علاجي، مقارنة بغيرك.",
+    motion: "مشاهد هادية: استقبال نظيف، الطبيب يشرح بالرسم، أجهزة معقمة، ابتسامة موظف الاستقبال. بدون وجوه مرضى. نبرة طمأنينة وبطء، وترجمة، وتعريف بالموعد بالآخر.",
+    scenes: "صور المشاهد: عيادة نظيفة بإضاءة ناعمة، استقبال مرتب، أدوات معقمة على صينية، يد طبيب تشرح على نموذج أو رسم، غرفة انتظار هادئة. بدون وجوه مرضى، وبدون مشاهد طوارئ أو دم، وألوان أبيض وأزرق فاتح.",
+    hooks: "أمثلة: «علامة صغيرة لا تتجاهلها» · «3 أسئلة لازم تسألها لطبيبك» · «خرافة منتشرة عن [الموضوع]» · «متى تراجع الطبيب ومتى تنتظر؟».",
+  },
+};
+for (const [k, t] of Object.entries({ ...DEEP, ...DEEP_MORE })) PLAYBOOKS[k] = { ...PLAYBOOKS[k], t };
+
+
+/** «المهارات»: know-how shared by every field, one per technique. Adapted from the strongest open-source skill libraries (MIT) and rewritten in Arabic
+ *  (sources noted on each). The admin can edit, switch off or delete any of them, and add his own. */
+export type SkillScope = "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite" | "lesson";
+export const SKILL_SCOPES: [SkillScope, string][] = [["post", "البوستات"], ["carousel", "الكاروسيل"], ["ads", "الإعلانات"], ["motion", "الموشن"], ["montage", "المونتاج والمشاهد الواقعية"], ["bcard", "بطاقات العمل"], ["invite", "الدعوات"], ["lesson", "الدروس"]];
+export type BuiltSkill = { id: string; title: string; source: string; scopes: SkillScope[]; text: string };
+const ALL: SkillScope[] = ["post", "ads", "carousel", "motion", "montage", "bcard", "invite", "lesson"];
+const COPY: SkillScope[] = ["post", "ads", "carousel", "motion", "montage", "invite", "lesson"];
+
+export const SKILLS: BuiltSkill[] = [
+  { id: "typography", title: "الخط وأماكن النصوص (عربي)", source: "قواعد تصميم عامة + قائمة فحص الكاروسيل", scopes: ALL,
+    text: "حجم الخط: عنوان كبير واضح، نص متوسط، تفصيل صغير، وفرق واضح بينهم؛ ولا تتجاوز 3 أحجام بالتصميم. النص الأدنى مقروء على الجوال (حوالي 28 نقطة على عرض 1080). العنوان حتى 6 كلمات وسطرين؛ الوصف حتى 14 كلمة. هوامش 8% من كل جهة على الأقل، ولا يلمس النص الحافة. محاذاة واحدة لكل النصوص (لليمين بالعربي). تباعد أسطر 1.5 تقريباً للعربي، وبدون تباعد حروف ولا تمطيط ولا مائل. وزن خط ثقيل متوسط فوق الصور، وتباين قوي مع الخلفية، ولا نص طويل فوق صورة مزدحمة. خطان بالكثير، وعنصر واحد يكون هو البطل." },
+  { id: "hooks", title: "صيغ الهوكات (أول سطر)", source: "marketingskills (social) + instagram-skills", scopes: COPY,
+    text: "أول سطر يقرر إن كان أحد يكمل. حط الهوك بأول 125 حرف. الصيغ: فضول («كنت غلطان بخصوص…»، «نتيجة كبيرة بوقت قصير»)، قصة («الأسبوع الماضي صار شي غير متوقع»، «قبل 3 سنوات كنت…»)، قيمة («كيف تحقق [نتيجة] بدون [المعاناة]»، «[رقم] أشياء تسوي [نتيجة]»، «وقّف [غلط شائع]، وسوّ هذا بدله»)، معاكسة («رأي غير شعبي: …»). الصيغة شكل بس؛ عبّيها بتفصيل أو رقم أو قصة حقيقية من العميل." },
+  { id: "human-writing", title: "كتابة بشرية بدون علامات الذكاء الاصطناعي", source: "marketingskills (copywriting/ai-tells) + humanizer", scopes: COPY,
+    text: "ممنوع: صيغة «مو X بل Y» و«مب بس X لكن Y»؛ قوائم النفي («لا X ولا Y ولا Z»)؛ سؤال وإجابته بنفس الجملة («النتيجة؟ أسرع»)؛ عبارات محفوظة مثل «اكتشف قوة…» و«ارتقِ بـ…» و«لا تفوّت الفرصة» و«في عالم اليوم»؛ كل سطر جملة قصيرة لوحدها؛ إيموجي بأول كل سطر؛ طلبات التفاعل الفاضية («موافق؟» «شو رايكم؟»). اكتب جمل عادية مرتبطة بتفصيل محدد، رقم، اسم، أو لحظة حقيقية، وإيموجي 0 إلى 3 بالبوست كله. أي ادعاء أو رقم بدون مصدر من العميل ما ينكتب." },
+  { id: "carousel-frameworks", title: "هياكل الكاروسيل الخمسة", source: "marketingskills (social/carousel-frameworks)", scopes: ["carousel"],
+    text: "اختر هيكل واحد يناسب المحتوى: (1) قائمة قيمة: الغلاف يعد بعدد ومخرج محدد («7 أشياء لـ…») وكل شريحة تسدد وعد؛ العدد الموعود هو العدد الفعلي بدون حشو. (2) مشكلة ودليل: الغلاف نتيجة بصيغة حقيقة، ثم المشكلة الحقيقية، ثم الآلية بأسماء وخطوات، ثم التفاصيل، وآخر شريحة الدليل. (3) قائمة حيل: غلاف يوحي إن أغلب الناس تغلط، ثم حيل مرقمة لكل واحدة اسم مميز. (4) رأي صريح: ادعاء مستفز، تصعيد بتفاصيل، ثم «وللتوضيح» تبين وش ما تقصد، ثم توقيع. (5) عرض خطوة بخطوة: النتيجة أولاً، المشكلة، نظرة على الخطوات (عدد ووقت)، ثم خطوة بكل شريحة، والنتيجة النهائية. قواعد: الشريحة 1 تشتغل كبوست مستقل؛ قالب واحد لكل الشرائح؛ فكرة واحدة بالشريحة؛ دعوة واحدة فقط بالآخر؛ الكابشن يعيد صياغة الهوك مو ينسخ الغلاف." },
+  { id: "ad-angles", title: "زوايا الإعلان وتصاميم الإعلان الثابت", source: "marketingskills (ad-creative)", scopes: ["ads", "post"],
+    text: "قبل الكتابة حدد 3 إلى 5 زوايا مختلفة تبرر الضغط: ألم (وقّف…)، نتيجة (احصل على…)، دليل اجتماعي (حقيقي فقط)، فضول، مقارنة، استعجال (حقيقي فقط)، هوية («مصمم لـ…»)، معاكسة. وزّع التنويع بين الزوايا، مو بين الصياغات. تصاميم ثابتة مجرّبة: جملة قوية واحدة مع صورة المنتج؛ رقم كبير يلفت؛ قبل وبعد (لمجالات مسموح فيها)؛ نحن مقابل البديل بـ4 إلى 6 صفوف حقيقية؛ بطاقة سؤال وجواب تعالج اعتراض شائع؛ ضمان بسيط. حدود النص: الجملة الأولى هي الهوك، وعنوان الإعلان حتى 40 حرف تقريباً. نوّع القالب بين الإعلانات ولا تكرر نفس التخطيط." },
+  { id: "image-prompt", title: "وصف الصور الواقعية والمولّدة", source: "marketingskills (image)", scopes: ["post", "ads", "carousel", "montage", "invite"],
+    text: "الوصف الجيد يتبع: الموضوع + المكان + الأسلوب + الإضاءة + التكوين + التقنية. كن محدد (لا تكتب «صورة تجارية»): اذكر العدسة، والإضاءة (طبيعية جانبية، ساعة ذهبية)، وعمق الميدان، والخلفية، والألوان. الواقعية: تفاصيل صغيرة غير مثالية، مواد حقيقية، أيدي وأدوات طبيعية، بدون لمعة بلاستيكية. حدد المقاس دائماً. لا تطلب نص طويل داخل الصورة (النص يُضاف فوقها بالتصميم). لا شعارات ولا علامات تجارية ولا وجوه أشخاص حقيقيين. نوّع الزوايا بين الصور: قريبة، متوسطة، من فوق." },
+  { id: "video-structure", title: "هيكل الفيديو القصير", source: "marketingskills (social/video)", scopes: ["motion", "montage", "lesson"],
+    text: "قاعدة 3 ثواني: أول ثانية فيها ثلاثة هوكات مع بعض: لقطة جاذبة + جملة أو تعليق + نص مكتوب على الشاشة. مشكلة وحل (15-30ث): الهوك بأول 3، ثم لماذا تهم، ثم الحل، ثم الدعوة. قائمة (30-60ث): الرقم بالهوك، عنصر بكل مشهد، وآخر مشهد دعوة. مقاس 9:16، ومعظم المشاهدة بدون صوت فكل جملة تنكتب ترجمة بخط كبير. قطعات سريعة وحركة بكل مشهد، ومشهد ختامي بالدعوة وطريقة التواصل." },
+  { id: "content-mix", title: "الركائز وتوزيع المحتوى", source: "marketingskills (social) + social-ai-team", scopes: ["post", "carousel", "lesson"],
+    text: "ابنِ المحتوى على 3 إلى 5 ركائز تناسب مجال العميل، ووزّعها تقريباً: تعليمي ومفيد 35%، كواليس وقصة 25%، دليل وتجارب حقيقية 20%، ترويجي مباشر 20% كحد أقصى. كل بوست له هدف واحد (حفظ، مشاركة، رسالة، زيارة)، ويحمل حقل «اتجاه بصري» يوجه التصميم. لا تكرر نفس الفكرة بنفس الشكل بالأسبوع. قيس النجاح بالحفظ والمشاركة قبل الإعجاب." },
+  { id: "platform-specs", title: "مقاسات وحدود المنصات", source: "marketingskills (ad-creative/platform-specs)", scopes: ["post", "ads", "carousel", "motion"],
+    text: "مقاسات: إنستغرام بوست 1080×1350 (4:5) أو 1080×1080، ستوري وريلز 1080×1920 (9:16). نص إعلانات ميتا: يظهر أول 125 حرف من النص الأساسي فحط الهوك فيها، والعنوان حتى 40 حرف، والوصف حتى 30. إعلانات تيك توك: النص حتى 80 حرف. كاروسيل إنستغرام من 2 إلى 10 شرائح. نص مهم يبعد عن الحواف (آخر 20% من الأسفل وأول 12% من الأعلى بالستوري تغطيها واجهة التطبيق)." },
+  { id: "caption-structure", title: "هيكل الكابشن", source: "instagram-skills (caption writer)", scopes: ["post", "carousel"],
+    text: "الهوك بأول 125 حرف، ثم جسم سهل القراءة بفقرات قصيرة، ثم دعوة واحدة واضحة (احجز، اطلب، احفظ، شارك). اختر الدعوة حسب الهدف: الحفظ للفوائد، المشاركة للمعلومات اللي تهم غيرك، التعليق لسؤال حقيقي، المتابعة لسلسلة. هاشتاقات 3 إلى 5 بأحجام مختلفة (متخصص، متوسط، عام). إيموجي من 0 إلى 3." },
+  { id: "cta-rules", title: "الدعوة لاتخاذ إجراء", source: "marketingskills (copywriting)", scopes: COPY,
+    text: "دعوة واحدة فقط بالتصميم الواحد. فعل واضح + ما يحصل بعده («احجز موعدك اليوم»، «اطلب عبر واتساب»). قل شنو بعد الضغطة، مو «اضغط هنا». اربطها بالهدف: عرض سعر، حجز، زيارة. لا تضع رقمين للتواصل ولا ثلاث دعوات." },
+  { id: "awareness-headlines", title: "عناوين حسب وعي الجمهور", source: "marketingskills (ad-creative/awareness-headlines)", scopes: ["ads", "post", "carousel"],
+    text: "اختر العنوان حسب مرحلة الجمهور: ما يعرف إن عنده مشكلة ← قصة أو فضول؛ يعرف المشكلة ← سمّ الألم بوضوح؛ يعرف الحلول ← وش يميّزك؛ يعرف منتجك ← العرض أو الدليل؛ جاهز يشتري ← السعر والعرض والطلب. العنوان وعد محدد يتحقق، مو شعار." },
+  { id: "offer-structure", title: "بناء العرض", source: "marketingskills (offers)", scopes: ["ads", "post", "invite"],
+    text: "العرض الجيد: ما يحصل عليه العميل بالضبط، السعر أو الخصم الحقيقي، ميزة إضافية، ضمان بسيط لو متوفر، ووقت انتهاء حقيقي. لا تستعجل بدون سبب حقيقي ولا تخترع ندرة. اعرض السعر قبل الخصم فقط لو كان فعلياً. اذكر طريقة الحصول عليه بخطوة وحدة." },
+  { id: "honest-proof", title: "الدليل الاجتماعي الصادق", source: "marketingskills (ad-creative)", scopes: ["ads", "post", "carousel", "motion"],
+    text: "استخدم فقط تقييمات وأرقام وأعمال حقيقية قدمها العميل. لا تخترع شهادات ولا أرقام زبائن. الأقوى: جملة حقيقية من عميل بلغته، أو رقم صغير صحيح («نخدم هالحي من 2019»)، أو صورة عمل منجز. لو ما فيه دليل، اعتمد على التفصيل والمصداقية بدل الأرقام." },
+  { id: "arabic-copy", title: "كتابة عربية للسوشال", source: "قواعد عامة للمحتوى العربي", scopes: COPY,
+    text: "لهجة واحدة بالتصميم كله (الخليجية البيضاء أو اللي يحددها العميل) بدون خلط مع الفصحى الثقيلة. جمل قصيرة، أفعال مباشرة، وتفاصيل محددة. أرقام واضحة وعملة بشكل متسق (د.ك). علامات الترقيم قليلة، بدون تشكيل زائد. مصطلحات إنجليزية فقط لو معروفة بالمجال. لا تستخدم صيغة المؤنث والمذكر معاً بنفس العبارة." },
+  { id: "brand-color", title: "الألوان والتباين", source: "قواعد تصميم عامة", scopes: ALL,
+    text: "التزم بألوان هوية العميل. توزيع تقريبي: 60% لون خلفية، 30% لون ثانوي، 10% لون إبراز للعنصر الأهم. تباين النص مع الخلفية قوي (على الأقل 4.5:1)، والنص الفاتح على صور مظلمة والعكس مع طبقة تظليل خفيفة لو لزم. لا تستخدم أكثر من لونين مميزين وحياديين." },
+  { id: "subtitles", title: "الترجمة النصية للفيديو", source: "marketingskills (social/video)", scopes: ["motion", "montage", "lesson"],
+    text: "أغلب المشاهدة بدون صوت فكل جملة تظهر مكتوبة. حتى سطرين وبكل سطر 5 إلى 7 كلمات. تظهر من ثانية إلى ثانيتين ونصف حسب طولها، وتتزامن مع الكلام. خط ثقيل مقروء بتباين قوي وحدّ خفيف أو ظل، وبعيدة عن الحافة السفلية (واجهة التطبيق). أبرز الكلمة المهمة بلون الهوية." },
+  { id: "realistic-scenes", title: "المشاهد الواقعية", source: "marketingskills (image/video) + social-ai-team (creative)", scopes: ["montage", "post", "ads"],
+    text: "اتبع تسلسل لقطات: لقطة تأسيس واسعة، متوسطة للفعل، قريبة للتفصيل، ثم لقطة ختامية. حافظ على ثبات الإضاءة والألوان والزمن بين المشاهد. اوصف مصدر الضوء واتجاهه، والعدسة، وحركة الكاميرا (ثابتة، دفع بطيء، تتبّع). تفاصيل واقعية غير مثالية: غبار خفيف، انعكاسات، أيدي طبيعية. تجنب مظهر الصور الجاهزة العام، وأي نص أو شعار داخل المشهد." },
+  { id: "business-card", title: "بطاقة العمل", source: "قواعد تصميم عامة", scopes: ["bcard"],
+    text: "الاسم أكبر عنصر ثم المسمى. 3 وسائل تواصل كحد أقصى (هاتف، بريد أو واتساب، موقع أو حساب). هامش ثابت ومحاذاة واحدة. الوجه الأمامي للهوية والاسم، والخلفي للتفاصيل أو الشعار. خط مقروء بحجم لا يقل عن 8 نقاط للطباعة، ولون خلفية يضمن تباين كامل." },
+  { id: "invitation", title: "دعوة المناسبة", source: "قواعد تصميم عامة", scopes: ["invite"],
+    text: "هرم المعلومات: عنوان المناسبة، الاسم أو أسماء أصحاب الدعوة، التاريخ والوقت، المكان، ثم طريقة التأكيد. عنصر زخرفي واحد لا أكثر، ومساحة فاضية كافية. أناقة مرتبطة بنوع المناسبة (فرح، عزاء بدون زخرفة، مولود، تخرج). اللغة رسمية دافئة، وبدون ازدحام نصوص." },
+  { id: "lesson-explainer", title: "الفيديو التعليمي", source: "marketingskills (video) + قواعد الشرح", scopes: ["lesson", "motion"],
+    text: "فكرة واحدة بكل مشهد. اعرض ثم اشرح (الرسم أو المثال قبل الكلام). كل مشهد من 4 إلى 8 ثوان وجملة تعليق قصيرة. ابدأ بسؤال أو مشكلة، ثم الشرح بخطوات مرقمة، ثم خلاصة بسطر، ثم دعوة. استخدم أمثلة من حياة الجمهور. ألوان ثابتة وأيقونات بسيطة." },
+  { id: "repurpose", title: "تحويل الفكرة لعدة صيغ", source: "marketingskills (social/repurposing)", scopes: ["post", "carousel", "motion"],
+    text: "من فكرة واحدة تطلع صيغ: بوست بنصيحة وحدة، كاروسيل بالتفاصيل، فيديو قصير بالهوك، ستوري بسؤال. لكل صيغة هوك مختلف ومستقل، ولا تنسخ نص صيغة لصيغة. وزّع النشر على أيام الأسبوع." },
+];
+
 /** groups used when a field has no playbook of its own */
 const GROUP_FALLBACK: Play = G("ركّز على عرض واحد واضح وطريقة الطلب، من كلام العميل فقط.", "ألوان هوية العميل وصور حقيقية من نشاطه.", "أي ادعاء أو رقم ما ذكره العميل.");
 
@@ -92,7 +171,8 @@ export const playText = (id?: string) => { const b = (id && PLAYBOOKS[id]) || GR
 
 export type TeamRole = { text?: string; on?: boolean };
 export type TeamField = { text?: string; on?: boolean };
-export type TeamData = { on?: boolean; roles?: Partial<Record<RoleId, TeamRole>>; fields?: Record<string, TeamField>; at?: string };
+export type TeamSkill = { text?: string; on?: boolean; title?: string; scopes?: SkillScope[]; custom?: boolean };
+export type TeamData = { on?: boolean; roles?: Partial<Record<RoleId, TeamRole>>; fields?: Record<string, TeamField>; skills?: Record<string, TeamSkill>; at?: string };
 
 const clean = (s: unknown) => (typeof s === "string" ? s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F​-‏‪-‮⁠-⁤﻿]/g, "").slice(0, TEAM_MAX).trim() : "");
 
@@ -102,13 +182,23 @@ export function cleanTeam(v: unknown): TeamData {
   for (const r of ROLES) { const x = o.roles?.[r.id]; if (x && typeof x === "object") roles[r.id] = { text: clean(x.text) || undefined, on: x.on !== false }; }
   const fields: Record<string, TeamField> = {};
   for (const id of Object.keys(PLAYBOOKS)) { const x = o.fields?.[id]; if (x && typeof x === "object") { const text = clean(x.text); if (text || x.on === false) fields[id] = { text: text || undefined, on: x.on !== false }; } }
-  return { on: o.on !== false, roles, fields, at: typeof o.at === "string" ? o.at.slice(0, 30) : "" };
+  const skills: Record<string, TeamSkill> = {};
+  const okScope = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is SkillScope => SKILL_SCOPES.some(([id]) => id === x)) : []);
+  for (const [id, x] of Object.entries(o.skills ?? {}).slice(0, 80)) {
+    if (!/^[a-z0-9_-]{1,40}$/.test(id) || !x || typeof x !== "object") continue;
+    const built = SKILLS.some((b) => b.id === id);
+    const text = clean(x.text);
+    if (built) { if (text || x.on === false) skills[id] = { text: text || undefined, on: x.on !== false }; }
+    else if (text) skills[id] = { text, on: x.on !== false, custom: true, title: clean(x.title).slice(0, 80) || "مهارة", scopes: okScope(x.scopes).length ? okScope(x.scopes) : ALL };
+  }
+  return { on: o.on !== false, roles, fields, skills, at: typeof o.at === "string" ? o.at.slice(0, 30) : "" };
 }
 
 export type TeamScope = "all" | "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite" | "lesson";
 const TEXTY = new Set<TeamScope>(["post", "ads", "carousel", "motion", "montage", "invite", "lesson", "bcard"]);
+const TOOL_KEY: Partial<Record<TeamScope, "post" | "carousel" | "ads" | "motion" | "scenes">> = { post: "post", carousel: "carousel", ads: "ads", motion: "motion", montage: "scenes", lesson: "motion", invite: "post", bcard: "post" };
 
-/** the block handed to the model: team roles that fit this tool + the playbook of the customer's field. Empty when the team is off. */
+/** the block handed to the model: team roles + the skills that fit this tool + the playbook of the customer's field. Empty when the team is off. */
 export function teamBlock(data: TeamData | null | undefined, industryId: string | undefined, customText: string | undefined, scope: TeamScope): string {
   const d = cleanTeam(data);
   if (d.on === false) return "";
@@ -119,14 +209,28 @@ export function teamBlock(data: TeamData | null | undefined, industryId: string 
     if (o && o.on === false) continue;
     parts.push(`• ${r.label}: ${o?.text || r.text}`);
   }
+  const sk: string[] = [];
+  const fits = (sc: SkillScope[]) => scope === "all" || sc.includes(scope as SkillScope);
+  for (const b of SKILLS) {
+    const o = d.skills?.[b.id];
+    if (!fits(b.scopes) || (o && o.on === false)) continue;
+    sk.push(`• ${b.title}: ${o?.text || b.text}`);
+  }
+  for (const [id, o] of Object.entries(d.skills ?? {})) {
+    if (!o.custom || o.on === false || !o.text || !fits(o.scopes ?? ALL)) continue;
+    sk.push(`• ${o.title || id}: ${o.text}`);
+  }
+  const base = industryId ? PLAYBOOKS[industryId] : undefined;
   const f = industryId ? d.fields?.[industryId] : undefined;
   const lines: string[] = [];
   if (!(f && f.on === false)) {
-    if (f?.text) lines.push(f.text);
-    else lines.push(playText(industryId));
+    lines.push(f?.text || playText(industryId));
+    const k = TOOL_KEY[scope];
+    if (k && base?.t?.[k]) lines.push(`لهذه الأداة: ${base.t[k]}`);
+    if (base?.t?.hooks && TEXTY.has(scope)) lines.push(`أمثلة هوكات للمجال: ${base.t.hooks}`);
     if (industryId && SENSITIVE.has(industryId)) lines.push(SENSITIVE_NOTE);
   }
-  if (!lines.length && !parts.length) return "";
+  if (!lines.length && !parts.length && !sk.length) return "";
   const field = !industryId && customText ? `مجال العميل المكتوب: ${customText}. ` : "";
-  return `فريق التوجيه (إرشادات المنصة لهذا المجال؛ طلب العميل وهويته أهم، وقواعد البنية والأمان أقوى منها):\n${parts.join("\n")}${lines.length ? `\nملف المجال: ${field}\n${lines.join("\n")}` : ""}`;
+  return `فريق التوجيه (إرشادات المنصة؛ طلب العميل وهويته أهم، وقواعد البنية والأمان أقوى منها):\n${parts.join("\n")}${sk.length ? `\nمهارات الفريق لهذه الأداة:\n${sk.join("\n")}` : ""}${lines.length ? `\nملف المجال: ${field}\n${lines.join("\n")}` : ""}`;
 }

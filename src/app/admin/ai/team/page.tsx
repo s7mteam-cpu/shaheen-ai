@@ -2,8 +2,8 @@ import Link from "next/link";
 import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { INDUSTRIES } from "@/design/industries";
-import { ROLES, SENSITIVE, cleanTeam, playText } from "@/lib/team";
-import { MasterForm, RoleForm, FieldForm } from "./TeamForms";
+import { ROLES, SKILLS, SENSITIVE, cleanTeam, playText } from "@/lib/team";
+import { MasterForm, RoleForm, FieldForm, SkillForm, AddSkill } from "./TeamForms";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "فريق التوجيه" };
@@ -13,6 +13,7 @@ export default async function TeamPage() {
   await guardPage("ai");
   const { data: row } = await createAdminClient().from("admin_secrets").select("value").eq("key", "ai_team").maybeSingle();
   const team = cleanTeam(row?.value);
+  const custom = Object.entries(team.skills ?? {}).filter(([, x]) => x.custom);
   const groups = [...new Set(INDUSTRIES.map((i) => i.group))];
   return (
     <div className="flex flex-col gap-5">
@@ -26,6 +27,15 @@ export default async function TeamPage() {
       {ROLES.map((r) => (
         <RoleForm key={r.id} id={r.id} label={r.label} text={team.roles?.[r.id]?.text ?? r.text} builtIn={r.text} changed={!!team.roles?.[r.id]?.text} on={team.roles?.[r.id]?.on !== false} />
       ))}
+      <h2 className="mt-2 text-[19px] font-bold text-navy-900">المهارات ({SKILLS.length} أساسية{custom.length ? ` + ${custom.length} إضافاتك` : ""})</h2>
+      <p className="-mt-3 text-[13.5px] leading-6 text-subtle">أساليب مشتركة بين كل المجالات، مأخوذة من أقوى مكتبات المهارات المفتوحة (marketingskills وinstagram-skills وsocial-ai-team، كلها بترخيص MIT) ومكتوبة بالعربي. توقف أو تعدّل أو تضيف مهاراتك.</p>
+      {SKILLS.map((b) => (
+        <SkillForm key={b.id} id={b.id} title={b.title} source={b.source} text={team.skills?.[b.id]?.text ?? b.text} builtIn={b.text} scopes={b.scopes} on={team.skills?.[b.id]?.on !== false} custom={false} />
+      ))}
+      {custom.map(([id, x]) => (
+        <SkillForm key={id} id={id} title={x.title ?? id} source="" text={x.text ?? ""} builtIn="" scopes={x.scopes ?? []} on={x.on !== false} custom />
+      ))}
+      <AddSkill />
       <h2 className="mt-2 text-[19px] font-bold text-navy-900">ملفات المجالات ({INDUSTRIES.length - 1})</h2>
       {groups.map((g) => (
         <div key={g} className="flex flex-col gap-2">
