@@ -220,7 +220,7 @@ export const TOOL_SCOPE: Record<string, TeamScope> = {
   post: "post", "free-post": "post", carousel: "carousel", "free-carousel": "carousel", "ad-design": "ads", "free-ad": "ads",
   invitations: "invite", "free-invite": "invite", "business-cards": "bcard", "free-card": "bcard", presentations: "deck", "free-deck": "deck", cv: "cv", "free-cv": "cv",
   "motion-video": "motion", "free-motion": "motion", "site-video": "motion", "site-free": "motion", "anim-video": "motion", "real-scenes": "montage",
-  "video-editing": "montage", "free-montage": "montage", image: "photo", "product-photo": "photo", "product-video": "clip",
+  "content-plan": "post", "video-editing": "montage", "free-montage": "montage", image: "photo", "product-photo": "photo", "product-video": "clip",
 };
 
 /** groups used when a field has no playbook of its own */

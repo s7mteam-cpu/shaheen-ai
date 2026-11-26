@@ -7,7 +7,7 @@ import { TOOL_SCOPE } from "@/lib/team";
 import { ARAB_DIALECTS } from "@/lib/countries";
 
 /** tools whose page has no dialect picker: the dialect chosen in «هويتي» (else Standard Arabic) is told to them here */
-const NO_PICKER = new Set(["free-post", "free-carousel", "free-ad", "free-invite", "free-card", "free-montage"]);
+const NO_PICKER = new Set(["free-post", "free-carousel", "free-ad", "free-invite", "free-card", "free-montage", "content-plan"]);
 
 /** «فريق التوجيه» for ANY tool by its id: the customer's field (from هويتي, or the closest one to what he wrote), the team's skills for this kind of tool,
  *  his own «تعليماتي», and the approved trends. One block of text, empty when the tool is not covered or the team is off. */

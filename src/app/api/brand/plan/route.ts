@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { teamBriefFor } from "@/lib/server/teamBrief";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { claudeVisionJson } from "@/lib/providers/text";
@@ -45,8 +46,9 @@ export async function POST(req: Request) {
     const chosen = cleanFormats((kit?.plan_prefs as { formats?: unknown } | null)?.formats, off);
     const { weeks: slots, start } = planSlots(scope, new Date(), chosen);
 
+    const team = await teamBriefFor("content-plan", user.id, `${kit?.about ?? ""} ${kit?.business_name ?? ""}`, 9000); // «فريق التوجيه»: the field, the skills for posts, his «تعليماتي» and his dialect
     const week = (w: number) => claudeVisionJson<{ items?: unknown[] }>(SYSTEM,
-      `${info}\n\nاكتب منشورات ${scope === "week" ? "هذا الأسبوع" : `الأسبوع ${w + 1} من 4 (خطة شهرية)`}. النشر 3 مرات بهذا الترتيب والأنواع: ${slots[w].map((sl) => `${sl.day} ${sl.date} = ${FORMAT_LABEL[sl.format]}`).join("، ")}. نوّع الأعمدة والأهداف${scope === "week" ? "" : "، ولا تكرر مواضيع الأسابيع الأخرى (زملاؤك يكتبون بقية الأسابيع بالتوازي، فخصّص أسبوعك بزاوية مميزة)"}.\nأجب بـ: {"items":[{"pillar":"","topic":"عنوان الموضوع","hook":"جملة افتتاحية قوية","goal":"","time":"${TIMES.join(" | ")}","prompt":"","caption":""},{...},{...}]} (3 عناصر بالترتيب).`, [], 6000);
+      `${info}\n\n${team ? `${team}\n\n` : ""}اكتب منشورات ${scope === "week" ? "هذا الأسبوع" : `الأسبوع ${w + 1} من 4 (خطة شهرية)`}. النشر 3 مرات بهذا الترتيب والأنواع: ${slots[w].map((sl) => `${sl.day} ${sl.date} = ${FORMAT_LABEL[sl.format]}`).join("، ")}. نوّع الأعمدة والأهداف${scope === "week" ? "" : "، ولا تكرر مواضيع الأسابيع الأخرى (زملاؤك يكتبون بقية الأسابيع بالتوازي، فخصّص أسبوعك بزاوية مميزة)"}.\nأجب بـ: {"items":[{"pillar":"","topic":"عنوان الموضوع","hook":"جملة افتتاحية قوية","goal":"","time":"${TIMES.join(" | ")}","prompt":"","caption":""},{...},{...}]} (3 عناصر بالترتيب).`, [], 6000);
     const keepAnalysis = scope === "week" && kit?.analysis;
     const analysis = keepAnalysis ? Promise.resolve({ analysis: undefined }) : claudeVisionJson<{ analysis?: unknown }>(SYSTEM, `${info}\n\nاكتب تحليلاً صريحاً ومفيداً لنشاط العميل كمستشار تسويق: أجب بـ {"analysis":{"positioning":"كيف نوضعه بالسوق بجملتين","audience":"جمهوره الأقرب ودوافعه","voice":"نبرة صوته","strengths":["3-4 نقاط قوة"],"gaps":["3-4 فجوات أو مخاطر يجب معالجتها"],"opportunities":["3-4 فرص محتوى أو سوق"],"differentiators":["3 ما يميزه عن المنافسين"],"competitors":"نوع المنافسين الذين يقارن بهم العميل وكيف يتميز"}}`, [], 3500);
 
