@@ -24,7 +24,7 @@ import { SYSTEM, type Plan } from "@/lib/server/motionPlan";
 import { PLAYBOOK } from "@/remotion/playbook";
 import { enforcePack, packBrief, packById } from "@/remotion/packs";
 import { industryById, customField } from "@/design/industries";
-import { guessIndustry } from "@/lib/server/guessIndustry";
+import { guessIndustry, guessForKit } from "@/lib/server/guessIndustry";
 import { autoPlan } from "@/lib/server/autoPlan";
 import { pickVoice, toneFor, TONE_HINT, withTone, type VoiceItem } from "@/lib/voiceMatch";
 import { snapshot, trendsFor } from "@/lib/server/trends";
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
   const seconds = motion ? ([15, 30, 60].includes(Number(b.seconds)) ? Number(b.seconds) : 30) : LENGTHS.includes(Number(b.seconds)) ? Number(b.seconds) : 60;
   // the field is optional: if the customer didn't pick one, read it from their text
   const savedField = String(b.industry ?? "") ? null : (await createAdminClient().from("brand_kits").select("industry").eq("user_id", user.id).maybeSingle()).data?.industry; // «مجالك» from هويتي
-  const ind = industryById(String(b.industry ?? "")) ?? industryById(savedField) ?? industryById(await guessIndustry(`${customField(savedField)}\n${brand ? `${String(b.brand)}: ` : ""}${topic}`));
+  const ind = industryById(String(b.industry ?? "")) ?? industryById(savedField) ?? industryById(await guessForKit(savedField, `${brand ? `${String(b.brand)}: ` : ""}${topic}`));
   const pack = packById(ind?.id);
   const guide = ind && pack ? packBrief(pack, ind.label) : "";
   const voiceOn = motion ? b.voiceover === true : true;

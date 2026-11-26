@@ -21,7 +21,7 @@ import { iconGuide } from "@/design/iconData";
 import { config } from "@/lib/tools/run";
 import { industryBrief, industryById, customField } from "@/design/industries";
 import { designBrief, designPack } from "@/design/packs";
-import { guessIndustry } from "@/lib/server/guessIndustry";
+import { guessIndustry, guessForKit } from "@/lib/server/guessIndustry";
 import { snapshot, trendsFor } from "@/lib/server/trends";
 import { DECOR_FONTS, usedIcons, LAYOUTS, LAYOUT_IDS, layoutsFor, DECO_IDS, FRAME_IDS, STICKER_IDS, STICKER_LABELS, DESIGN_TOOLS, designImages, lum, normaliseDesign, onColor, type DAspect, type DImg, type DKind, type DesignSpec } from "@/design/spec";
 
@@ -254,7 +254,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
           ? `${count} تصاميم إعلانية مختلفة لنفس المنتج، كل واحد بزاوية تسويقية مختلفة (عرض، فائدة، دليل اجتماعي، ندرة...) وبتخطيط مختلف. كل تصميم له caption خاص.`
           : `تصميم بوست واحد. اختر أنسب تخطيط للمحتوى، وحط caption.`;
       // the field: chosen, or read from what the customer wrote; its design pack picks this job's look
-      const ind = industryById(body.industry) ?? industryById((kit as { industry?: string | null } | null)?.industry) ?? industryById(await guessIndustry(`${customField((kit as { industry?: string | null } | null)?.industry)}\n${info}`)); // «مجالك» from هويتي
+      const ind = industryById(body.industry) ?? industryById((kit as { industry?: string | null } | null)?.industry) ?? industryById(await guessForKit((kit as { industry?: string | null } | null)?.industry, info)); // «مجالك» from هويتي
       const dpack = designPack(ind?.id);
       const dpick = dpack && ind ? designBrief(dpack, ind.label, Math.random(), ind.id) : null;
       const imgStyle = isImgStyle(body.imgStyle) ? body.imgStyle : DEFAULT_IMG_STYLE;
