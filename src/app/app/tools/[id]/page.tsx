@@ -74,9 +74,9 @@ export default async function ToolPage({ params, searchParams }: P) {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <nav aria-label={L("مسار الصفحة")} className="text-sm text-subtle"><Link href="/app" className="text-navy-700">{L("الرئيسية")}</Link> › <Link href="/app/tools" className="text-navy-700">{L("الأدوات")}</Link> › {tool.name}</nav>
+        <nav aria-label={L("مسار الصفحة")} className="text-sm text-subtle"><Link href="/app" className="text-navy-700">{L("الرئيسية")}</Link> › <Link href="/app/tools" className="text-navy-700">{L("الأدوات")}</Link> › {L(tool.name)}</nav>
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
-          <h1 className={job ? "text-[22px] font-bold text-navy-900" : "text-[28px] font-bold text-navy-900"}>{tool.name}</h1>
+          <h1 className={job ? "text-[22px] font-bold text-navy-900" : "text-[28px] font-bold text-navy-900"}>{L(tool.name)}</h1>
           <div className="flex flex-wrap gap-2">
             {tool.tutorial_url && (/youtu/.test(tool.tutorial_url)
               ? <a href={tool.tutorial_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline gap-2 px-4 py-2 text-[14px]">▶ {L("علّمني الطريقة")}</a>
