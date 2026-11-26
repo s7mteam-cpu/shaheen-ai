@@ -2,7 +2,7 @@ import Link from "next/link";
 import { guardPage } from "@/lib/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { INDUSTRIES } from "@/design/industries";
-import { ROLES, SKILLS, SENSITIVE, cleanTeam, playText } from "@/lib/team";
+import { ROLES, SKILLS, SKILL_SCOPES, SENSITIVE, TOOL_SCOPE, cleanTeam, playText } from "@/lib/team";
 import { MasterForm, RoleForm, FieldForm, SkillForm, AddSkill } from "./TeamForms";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,11 @@ export default async function TeamPage() {
   const { data: row } = await createAdminClient().from("admin_secrets").select("value").eq("key", "ai_team").maybeSingle();
   const team = cleanTeam(row?.value);
   const custom = Object.entries(team.skills ?? {}).filter(([, x]) => x.custom);
+  const { data: toolRows } = await createAdminClient().from("tools").select("id,name").order("sort_order", { ascending: true });
+  const tools = ((toolRows ?? []) as { id: string; name: string }[]).filter((t) => TOOL_SCOPE[t.id]);
+  const loose = ((toolRows ?? []) as { id: string; name: string }[]).filter((t) => !TOOL_SCOPE[t.id]);
+  const scopeLabel = (s: string) => SKILL_SCOPES.find(([id]) => id === s)?.[1] ?? s;
+  const activeFor = (s: string) => SKILLS.filter((b) => (b.scopes as string[]).includes(s) && team.skills?.[b.id]?.on !== false).length + custom.filter(([, x]) => x.on !== false && (x.scopes ?? []).includes(s as never)).length;
   const groups = [...new Set(INDUSTRIES.map((i) => i.group))];
   return (
     <div className="flex flex-col gap-5">
@@ -28,6 +33,15 @@ export default async function TeamPage() {
       {ROLES.map((r) => (
         <RoleForm key={r.id} id={r.id} label={r.label} text={team.roles?.[r.id]?.text ?? r.text} builtIn={r.text} changed={!!team.roles?.[r.id]?.text} on={team.roles?.[r.id]?.on !== false} />
       ))}
+      <h2 className="mt-2 text-[19px] font-bold text-navy-900">الأدوات والمهارات اللي تاخذها</h2>
+      <p className="-mt-3 text-[13.5px] leading-6 text-subtle">كل أداة مربوطة بنوعها، والقالب وتوأمه «مبتكر» ياخذون نفس المهارات. عدّل مهارة من القائمة تحت وتغيّر بكل الأدوات اللي من نوعها.</p>
+      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+        <table className="w-full text-[13.5px]">
+          <thead><tr className="bg-surface text-start text-subtle"><th className="p-2.5 text-start">الأداة</th><th className="p-2.5 text-start">نوع المهارات</th><th className="p-2.5 text-start">عدد المهارات الشغالة</th></tr></thead>
+          <tbody>{tools.map((t) => (<tr key={t.id} className="border-t border-line"><td className="p-2.5 font-semibold text-navy-900">{t.name}</td><td className="p-2.5">{scopeLabel(TOOL_SCOPE[t.id])}</td><td className="p-2.5">{activeFor(TOOL_SCOPE[t.id])}</td></tr>))}</tbody>
+        </table>
+      </div>
+      {loose.length ? <p className="text-[13px] leading-6 text-subtle">أدوات ما تأخذ مهارات (ما فيها كتابة أو تصميم يتغير حسب المجال): {loose.map((t) => t.name).join("، ")}.</p> : null}
       <h2 className="mt-2 text-[19px] font-bold text-navy-900">المهارات ({SKILLS.length} أساسية{custom.length ? ` + ${custom.length} إضافاتك` : ""})</h2>
       <p className="-mt-3 text-[13.5px] leading-6 text-subtle">أساليب مشتركة بين كل المجالات، مأخوذة من أقوى مكتبات المهارات المفتوحة (marketingskills وinstagram-skills وsocial-ai-team، كلها بترخيص MIT) ومكتوبة بالعربي. توقف أو تعدّل أو تضيف مهاراتك.</p>
       {SKILLS.map((b) => (

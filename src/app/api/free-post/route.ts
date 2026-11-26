@@ -11,6 +11,7 @@ import { falImages, falRun } from "@/lib/providers/fal";
 import { saveFromUrl, saveResult } from "@/lib/providers/storage";
 import { config } from "@/lib/tools/run";
 import { setUsageCtx } from "@/lib/server/usageCtx";
+import { teamBriefFor } from "@/lib/server/teamBrief";
 
 export const maxDuration = 120; // a design with an AI picture draws the picture first
 const ASPECTS = ["4:5", "1:1", "9:16", "16:9"];
@@ -131,6 +132,7 @@ export async function POST(req: Request) {
     };
     cost = Math.max(0, tool.credit_cost) * (card ? 1 : slides);
     title = idea.slice(0, 80);
+    input.team_brief = await teamBriefFor(toolId, user.id, idea); // «فريق التوجيه»: the field, the skills of this tool and «تعليماتي»; the worker reads it
     if (b.useStyle !== false) { const st = await loadStyle(user.id); if (st) input.style = st; } // «أسلوبي»: his taste, reference pictures and video (his own files, read by the server)
     // «صورة للتصميم» (بوست وإعلان فقط): the customer's own uploaded picture, or one drawn now by the image tool (its price is added)
     if (PHOTO_TOOLS.includes(toolId) && b.photo === "upload") {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { teamBriefFor } from "@/lib/server/teamBrief";
 import { extraPricing } from "@/lib/server/pricing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser, adminAccess } from "@/lib/server/auth";
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
   const picsCost = picCount * (await extraPricing()).ai_image_cost;
   const cost = Math.max(tool.credit_cost, eng.fxMinCost, Math.ceil((secs * tool.credit_cost) / 15)) + Math.ceil((secs * ((behind || bgImg ? eng.fxBehindCost : 0) + (music ? eng.fxMusicCost : 0))) / 60) + picsCost;
   const input = { kind: "fx", mode: "new", video, seconds: secs, notes, fx, styles, depth, ...(styleDesc ? { styleDesc } : {}), captions: b.captions !== false, model: eng.model, maxSeconds, ...(eng.fxReview ? { review: true } : {}), ...(behind ? { behind: true } : {}), ...(img ? { img } : {}), ...(music ? { music: true } : {}), ...(bgImg ? { bg: bgText, bgImg } : {}), ...(musicFile ? { musicFile } : {}), ...(b.tight === true ? { tight: true } : {}), ...(b.sfx === false ? { sfx: false } : {}), ...(b.moves === false ? { moves: false } : {}), ...(photos.length ? { photos } : {}), ...(colors.length ? { colors } : {}) };
+  Object.assign(input, { team_brief: await teamBriefFor("free-montage", user.id, notes) }); // «فريق التوجيه»
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: TOOL, title: (notes || "مونتاج مبتكر").slice(0, 60), status: "queued", progress: 0, input }).select("id").single();
   if (error || !job) return NextResponse.json({ error: "تعذّر بدء المونتاج." }, { status: 500 });
   const { error: payErr } = await admin.rpc("spend_credits", { p_user: user.id, p_amount: cost, p_job: job.id });

@@ -72,6 +72,7 @@ export async function POST(req: Request) {
   if (toolId === "voice" && input.clone && !(Array.isArray(input.sample) && input.sample.length)) {
     return NextResponse.json({ error: "ارفع عينة صوتك." }, { status: 400 });
   }
+  delete (input as Record<string, unknown>).team_brief; // only the server writes the team's brief, never the request
   // Uploaded files must belong to this user
   for (const k of ["images", "video", "sample", "broll"]) {
     const list = Array.isArray(input[k]) ? (input[k] as string[]) : [];

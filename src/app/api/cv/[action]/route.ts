@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { teamBriefFor } from "@/lib/server/teamBrief";
 import { setUsageCtx } from "@/lib/server/usageCtx";
 import JSZip from "jszip";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -67,7 +68,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     try {
       const doc = upload ? await readFileText(upload) : { text: "" };
       if (upload && !doc.text.trim() && !doc.pdf) throw new Error("unreadable file");
-      const ask = `${info ? `معلومات العميل:\n${info}\n\n` : ""}${doc.text ? `سيرته القديمة (${upload?.name}):\n${doc.text.slice(0, 30000)}\n\n` : ""}${doc.pdf ? "سيرته القديمة مرفقة كملف PDF.\n\n" : ""}${target ? `الوظيفة المستهدفة: ${target}` : ""}`;
+      const team = await teamBriefFor("cv", user.id, "", 5000); // «فريق التوجيه» (cv skills + his own «تعليماتي»; the business field stays out)
+      const ask = `${team ? `${team}\n\n` : ""}${info ? `معلومات العميل:\n${info}\n\n` : ""}${doc.text ? `سيرته القديمة (${upload?.name}):\n${doc.text.slice(0, 30000)}\n\n` : ""}${doc.pdf ? "سيرته القديمة مرفقة كملف PDF.\n\n" : ""}${target ? `الوظيفة المستهدفة: ${target}` : ""}`;
       const twice = async <T,>(f: () => Promise<T>) => { try { return await f(); } catch { return await f(); } };
       const out = await twice(() => claudeVisionJson<Record<string, unknown>>(SYSTEM(lang, target), ask, [], 8000, "claude-sonnet-5-5", doc.pdf ? [doc.pdf] : []));
       const style = CV_STYLES.find((x) => x.id === out.styleId) ?? CV_STYLES[0];

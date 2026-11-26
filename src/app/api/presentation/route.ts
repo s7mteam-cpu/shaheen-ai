@@ -1,4 +1,5 @@
 import { extraPricing } from "@/lib/server/pricing";
+import { teamBriefFor } from "@/lib/server/teamBrief";
 import { setUsageCtx } from "@/lib/server/usageCtx";
 import { NextResponse } from "next/server";
 import JSZip from "jszip";
@@ -105,7 +106,8 @@ export async function POST(req: Request) {
     const doc = upload ? await readFile(upload) : { text: "" };
     if (upload && !doc.text.trim() && !doc.pdf) throw new Error("ما قدرنا نقرأ نص من الملف.");
     const { data: kit } = await admin.from("brand_kits").select("business_name,colors,font,logo_url").eq("user_id", user.id).maybeSingle();
-    const ask = `${topic ? `موضوع العميل / نصه:\n${topic}\n\n` : ""}${doc.text ? `محتوى الملف المرفوع (${upload?.name}):\n${doc.text.slice(0, 40000)}\n\n` : ""}${doc.pdf ? "الملف المرفوع (PDF) مرفق. اعتمد عليه.\n\n" : ""}${audience ? `الجمهور/الغرض: ${audience}\n` : ""}${kit?.business_name ? `اسم الجهة المقدِّمة: ${kit.business_name}\n` : ""}${auto ? "عدد الشرائح: اختره بنفسك حسب المادة." : `عدد الشرائح: ${n}.`}`;
+    const team = await teamBriefFor("presentations", user.id, `${topic} ${audience}`, 7000); // «فريق التوجيه»
+    const ask = `${team ? `${team}\n\n` : ""}${topic ? `موضوع العميل / نصه:\n${topic}\n\n` : ""}${doc.text ? `محتوى الملف المرفوع (${upload?.name}):\n${doc.text.slice(0, 40000)}\n\n` : ""}${doc.pdf ? "الملف المرفوع (PDF) مرفق. اعتمد عليه.\n\n" : ""}${audience ? `الجمهور/الغرض: ${audience}\n` : ""}${kit?.business_name ? `اسم الجهة المقدِّمة: ${kit.business_name}\n` : ""}${auto ? "عدد الشرائح: اختره بنفسك حسب المادة." : `عدد الشرائح: ${n}.`}`;
     let deck: Deck;
     const pdfs = doc.pdf ? [doc.pdf] : [];
     const twice = async <T,>(f: () => Promise<T>) => { try { return await f(); } catch { return await f(); } };

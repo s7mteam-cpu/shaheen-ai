@@ -106,8 +106,8 @@ for (const [k, t] of Object.entries({ ...DEEP, ...DEEP_MORE })) PLAYBOOKS[k] = {
 
 /** «المهارات»: know-how shared by every field, one per technique. Adapted from the strongest open-source skill libraries (MIT) and rewritten in Arabic
  *  (sources noted on each). The admin can edit, switch off or delete any of them, and add his own. */
-export type SkillScope = "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite" | "lesson";
-export const SKILL_SCOPES: [SkillScope, string][] = [["post", "البوستات"], ["carousel", "الكاروسيل"], ["ads", "الإعلانات"], ["motion", "الموشن"], ["montage", "المونتاج والمشاهد الواقعية"], ["bcard", "بطاقات العمل"], ["invite", "الدعوات"], ["lesson", "الدروس"]];
+export type SkillScope = "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite" | "lesson" | "deck" | "cv" | "photo" | "clip";
+export const SKILL_SCOPES: [SkillScope, string][] = [["post", "البوستات"], ["carousel", "الكاروسيل"], ["ads", "الإعلانات"], ["motion", "الموشن"], ["montage", "المونتاج والمشاهد الواقعية"], ["bcard", "بطاقات العمل"], ["invite", "الدعوات"], ["lesson", "الدروس"], ["deck", "العروض التقديمية"], ["cv", "السير الذاتية"], ["photo", "صور الذكاء الاصطناعي وصور المنتجات"], ["clip", "فيديو المنتج"]];
 export type BuiltSkill = { id: string; title: string; source: string; scopes: SkillScope[]; text: string };
 const ALL: SkillScope[] = ["post", "ads", "carousel", "motion", "montage", "bcard", "invite", "lesson"];
 const COPY: SkillScope[] = ["post", "ads", "carousel", "motion", "montage", "invite", "lesson"];
@@ -193,9 +193,35 @@ export const SKILLS: BuiltSkill[] = [
     text: "لا تعتمد على اللون وحده لنقل المعنى. النص المهم لا يقل عن حجم يُقرأ على جوال صغير. تجنب الخطوط الرفيعة جداً فوق الصور، وتجنب الوميض السريع بالفيديو. الترجمة النصية تغطي كل الكلام. ألوان متباينة للنص والخلفية." },
   { id: "headline-patterns", title: "قوالب العناوين", source: "marketingskills (copywriting)", scopes: ["post", "ads", "carousel", "invite"],
     text: "قوالب تنفع بالعربي: «كيف تحقق [نتيجة] بدون [ألم]» · «[رقم] أشياء تسوي [نتيجة]» · «وقّف [غلط شائع]» · «ما يقوله لك [أهل المجال] عن [موضوع]» · «[نتيجة] بـ[وقت واقعي]» · «من [حالة سيئة] إلى [حالة جيدة]». املأها بتفصيل حقيقي، وقصّرها لست كلمات. وعد واحد وسبب واحد للتصديق." },
+  { id: "deck-structure", title: "هيكل العرض التقديمي", source: "marketingskills (copywriting/carousel-frameworks) + قواعد عروض عامة", scopes: ["deck"],
+    text: "العرض يحكي قصة بترتيب واضح: غلاف بعنوان يعد بنتيجة، المشكلة أو السبب، الحل أو الفكرة، الدليل (رقم، مثال، صورة حقيقية)، الخطوة التالية. فكرة وحدة بالشريحة وعنوانها جملة كاملة تقول الخلاصة، مو كلمة عامة مثل «نظرة عامة». حتى 30 كلمة بالشريحة، وأرقام كبيرة بدل جداول طويلة. شريحة المقارنة بعمودين فقط، وشريحة الأرقام برقم بطل واحد. أول شريحة تعرّف من أنت ولمن العرض، وآخر شريحة طلب واحد واضح مع طريقة التواصل. نفس القالب والألوان والخطوط بكل الشرائح، والصور بنفس الأسلوب." },
+  { id: "cv-writing", title: "السيرة الذاتية الاحترافية", source: "قواعد كتابة السيرة الذاتية العامة", scopes: ["cv"],
+    text: "صفحة وحدة، الأحدث أولاً. فوق: الاسم، المسمى المطلوب، وسيلة تواصل واحدة أو اثنتين. ملخص من سطرين عن اللي تقدمه فعلاً. كل خبرة: المسمى، الجهة، المدة، و2 إلى 4 نقاط تبدأ بفعل وتنتهي بنتيجة أو رقم حقيقي من العميل («رفعت المبيعات 20%»)؛ لا تخترع أرقام ولا شهادات ولا خبرات. المهارات مجموعة بأقسام قصيرة وبدون مقاييس نجوم أو نسب مئوية. خط واحد واضح، حجم النص 10 إلى 11 نقطة، وعناوين الأقسام أكبر بدرجة وحدة. ألوان هادئة (لون واحد للتمييز)، وبدون صور زخرفية. صورة شخصية فقط إذا العميل رفعها وطلبها." },
+  { id: "photo-direction", title: "توجيه الصورة (إضاءة وتكوين)", source: "marketingskills (image) + قواعد تصوير عامة", scopes: ["photo"],
+    text: "اكتب وصف الصورة كمصوّر: الموضوع الرئيسي، المكان، الإضاءة (ضوء نافذة ناعم، ضوء ذهبي، استوديو ناعم)، زاوية الكاميرا (مستوى العين، من فوق، قريب جداً)، العمق (خلفية ضبابية)، وجو الألوان. موضوع واحد واضح ومساحة فاضية تتحمل نصاً لو الصورة لإعلان. مواد وملمس حقيقي (خشب، رخام، قماش) وتفاصيل صغيرة طبيعية. ممنوع: نصوص وشعارات وعلامات مائية داخل الصورة، أيدي أو وجوه مشوهة، وأشياء مبالغ فيها مثل لمعان بلاستيكي. إذا فيه ناس: طبيعيين وبملابس تناسب المكان والمجال، بدون أشخاص مشهورين." },
+  { id: "clip-shots", title: "لقطة فيديو المنتج", source: "marketingskills (image/video) + قواعد تصوير إعلانات", scopes: ["clip"],
+    text: "لقطة وحدة مستمرة وسلسة: حركة كاميرا بطيئة وحدة (دوران حول المنتج، اقتراب هادئ، أو سحب للخلف) مو أكثر. المنتج يبقى مطابق للصورة الأصلية بشكله وألوانه وكتابته. فيزياء واقعية: سوائل، أقمشة، بخار، ضوء بحركة طبيعية. إضاءة وجو يناسبون المجال والمنتج (فخم ودافئ للعطور، نظيف ومنعش للمشروبات، دافئ ببيت للأكل). لا نصوص ولا شعارات مضافة ولا وجوه ما طلبها العميل. صوت خلفي هادي مناسب." },
   { id: "benefit-copy", title: "فائدة قبل الميزة", source: "marketingskills (copywriting)", scopes: ["post", "ads", "carousel", "motion"],
     text: "ابدأ بما يستفيده العميل مو بمواصفات المنتج: بدل «قماش قطني 100%» اكتب «يبقى منعش بالصيف». ثم اذكر الميزة اللي تثبت الفائدة. خاطب القارئ بصيغة المخاطب، وركز على موقف يعيشه. تجنب الأوصاف العامة («أفضل»، «رائع») واستبدلها بتفصيل ملموس." },
 ];
+
+/** the newer tool types borrow the skills that fit them (the list above stays as written) */
+const EXTRA: Record<string, SkillScope[]> = {
+  typography: ["deck", "cv"], "brand-color": ["deck", "photo"], "layout-patterns": ["deck"], "arabic-copy": ["deck", "cv"], "human-writing": ["deck", "cv"],
+  "slide-copy": ["deck"], bilingual: ["deck", "cv"], accessible: ["deck", "cv"], "honest-proof": ["deck"], "headline-patterns": ["deck"], "benefit-copy": ["deck"],
+  "cta-rules": ["deck"], "logo-usage": ["deck"], "customer-photos": ["deck", "photo"], "price-display": ["deck"],
+  "image-prompt": ["photo", "clip"], "ai-image-checks": ["photo", "clip"], "product-photo": ["photo", "clip"], "realistic-scenes": ["photo", "clip"], seasons: ["photo"],
+  pacing: ["clip"], "video-structure": ["clip"],
+};
+for (const b of SKILLS) b.scopes = [...new Set([...b.scopes, ...(EXTRA[b.id] ?? [])])];
+
+/** every tool of the site and the team scope it follows: the template tool and its «مبتكر» twin share one (a post is a post) */
+export const TOOL_SCOPE: Record<string, TeamScope> = {
+  post: "post", "free-post": "post", carousel: "carousel", "free-carousel": "carousel", "ad-design": "ads", "free-ad": "ads",
+  invitations: "invite", "free-invite": "invite", "business-cards": "bcard", "free-card": "bcard", presentations: "deck", "free-deck": "deck", cv: "cv", "free-cv": "cv",
+  "motion-video": "motion", "free-motion": "motion", "site-video": "motion", "site-free": "motion", "anim-video": "motion", "real-scenes": "montage",
+  "video-editing": "montage", "free-montage": "montage", image: "photo", "product-photo": "photo", "product-video": "clip",
+};
 
 /** groups used when a field has no playbook of its own */
 const GROUP_FALLBACK: Play = G("ركّز على عرض واحد واضح وطريقة الطلب، من كلام العميل فقط.", "ألوان هوية العميل وصور حقيقية من نشاطه.", "أي ادعاء أو رقم ما ذكره العميل.");
@@ -232,9 +258,9 @@ export function cleanTeam(v: unknown): TeamData {
   return { on: o.on !== false, roles, fields, skills, at: typeof o.at === "string" ? o.at.slice(0, 30) : "" };
 }
 
-export type TeamScope = "all" | "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite" | "lesson";
-const TEXTY = new Set<TeamScope>(["post", "ads", "carousel", "motion", "montage", "invite", "lesson", "bcard"]);
-const TOOL_KEY: Partial<Record<TeamScope, "post" | "carousel" | "ads" | "motion" | "scenes">> = { post: "post", carousel: "carousel", ads: "ads", motion: "motion", montage: "scenes", lesson: "motion", invite: "post", bcard: "post" };
+export type TeamScope = "all" | "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite" | "lesson" | "deck" | "cv" | "photo" | "clip";
+const TEXTY = new Set<TeamScope>(["post", "ads", "carousel", "motion", "montage", "invite", "lesson", "bcard", "deck", "cv"]);
+const TOOL_KEY: Partial<Record<TeamScope, "post" | "carousel" | "ads" | "motion" | "scenes">> = { post: "post", carousel: "carousel", ads: "ads", motion: "motion", montage: "scenes", lesson: "motion", invite: "post", bcard: "post", deck: "carousel", photo: "scenes", clip: "motion" };
 
 /** the block handed to the model: team roles + the skills that fit this tool + the playbook of the customer's field. Empty when the team is off. */
 export function teamBlock(data: TeamData | null | undefined, industryId: string | undefined, customText: string | undefined, scope: TeamScope, off: string[] = []): string {
@@ -261,7 +287,7 @@ export function teamBlock(data: TeamData | null | undefined, industryId: string 
   const base = industryId ? PLAYBOOKS[industryId] : undefined;
   const f = industryId ? d.fields?.[industryId] : undefined;
   const lines: string[] = [];
-  if (!(f && f.on === false)) {
+  if (scope !== "cv" && !(f && f.on === false)) { // a CV is personal: the business field playbook stays out of it
     lines.push(f?.text || playText(industryId));
     const k = TOOL_KEY[scope];
     if (k && base?.t?.[k]) lines.push(`لهذه الأداة: ${base.t[k]}`);

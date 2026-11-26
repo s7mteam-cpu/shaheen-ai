@@ -2,13 +2,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { modelFor } from "@/lib/server/models";
 import { cachedSystem } from "@/lib/providers/text";
 import { INDUSTRIES } from "@/design/industries";
-import { cleanTeam, teamBlock, type TeamData } from "@/lib/team";
+import { cleanTeam, teamBlock, type TeamData, type TeamScope } from "@/lib/team";
 import { cleanMine, mineBlock } from "@/lib/mine";
 
 export type Scope = "all" | "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite";
 export const SCOPES: [Scope, string][] = [["all", "الكل"], ["post", "البوستات"], ["carousel", "الكاروسيل"], ["ads", "الإعلانات"], ["motion", "الموشن جرافيك"], ["montage", "المونتاج"], ["bcard", "بطاقات العمل"], ["invite", "دعوات المناسبات"]];
 export const GROUPS = [...new Set(INDUSTRIES.map((i) => i.group))];
 const DROP_DAYS = 90;               // …and is ignored after three
+
+const TREND_SCOPE: Partial<Record<TeamScope, Scope>> = { deck: "post", photo: "post", clip: "motion", lesson: "motion" };
 
 /** Approved, still-fresh trends for one job, as one block for the AI's instructions. */
 let teamCache: { at: number; v: TeamData } = { at: 0, v: {} };
@@ -23,7 +25,7 @@ async function teamData(): Promise<TeamData> {
 }
 
 /** What every tool adds to its instructions: the team's playbook for the customer's field, then the approved trends. */
-export async function trendsFor(industry: string | undefined, scope: Scope, userId?: string) {
+export async function trendsFor(industry: string | undefined, scope: TeamScope, userId?: string) {
   let team = "", mine = "";
   try {
     let raw: unknown = null;
@@ -31,7 +33,7 @@ export async function trendsFor(industry: string | undefined, scope: Scope, user
     team = teamBlock(await teamData(), industry, undefined, scope, cleanMine(raw).off);
     mine = mineBlock(raw, scope);
   } catch { team = team || ""; }
-  const trends = await approvedTrends(industry, scope);
+  const trends = scope === "cv" ? "" : await approvedTrends(industry, TREND_SCOPE[scope] ?? "all");
   return [team, mine, trends].filter(Boolean).join("\n\n");
 }
 
