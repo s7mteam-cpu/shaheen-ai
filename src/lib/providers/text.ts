@@ -96,18 +96,23 @@ export async function claudeVisionJson<T>(system: string, text: string, images: 
   for (const im of images) { content.push({ type: "text", text: im.label }); const m = /^data:([^;]+);base64,(.+)$/.exec(im.url); content.push({ type: "image", source: m ? { type: "base64", media_type: m[1], data: m[2] } : { type: "url", url: im.url } }); }
   content.push({ type: "text", text });
   const use = await modelFor(model);
-  const ask = (m: string) => fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: m, max_tokens: maxTokens, system: cachedSystem(`${system}\nأجب بـ JSON صالح فقط بدون أي نص آخر.`), messages: [{ role: "user", content }] }),
-  });
-  let res = await ask(use);
-  if (!res.ok && use !== model) { const why = await res.clone().text(); if (looksLikeBadModel(res.status, why)) { await noteModelFailure(model, use, why); res = await ask(model); } }
-  if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const data = (await res.json()) as { content: { text?: string }[] };
-  noteClaudeUsage(use, data, "خطة الموقع (JSON)");
-  const out = data.content.map((c) => c.text ?? "").join("");
-  const o = out.indexOf("{");
-  if (o < 0 || out.lastIndexOf("}") < o) throw new Error(`no JSON in reply (${(data as { stop_reason?: string }).stop_reason ?? "?"}): ${out.slice(0, 120)}`);
-  return JSON.parse(out.slice(o, out.lastIndexOf("}") + 1)) as T;
+  // a reply that is not valid JSON (an unescaped quote inside a text, a missing comma) is asked for again once, with a stricter reminder
+  for (let attempt = 0; ; attempt++) {
+    const strict = attempt ? "\nتنبيه: الجواب السابق كان JSON غير صالح. لا تستخدم علامة الاقتباس المزدوجة \" داخل أي نص (استخدم « » بدلها)، وتأكد من الفواصل وإغلاق كل قوس." : "";
+    const ask = (m: string) => fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: m, max_tokens: maxTokens, system: cachedSystem(`${system}\nأجب بـ JSON صالح فقط بدون أي نص آخر.${strict}`), messages: [{ role: "user", content }] })
+    });
+    let res = await ask(use);
+    if (!res.ok && use !== model) { const why = await res.clone().text(); if (looksLikeBadModel(res.status, why)) { await noteModelFailure(model, use, why); res = await ask(model); } }
+    if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const data = (await res.json()) as { content: { text?: string }[] };
+    noteClaudeUsage(use, data, "خطة الموقع (JSON)");
+    const out = data.content.map((c) => c.text ?? "").join("");
+    const o = out.indexOf("{");
+    if (o < 0 || out.lastIndexOf("}") < o) throw new Error(`no JSON in reply (${(data as { stop_reason?: string }).stop_reason ?? "?"}): ${out.slice(0, 120)}`);
+    try { return JSON.parse(out.slice(o, out.lastIndexOf("}") + 1)) as T; }
+    catch (e) { if (attempt >= 1) throw e; }
+  }
 }
