@@ -52,7 +52,7 @@ export function WorkCard({ w: initial, onDelete }: { w: Work; onDelete?: (id: st
       </div>
       <div className="flex flex-col gap-1.5 p-3.5">
         {w.plan && <span className="w-fit rounded-full bg-gold-100 px-2.5 py-0.5 text-[12px] font-bold text-navy-900">📅 {w.plan.day} {w.plan.date}</span>}
-        <h3 className="line-clamp-1 text-[15px] font-bold text-navy-900">{w.title || w.toolName}</h3>
+        <h3 className="line-clamp-1 text-[15px] font-bold text-navy-900">{w.title || L(w.toolName)}</h3>
         <span className="text-[13px] text-subtle">{w.toolName} · {new Date(w.created_at).toLocaleDateString(LT("ar-KW", "en-GB"))}{w.files.length > 1 ? LT(` · ${w.files.length} ملفات`, ` · ${w.files.length} files`) : ""}</span>
         {w.daysLeft !== undefined && <span className={`w-fit rounded-full px-2.5 py-0.5 text-[12px] font-bold ${w.daysLeft <= 7 ? "bg-red-50 text-red-800" : "bg-tint text-navy-700"}`}>🕒 {w.daysLeft <= 0 ? L("بيتحذف قريباً") : LT(`يتبقى ${w.daysLeft} يوم`, `${w.daysLeft} days left`)}</span>}
         <div className="mt-1.5 flex gap-1.5">
