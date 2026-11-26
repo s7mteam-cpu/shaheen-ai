@@ -10,14 +10,16 @@ import { industryById, customField, CUSTOM_FIELD } from "@/design/industries";
 import { IndustryList } from "./IndustryPicker";
 import { IdentityAnalyse } from "./IdentityAnalyse";
 import type { InstaRead } from "@/lib/plan";
+import { ARAB_DIALECTS, DIALECT_COOKIE } from "@/lib/countries";
 
-export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[]; insta?: InstaRead | null; industry?: string } }) {
+export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[]; insta?: InstaRead | null; industry?: string; dialect?: string } }) {
   const [name, setName] = useState(initial.business_name);
   const [logo, setLogo] = useState(initial.logo_url);
   const [preview, setPreview] = useState(initial.logo_preview);
   const [colors, setColors] = useState(initial.colors.length ? initial.colors : ["#0B2A4A", "#C9A45C", "#FFFFFF"]);
   const [handle, setHandle] = useState(initial.handle ?? "");
   const [font, setFont] = useState(initial.font || "Cairo");
+  const [dialect, setDialect] = useState(ARAB_DIALECTS.some((x) => x[0] === initial.dialect) ? String(initial.dialect) : "");
   const [industry, setIndustry] = useState(industryById(initial.industry ?? "")?.id ?? "");
   const [fieldText, setFieldText] = useState(customField(initial.industry));
   const [fieldOpen, setFieldOpen] = useState(!industryById(initial.industry ?? "") && !customField(initial.industry)); // open until the field is set (recommended)
@@ -69,7 +71,8 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
   /** saves the identity; returns the reason when it did not save */
   async function persist(): Promise<string | null> {
     const field = industry || (fieldText.trim() ? `${CUSTOM_FIELD}${fieldText.trim()}` : "");
-    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video, industry: field });
+    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video, industry: field, dialect });
+    if (r.ok) document.cookie = dialect ? `${DIALECT_COOKIE}=${dialect}; path=/; max-age=31536000; samesite=lax` : `${DIALECT_COOKIE}=; path=/; max-age=0; samesite=lax`;
     return r.ok ? null : L(("error" in r && r.error) || "تعذّر الحفظ.");
   }
   async function save() {
@@ -121,6 +124,15 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
           <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("ما لقيت مجالك؟ اكتبه بنفسك")}</span><input value={fieldText} onChange={(e) => { setFieldText(e.target.value.slice(0, 60)); if (e.target.value.trim()) setIndustry(""); }} maxLength={60} className="field" placeholder={L("مثال: ورشة نجارة وديكور خشبي")} /></label>
         </div>
       </details>
+      <div className="flex flex-col gap-2 rounded-2xl border border-line p-4">
+        <span className="label">{LT("لهجة المحتوى", "Content dialect")} <span className="font-normal text-subtle">· {dialect ? LT(ARAB_DIALECTS.find((x) => x[0] === dialect)![1], ARAB_DIALECTS.find((x) => x[0] === dialect)![2]) : LT("فصحى (الافتراضي)", "Standard Arabic (default)")}</span></span>
+        <p className="text-[13px] leading-6 text-muted">{LT("كل بوستاتك وكاروسيلك وإعلاناتك وفيديوهاتك وكل اللي ينتجه شاهين لك راح تنكتب بهاللهجة. لو ما اخترت لهجة تنكتب بالفصحى.", "Everything Shaheen makes for you (posts, carousels, ads, videos) is written in this dialect. If you choose none, it is written in Standard Arabic.")}</p>
+        <div className="flex flex-wrap gap-2">
+          {[["", "فصحى", "Standard Arabic"] as [string, string, string], ...ARAB_DIALECTS.filter((x) => x[0] !== "msa")].map(([id, ar, en]) => (
+            <button key={id || "msa"} type="button" onClick={() => setDialect(id)} className={`rounded-full border px-3.5 py-2 text-[13.5px] font-semibold ${dialect === id ? "border-navy-900 bg-navy-900 text-white" : "border-field bg-white text-navy-900"}`}>{LT(ar, en)}</button>
+          ))}
+        </div>
+      </div>
       <IdentityAnalyse initial={initial.insta ?? null} save={persist} onApply={applyRead} />
       <details className="group rounded-2xl border border-line p-4">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2"><span className="label">{L("خط الهوية")} <span className="font-normal text-subtle">· {libFont(font)?.label ? L(libFont(font)!.label) : font}</span></span><span aria-hidden className="text-base transition group-open:rotate-180">▾</span></summary>

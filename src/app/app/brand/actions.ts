@@ -4,11 +4,12 @@ import { cleanColors, cleanFormats, PLAN_FORMATS, type PlanPrefs } from "@/lib/p
 import { logEvent } from "@/lib/server/events";
 import { LIB_FONT_IDS } from "@/lib/fonts";
 import { industryById, customField, CUSTOM_FIELD } from "@/design/industries";
+import { ARAB_DIALECTS } from "@/lib/countries";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function saveBrand(data: { business_name: string; logo_url: string | null; colors: string[]; handle?: string; font?: string; website?: string; instagram?: string; style_refs?: string[]; style_note?: string; style_video?: string | null; industry?: string }) {
+export async function saveBrand(data: { business_name: string; logo_url: string | null; colors: string[]; handle?: string; font?: string; website?: string; instagram?: string; style_refs?: string[]; style_note?: string; dialect?: string; style_video?: string | null; industry?: string }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "" };
@@ -31,6 +32,8 @@ export async function saveBrand(data: { business_name: string; logo_url: string 
   }
   let { error } = await supabase.from("brand_kits").upsert({ ...base, ...ind, style_note: note, style_video: video });
   if (error) ({ error } = await supabase.from("brand_kits").upsert({ ...base, ...ind })); // before SQL 0067 is run: the rest of the identity still saves
+  // «لهجة المحتوى»: every post, video and design of this customer is written in it; empty = Standard Arabic
+  if (!error && typeof data.dialect === "string" && (data.dialect === "" || ARAB_DIALECTS.some((x) => x[0] === data.dialect))) await mergePrefs({ dialect: data.dialect });
   revalidatePath("/app/brand");
   return { ok: !error };
 }

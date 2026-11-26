@@ -4,6 +4,10 @@ import { industryById } from "@/design/industries";
 import { guessForKit } from "@/lib/server/guessIndustry";
 import { trendsFor } from "@/lib/server/trends";
 import { TOOL_SCOPE } from "@/lib/team";
+import { ARAB_DIALECTS } from "@/lib/countries";
+
+/** tools whose page has no dialect picker: the dialect chosen in «هويتي» (else Standard Arabic) is told to them here */
+const NO_PICKER = new Set(["free-post", "free-carousel", "free-ad", "free-invite", "free-card", "free-montage"]);
 
 /** «فريق التوجيه» for ANY tool by its id: the customer's field (from هويتي, or the closest one to what he wrote), the team's skills for this kind of tool,
  *  his own «تعليماتي», and the approved trends. One block of text, empty when the tool is not covered or the team is off. */
@@ -11,9 +15,12 @@ export async function teamBriefFor(toolId: string, userId: string, text = "", ma
   const scope = TOOL_SCOPE[toolId];
   if (!scope) return "";
   try {
-    const { data } = await createAdminClient().from("brand_kits").select("industry").eq("user_id", userId).maybeSingle();
+    const { data } = await createAdminClient().from("brand_kits").select("industry,plan_prefs").eq("user_id", userId).maybeSingle();
     const kit = (data as { industry?: string | null } | null)?.industry ?? null;
+    const dId = String((data?.plan_prefs as { dialect?: string } | null)?.dialect ?? "");
+    const dName = ARAB_DIALECTS.find((x) => x[0] === dId && x[0] !== "msa")?.[1];
+    const dialect = !NO_PICKER.has(toolId) ? "" : dName ? `لهجة كل النصوص (اختارها العميل بهويته): ${dName}، بإملاء واضح وبدون مبالغة.\n\n` : "لهجة كل النصوص: فصحى مبسطة وواضحة (العميل ما اختار لهجة).\n\n";
     const ind = scope === "cv" ? undefined : industryById(kit ?? undefined) ?? industryById(await guessForKit(kit, text));
-    return (await trendsFor(ind?.id, scope, userId)).slice(0, maxChars);
+    return (dialect + (await trendsFor(ind?.id, scope, userId))).slice(0, maxChars);
   } catch { return ""; }
 }

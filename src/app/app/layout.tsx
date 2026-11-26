@@ -27,6 +27,7 @@ import { tr } from "@/lib/i18n";
 import { LangToggle } from "@/components/LangToggle";
 import { CurrencyToggle } from "@/components/CurrencyToggle";
 import { CountrySync } from "@/components/CountrySync";
+import { DialectSync } from "@/components/DialectSync";
 import { DEVICE_COOKIE, endExpiredTrials, trialStatus } from "@/lib/server/trial";
 import { TrialBanner } from "./trial/TrialBanner";
 import { WelcomeGate } from "./trial/WelcomeGate";
@@ -49,6 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     if (isUser) await endExpiredTrials(profile.id).catch(() => null);
     return isUser && !profile.is_suspended ? await trialStatus(profile.id, [deviceId]).catch(() => ({ state: "none" as const })) : { state: "none" as const };
   })();
+  const dialectP = Promise.resolve(createAdminClient().from("brand_kits").select("plan_prefs").eq("user_id", profile.id).maybeSingle()).then((r) => String((r.data?.plan_prefs as { dialect?: string } | null)?.dialect ?? ""), () => "");
   const notesP = Promise.resolve(createAdminClient().from("notifications").select("id,kind,title,body,link,read_at,created_at").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(20));
   const contentP = Promise.all([getContent(), getTools()]);
   const tplHiddenP = templatesHidden();
@@ -68,6 +70,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     else needContact = true;
   }
   // «التجربة المجانية»: end it if its time is up, then offer it / show the countdown at the very top (above the menu on phones)
+  const dialectPref = await dialectP;
   const [autoWeekly, access, trial, notesRes, [content, tools0], tplHidden] = await Promise.all([autoWeeklyP, accessP, trialP, notesP, contentP, tplHiddenP]);
   // the welcome screen: a customer with no plan (and no running trial), except on the pages where he pays
   const here = (await headers()).get("x-path") ?? "";
@@ -81,6 +84,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-canvas">
       {!imp && <CountrySync code={profile.country ?? "KW"} />}
+      {!imp && <DialectSync id={dialectPref} />}
       {imp && profile.role === "user" && (
         <form action={stopImpersonating} className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-3 bg-red-700 px-4 py-2.5 text-center text-sm font-semibold text-white">
           <span>{T("أنت داخل على حساب العميل ", "You are inside the customer account ")}<span dir="ltr" className="font-latin">{profile.email}</span>{T(` كمدير (${imp}). كل شي تسويه ينحسب عليه.`, ` as an admin (${imp}). Everything you do counts on this account.`)}</span>

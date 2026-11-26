@@ -124,8 +124,15 @@ export const ARAB_DIALECTS: [string, string, string][] = [
 ];
 /** @deprecated old name */
 export const GULF_DIALECTS = ARAB_DIALECTS;
-/** In the browser: the dialect of the customer's country (the country cookie is set from their account), or Kuwaiti. */
+export const DIALECT_COOKIE = "sh_dialect";
+/** The content dialect the customer chose in «هويتي» (kept in a cookie by the app layout): every tool starts on it. Not chosen = Standard Arabic. */
 export function myDialect(): string {
+  if (typeof document === "undefined") return "msa";
+  const d = document.cookie.match(new RegExp(`(?:^|; )${DIALECT_COOKIE}=([a-z]{2,12})`))?.[1];
+  return d && ARAB_DIALECTS.some((x) => x[0] === d) ? d : "msa";
+}
+/** @deprecated the old rule: the dialect of the account's country (no longer the default) */
+export function countryDialect(): string {
   if (typeof document === "undefined") return "kuwaiti";
   const m = document.cookie.match(new RegExp(`(?:^|; )${COUNTRY_COOKIE}=([A-Z]{2})`));
   const c = countryOf(m?.[1]);
