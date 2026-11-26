@@ -121,7 +121,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
   const kinds = (
           <div className="flex flex-col gap-2">
             <b className="text-[14.5px]">{L("شو أنواع المنشورات اللي تبيها بالخطة؟")}</b>
-            {([["قوالب جاهزة (سريعة وأقل سعراً)", ["post", "carousel", "ad", "reel", "anim", "site"]], ["مبتكر ✨ (تصميم فريد لكل منشور، أغلى)", ["fpost", "fcarousel", "fad", "creative", "fsite"]], ["صور وفيديو بالذكاء 🎥", ["scenes", "image"]]] as [string, PlanFormat[]][]).map(([title, list]) => { const here = list.filter((f) => available.includes(f)); return here.length > 0 && (
+            {([["قوالب جاهزة (سريعة وأقل سعراً)", ["post", "carousel", "ad", "reel", "site"]], ["مبتكر ✨ (تصميم فريد لكل منشور، أغلى)", ["fpost", "fcarousel", "fad", "creative", "anim", "fsite"]], ["صور وفيديو بالذكاء 🎥", ["scenes", "image"]]] as [string, PlanFormat[]][]).map(([title, list]) => { const here = list.filter((f) => available.includes(f)); return here.length > 0 && (
               <div key={title} className="flex flex-col gap-1.5"><span className="text-[13.5px] font-semibold text-muted">{L(title)}</span>
                 <div className="flex flex-wrap gap-2">{here.map((f) => { const on = chosen.includes(f); const price = itemCost({ format: f } as PlanItem); return <button key={f} type="button" aria-pressed={on} onClick={() => { const n = on ? chosen.filter((x) => x !== f) : [...chosen, f]; if (n.length) void setPref({ formats: n }); }} className={chip(on)}>{FORMAT_ICON[f]} {L(FORMAT_LABEL[f])} <span className="text-[12px] opacity-75">· {LT(`${price} ريشة`, `${price} feathers`)}</span></button>; })}</div>
               </div>); })}
