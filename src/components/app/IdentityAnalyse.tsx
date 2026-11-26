@@ -5,7 +5,7 @@ import type { InstaRead } from "@/lib/plan";
 
 /** «حلّل هويتي»: one button in the identity page. Shaheen reads the customer's logo, account and style pictures, then fills in the colours and a style description (he reviews and saves) and keeps the account reading for the content plan.
  *  Whether Shaheen visits the account or reads only what the customer uploaded is decided on the server; the customer sees the same button either way. */
-export function IdentityAnalyse({ initial, save, onApply }: { initial: InstaRead | null; save: () => Promise<boolean>; onApply: (palette: string[], style: string) => void }) {
+export function IdentityAnalyse({ initial, save, onApply }: { initial: InstaRead | null; save: () => Promise<string | null>; onApply: (palette: string[], style: string) => void }) {
   const [res, setRes] = useState<InstaRead | null>(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -18,7 +18,8 @@ export function IdentityAnalyse({ initial, save, onApply }: { initial: InstaRead
   async function run() {
     setBusy(true); setErr(""); setDone(false);
     try {
-      if (!(await save())) throw new Error("تعذّر حفظ الهوية قبل التحليل.");
+      const bad = await save();
+      if (bad) throw new Error(bad);
       const a = await post({ mode: "identity" });
       if (!a.ok) throw new Error(a.d.error || "تعذّر التحليل.");
       if (!a.d.jobId) return finish(a.d);

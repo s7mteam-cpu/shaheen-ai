@@ -4,7 +4,7 @@ import { L } from "@/lib/i18n/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Progress } from "@/components/app/Progress";
-import { IndustryPicker } from "@/components/app/IndustryPicker";
+import { IndustryNote } from "@/components/app/IndustryNote";
 import { PhotoPicker, type Photo } from "@/components/app/PhotoPicker";
 import { More } from "@/components/app/Collapse";
 import { TONES, voiceDialects } from "@/lib/voiceMatch";
@@ -15,7 +15,7 @@ const lengths = [[15, "15 ثانية"], [30, "30 ثانية"], [60, "دقيقة"
 const dialects: (readonly [string, string])[] = [...GULF_DIALECTS.map(([v, ar]) => [v, ar] as const), ["en", "English"]];
 
 /** «مشاهد واقعية»: write the ad / the words, Shaheen reads them aloud over real stock footage that fits each sentence. */
-export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 2 }: { costPer15: number; aiX?: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
+export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 2, industry: savedIndustry = "" }: { industry?: string; costPer15: number; aiX?: number; balance: number; brand?: string; voices?: { id: string; name: string; note?: string; dialects?: string[] }[] }) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [mine, setMine] = useState(false);
@@ -25,7 +25,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
   const [seconds, setSeconds] = useState(30);
   const [dialect, setDialect] = useState<string>("kuwaiti");
   useEffect(() => { setDialect(myDialect()); }, []);
-  const [industry, setIndustry] = useState("");
+  const industry = savedIndustry; // «مجالك» comes from هويتي
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [person, setPerson] = useState<Photo[]>([]);
   const [endCard, setEndCard] = useState(false);
@@ -92,7 +92,7 @@ export function RealScenesStart({ costPer15, balance, brand, voices = [], aiX = 
         </div>
       )}
       <More label={L("خيارات إضافية (المجال، صورك أنت، الموسيقى)")}>
-        <IndustryPicker value={industry} onChange={setIndustry} title={false} optional hint="مجالك (اختياري): يساعد شاهين يختار لقطات ونبرة تناسبك." />
+        <IndustryNote industry={industry} />
         <PhotoPicker photos={photos} onChange={setPhotos} title="صورك أنت (منتج، مكان…)" hint="تنحط بين اللقطات الجاهزة." />
         {ai && <PhotoPicker photos={person} onChange={setPerson} max={1} title="شخص ثابت بالفيديو (صورة وجه واضحة)" hint="يظهر نفس الشخص باللقطات. ما نضمن التطابق 100%." />}
         {ai && <label className="flex items-center gap-3"><input type="checkbox" checked={endCard} onChange={(e) => setEndCard(e.target.checked)} className="h-5 w-5" /><span>{L("بطاقة ختام بالتفاصيل (تاريخ، سعر، تواصل)")}</span></label>}

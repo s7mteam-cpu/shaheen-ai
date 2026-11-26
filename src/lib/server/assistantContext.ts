@@ -24,7 +24,7 @@ export async function customerContext(db: SupabaseClient, uid: string, toolName:
     const id = obj(kit.identity);
     const idBits = Object.entries(id).filter(([, v]) => typeof v === "string" && (v as string).length < 220).slice(0, 6).map(([k, v]) => `${clean(k, 20)}: ${clean(v, 160)}`).join(" | ");
     lines.push("هوية العميل التجارية:",
-      `- الاسم: ${clean(kit.business_name, 80)} | النشاط: ${clean(kit.industry, 80)} | الحساب: ${clean(kit.handle || kit.instagram, 60)} | الموقع: ${clean(kit.website, 80)}`,
+      `- الاسم: ${clean(kit.business_name, 80)} | النشاط: ${clean(String(kit.industry ?? "").replace(/^custom:/, ""), 80)} | الحساب: ${clean(kit.handle || kit.instagram, 60)} | الموقع: ${clean(kit.website, 80)}`,
       `- نبذة: ${clean(kit.about, 400)}`,
       `- ألوان: ${arr(kit.colors).map((c) => clean(c, 9)).join(" ")} | خط: ${clean(kit.font, 30)}`,
       ...(idBits ? [`- الهوية المعتمدة: ${idBits}`] : []));

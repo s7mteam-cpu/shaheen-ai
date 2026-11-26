@@ -8,7 +8,7 @@ import { Progress } from "@/components/app/Progress";
 import { createClient } from "@/lib/supabase/client";
 import { DIcon } from "@/design/icons";
 import { industryById } from "@/design/industries";
-import { IndustryList } from "@/components/app/IndustryPicker";
+import { IndustryNote } from "@/components/app/IndustryNote";
 import { LikeNote } from "@/components/app/LikeNote";
 
 const aspects = [["4:5", "بوست طولي 4:5"], ["1:1", "مربع 1:1"], ["9:16", "ستوري 9:16"]] as const;
@@ -36,9 +36,8 @@ export function DesignStart({ idea, toolId, cost, balance, industry: savedIndust
   const router = useRouter();
   const copy = COPY[toolId] ?? COPY.post;
   const [info, setInfo] = useState(like?.idea ?? idea ?? "");
-  const [industry, setIndustry] = useState(savedIndustry ?? "");
-  const [pickOpen, setPickOpen] = useState(!savedIndustry);
-  const ind = industryById(industry);
+  const ind = industryById(savedIndustry ?? ""); // «مجالك» comes from هويتي, no picker here
+  const industry = ind?.id ?? "";
   const [count, setCount] = useState(toolId === "carousel" ? 5 : 2);
   const [bgMode, setBgMode] = useState<"shapes" | "ai">("shapes");
   const [aspect, setAspect] = useState("4:5");
@@ -99,21 +98,7 @@ export function DesignStart({ idea, toolId, cost, balance, industry: savedIndust
   return (
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
       {like && <LikeNote like={like} />}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-semibold">{L("مجالك")}</span>
-          {ind && !pickOpen && <button type="button" onClick={() => setPickOpen(true)} className="text-[14px] text-navy-700 underline">{L("تغيير")}</button>}
-        </div>
-        {ind && !pickOpen ? (
-          <div className="flex items-center gap-3 rounded-2xl border border-line bg-tint px-4 py-3">
-            <DIcon name={ind.icon} size={22} color="#0B2A4A" /><span className="font-semibold text-navy-900">{L(ind.label)}</span>
-            <span className="flex flex-1 justify-end gap-1">{ind.palettes.map((p, i) => <span key={i} className="flex overflow-hidden rounded-full">{[p.bg, p.accent, p.ink].map((c) => <span key={c} className="h-5 w-3" style={{ background: c }} />)}</span>)}</span>
-          </div>
-        ) : (
-          <IndustryList value={industry} onPick={(id) => { setIndustry(id); setPickOpen(false); }} />
-        )}
-        <span className="text-[13px] text-subtle">{L("شاهين يصمّم بأسلوب يناسب مجالك: الألوان، التخطيط، الخط، ونوع الصور.")}</span>
-      </div>
+      <IndustryNote industry={ind?.id} />
       <label className="flex flex-col gap-2"><span className="font-semibold">{L(copy.label)}</span>
         <textarea required minLength={5} maxLength={3000} rows={6} value={info} onChange={(e) => setInfo(e.target.value)} className="field" placeholder={ind && ind.id !== "other" ? LT(`مثال: ${L(ind.example)}`, `e.g. ${L(ind.example)}`) : L(copy.ph)} />
         <span className="text-[13px] text-subtle">{L("اكتب كل شي عندك، حتى لو كثير. شاهين يختار المهم للتصميم، والباقي يحطه بالكابشن.")}</span></label>

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LikeNote } from "@/components/app/LikeNote";
 import { Progress } from "@/components/app/Progress";
-import { IndustryPicker } from "@/components/app/IndustryPicker";
+import { IndustryNote } from "@/components/app/IndustryNote";
 import { PhotoPicker, type Photo } from "@/components/app/PhotoPicker";
 import { industryById } from "@/design/industries";
 import { More } from "@/components/app/Collapse";
@@ -42,7 +42,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   const [dialect, setDialect] = useState<string>("kuwaiti");
   const availD = voiceDialects(voices);
   useEffect(() => { setDialect(myDialect()); }, []);
-  const [industry, setIndustry] = useState(savedIndustry ?? "");
+  const industry = industryById(savedIndustry ?? "")?.id ?? ""; // «مجالك» comes from هويتي
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [voiceover, setVoiceover] = useState(true);
   const [voice, setVoice] = useState(""); // "" = Shaheen picks the best match
@@ -87,7 +87,6 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
   }
   // the field decides which questions follow: its goals (offer, menu, lesson…) and whether the video is an ad or an explainer
   function pickField(id: string) {
-    setIndustry(id);
     const first = focusFor(id)[0];
     setFocus(first?.id ?? "");
     if (first) pickGoal(first.goal);
@@ -128,7 +127,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
 
   if (auto) return (
     <form onSubmit={goAuto} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
-      <IndustryPicker value={industry} onChange={setIndustry} title={false} optional hint="شو مجالك؟ (اختياري) شاهين يعرف منه النبرة والمشاهد والألوان المناسبة. إذا تخطيته يخمّنه من كلامك." />
+      <IndustryNote industry={industry} />
       <label className="flex flex-col gap-2"><span className="font-semibold">{L("اكتب اللي تبيه، وشاهين يسوي الباقي")}</span>
         <textarea required minLength={5} maxLength={8000} rows={6} value={idea} onChange={(e) => setIdea(e.target.value)} className="field"
           placeholder={L("مثال: إعلان لمطعم فريد الصويلح بالكويت، خصم 20٪ على الوجبات العائلية هالأسبوع، ريلز مع تعليق صوتي. أو: اشرح للطلاب الفرق بين الكسور العشرية والاعتيادية.")} /></label>
@@ -149,7 +148,7 @@ export function MotionStart({ template, likeId, idea: ideaIn = "", costPer15, ba
     <form onSubmit={go} className="card flex max-w-2xl flex-col gap-5 p-5 sm:p-6">
       {template && <LikeNote like={{ title: `قالب «${template.title}»`, thumb: template.thumb }} />}
       {!template && <button type="button" onClick={() => setAuto(true)} className="btn btn-outline self-start px-4 py-2 text-[14px]">{L("← رجوع للوضع التلقائي (اكتب فكرتك بس)")}</button>}
-      <IndustryPicker value={industry} onChange={pickField} hint="اختر مجالك، وتطلع لك خيارات خاصة فيه. كل مجال له حزمة (مشاهد وحركات وستايلات وفيديوهات جاهزة)." />
+      <IndustryNote industry={industry} />
       {focuses.length > 0 && <div className="flex flex-col gap-2"><span className="font-semibold">{L("شو تبي بالفيديو؟")}</span>
         <div className="flex flex-wrap gap-2">{focuses.map((f) => <button key={f.id} type="button" aria-pressed={focus === f.id} onClick={() => pickFocus(f)} className="chip">{L(f.label)}</button>)}</div></div>}
       <label className="flex flex-col gap-2"><span className="font-semibold">{edu ? L("الدرس أو الفكرة") : L("فكرة الفيديو")}</span>

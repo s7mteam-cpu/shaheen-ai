@@ -23,7 +23,7 @@ import { BOARD_STYLES, CAPTION_STYLES, DARK_BOARDS, DSTYLES, DSTYLE_BOARD, clean
 import { SYSTEM, type Plan } from "@/lib/server/motionPlan";
 import { PLAYBOOK } from "@/remotion/playbook";
 import { enforcePack, packBrief, packById } from "@/remotion/packs";
-import { industryById } from "@/design/industries";
+import { industryById, customField } from "@/design/industries";
 import { guessIndustry } from "@/lib/server/guessIndustry";
 import { autoPlan } from "@/lib/server/autoPlan";
 import { pickVoice, toneFor, TONE_HINT, withTone, type VoiceItem } from "@/lib/voiceMatch";
@@ -74,7 +74,8 @@ export async function POST(req: Request) {
   if (siteData) { const bad = await guardContent(user.id, { topic: `${siteData.title}\n${siteData.desc}\n${siteData.text.slice(0, 1800)}` }, "site-video"); if (bad) return bad; }
   const seconds = motion ? ([15, 30, 60].includes(Number(b.seconds)) ? Number(b.seconds) : 30) : LENGTHS.includes(Number(b.seconds)) ? Number(b.seconds) : 60;
   // the field is optional: if the customer didn't pick one, read it from their text
-  const ind = industryById(String(b.industry ?? "")) ?? industryById(await guessIndustry(`${brand ? `${String(b.brand)}: ` : ""}${topic}`));
+  const savedField = String(b.industry ?? "") ? null : (await createAdminClient().from("brand_kits").select("industry").eq("user_id", user.id).maybeSingle()).data?.industry; // «مجالك» from هويتي
+  const ind = industryById(String(b.industry ?? "")) ?? industryById(savedField) ?? industryById(await guessIndustry(`${customField(savedField)}\n${brand ? `${String(b.brand)}: ` : ""}${topic}`));
   const pack = packById(ind?.id);
   const guide = ind && pack ? packBrief(pack, ind.label) : "";
   const voiceOn = motion ? b.voiceover === true : true;

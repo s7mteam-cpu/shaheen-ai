@@ -36,6 +36,7 @@ import { getContent, getSessionProfile, getTools, getToolsL } from "@/lib/data";
 import { FxStart } from "@/components/app/FxStart";
 import { FreePostStart } from "@/components/app/FreePostStart";
 import { toolSpecs } from "@/lib/tools/specs";
+import { industryById } from "@/design/industries";
 import { listWorks } from "@/lib/works";
 import { getL } from "@/lib/server/lang";
 import { LikeNote } from "@/components/app/LikeNote";
@@ -71,6 +72,7 @@ export default async function ToolPage({ params, searchParams }: P) {
   if (!tool || !toolSpecs[id]) notFound();
   const pair = pairOf(id, tools);
   const hasStyle = !!(profile && styleRow); // «أسلوبي» in هويتي
+  const savedInd = profile ? industryById(String(((await (await createClient()).from("brand_kits").select("industry").maybeSingle()).data as { industry?: string | null } | null)?.industry ?? ""))?.id ?? "" : ""; // «مجالك» in هويتي
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -90,7 +92,7 @@ export default async function ToolPage({ params, searchParams }: P) {
       {!job && pair && <KindSwitch current={id} templates={pair.templates} fresh={pair.fresh} L={L} />}
       {like && !DESIGN_TOOLS[id] && <LikeNote like={like} />}
       {id === "presentations" ? await presentations(job, tool, profile?.credits ?? 0) : id === "cv" ? await cv(job, tool, profile?.credits ?? 0) : DESIGN_TOOLS[id] ? await design(job, tool, profile?.credits ?? 0, like, idea) : id === "free-montage" ? <Suspense><FxStart bgCost={fxEng?.fxBehind && fxEng.fxImages ? fxEng.fxBehindCost : -1} musicCost={fxEng?.fxMusic ? fxEng.fxMusicCost : -1} imagesCost={fxEng?.fxImages ? (await extraPricing()).ai_image_cost : -1} behindCost={fxEng?.fxBehind ? fxEng.fxBehindCost : -1} maxSeconds={(fxEng?.fxMaxMin ?? 5) * 60} costPerMinute={tool.credit_cost} minCost={fxEng?.fxMinCost ?? 0} balance={profile?.credits ?? 0} hasKit={!!(await brandKitInfo())} /></Suspense> : id === "anim-video" ? <Suspense><FreeMotionStart animTool base="anim-video" hasStyle={hasStyle} voices={content.voices.items} costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "free-motion" ? <Suspense><FreeMotionStart hasStyle={hasStyle} voices={content.voices.items} costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={job ? await brandKitLogo() : null} kit={await brandKitInfo()} /></Suspense> : id === "free-post" || id === "free-carousel" || id === "free-ad" || id === "free-invite" || id === "free-card" || id === "free-deck" || id === "free-cv" ? <Suspense><FreePostStart tool={id} hasStyle={hasStyle} imageCost={tools.find((x) => x.id === "image")?.credit_cost ?? 0} costPerSlide={tool.credit_cost} balance={profile?.credits ?? 0} hasKit={!!(await brandKitInfo())} hasLogo={!!(await brandKitLogo())} /></Suspense> : id === "site-video" && job ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "site-video" ? <SiteVideoStart costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "site-free" && fm ? <Suspense><FreeMotionStart base="site-free" jobKey="fm" hasStyle={hasStyle} voices={content.voices.items} costPer15={tool.credit_cost} editCost={tool.edit_cost ?? 8} balance={profile?.credits ?? 0} kitLogo={null} kit={await brandKitInfo()} /></Suspense> : id === "site-free" ? <SiteVideoStart fresh hasStyle={hasStyle} ready={await siteInnovative()} costPer15={tool.credit_cost} balance={profile?.credits ?? 0} voices={content.voices.items} /> : id === "motion-video" || id === "real-scenes" ? await motion(job, tool, profile?.credits ?? 0, content, idea, likeWork?.id, template, id) : id === "quran-video" ? <QuranStudio costPer30={tool.credit_cost} balance={profile?.credits ?? 0} /> : (id === "video-editing" && job && (await montage(job, tool, content))) || <Suspense>
-        <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} />
+        <ToolRunner tool={tool} balance={profile?.credits ?? 0} voices={content.voices.items} recent={recent} industry={savedInd} />
       </Suspense>}
     </div>
   );
@@ -141,9 +143,10 @@ async function motion(jobId: string | undefined, tool: ToolRow, balance: number,
       return <p className="card p-6 text-center">{L("هذا الفيديو انرسل للتصدير، تلقاه في")} <Link href="/app/works" className="font-semibold text-navy-700 underline">{L("أعمالي")}</Link>.</p>;
     }
   }
-  const { data: kit } = await supabase.from("brand_kits").select("business_name").maybeSingle();
-  if (toolId === "real-scenes") return <RealScenesStart costPer15={tool.credit_cost} aiX={(await extraPricing()).ai_clip_x} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
-  return <MotionStart template={template} likeId={likeId} idea={idea} costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} />;
+  const { data: kit } = await supabase.from("brand_kits").select("business_name,industry").maybeSingle();
+  const savedInd = industryById(String(kit?.industry ?? ""))?.id ?? "";
+  if (toolId === "real-scenes") return <RealScenesStart costPer15={tool.credit_cost} aiX={(await extraPricing()).ai_clip_x} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} industry={savedInd} />;
+  return <MotionStart template={template} likeId={likeId} idea={idea} costPer15={tool.credit_cost} balance={balance} brand={kit?.business_name ?? undefined} voices={content.voices.items} industry={savedInd} />;
 }
 
 /** Smart montage: once the worker planned the edit, the customer edits it live here. */

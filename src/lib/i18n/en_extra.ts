@@ -999,4 +999,10 @@ export const EN_EXTRA: Record<string, string> = {
   "وصلت الحد اليومي للتحليل. جرّب بكرة.": "You reached the daily analysis limit. Try tomorrow.",
   "رقم الهاتف": "Phone number",
   "مثال: 9999 9999": "Example: 9999 9999",
+  "حدد مجالك مرة وحدة من": "Set your field once from",
+  "وشاهين يضبط النبرة والمشاهد والألوان بكل الأدوات. وإذا تخطيته يخمّنه من كلامك.": "and Shaheen adjusts the tone, scenes and colors in all tools. If you skip it, he guesses it from your text.",
+  "يُفضّل تحدد مجالك: كل إنتاجات شاهين (البوست والكاروسيل والفيديوهات وغيرها) تنبني على هويتك ومجالك، عشان يكون فيه تناسق بين هويتك ومجالك وشغلك. وتقدر تغيّره من هنا متى ما تبي.": "We recommend setting your field: everything Shaheen makes (posts, carousels, videos and more) is built on your identity and your field, so your identity, field and work stay consistent. You can change it here any time.",
+  "يُفضّل": "Recommended",
+  "ما لقيت مجالك؟ اكتبه بنفسك": "Can't find your field? Write it yourself",
+  "مثال: ورشة نجارة وديكور خشبي": "Example: carpentry and wood decor workshop",
 };

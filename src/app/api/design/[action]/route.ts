@@ -19,7 +19,7 @@ import { keyFor, splitIconSheet } from "@/lib/providers/iconsheet";
 import { ICON_EN } from "@/design/icon-names";
 import { iconGuide } from "@/design/iconData";
 import { config } from "@/lib/tools/run";
-import { industryBrief, industryById } from "@/design/industries";
+import { industryBrief, industryById, customField } from "@/design/industries";
 import { designBrief, designPack } from "@/design/packs";
 import { guessIndustry } from "@/lib/server/guessIndustry";
 import { snapshot, trendsFor } from "@/lib/server/trends";
@@ -254,7 +254,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
           ? `${count} تصاميم إعلانية مختلفة لنفس المنتج، كل واحد بزاوية تسويقية مختلفة (عرض، فائدة، دليل اجتماعي، ندرة...) وبتخطيط مختلف. كل تصميم له caption خاص.`
           : `تصميم بوست واحد. اختر أنسب تخطيط للمحتوى، وحط caption.`;
       // the field: chosen, or read from what the customer wrote; its design pack picks this job's look
-      const ind = industryById(body.industry) ?? industryById(await guessIndustry(info));
+      const ind = industryById(body.industry) ?? industryById((kit as { industry?: string | null } | null)?.industry) ?? industryById(await guessIndustry(`${customField((kit as { industry?: string | null } | null)?.industry)}\n${info}`)); // «مجالك» from هويتي
       const dpack = designPack(ind?.id);
       const dpick = dpack && ind ? designBrief(dpack, ind.label, Math.random(), ind.id) : null;
       const imgStyle = isImgStyle(body.imgStyle) ? body.imgStyle : DEFAULT_IMG_STYLE;

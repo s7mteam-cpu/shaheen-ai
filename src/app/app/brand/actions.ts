@@ -3,14 +3,15 @@ import { guardContent } from "@/lib/server/moderation";
 import { cleanColors, cleanFormats, PLAN_FORMATS, type PlanPrefs } from "@/lib/plan";
 import { logEvent } from "@/lib/server/events";
 import { LIB_FONT_IDS } from "@/lib/fonts";
+import { industryById, customField, CUSTOM_FIELD } from "@/design/industries";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function saveBrand(data: { business_name: string; logo_url: string | null; colors: string[]; handle?: string; font?: string; website?: string; instagram?: string; style_refs?: string[]; style_note?: string; style_video?: string | null }) {
+export async function saveBrand(data: { business_name: string; logo_url: string | null; colors: string[]; handle?: string; font?: string; website?: string; instagram?: string; style_refs?: string[]; style_note?: string; style_video?: string | null; industry?: string }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false };
+  if (!user) return { ok: false, error: "" };
   const colors = data.colors.filter((c) => /^#[0-9a-fA-F]{6}$/.test(c)).slice(0, 5);
   const logo = data.logo_url && data.logo_url.startsWith(`${user.id}/`) ? data.logo_url : null;
   const url = (v?: string) => { const t = (v ?? "").trim().slice(0, 200); if (!t) return null; const u = /^https?:\/\//.test(t) ? t : `https://${t}`; try { return new URL(u).toString(); } catch { return null; } };
@@ -20,8 +21,16 @@ export async function saveBrand(data: { business_name: string; logo_url: string 
   const note = String(data.style_note ?? "").replace(/[<>\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, 500) || null;
   const video = data.style_video && data.style_video.startsWith(`${user.id}/`) && !data.style_video.includes("..") ? data.style_video : null;
   if (note && (await guardContent(user.id, { idea: note }, "my-style"))) return { ok: false };
-  let { error } = await supabase.from("brand_kits").upsert({ ...base, style_note: note, style_video: video });
-  if (error) ({ error } = await supabase.from("brand_kits").upsert(base)); // before SQL 0067 is run: the rest of the identity still saves
+  // «مجالك»: a field from the list, or the customer's own words; recommended, not required (empty clears it)
+  let ind: { industry?: string | null } = {};
+  if (typeof data.industry === "string") {
+    const own = customField(data.industry);
+    const val = industryById(data.industry)?.id ?? (own ? `${CUSTOM_FIELD}${own}` : null);
+    if (own && !industryById(data.industry) && (await guardContent(user.id, { idea: own }, "my-field"))) return { ok: false };
+    ind = { industry: val };
+  }
+  let { error } = await supabase.from("brand_kits").upsert({ ...base, ...ind, style_note: note, style_video: video });
+  if (error) ({ error } = await supabase.from("brand_kits").upsert({ ...base, ...ind })); // before SQL 0067 is run: the rest of the identity still saves
   revalidatePath("/app/brand");
   return { ok: !error };
 }

@@ -6,16 +6,21 @@ import { resetBrand, saveBrand } from "@/app/app/brand/actions";
 
 import { FontPicker } from "./FontPicker";
 import { libFont } from "@/lib/fonts";
+import { industryById, customField, CUSTOM_FIELD } from "@/design/industries";
+import { IndustryList } from "./IndustryPicker";
 import { IdentityAnalyse } from "./IdentityAnalyse";
 import type { InstaRead } from "@/lib/plan";
 
-export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[]; insta?: InstaRead | null } }) {
+export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[]; insta?: InstaRead | null; industry?: string } }) {
   const [name, setName] = useState(initial.business_name);
   const [logo, setLogo] = useState(initial.logo_url);
   const [preview, setPreview] = useState(initial.logo_preview);
   const [colors, setColors] = useState(initial.colors.length ? initial.colors : ["#0B2A4A", "#C9A45C", "#FFFFFF"]);
   const [handle, setHandle] = useState(initial.handle ?? "");
   const [font, setFont] = useState(initial.font || "Cairo");
+  const [industry, setIndustry] = useState(industryById(initial.industry ?? "")?.id ?? "");
+  const [fieldText, setFieldText] = useState(customField(initial.industry));
+  const [fieldOpen, setFieldOpen] = useState(!industryById(initial.industry ?? "") && !customField(initial.industry)); // open until the field is set (recommended)
   const [msg, setMsg] = useState("");
   const [website, setWebsite] = useState(initial.website ?? "");
   const [instagram, setInstagram] = useState(initial.instagram ?? "");
@@ -58,12 +63,18 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
     const r = await resetBrand();
     setConfirmReset(false);
     if (!r.ok) { setMsg(L("تعذّر التصفير.")); return; }
-    setName(""); setLogo(null); setPreview(null); setColors([]); setHandle(""); setFont("Cairo"); setWebsite(""); setInstagram(""); setRefs([]);
+    setName(""); setLogo(null); setPreview(null); setColors([]); setHandle(""); setFont("Cairo"); setIndustry(""); setFieldText(""); setWebsite(""); setInstagram(""); setRefs([]);
     setMsg(L("تم تصفير الهوية. التصاميم الجديدة بتكون بدون هوية لين تحفظ هوية جديدة."));
   }
-  async function persist() { return (await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video })).ok; }
+  /** saves the identity; returns the reason when it did not save */
+  async function persist(): Promise<string | null> {
+    const field = industry || (fieldText.trim() ? `${CUSTOM_FIELD}${fieldText.trim()}` : "");
+    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video, industry: field });
+    return r.ok ? null : L(("error" in r && r.error) || "تعذّر الحفظ.");
+  }
   async function save() {
-    setMsg((await persist()) ? L("تم الحفظ. بتنطبق هويتك على كل تصميم جديد.") : L("تعذّر الحفظ."));
+    const err = await persist();
+    setMsg(err ?? L("تم الحفظ. بتنطبق هويتك على كل تصميم جديد."));
   }
   function applyRead(palette: string[], style: string) {
     if (palette.length >= 2) setColors(palette);
@@ -102,6 +113,14 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
         <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("رقم الهاتف")} <span className="font-normal text-subtle">{L("(يطلع بنهاية الفيديوهات والتصاميم)")}</span></span><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder={L("مثال: 9999 9999")} /></label>
         <p className="text-[12px] text-subtle">{L("شاهين يقرا موقعك عشان يفهم نشاطك، ويحط حسابك بالتصاميم إذا ما كتبت رقم تواصل.")}</p>
       </div>
+      <details open={fieldOpen} onToggle={(e) => setFieldOpen(e.currentTarget.open)} className="group rounded-2xl border border-line p-4">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2"><span className="label">{L("مجالك")} <span className="font-normal text-subtle">{industryById(industry) ? `· ${L(industryById(industry)!.label)}` : fieldText.trim() ? `· ${fieldText.trim()}` : `· ${L("يُفضّل")}`}</span></span><span aria-hidden className="text-base transition group-open:rotate-180">▾</span></summary>
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="rounded-xl bg-white px-3 py-2 text-[13px] leading-6 text-navy-900">💡 {L("يُفضّل تحدد مجالك: كل إنتاجات شاهين (البوست والكاروسيل والفيديوهات وغيرها) تنبني على هويتك ومجالك، عشان يكون فيه تناسق بين هويتك ومجالك وشغلك. وتقدر تغيّره من هنا متى ما تبي.")}</p>
+          <IndustryList value={industry} onPick={(id) => { setIndustry(id); setFieldText(""); }} />
+          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("ما لقيت مجالك؟ اكتبه بنفسك")}</span><input value={fieldText} onChange={(e) => { setFieldText(e.target.value.slice(0, 60)); if (e.target.value.trim()) setIndustry(""); }} maxLength={60} className="field" placeholder={L("مثال: ورشة نجارة وديكور خشبي")} /></label>
+        </div>
+      </details>
       <IdentityAnalyse initial={initial.insta ?? null} save={persist} onApply={applyRead} />
       <details className="group rounded-2xl border border-line p-4">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2"><span className="label">{L("خط الهوية")} <span className="font-normal text-subtle">· {libFont(font)?.label ? L(libFont(font)!.label) : font}</span></span><span aria-hidden className="text-base transition group-open:rotate-180">▾</span></summary>

@@ -2,7 +2,7 @@
 import { voiceDialects } from "@/lib/voiceMatch";
 import { RetentionNote } from "@/components/app/RetentionNote";
 import { myDialect } from "@/lib/countries";
-import { IndustryPicker } from "@/components/app/IndustryPicker";
+import { IndustryNote } from "@/components/app/IndustryNote";
 import { L, LT } from "@/lib/i18n/ui";
 import { Progress } from "@/components/app/Progress";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,13 +19,14 @@ type Props = {
   balance: number;
   voices: { id: string; name: string; dialects?: string[] }[];
   recent: Work[];
+  industry?: string; // «مجالك» from هويتي: fills the field list
 };
 type Upload = { path: string; name: string; preview?: string };
 type JobView = { id: string; status: string; error?: string | null; files: WorkFile[]; progress?: number };
 
 const accepts = { image: "image/png,image/jpeg,image/webp", video: "video/mp4,video/quicktime,video/webm", audio: "audio/*" };
 
-export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Props) {
+export function ToolRunner({ tool, balance: initialBalance, voices, recent, industry }: Props) {
   const availDialects = voiceDialects(voices);
   const spec = toolSpecs[tool.id];
   const params = useSearchParams();
@@ -38,6 +39,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
     if (p) for (const k of ["prompt", "text", "script"]) if (k in v) { v[k] = p; break; }
     if ("voice" in v) v.voice = tool.id === "voice" ? "auto" : voices[0]?.id ?? v.voice;
     if ("vo_voice" in v && voices[0]) v.vo_voice = voices[0].id;
+    if (industry) for (const f of spec.fields) if (f.type === "industry" && !v[f.name]) v[f.name] = industry;
     return v;
   });
   // the dialect of the customer's country first (they can still pick another)
@@ -238,7 +240,7 @@ export function ToolRunner({ tool, balance: initialBalance, voices, recent }: Pr
                   </div>
                 )}
 
-                {f.type === "industry" && <IndustryPicker title={false} value={String(values[f.name] ?? "")} onChange={(id) => set(f.name, id)} hint={f.hint} />}
+                {f.type === "industry" && <IndustryNote industry={industry} />}
 
                 {f.type === "voice" && (
                   <select id={`f-${f.name}`} value={String(values[f.name] ?? "")} onChange={(e) => set(f.name, e.target.value)} className="field">

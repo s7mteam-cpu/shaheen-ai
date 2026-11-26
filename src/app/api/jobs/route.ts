@@ -1,7 +1,7 @@
 import { loadLike, likeText } from "@/lib/server/like";
 import { NextResponse } from "next/server";
 import { guardContent } from "@/lib/server/moderation";
-import { industryById } from "@/design/industries";
+import { industryById, customField } from "@/design/industries";
 import { GENERAL, packBrief, packById } from "@/remotion/packs";
 import { guessIndustry } from "@/lib/server/guessIndustry";
 import { trendsFor } from "@/lib/server/trends";
@@ -80,7 +80,8 @@ export async function POST(req: Request) {
 
   // Montage in a chosen field: the worker gets that field's pack (scenes, looks, recipes)
   if (toolId === "video-editing" && !parent) {
-    const ind = industryById(String(input.industry ?? "")) ?? industryById(await guessIndustry(String(input.notes ?? "")));
+    const savedField = String(input.industry ?? "") ? null : (await admin.from("brand_kits").select("industry").eq("user_id", user.id).maybeSingle()).data?.industry; // «مجالك» from هويتي
+    const ind = industryById(String(input.industry ?? "")) ?? industryById(savedField) ?? industryById(await guessIndustry(`${customField(savedField)}\n${String(input.notes ?? "")}`));
     const pack = packById(ind?.id);
     if (ind && pack) input = { ...input, industry: ind.id, pack_brief: `${packBrief(pack, ind.label)}\n${await trendsFor(ind.id, "montage")}`, pack_scenes: [...new Set([...pack.scenes, ...GENERAL])] };
     else delete input.industry;
