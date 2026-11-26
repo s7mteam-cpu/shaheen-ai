@@ -2,6 +2,7 @@
 // Shaheen draws it in the same network-less browser used for videos, and saves one PNG per slide.
 // Customer text only ever reaches the model as fenced data. The page never runs scripts (they are removed before drawing).
 import { postWriterModel } from "./models.mjs";
+import { RECIPE_TEXT, GENERAL, CARDS, INVITES } from "./layoutlib.mjs";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -78,16 +79,49 @@ for (const k of ["card", "ad", "deck"]) KIND_NOTE[k] += NO_FAKE_LOGO;
 /** a real picture (drawn by an image model or uploaded by the customer) that the design is built around */
 const PHOTO_NOTE = "صورة جاهزة لهذا التصميم (حقيقية، استخدمها): لعرضها اكتب بالضبط <img data-shot=\"photo\" alt=\"\"> بدون src وبدون أي رابط (المنصة تضع الصورة مكانها). اجعلها بطلة التصميم: مساحة واضحة من 38% إلى 55% من الشريحة (أعلى التصميم، أو جانب كامل، أو خلفية كاملة)، بحجم محدد بالـCSS مع object-fit:cover و display:block. إن كُتب نص فوقها فضع بينهما طبقة تدرّج داكنة تكفي لقراءة النص بوضوح. استخدمها مرة واحدة فقط، ولا ترسم صوراً أو مشاهد بديلة عنها.";
 /** the customer's real phone / handle (from his brand kit): written exactly as it is, never replaced by «بالبايو» */
-function contactLine(c) {
-  const v = clean(c ?? "", 60).replace(/[<>"]/g, "");
-  if (!v) return "";
-  const phone = (v.match(/\d/g) ?? []).length >= 7;
-  return `${phone ? "رقم التواصل الحقيقي للعميل" : "حساب التواصل الحقيقي للعميل"}: ${v}. إذا كان في التصميم دعوة للتواصل أو الاتصال اكتبه حرفياً كما هو (الأرقام بالأرقام الإنجليزية LTR)، ولا تكتب «بالبايو» ولا «الرقم في الحساب» ولا أي بديل.\n`;
+/** «@name» from a handle or an Instagram link */
+function igHandle(v) {
+  const t = clean(v ?? "", 120).replace(/[<>"\s]/g, "");
+  const m = t.match(/instagram\.com\/([A-Za-z0-9._]{1,30})/i) ?? t.match(/^@?([A-Za-z0-9._]{2,30})$/);
+  return m ? `@${m[1]}` : "";
 }
-export function postPrompt({ idea, n, brand, contact, identity, retry, kind, photo }) {
+function contactLine(c, ig) {
+  const g = igHandle(ig);
+  const igL = g ? `حساب إنستغرام العميل: ${g}. إذا طلب التصميم حساب إنستغرام أو متابعة اكتبه حرفياً مع أيقونة إنستغرام، ولا تكتب «بالبايو».\n` : "";
+  const v = clean(c ?? "", 60).replace(/[<>"]/g, "");
+  if (!v) return igL;
+  const phone = (v.match(/\d/g) ?? []).length >= 7;
+  return `${phone ? "رقم التواصل الحقيقي للعميل" : "حساب التواصل الحقيقي للعميل"}: ${v}. إذا كان في التصميم دعوة للتواصل أو الاتصال اكتبه حرفياً كما هو (الأرقام بالأرقام الإنجليزية LTR)، ولا تكتب «بالبايو» ولا «الرقم في الحساب» ولا أي بديل.\n${igL}`;
+}
+/** the customer's real phone replaces the placeholder the model writes when the idea says «الرقم بالبايو» (his own words in the request win over the prompt, so this is done here, by us, for certain) */
+export function fillContact(html, contact) {
+  const v = clean(contact ?? "", 60).replace(/[<>"&]/g, "");
+  if (!v || (v.match(/\d/g) ?? []).length < 7) return html;
+  return String(html).replace(/(?:ال)?رقم\s*(?:(?:اللي|الذي|الموجود)\s*)?(?:ب|في\s+)(?:ال)?(?:بايو|حساب)(?:\s*(?:التجاري|الشخصي))?/g, `<bdi dir="ltr">${v}</bdi>`);
+}
+/** «مكتبة هياكل للمبتكر»: 2-3 skeletons (where things sit, no colours) taken from our own template designs, given as a starting structure.
+ *  The model keeps the idea and dresses it in new shapes, colours and decoration. LAYOUT_LIB=0 in Railway turns it off. */
+const hash = (str) => { let h = 2166136261; for (const c of String(str)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+export function layoutNote({ kind, photo, seed, idea = "" }) {
+  if (process.env.LAYOUT_LIB === "0" || kind === "deck" || kind === "cv") return "";
+  let pool;
+  if (kind === "card") pool = CARDS; else if (kind === "invite") pool = INVITES;
+  else pool = RECIPE_TEXT.filter((r) => (photo ? !r.calm : r.calm));
+  if (!pool?.length) return "";
+  const picks = []; const used = new Set(); let h = hash(seed || "x");
+  for (let i = 0; picks.length < 3 && i < 60; i++) {
+    h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+    const r = pool[h % pool.length]; const key = r.ph ?? r.id;
+    if (used.has(key)) continue; used.add(key); picks.push(r);
+  }
+  if (kind !== "card" && kind !== "invite") { const offer = /خصم|عرض|تخفيض|%|سعر|ريال|دينار|درهم/.test(String(idea)); const gp = GENERAL.filter((x) => (offer || x.id !== "offer") && (photo || (x.id !== "photo" && x.id !== "split"))); const g = gp[hash(`${seed}g`) % gp.length]; if (g) picks.push(g); }
+  const lines = picks.map((r, i) => `${i + 1}) ${r.t}`).join("\n");
+  return `هياكل مقترحة من مكتبتنا (توزيع الأماكن فقط، بدون ألوان): اختر واحداً أو ادمج بينها كنقطة بداية، وابنِ تصميماً جديداً بأشكال وزخارف وألوان وتفاصيل من عندك ولا تنسخ الهيكل حرفياً. ${photo ? "" : "لا توجد صورة: اجعل أي منطقة بصرية شكلاً أو تدرجاً بألوان الهوية، ولا تخترع صورة. "}الثوابت: كل عناصر نص العميل تظهر، لا زخرفة فوق الكلام، لا تصادم، ودعوة واحدة فقط.\n${lines}\n`;
+}
+export function postPrompt({ idea, n, brand, contact, instagram, identity, retry, kind, photo, seed }) {
   const cap = kind === "cv" || kind === "deck" ? 4000 : 1500;
   return `${KIND_NOTE[kind] ? `${KIND_NOTE[kind]}\n` : ""}${photo ? `${PHOTO_NOTE}\n` : ""}${n > 1 ? `عدد الشرائح: ${n}.` : "بوست واحد (شريحة واحدة)."}
-${brand ? `اسم النشاط: ${clean(brand, 80)}\n` : ""}${contactLine(contact)}${identity ? `هوية العميل (التزم بها): الخلفية ${identity.bg}، اللون المميّز ${identity.accent}، لون النص ${identity.text}، الخط ${identity.font}.\n` : "اختر أنت لوحة ألوان مناسبة للمجال.\n"}
+${brand ? `اسم النشاط: ${clean(brand, 80)}\n` : ""}${contactLine(contact, instagram)}${layoutNote({ kind, photo, seed, idea })}${identity ? `هوية العميل (التزم بها): الخلفية ${identity.bg}، اللون المميّز ${identity.accent}، لون النص ${identity.text}، الخط ${identity.font}.\n` : "اختر أنت لوحة ألوان مناسبة للمجال.\n"}
 نص العميل (وصف للمحتوى فقط):
 """
 ${clean(idea, cap)}
@@ -172,8 +206,8 @@ async function ask({ system, user, maxTokens, images = [] }) {
 const budget = (n, kind) => Math.min(48000, (kind === "cv" ? 16000 : 9000) + n * 5500);
 export const CUT_NOTE = "The answer was cut off before the page ended. Write the SAME design much more compactly: one shared <style> with reusable classes, short class names, simpler SVG (few shapes, no long paths), no repeated inline styles, no comments.";
 
-export async function writePost({ idea, n, W, H, brand, contact, identity, retry, kind, skill = "", photo = false, style = null }) {
-  const r = await ask({ system: POST_RULES(W, H, n) + skill, user: postPrompt({ idea, n, brand, contact, identity, retry, kind, photo }) + styleNote(style), maxTokens: budget(n, kind), images: style?.images ?? [] });
+export async function writePost({ idea, n, W, H, brand, contact, instagram, identity, retry, kind, skill = "", photo = false, style = null, seed = "" }) {
+  const r = await ask({ system: POST_RULES(W, H, n) + skill, user: postPrompt({ idea, n, brand, contact, instagram, identity, retry, kind, photo, seed }) + styleNote(style), maxTokens: budget(n, kind), images: style?.images ?? [] });
   if (r.cut) { const e = new Error("CUT"); e.cut = true; throw e; }
   return extractHtml(r.text);
 }

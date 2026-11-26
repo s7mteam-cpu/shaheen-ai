@@ -32,7 +32,7 @@ import { prepareHtml } from "./htmlprep.mjs";
 import { planVideo, geminiHtml, geminiEdit, geminiPrompt, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { modelFor } from "./models.mjs";
-import { writePost, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE, withIcons, styleNote } from "./postflow.mjs";
+import { writePost, fillContact, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE, withIcons, styleNote } from "./postflow.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
@@ -1848,11 +1848,11 @@ async function postJob(job) {
         // the writing is one long request: the bar keeps moving slowly so the customer sees it is alive
         let shown = p0; const creep = setInterval(() => { if (shown < p0 + 34) { shown += 2; stage(shown); } }, 9000);
         let raw = "";
-        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, contact: from.brand?.contact, identity, retry, kind: POST_KIND[job.tool_id], skill: skillNote(joinTeam(await skillFor(job.tool_id), inp.team_brief)), photo: !!photo, style: styleIn }); }
+        try { raw = edit ? await editPost({ html: before, instruction: String(inp.instruction ?? ""), n, W: cw, H: ch, retry }) : await writePost({ idea, n, W: cw, H: ch, brand: from.brand?.name, contact: from.brand?.contact, instagram: from.brand?.instagram, identity, retry, kind: POST_KIND[job.tool_id], skill: skillNote(joinTeam(await skillFor(job.tool_id), inp.team_brief)), photo: !!photo, style: styleIn, seed: job.id }); }
         catch (e) { if (attempt === 2) throw e; retry = e?.cut ? CUT_NOTE : `The last answer was not a usable page (${String(e?.message ?? e).slice(0, 120)}). Return the full HTML page in one html block.`; continue; }
         finally { clearInterval(creep); }
         // SECURITY: scripts and event handlers are removed first, then the page is checked BEFORE anything opens it
-        const html = withIcons(applyLogo(stripScripts(raw), null)); // the real platform icons the page asked for are put in by us
+        const html = withIcons(applyLogo(fillContact(stripScripts(raw), from.brand?.contact), null)); // the real platform icons the page asked for are put in by us
         const unsafe = unsafeHtml(html);
         if (unsafe.length) { retry = `The page uses forbidden code (${unsafe.join(", ")}). It must be self-contained: no network, no external files, no iframes or forms.`; continue; }
         if (slideCount(html) < n) { retry = `Only ${slideCount(html)} slide(s) found, ${n} needed. Every slide must be <section class="slide" data-slide="N"> with N from 1 to ${n}.`; continue; }
