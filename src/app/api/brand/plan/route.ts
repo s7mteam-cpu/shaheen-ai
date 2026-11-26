@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { claudeVisionJson } from "@/lib/providers/text";
-import { FORMAT_LABEL, TIMES, normaliseAnalysis, normaliseWeek, planSlots, type Analysis, type PlanItem } from "@/lib/plan";
+import { FORMAT_LABEL, TIMES, normaliseAnalysis, normaliseWeek, planSlots, cleanFormats, type Analysis, type PlanItem } from "@/lib/plan";
 import type { Concept } from "@/lib/identity";
 
 export const maxDuration = 300;
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
   const admin = createAdminClient();
-  const { data: kit } = await admin.from("brand_kits").select("business_name,about,cv_text,identity,website,instagram,analysis").eq("user_id", user.id).maybeSingle();
+  const { data: kit } = await admin.from("brand_kits").select("business_name,about,cv_text,identity,website,instagram,analysis,plan_prefs").eq("user_id", user.id).maybeSingle();
   const id = kit?.identity as Concept | null;
   if (!id) return NextResponse.json({ error: "اعتمد هوية أول، وبعدها نسوي لك الخطة." }, { status: 400 });
 
@@ -39,7 +39,9 @@ export async function POST(req: Request) {
       kit?.cv_text && `السيرة الذاتية:\n${String(kit.cv_text).slice(0, 5000)}`,
       `الهوية المعتمدة: ${id.name}. ${id.idea}\nالشخصية: ${id.personality.join("، ")}\nأعمدة المحتوى: ${id.content.pillars.map((p) => `${p.name} (${p.share}): ${p.ideas.join("، ")}`).join(" | ")}\nالبايو: ${id.bio}`,
     ].filter(Boolean).join("\n\n");
-    const { weeks: slots, start } = planSlots(scope);
+    const { data: sc } = await admin.from("tools").select("is_enabled").eq("id", "real-scenes").maybeSingle();
+    const chosen = cleanFormats((kit?.plan_prefs as { formats?: unknown } | null)?.formats, !!sc?.is_enabled);
+    const { weeks: slots, start } = planSlots(scope, new Date(), chosen);
 
     const week = (w: number) => claudeVisionJson<{ items?: unknown[] }>(SYSTEM,
       `${info}\n\nاكتب منشورات ${scope === "week" ? "هذا الأسبوع" : `الأسبوع ${w + 1} من 4 (خطة شهرية)`}. النشر 3 مرات بهذا الترتيب والأنواع: ${slots[w].map((sl) => `${sl.day} ${sl.date} = ${FORMAT_LABEL[sl.format]}`).join("، ")}. نوّع الأعمدة والأهداف${scope === "week" ? "" : "، ولا تكرر مواضيع الأسابيع الأخرى (زملاؤك يكتبون بقية الأسابيع بالتوازي، فخصّص أسبوعك بزاوية مميزة)"}.\nأجب بـ: {"items":[{"pillar":"","topic":"عنوان الموضوع","hook":"جملة افتتاحية قوية","goal":"","time":"${TIMES.join(" | ")}","prompt":"","caption":""},{...},{...}]} (3 عناصر بالترتيب).`, [], 6000);

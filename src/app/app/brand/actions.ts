@@ -1,6 +1,6 @@
 "use server";
 import { guardContent } from "@/lib/server/moderation";
-import { cleanColors, type PlanPrefs } from "@/lib/plan";
+import { cleanColors, cleanFormats, type PlanPrefs } from "@/lib/plan";
 import { logEvent } from "@/lib/server/events";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -68,7 +68,7 @@ export async function savePlan(items: { week: number; day: string; date: string;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false };
-  const clean = items.slice(0, 12).map((x) => ({ week: Number(x.week) || 1, day: String(x.day).slice(0, 12), date: String(x.date).slice(0, 8), time: x.time ? String(x.time).slice(0, 20) : undefined, format: ["post", "reel", "carousel"].includes(x.format) ? x.format : "post", job: x.job && /^[0-9a-f-]{36}$/.test(x.job) ? x.job : undefined, pillar: String(x.pillar).slice(0, 40), topic: String(x.topic).slice(0, 160), hook: String(x.hook).slice(0, 200), goal: String(x.goal).slice(0, 120), prompt: String(x.prompt).slice(0, 1100), caption: String(x.caption).slice(0, 900) }));
+  const clean = items.slice(0, 12).map((x) => ({ week: Number(x.week) || 1, day: String(x.day).slice(0, 12), date: String(x.date).slice(0, 8), time: x.time ? String(x.time).slice(0, 20) : undefined, format: ["post", "reel", "carousel", "scenes"].includes(x.format) ? x.format : "post", job: x.job && /^[0-9a-f-]{36}$/.test(x.job) ? x.job : undefined, pillar: String(x.pillar).slice(0, 40), topic: String(x.topic).slice(0, 160), hook: String(x.hook).slice(0, 200), goal: String(x.goal).slice(0, 120), prompt: String(x.prompt).slice(0, 1100), caption: String(x.caption).slice(0, 900) }));
   const { data: old } = await supabase.from("brand_kits").select("content_plan").eq("user_id", user.id).maybeSingle();
   const start = (old?.content_plan as { start?: string } | null)?.start;
   const scope = (old?.content_plan as { scope?: string } | null)?.scope === "week" ? "week" : undefined;
@@ -85,7 +85,7 @@ export async function tagPlanJob(jobId: string, plan: { week: number; day: strin
   const admin = createAdminClient();
   const { data: job } = await admin.from("jobs").select("input").eq("id", jobId).eq("user_id", user.id).maybeSingle();
   if (!job) return { ok: false };
-  const tag = { week: Number(plan.week) || 1, day: String(plan.day).slice(0, 12), date: String(plan.date).slice(0, 8), format: ["post", "reel", "carousel"].includes(plan.format) ? plan.format : "post" };
+  const tag = { week: Number(plan.week) || 1, day: String(plan.day).slice(0, 12), date: String(plan.date).slice(0, 8), format: ["post", "reel", "carousel", "scenes"].includes(plan.format) ? plan.format : "post" };
   const { error } = await admin.from("jobs").update({ input: { ...((job.input as object) ?? {}), plan: tag } }).eq("id", jobId);
   revalidatePath("/app/works");
   return { ok: !error };
@@ -109,6 +109,7 @@ export async function savePlanPrefs(p: Partial<PlanPrefs>) {
   if (typeof p.voice === "string" && /^[\w-]{0,60}$/.test(p.voice)) patch.voice = p.voice;
   if (p.vgender === "m" || p.vgender === "f" || p.vgender === "") patch.vgender = p.vgender;
   if (p.vage === "young" || p.vage === "adult" || p.vage === "senior" || p.vage === "") patch.vage = p.vage;
+  if (Array.isArray(p.formats)) patch.formats = cleanFormats(p.formats);
   if (typeof p.tone === "string" && /^[a-z]{0,12}$/.test(p.tone)) patch.tone = p.tone;
   return mergePrefs(patch);
 }

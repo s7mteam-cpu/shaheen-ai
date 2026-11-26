@@ -1,4 +1,4 @@
-export type PlanItem = { week: number; day: "السبت" | "الاثنين" | "الأربعاء"; date: string; time?: string; format: "post" | "reel" | "carousel"; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string };
+export type PlanItem = { week: number; day: "السبت" | "الاثنين" | "الأربعاء"; date: string; time?: string; format: "post" | "reel" | "carousel" | "scenes"; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string };
 export type Analysis = { positioning: string; audience: string; voice: string; strengths: string[]; gaps: string[]; opportunities: string[]; differentiators: string[]; competitors: string };
 export type Plan = { month: string; start?: string; scope?: "week" | "month"; items: PlanItem[] };
 export type Slot = { day: PlanItem["day"]; date: string; format: PlanItem["format"] };
@@ -13,6 +13,15 @@ export type PlanPrefs = {
   vgender?: "m" | "f" | "";
   vage?: "young" | "adult" | "senior" | "";
   tone?: string;
+  formats?: PlanFormat[];           // which kinds of posts the plan is made of (empty/undefined = post, carousel and reel as before)
+};
+export type PlanFormat = "post" | "carousel" | "reel" | "scenes";
+export const PLAN_FORMATS: PlanFormat[] = ["post", "carousel", "reel", "scenes"];
+/** the customer's choice, cleaned: known kinds only, in a fixed order; nothing valid = the default three */
+export const cleanFormats = (v: unknown, scenesOn = true): PlanFormat[] => {
+  const a = Array.isArray(v) ? v : [];
+  const out = PLAN_FORMATS.filter((f) => a.includes(f) && (f !== "scenes" || scenesOn));
+  return out.length ? out : ["post", "carousel", "reel"];
 };
 const HEX = /^#[0-9a-f]{6}$/i;
 export const cleanColors = (c: unknown): PlanColors | null => {
@@ -22,6 +31,10 @@ export const cleanColors = (c: unknown): PlanColors | null => {
 /** The request that prepares one slot with the normal tools. */
 export function itemRequest(x: PlanItem, prefs: PlanPrefs | null | undefined, slides: number): { url: string; body: Record<string, unknown> } {
   const dialect = prefs?.dialect || "kuwaiti";
+  if (x.format === "scenes") {
+    const dialect2 = prefs?.dialect || "kuwaiti";
+    return { url: "/api/lesson", body: { tool: "real-scenes", source: "stock", topic: x.prompt, seconds: 30, aspect: "9:16", dialect: dialect2, voiceover: prefs?.voiceover !== false, music: true, photos: [], ...(prefs?.voice ? { voice: prefs.voice } : {}) } };
+  }
   if (x.format === "reel") {
     const voiceover = prefs?.voiceover !== false;
     return { url: "/api/lesson", body: { mode: "motion", topic: x.prompt, caption: x.caption, seconds: 30, aspect: "9:16", dialect, voiceover, drawings: true, drawLevel: "few", ...(prefs?.voice ? { voice: prefs.voice } : {}), ...(prefs?.vgender ? { vgender: prefs.vgender } : {}), ...(prefs?.vage ? { vage: prefs.vage } : {}), ...(prefs?.tone ? { tone: prefs.tone } : {}) } };
@@ -31,10 +44,10 @@ export function itemRequest(x: PlanItem, prefs: PlanPrefs | null | undefined, sl
 }
 /** best posting times in the Gulf */
 export const TIMES = ["12:30 ظهراً", "4:30 عصراً", "11:00 مساءً"] as const;
-const DEFAULT_TIME: Record<string, string> = { post: TIMES[0], carousel: TIMES[1], reel: TIMES[2] };
+const DEFAULT_TIME: Record<string, string> = { post: TIMES[0], carousel: TIMES[1], reel: TIMES[2], scenes: TIMES[2] };
 
-export const FORMAT_LABEL: Record<string, string> = { post: "بوست", reel: "ريلز", carousel: "كاروسيل" };
-export const FORMAT_TOOL: Record<string, string> = { post: "post", carousel: "carousel", reel: "motion-video" };
+export const FORMAT_LABEL: Record<string, string> = { post: "بوست", reel: "ريلز", carousel: "كاروسيل", scenes: "مشاهد واقعية" };
+export const FORMAT_TOOL: Record<string, string> = { post: "post", carousel: "carousel", reel: "motion-video", scenes: "real-scenes" };
 export const DAYS: PlanItem["day"][] = ["السبت", "الاثنين", "الأربعاء"];
 /** Monday is always the reel; Saturday and Wednesday swap between a carousel and a post every week */
 export const ROTATION: PlanItem["format"][][] = [["carousel", "reel", "post"], ["post", "reel", "carousel"], ["carousel", "reel", "post"], ["post", "reel", "carousel"]];
@@ -70,17 +83,20 @@ export function planDates(from = new Date()) {
 
 const DAY_BY_DOW: Record<number, PlanItem["day"]> = { 6: "السبت", 1: "الاثنين", 3: "الأربعاء" };
 /** The posting slots of a plan. «month»: 4 weeks (Sat, Mon, Wed) from the first Saturday. «week»: the next three Sat/Mon/Wed days from today (today included). Monday is always the reel. */
-export function planSlots(scope: "week" | "month", from = new Date()): { weeks: Slot[][]; start: string } {
+export function planSlots(scope: "week" | "month", from = new Date(), formats?: PlanFormat[]): { weeks: Slot[][]; start: string } {
   const fmt = (x: Date) => `${x.getUTCDate()}/${x.getUTCMonth() + 1}`;
+  /** the customer chose his own kinds: they take the slots in turn (a single kind fills all of them) */
+  const own = formats && formats.length && !(formats.length === 3 && ["post", "carousel", "reel"].every((f) => formats.includes(f as PlanFormat))) ? formats : null;
+  const pick = (k: number, fallback: PlanItem["format"]) => (own ? own[k % own.length] : fallback);
   if (scope === "month") {
     const dates = planDates(from);
-    return { start: planStartISO(from), weeks: dates.map((d, w) => DAYS.map((day, i) => ({ day, date: d[i], format: ROTATION[w][i] }))) };
+    return { start: planStartISO(from), weeks: dates.map((d, w) => DAYS.map((day, i) => ({ day, date: d[i], format: pick(w * 3 + i, ROTATION[w][i]) }))) };
   }
   const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
   const slots: Slot[] = [];
   for (let k = 0; slots.length < 3 && k < 14; k++, d.setUTCDate(d.getUTCDate() + 1)) {
     const day = DAY_BY_DOW[d.getUTCDay()];
-    if (day) slots.push({ day, date: fmt(d), format: day === "الاثنين" ? "reel" : day === "السبت" ? "carousel" : "post" });
+    if (day) slots.push({ day, date: fmt(d), format: pick(slots.length, day === "الاثنين" ? "reel" : day === "السبت" ? "carousel" : "post") });
   }
   return { start: planStartISO(from), weeks: [slots] };
 }

@@ -17,7 +17,7 @@ export default async function PlanPage() {
   const { data: kit } = await supabase.from("brand_kits").select("identity,content_plan,analysis,auto_weekly,plan_prefs").eq("user_id", user!.id).maybeSingle();
   const adm = createAdminClient();
   const { data: tool } = await adm.from("tools").select("credit_cost,edit_cost").eq("id", "brand-plan").maybeSingle();
-  const { data: tl } = await adm.from("tools").select("id,credit_cost").in("id", ["post", "carousel", "motion-video"]);
+  const { data: tl } = await adm.from("tools").select("id,credit_cost,is_enabled").in("id", ["post", "carousel", "motion-video", "real-scenes"]);
   const price = (id: string) => tl?.find((t) => t.id === id)?.credit_cost ?? 1;
   const siteContent = await getContent();
   const intro = siteContent.plan_intro;
@@ -31,7 +31,7 @@ export default async function PlanPage() {
         <p className="mt-1 max-w-2xl text-muted">{L("تحليل لنشاطك وخطة نشر لشهر: سبت واثنين وأربعاء كل أسبوع، بوست وريلز وكاروسيل. لكل منشور برومبت احترافي جاهز تعدّله وتشغّله بأداة شاهين.")}</p>
       </div>
       <PlanIntro seen={!!(kit?.plan_prefs as { introSeen?: boolean } | null)?.introSeen} content={intro}>
-        <PlanBoard voices={siteContent.voices.items} identityName={idName} plan={(kit?.content_plan ?? null) as Plan | null} analysis={(kit?.analysis ?? null) as Analysis | null} cost={tool?.credit_cost ?? 4} weekCostPrice={tool?.edit_cost || 2} prefs={(kit?.plan_prefs as PlanPrefs | null) ?? {}} dialects={vd ? [...vd] : null} auto={!!kit?.auto_weekly} unit={{ post: price("post"), carousel: price("carousel"), reel: price("motion-video") }} />
+        <PlanBoard voices={siteContent.voices.items} identityName={idName} plan={(kit?.content_plan ?? null) as Plan | null} analysis={(kit?.analysis ?? null) as Analysis | null} cost={tool?.credit_cost ?? 4} weekCostPrice={tool?.edit_cost || 2} prefs={(kit?.plan_prefs as PlanPrefs | null) ?? {}} dialects={vd ? [...vd] : null} auto={!!kit?.auto_weekly} unit={{ post: price("post"), carousel: price("carousel"), reel: price("motion-video"), scenes: price("real-scenes") }} scenesOn={!!tl?.find((t) => t.id === "real-scenes")?.is_enabled} />
       </PlanIntro>
     </div>
   );

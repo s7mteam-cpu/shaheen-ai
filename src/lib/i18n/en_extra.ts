@@ -940,4 +940,7 @@ export const EN_EXTRA: Record<string, string> = {
   "يقص المتحدث من الخلفية…": "Cutting the speaker out of the background…",
   "يقصّ الفيديو…": "Cutting the video…",
   "يكتب الخطة (Claude)…": "Writing the plan (Claude)…",
+  "شو أنواع المنشورات اللي تبيها بالخطة؟": "Which post types do you want in the plan?",
+  "اختر نوع واحد أو أكثر، والخطة تتوزع عليها.": "Pick one or more types and the plan will be spread across them.",
+  "مشاهد واقعية": "Real scenes",
 };

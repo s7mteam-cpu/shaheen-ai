@@ -28,7 +28,7 @@ async function prepareItem(userId: string, x: PlanItem, prefs: PlanPrefs | null)
   const mk = (url: string, body: unknown) => new Request(`http://internal${url}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   try {
     const rq = itemRequest(x, prefs, CAROUSEL_SLIDES);
-    const res = await runAsUser(userId, () => x.format === "reel"
+    const res = await runAsUser(userId, () => x.format === "reel" || x.format === "scenes"
       ? lessonPOST(mk(rq.url, rq.body))
       : designPOST(mk(rq.url, rq.body), { params: Promise.resolve({ action: "start" }) }));
     const d = (await res.json().catch(() => ({}))) as { jobId?: string };
