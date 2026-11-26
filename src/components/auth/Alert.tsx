@@ -11,6 +11,7 @@ export function arabicAuthError(msg: string, lang: "ar" | "en" = "ar") {
   if (/already registered/i.test(msg)) return T("هذا البريد مسجّل مسبقاً، سجّل دخولك.", "This email is already registered. Please sign in.");
   if (/Database error saving new user|EMAIL_BLOCKED/i.test(msg)) return T("هذا البريد ممنوع من التسجيل بمنصة شاهين. إذا تعتقد إن في خطأ، تواصل معنا.", "This email can't be used to register on Shaheen. If you think this is a mistake, please contact us.");
   if (/banned/i.test(msg)) return T("هذا الحساب موقوف. تواصل مع الدعم.", "This account is suspended. Please contact support.");
+  if (/captcha/i.test(msg)) return T("ما قدرنا نتأكد إنك إنسان. انتظر ثانيتين وحاول مرة ثانية، أو حدّث الصفحة.", "We couldn't verify you're human. Wait a couple of seconds and try again, or refresh the page.");
   if (/Password should be/i.test(msg)) return T("كلمة المرور لازم تكون 8 أحرف أو أكثر.", "Password must be at least 8 characters.");
   return T("صار خطأ، حاول مرة ثانية.", "Something went wrong. Please try again.");
 }

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { Turnstile } from "@/components/Turnstile";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
 import { Alert, arabicAuthError } from "@/components/auth/Alert";
@@ -48,6 +49,7 @@ export function SignupForm() {
       email: String(f.get("email")),
       password: String(f.get("password")),
       options: {
+        captchaToken: String(f.get("cf-turnstile-response") || "") || undefined,
         data: { full_name: String(f.get("name")), phone, country, ref: readRef(), terms_accepted: TERMS_VERSION, terms_accepted_at: new Date().toISOString() },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
@@ -82,6 +84,7 @@ export function SignupForm() {
           <span className="text-[12px] text-subtle">{T("للتواصل معك بخصوص حسابك فقط.", "Only used to contact you about your account.")}</span></div>
         <div className="flex flex-col gap-2"><label htmlFor="email" className="label">{T("البريد الإلكتروني", "Email")}</label><input id="email" name="email" type="email" required dir="ltr" autoComplete="email" className={`field ${fieldAlign}`} /></div>
         <div className="flex flex-col gap-2"><label htmlFor="password" className="label">{T("كلمة المرور (8 أحرف أو أكثر)", "Password (8+ characters)")}</label><input id="password" name="password" type="password" minLength={8} required autoComplete="new-password" className="field" /></div>
+        <Turnstile lang={lang} />
         <button disabled={loading} className="btn btn-primary py-3.5 text-[17px]">{loading ? T("جارٍ الإنشاء…", "Creating…") : T("إنشاء الحساب", "Create account")}</button>
       </form>
       <p className="text-center text-[15px] text-muted">{T("عندك حساب؟ ", "Already have an account? ")}<Link href="/login" className="font-bold text-navy-700">{T("سجّل دخولك", "Sign in")}</Link></p>

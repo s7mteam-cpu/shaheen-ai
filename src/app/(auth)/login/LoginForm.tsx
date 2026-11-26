@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { Turnstile } from "@/components/Turnstile";
 import { createClient, setRemember } from "@/lib/supabase/client";
 import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
 import { Alert, arabicAuthError } from "@/components/auth/Alert";
@@ -30,7 +31,7 @@ export function LoginForm() {
     const f = new FormData(e.currentTarget);
     setRemember(remember);
     const email = String(f.get("email"));
-    const { error } = await createClient().auth.signInWithPassword({ email, password: String(f.get("password")) });
+    const { error } = await createClient().auth.signInWithPassword({ email, password: String(f.get("password")), options: { captchaToken: String(f.get("cf-turnstile-response") || "") || undefined } });
     // «السجل الكامل»: record the sign-in, or a wrong password (repeated failures alert the admins)
     const ev = (body: object) => fetch("/api/auth/event", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
     if (error) {
@@ -59,6 +60,7 @@ export function LoginForm() {
           <input type="checkbox" checked={remember} onChange={(e) => setRem(e.target.checked)} className="h-5 w-5 cursor-pointer rounded accent-[#0B2A4A]" />
           {T("الإبقاء على تسجيل الدخول", "Keep me signed in")}
         </label>
+        <Turnstile lang={lang} />
         <button disabled={loading} className="btn btn-primary py-3.5 text-[17px]">{loading ? T("جارٍ الدخول…", "Signing in…") : T("تسجيل الدخول", "Sign in")}</button>
       </form>
       <p className="text-center text-[13px] text-subtle">{T("بالمتابعة أنت توافق على ", "By continuing you agree to the ")}<Link href="/terms" className="underline">{T("الشروط", "Terms")}</Link>{T(" و", ", ")}<Link href="/refund" className="underline">{T("سياسة الاسترجاع", "Refund Policy")}</Link>{T(" و", " and ")}<Link href="/privacy" className="underline">{T("الخصوصية", "Privacy Policy")}</Link>.</p>
