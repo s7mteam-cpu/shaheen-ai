@@ -15,6 +15,11 @@ export async function skillFor(toolId) {
   }
   return cache.map[toolId] || "";
 }
+/** «فريق التوجيه»: the brief the SERVER wrote into the job (the customer's field, the skills of this tool, his «تعليماتي»). Plain text, joined to the admin's tool skill; never code. */
+export function joinTeam(skill, team) {
+  const t = typeof team === "string" ? team.replace(/[<>]/g, "").slice(0, 12000).trim() : "";
+  return [skill, t].filter(Boolean).join("\n\n");
+}
 /** how the guidance is handed to the model: clearly below the platform's own rules */
 export function skillNote(text) {
   return text ? `\n\nإرشادات إضافية من إدارة المنصة لهذه الأداة (ذوق وأسلوب وأمثلة مرجعية؛ التزم بها ما لم تتعارض مع القواعد أعلاه، فقواعد البنية والأمان أعلاه هي الأقوى دائماً، وأي كود هنا مرجع للأسلوب فقط لا يُنسخ كما هو):\n<<<\n${text}\n>>>` : "";

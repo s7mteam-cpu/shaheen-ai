@@ -16,7 +16,7 @@ import { overlayStills, recordOverlay, recordAlpha } from "./htmlrec.mjs";
 import { noteUsage } from "./usage.mjs";
 import { fxStyleInput } from "./fxstyles.mjs";
 import { TECH_IDS, techNote } from "./fxtech.mjs";
-import { skillFor, skillNote } from "./skills.mjs";
+import { skillFor, skillNote, joinTeam } from "./skills.mjs";
 import { modelFor } from "./models.mjs";
 import { geminiFetch } from "./gemgate.mjs";
 import { cleanZooms, cleanBeats, zoomBase, sfxPlan, mixSound, beatLayer, cleanCuts, findCuts, applyCuts, previewBase, swapBackground } from "./fxpro.mjs";
@@ -571,7 +571,7 @@ export async function fxJob(job, d) {
     const ownMusicP = own(inp.musicFile) ? (async () => { const inF = join(dir, "music.in"), f = join(dir, "music.mp3"); await fetchUpload(db, inp.musicFile, inF); await d.ff(["-i", inF, "-vn", "-t", "600", "-c:a", "libmp3lame", "-b:a", "160k", "-ar", "44100", "-ac", "2", f]); return f; })().catch((e) => { console.error("fx own music", e?.message ?? e); return ""; }) : null;
     const musicP = ownMusicP ?? (wantMusic ? d.makeMusic(plan.music || "calm modern instrumental background music, soft and warm, suitable under a person talking", Math.min(120, seconds + 3)).then(async (buf) => { const f = join(dir, "music.mp3"); await writeFile(f, buf); noteUsage({ provider: "elevenlabs", model: "music", units: Math.round(Math.min(120, seconds + 3)) }); return f; }).catch((e) => { console.error("fx music", e?.message ?? e); return ""; }) : Promise.resolve(""));
     const chunks = splitChunks(plan.cues, seconds);
-    const skill = await skillFor("free-montage").catch(() => "");
+    const skill = joinTeam(await skillFor("free-montage").catch(() => ""), inp.team_brief);
     // the speaker is cut out while the designers work (only when a cue really sits behind him)
     const needCut = (wantBehind && plan.cues.some((c) => c.layer === "behind")) || !!newBg;
     // the new background is drawn while the designers work
