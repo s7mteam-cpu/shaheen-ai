@@ -17,7 +17,7 @@ export function Media({ f, className = "" }: { f: WorkFile; className?: string }
     return <div className={`flex flex-col items-center justify-center gap-2 bg-tint p-6 text-ink ${className}`} style={{ minHeight: 160 }}><span className="text-[40px]" aria-hidden>📄</span><b className="text-[15px]">{ext}</b></div>;
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={f.url} alt="" className={`w-full object-cover ${className}`} />;
+  return <img src={f.url} alt="" loading="lazy" decoding="async" className={`w-full object-cover ${className}`} />;
 }
 
 const status: Record<string, [string, string]> = {
