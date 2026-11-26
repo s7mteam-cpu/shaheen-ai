@@ -199,7 +199,7 @@ const TEXTY = new Set<TeamScope>(["post", "ads", "carousel", "motion", "montage"
 const TOOL_KEY: Partial<Record<TeamScope, "post" | "carousel" | "ads" | "motion" | "scenes">> = { post: "post", carousel: "carousel", ads: "ads", motion: "motion", montage: "scenes", lesson: "motion", invite: "post", bcard: "post" };
 
 /** the block handed to the model: team roles + the skills that fit this tool + the playbook of the customer's field. Empty when the team is off. */
-export function teamBlock(data: TeamData | null | undefined, industryId: string | undefined, customText: string | undefined, scope: TeamScope): string {
+export function teamBlock(data: TeamData | null | undefined, industryId: string | undefined, customText: string | undefined, scope: TeamScope, off: string[] = []): string {
   const d = cleanTeam(data);
   if (d.on === false) return "";
   const parts: string[] = [];
@@ -213,7 +213,7 @@ export function teamBlock(data: TeamData | null | undefined, industryId: string 
   const fits = (sc: SkillScope[]) => scope === "all" || sc.includes(scope as SkillScope);
   for (const b of SKILLS) {
     const o = d.skills?.[b.id];
-    if (!fits(b.scopes) || (o && o.on === false)) continue;
+    if (!fits(b.scopes) || (o && o.on === false) || off.includes(b.id)) continue; // «off»: skills this customer switched off for his account
     sk.push(`• ${b.title}: ${o?.text || b.text}`);
   }
   for (const [id, o] of Object.entries(d.skills ?? {})) {

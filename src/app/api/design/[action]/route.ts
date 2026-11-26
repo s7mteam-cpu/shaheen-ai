@@ -267,7 +267,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
         (kit ? `هوية العميل: الاسم ${kit.business_name || "غير محدد"}، الألوان ${(kit.colors ?? []).join(", ") || "غير محددة"}، الخط ${kit.font || "اختر أنت"}، الحساب ${kit.handle || kit.instagram || "غير محدد"}${kit.website ? `، الموقع ${kit.website}` : ""}\n` : "") +
         (site ? `من موقع العميل (لتعرف نشاطه وأسلوب كلامه):\n${site}\n` : "") +
         (ind ? `${industryBrief(ind)}\n${dpick?.text ?? ""}\n` : "") +
-        `${await trendsFor(ind?.id, kind === "ads" ? "ads" : kind === "carousel" ? "carousel" : kind === "bcard" ? "bcard" : kind === "invite" ? "invite" : "post")}\n` +
+        `${await trendsFor(ind?.id, kind === "ads" ? "ads" : kind === "carousel" ? "carousel" : kind === "bcard" ? "bcard" : kind === "invite" ? "invite" : "post", user.id)}\n` +
         `\nمعلومات العميل:\n${info}\n\n` +
         `أعد JSON: { "font", "deco", "frame", "icons", "colors": {"bg","ink","accent","soft"}, "brand": {"name","handle"}, "design": "dNNN أو {front,mid,end} للكاروسيل", "caption", ${bgAi ? '"bgStyle": "English, حتى 40 كلمة: أسلوب خلفية واحد موحّد لكل الشرائح (أجواء تجريدية راقية بألوان هوية العميل ومناسبة لمجاله، بدون نص أو أشخاص)", ' : ""}"slides": [ {layout, ...الحقول, "sticker", "photo", "imagePrompt", "caption"} ] }`,
         images, 9000);

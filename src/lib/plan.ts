@@ -7,6 +7,7 @@ export type PlanColors = { bg: string; ink: string; accent: string; soft: string
 /** The customer's choices for everything the plan prepares (the same for the manual buttons and the weekly automatic run). */
 export type InstaRead = { voice: string; topics: string[]; formats: string[]; strong: string[]; gaps: string[]; ideas: string[]; best: string; at?: string };
 export type PlanPrefs = {
+  mine?: import("@/lib/mine").Mine; // «تعليماتي»: his own instructions, skills switched off, skills of his own
   insta?: InstaRead;                // what Shaheen read from the customer's own Instagram text/screenshots (the «حلّل حسابي» card)
   carouselBg?: "shapes" | "ai";
   postColors?: PlanColors | null;   // null/undefined = the brand's own colours

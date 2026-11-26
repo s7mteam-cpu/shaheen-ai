@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     const savedField = String(input.industry ?? "") ? null : (await admin.from("brand_kits").select("industry").eq("user_id", user.id).maybeSingle()).data?.industry; // «مجالك» from هويتي
     const ind = industryById(String(input.industry ?? "")) ?? industryById(savedField) ?? industryById(await guessIndustry(`${customField(savedField)}\n${String(input.notes ?? "")}`));
     const pack = packById(ind?.id);
-    if (ind && pack) input = { ...input, industry: ind.id, pack_brief: `${packBrief(pack, ind.label)}\n${await trendsFor(ind.id, "montage")}`, pack_scenes: [...new Set([...pack.scenes, ...GENERAL])] };
+    if (ind && pack) input = { ...input, industry: ind.id, pack_brief: `${packBrief(pack, ind.label)}\n${await trendsFor(ind.id, "montage", user.id)}`, pack_scenes: [...new Set([...pack.scenes, ...GENERAL])] };
     else delete input.industry;
   }
 

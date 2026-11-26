@@ -23,7 +23,8 @@ export function SideNav({ isAdmin, support, ready, libHidden }: { isAdmin: boole
   const tpl = path.startsWith("/app/templates");
   const rdy = path.startsWith("/app/ready");
   const plan = path.startsWith("/app/brand/plan");
-  const brand = path.startsWith("/app/brand") && !plan;
+  const mine = path.startsWith("/app/brand/mine");
+  const brand = path.startsWith("/app/brand") && !plan && !mine;
   const account = path.startsWith("/app/account") && tab !== "me" && tab !== "spend";
   const spend = path.startsWith("/app/account") && tab === "spend";
   const settings = path.startsWith("/app/account") && tab === "me";
@@ -38,6 +39,7 @@ export function SideNav({ isAdmin, support, ready, libHidden }: { isAdmin: boole
       {ready && <Link href="/app/ready" aria-current={rdy ? "page" : undefined} className={item(rdy)}><Icon name="check" size={18} className={ic(rdy)} />{T("منشوراتك جاهزة للنشر", "Ready to post")}</Link>}
       <Link href="/app/brand" aria-current={brand ? "page" : undefined} className={item(brand)}><Icon name="palette" size={18} className={ic(brand)} />{T("هويتي التجارية", "Brand kit")}</Link>
       <Link href="/app/brand/plan" aria-current={plan ? "page" : undefined} className={item(plan)}><Icon name="calendar" size={18} className={ic(plan)} />{T("خطة المحتوى", "Content plan")}</Link>
+      <Link href="/app/brand/mine" aria-current={mine ? "page" : undefined} className={item(mine)}><Icon name="feather" size={18} className={ic(mine)} />{T("تعليماتي", "My instructions")}</Link>
       <Link href="/app/showcase" aria-current={show ? "page" : undefined} className={item(show)}><Icon name="sparkles" size={18} className={ic(show)} />{T("أعمال صُنعت بشاهين", "Made with Shaheen")}</Link>
       {!libHidden && <Link href="/app/templates" aria-current={tpl ? "page" : undefined} className={item(tpl)}><Icon name="film" size={18} className={ic(tpl)} />{T("مكتبة القوالب", "Template library")}</Link>}
       <Link href="/app/account" aria-current={account ? "page" : undefined} className={item(account)}><Icon name="card" size={18} className={ic(account)} />{T("الحساب والاشتراك", "Account & plan")}</Link>
