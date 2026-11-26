@@ -553,9 +553,9 @@ async function render(job, compositionId, props, lowMem = false) {
     let last = 0;
     await setProgress(job.id, 3);
     await renderMedia({
-      composition, serveUrl, codec: "h264", crf: 20, x264Preset: "veryfast", outputLocation: out, inputProps: props,
+      composition, serveUrl, codec: "h264", crf: 18, x264Preset: "veryfast", outputLocation: out, inputProps: props,
       // 4K: same layout drawn at double size (2160×3840 for 9:16)
-      ...(props?.quality === "4k" ? { scale: 2, crf: 22 } : {}),
+      ...(props?.quality === "4k" ? { scale: 2, crf: 21 } : {}),
       concurrency: Number(process.env.RENDER_CONCURRENCY) || null,
       offthreadVideoCacheSizeInBytes: 768 * 1024 * 1024,
       ...(lowMem ? LOW_MEM : {}),
@@ -696,7 +696,7 @@ async function renderDesign(job) {
       const props = { spec, index };
       const composition = await selectComposition({ serveUrl, id: "Design", inputProps: props });
       const out = join(dir, `${index}.png`);
-      await renderStill({ composition, serveUrl, output: out, inputProps: props, imageFormat: "png", chromiumOptions: { gl: "swangle" } });
+      await renderStill({ composition, serveUrl, output: out, inputProps: props, imageFormat: "png", scale: PS, chromiumOptions: { gl: "swangle" } });
       const dest = `${job.user_id}/${job.id}/${crypto.randomUUID()}.png`;
       const up = await db.storage.from("results").upload(dest, await readFile(out), { contentType: "image/png" });
       if (up.error) throw new Error(`upload: ${up.error.message}`);
@@ -1741,6 +1741,8 @@ function perSlideLogo(html, logoAt, n) {
   }
   return any ? out.replace(/<\/head>/i, "<style>.slide{position:relative}</style></head>") : out;
 }
+/** pictures of posts, carousels, ads, invitations and cards are drawn at this multiple of their normal size (2 = 2160 wide instead of 1080); same layout, sharper. POST_SCALE=1 in Railway turns it off. */
+const PS = Math.min(2, Math.max(1, Number(process.env.POST_SCALE) || 2));
 const POST_PDF = ["free-deck", "free-cv"]; // these also come as a real PDF (selectable text)
 const POST_SIZE = { "1:1": [1080, 1080], "4:5": [1080, 1350], "9:16": [1080, 1920], "16:9": [1920, 1080], card: [1200, 685], a4: [1588, 2246] }; // card = a 3.5 × 2 inch business card (about 340 dpi); 1200 × 685 keeps the layout size in whole pixels (960 × 548)
 /** the customer's studio edits (texts, colours, font, moved elements) put on a saved design. Every value is cleaned by the kit functions themselves. */
@@ -1775,6 +1777,7 @@ async function postJob(job) {
     const aspect = POST_SIZE[from.aspect] ? from.aspect : "4:5";
     const [W, H] = POST_SIZE[aspect];
     const baseW = aspect === "a4" ? 794 : undefined; // an A4 page is written at its natural 794 × 1123 CSS size (normal text sizes)
+    const hiScale = POST_PDF.includes(job.tool_id) ? 1 : PS; // a deck or a CV is delivered as a PDF (vector): its pictures stay normal size
     const [cw, ch] = baseW ? [794, 1123] : cssSize(W, H); // the page is written in CSS sizes and drawn at full W × H pixels
     const n = Math.min(8, Math.max(1, Math.round(Number(from.slides) || 1)));
     const idea = String(from.idea ?? "").slice(0, 4000);
@@ -1820,7 +1823,7 @@ async function postJob(job) {
       const shots = []; let blank = 0;
       for (let i = 1; i <= n; i++) {
         const one = applyLogo(bare, logoAt(i));
-        const [png] = await htmlStills({ html: onlySlide(one, i, cw, ch), width: W, height: H, times: [0.4], fontCss: htmlFontCss(one), baseW });
+        const [png] = await htmlStills({ html: onlySlide(one, i, cw, ch), width: W * hiScale, height: H * hiScale, times: [0.4], fontCss: htmlFontCss(one), baseW });
         const probe = join(workDir, `pp-${job.id}-${i}.png`); await writeFile(probe, png);
         if (await frameIsBlank(probe)) blank++;
         await rm(probe, { force: true });
