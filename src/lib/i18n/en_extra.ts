@@ -946,4 +946,8 @@ export const EN_EXTRA: Record<string, string> = {
   "📱 جوال": "📱 Phone",
   "💻 كمبيوتر": "💻 Computer",
   "أنواع المنشورات (للخطة الجديدة)": "Post types (for the new plan)",
+  "إعلان": "Ad",
+  "موشن مبتكر": "Creative motion",
+  "قوالب جاهزة (سريعة وأقل سعراً)": "Ready templates (fast, lower price)",
+  "مبتكر ✨ (تصميم فريد لكل منشور، أغلى)": "Creative ✨ (a unique design for each post, higher price)",
 };

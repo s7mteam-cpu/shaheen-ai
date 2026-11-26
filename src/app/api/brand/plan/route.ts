@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
 import { claudeVisionJson } from "@/lib/providers/text";
-import { FORMAT_LABEL, TIMES, normaliseAnalysis, normaliseWeek, planSlots, cleanFormats, type Analysis, type PlanItem } from "@/lib/plan";
+import { FORMAT_LABEL, TIMES, normaliseAnalysis, normaliseWeek, planSlots, cleanFormats, FORMAT_TOOL_ID, PLAN_FORMATS, type Analysis, type PlanItem } from "@/lib/plan";
 import type { Concept } from "@/lib/identity";
 
 export const maxDuration = 300;
@@ -39,8 +39,9 @@ export async function POST(req: Request) {
       kit?.cv_text && `السيرة الذاتية:\n${String(kit.cv_text).slice(0, 5000)}`,
       `الهوية المعتمدة: ${id.name}. ${id.idea}\nالشخصية: ${id.personality.join("، ")}\nأعمدة المحتوى: ${id.content.pillars.map((p) => `${p.name} (${p.share}): ${p.ideas.join("، ")}`).join(" | ")}\nالبايو: ${id.bio}`,
     ].filter(Boolean).join("\n\n");
-    const { data: sc } = await admin.from("tools").select("is_enabled").eq("id", "real-scenes").maybeSingle();
-    const chosen = cleanFormats((kit?.plan_prefs as { formats?: unknown } | null)?.formats, !!sc?.is_enabled);
+    const { data: ft } = await admin.from("tools").select("id,is_enabled").in("id", Object.values(FORMAT_TOOL_ID));
+    const off = PLAN_FORMATS.filter((f) => !ft?.find((t) => t.id === FORMAT_TOOL_ID[f])?.is_enabled);
+    const chosen = cleanFormats((kit?.plan_prefs as { formats?: unknown } | null)?.formats, off);
     const { weeks: slots, start } = planSlots(scope, new Date(), chosen);
 
     const week = (w: number) => claudeVisionJson<{ items?: unknown[] }>(SYSTEM,

@@ -1,4 +1,4 @@
-export type PlanItem = { week: number; day: "السبت" | "الاثنين" | "الأربعاء"; date: string; time?: string; format: "post" | "reel" | "carousel" | "scenes"; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string };
+export type PlanItem = { week: number; day: "السبت" | "الاثنين" | "الأربعاء"; date: string; time?: string; format: PlanFormat; job?: string; pillar: string; topic: string; hook: string; goal: string; prompt: string; caption: string };
 export type Analysis = { positioning: string; audience: string; voice: string; strengths: string[]; gaps: string[]; opportunities: string[]; differentiators: string[]; competitors: string };
 export type Plan = { month: string; start?: string; scope?: "week" | "month"; items: PlanItem[] };
 export type Slot = { day: PlanItem["day"]; date: string; format: PlanItem["format"] };
@@ -15,12 +15,14 @@ export type PlanPrefs = {
   tone?: string;
   formats?: PlanFormat[];           // which kinds of posts the plan is made of (empty/undefined = post, carousel and reel as before)
 };
-export type PlanFormat = "post" | "carousel" | "reel" | "scenes";
-export const PLAN_FORMATS: PlanFormat[] = ["post", "carousel", "reel", "scenes"];
+export type PlanFormat = "post" | "carousel" | "ad" | "reel" | "creative" | "scenes";
+export const PLAN_FORMATS: PlanFormat[] = ["post", "carousel", "ad", "reel", "creative", "scenes"];
+/** the tool each kind is made with (its switch in the admin decides whether the customer may pick it) */
+export const FORMAT_TOOL_ID: Record<PlanFormat, string> = { post: "post", carousel: "carousel", ad: "ad-design", reel: "motion-video", creative: "free-motion", scenes: "real-scenes" };
 /** the customer's choice, cleaned: known kinds only, in a fixed order; nothing valid = the default three */
-export const cleanFormats = (v: unknown, scenesOn = true): PlanFormat[] => {
+export const cleanFormats = (v: unknown, off: PlanFormat[] = []): PlanFormat[] => {
   const a = Array.isArray(v) ? v : [];
-  const out = PLAN_FORMATS.filter((f) => a.includes(f) && (f !== "scenes" || scenesOn));
+  const out = PLAN_FORMATS.filter((f) => a.includes(f) && !off.includes(f));
   return out.length ? out : ["post", "carousel", "reel"];
 };
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -31,6 +33,9 @@ export const cleanColors = (c: unknown): PlanColors | null => {
 /** The request that prepares one slot with the normal tools. */
 export function itemRequest(x: PlanItem, prefs: PlanPrefs | null | undefined, slides: number): { url: string; body: Record<string, unknown> } {
   const dialect = prefs?.dialect || "kuwaiti";
+  if (x.format === "creative") {
+    return { url: "/api/free-motion", body: { idea: x.prompt, aspect: "9:16", seconds: 30, dialect, voiceover: prefs?.voiceover !== false, ...(prefs?.voice ? { voice: prefs.voice } : {}) } };
+  }
   if (x.format === "scenes") {
     const dialect2 = prefs?.dialect || "kuwaiti";
     return { url: "/api/lesson", body: { tool: "real-scenes", source: "stock", topic: x.prompt, seconds: 30, aspect: "9:16", dialect: dialect2, voiceover: prefs?.voiceover !== false, music: true, photos: [], ...(prefs?.voice ? { voice: prefs.voice } : {}) } };
@@ -44,10 +49,10 @@ export function itemRequest(x: PlanItem, prefs: PlanPrefs | null | undefined, sl
 }
 /** best posting times in the Gulf */
 export const TIMES = ["12:30 ظهراً", "4:30 عصراً", "11:00 مساءً"] as const;
-const DEFAULT_TIME: Record<string, string> = { post: TIMES[0], carousel: TIMES[1], reel: TIMES[2], scenes: TIMES[2] };
+const DEFAULT_TIME: Record<string, string> = { post: TIMES[0], carousel: TIMES[1], reel: TIMES[2], ad: TIMES[0], creative: TIMES[2], scenes: TIMES[2] };
 
-export const FORMAT_LABEL: Record<string, string> = { post: "بوست", reel: "ريلز", carousel: "كاروسيل", scenes: "مشاهد واقعية" };
-export const FORMAT_TOOL: Record<string, string> = { post: "post", carousel: "carousel", reel: "motion-video", scenes: "real-scenes" };
+export const FORMAT_LABEL: Record<string, string> = { post: "بوست", reel: "ريلز", carousel: "كاروسيل", ad: "إعلان", creative: "موشن مبتكر", scenes: "مشاهد واقعية" };
+export const FORMAT_TOOL: Record<string, string> = { post: "post", carousel: "carousel", reel: "motion-video", ad: "ad-design", creative: "free-motion", scenes: "real-scenes" };
 export const DAYS: PlanItem["day"][] = ["السبت", "الاثنين", "الأربعاء"];
 /** Monday is always the reel; Saturday and Wednesday swap between a carousel and a post every week */
 export const ROTATION: PlanItem["format"][][] = [["carousel", "reel", "post"], ["post", "reel", "carousel"], ["carousel", "reel", "post"], ["post", "reel", "carousel"]];

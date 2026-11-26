@@ -3,15 +3,15 @@ import Link from "next/link";
 import { useState } from "react";
 import { L, LT } from "@/lib/i18n/ui";
 import { savePlan, savePlanPrefs, setAutoWeekly, tagPlanJob } from "@/app/app/brand/actions";
-import { FORMAT_LABEL, FORMAT_TOOL, cleanFormats, itemRequest, type PlanFormat, type Analysis, type Plan, type PlanColors, type PlanItem, type PlanPrefs } from "@/lib/plan";
+import { FORMAT_LABEL, FORMAT_TOOL, cleanFormats, PLAN_FORMATS, itemRequest, type PlanFormat, type Analysis, type Plan, type PlanColors, type PlanItem, type PlanPrefs } from "@/lib/plan";
 import { PALETTES, lum, onColor } from "@/design/spec";
 import { ARAB_DIALECTS } from "@/lib/countries";
 import { TONES, VOICE_TYPES, typeToGA, type VoiceItem } from "@/lib/voiceMatch";
 import { VoicePick } from "@/components/app/VoicePick";
 
-const FORMAT_ICON: Record<string, string> = { post: "🖼️", reel: "🎬", carousel: "🗂️", scenes: "🎥" };
+const FORMAT_ICON: Record<string, string> = { post: "🖼️", reel: "🎬", carousel: "🗂️", scenes: "🎥", ad: "📣", creative: "✨" };
 
-export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCostPrice, prefs: prefs0, voices = [], dialects: availD, unit, auto: auto0, scenesOn = false }: { voices?: VoiceItem[]; weekCostPrice: number; prefs: PlanPrefs; dialects: string[] | null; identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number; scenes: number }; scenesOn?: boolean }) {
+export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCostPrice, prefs: prefs0, voices = [], dialects: availD, unit, auto: auto0, available = ["post", "carousel", "reel"] }: { voices?: VoiceItem[]; weekCostPrice: number; prefs: PlanPrefs; dialects: string[] | null; identityName: string | null; plan: Plan | null; analysis: Analysis | null; cost: number; auto: boolean; unit: { post: number; carousel: number; reel: number; scenes: number; ad: number; creative: number }; available?: PlanFormat[] }) {
   const [plan, setPlan] = useState<Plan | null>(p0);
   const [analysis, setAnalysis] = useState<Analysis | null>(a0);
   const [busy, setBusy] = useState(false);
@@ -23,7 +23,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
   const CAROUSEL_SLIDES = 6;
   const [prefs, setPrefs] = useState<PlanPrefs>(prefs0);
   const bg = prefs.carouselBg ?? "shapes";
-  const chosen = cleanFormats(prefs.formats, scenesOn);
+  const chosen = cleanFormats(prefs.formats, PLAN_FORMATS.filter((f) => !available.includes(f)));
   const voiceover = prefs.voiceover !== false;
   const availSet = availD ? new Set(availD) : null;
   const dialectList: [string, string][] = ([...ARAB_DIALECTS.map(([v, ar]) => [v, ar] as [string, string]), ["en", "English"] as [string, string]]).filter(([v]) => !availSet || availSet.has(v) || v === "en");
@@ -40,7 +40,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
   const sameColors = (a?: PlanColors | null, b?: PlanColors) => !!a && !!b && a.bg === b.bg && a.accent === b.accent && a.ink === b.ink;
   const isWeek = plan?.scope === "week";
   async function pickBg(v: "shapes" | "ai") { await setPref({ carouselBg: v }); }
-  const itemCost = (x: PlanItem) => (x.format === "post" ? unit.post : x.format === "carousel" ? unit.carousel * CAROUSEL_SLIDES : x.format === "scenes" ? unit.scenes : unit.reel * 2);
+  const itemCost = (x: PlanItem) => (x.format === "post" ? unit.post : x.format === "carousel" ? unit.carousel * CAROUSEL_SLIDES : x.format === "scenes" ? unit.scenes : x.format === "ad" ? unit.ad : x.format === "creative" ? unit.creative * 2 : unit.reel * 2);
   const weekTodo = plan ? plan.items.map((x, i) => [x, i] as const).filter(([x]) => x.week === week && !x.job) : [];
   const weekCost = weekTodo.reduce((n, [x]) => n + itemCost(x), 0);
 
@@ -96,7 +96,10 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
   const kinds = (
           <div className="flex flex-col gap-2">
             <b className="text-[14.5px]">{L("شو أنواع المنشورات اللي تبيها بالخطة؟")}</b>
-            <div className="flex flex-wrap gap-2">{(["post", "carousel", "reel", ...(scenesOn ? ["scenes"] : [])] as PlanFormat[]).map((f) => { const on = chosen.includes(f); return <button key={f} type="button" aria-pressed={on} onClick={() => { const n = on ? chosen.filter((x) => x !== f) : [...chosen, f]; if (n.length) void setPref({ formats: n }); }} className={chip(on)}>{FORMAT_ICON[f]} {L(FORMAT_LABEL[f])}</button>; })}</div>
+            {([["قوالب جاهزة (سريعة وأقل سعراً)", ["post", "carousel", "ad", "reel"]], ["مبتكر ✨ (تصميم فريد لكل منشور، أغلى)", ["creative", "scenes"]]] as [string, PlanFormat[]][]).map(([title, list]) => { const here = list.filter((f) => available.includes(f)); return here.length > 0 && (
+              <div key={title} className="flex flex-col gap-1.5"><span className="text-[13.5px] font-semibold text-muted">{L(title)}</span>
+                <div className="flex flex-wrap gap-2">{here.map((f) => { const on = chosen.includes(f); const price = f === "post" ? unit.post : f === "carousel" ? unit.carousel * CAROUSEL_SLIDES : f === "ad" ? unit.ad : f === "reel" ? unit.reel * 2 : f === "creative" ? unit.creative * 2 : unit.scenes; return <button key={f} type="button" aria-pressed={on} onClick={() => { const n = on ? chosen.filter((x) => x !== f) : [...chosen, f]; if (n.length) void setPref({ formats: n }); }} className={chip(on)}>{FORMAT_ICON[f]} {L(FORMAT_LABEL[f])} <span className="text-[12px] opacity-75">· {LT(`${price} ريشة`, `${price} feathers`)}</span></button>; })}</div>
+              </div>); })}
             <span className="text-[13px] text-subtle">{L("اختر نوع واحد أو أكثر، والخطة تتوزع عليها.")}</span>
           </div>
   );

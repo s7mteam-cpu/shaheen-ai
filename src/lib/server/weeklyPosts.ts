@@ -1,9 +1,10 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runAsUser } from "@/lib/server/auth";
-import { FORMAT_LABEL, itemRequest, planWeekOf, type Plan, type PlanItem, type PlanPrefs } from "@/lib/plan";
+import { FORMAT_LABEL, FORMAT_TOOL_ID, itemRequest, planWeekOf, type Plan, type PlanItem, type PlanPrefs } from "@/lib/plan";
 import { POST as designPOST } from "@/app/api/design/[action]/route";
 import { POST as lessonPOST } from "@/app/api/lesson/route";
+import { POST as freePOST } from "@/app/api/free-motion/route";
 
 const CAROUSEL_SLIDES = 6;
 type State = { lock?: number; lowWeek?: number; doneWeek?: number; ended?: boolean };
@@ -30,6 +31,7 @@ async function prepareItem(userId: string, x: PlanItem, prefs: PlanPrefs | null)
     const rq = itemRequest(x, prefs, CAROUSEL_SLIDES);
     const res = await runAsUser(userId, () => x.format === "reel" || x.format === "scenes"
       ? lessonPOST(mk(rq.url, rq.body))
+      : x.format === "creative" ? freePOST(mk(rq.url, rq.body))
       : designPOST(mk(rq.url, rq.body), { params: Promise.resolve({ action: "start" }) }));
     const d = (await res.json().catch(() => ({}))) as { jobId?: string };
     if (!res.ok || !d.jobId) return null;
@@ -44,9 +46,9 @@ async function prepareItem(userId: string, x: PlanItem, prefs: PlanPrefs | null)
 export async function runWeekly(budgetMs = 240_000) {
   const t0 = Date.now();
   const admin = createAdminClient();
-  const { data: tl } = await admin.from("tools").select("id,credit_cost").in("id", ["post", "carousel", "motion-video"]);
+  const { data: tl } = await admin.from("tools").select("id,credit_cost").in("id", Object.values(FORMAT_TOOL_ID));
   const price = (id: string) => tl?.find((t) => t.id === id)?.credit_cost ?? 1;
-  const cost = (x: PlanItem) => (x.format === "post" ? price("post") : x.format === "carousel" ? price("carousel") * CAROUSEL_SLIDES : price("motion-video") * 2);
+  const cost = (x: PlanItem) => (x.format === "post" ? price("post") : x.format === "carousel" ? price("carousel") * CAROUSEL_SLIDES : x.format === "scenes" ? price("real-scenes") : x.format === "ad" ? price("ad-design") : x.format === "creative" ? price("free-motion") * 2 : price("motion-video") * 2);
   const { data: kits } = await admin.from("brand_kits").select("user_id,content_plan,auto_state,plan_prefs").eq("auto_weekly", true);
   const out = { users: kits?.length ?? 0, prepared: 0, skipped: 0 };
 
