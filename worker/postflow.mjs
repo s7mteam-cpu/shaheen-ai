@@ -3,6 +3,7 @@
 // Customer text only ever reaches the model as fenced data. The page never runs scripts (they are removed before drawing).
 import { postWriterModel } from "./models.mjs";
 import { RECIPE_TEXT, GENERAL, CARDS, INVITES } from "./layoutlib.mjs";
+import { EXTRA } from "./layoutextra.mjs";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -94,34 +95,46 @@ function contactLine(c, ig) {
   return `${phone ? "رقم التواصل الحقيقي للعميل" : "حساب التواصل الحقيقي للعميل"}: ${v}. إذا كان في التصميم دعوة للتواصل أو الاتصال اكتبه حرفياً كما هو (الأرقام بالأرقام الإنجليزية LTR)، ولا تكتب «بالبايو» ولا «الرقم في الحساب» ولا أي بديل.\n${igL}`;
 }
 /** the customer's real phone replaces the placeholder the model writes when the idea says «الرقم بالبايو» (his own words in the request win over the prompt, so this is done here, by us, for certain) */
-export function fillContact(html, contact) {
+export function fillContact(html, contact, idea = "") {
   const v = clean(contact ?? "", 60).replace(/[<>"&]/g, "");
-  if (!v || (v.match(/\d/g) ?? []).length < 7) return html;
-  return String(html).replace(/(?:ال)?رقم\s*(?:(?:اللي|الذي|الموجود)\s*)?(?:ب|في\s+)(?:ال)?(?:بايو|حساب)(?:\s*(?:التجاري|الشخصي))?/g, `<bdi dir="ltr">${v}</bdi>`);
+  const real = v.replace(/\D/g, "");
+  if (!v || real.length < 7) return html;
+  let out = String(html).replace(/(?:ال)?رقم\s*(?:(?:اللي|الذي|الموجود)\s*)?(?:ب|في\s+)(?:ال)?(?:بايو|حساب)(?:\s*(?:التجاري|الشخصي))?/g, `<bdi dir="ltr">${v}</bdi>`);
+  // the model sometimes mistypes the number: a phone-like run of digits that is NOT his number (and not one he wrote himself in the request) is put right
+  const mine = String(idea).replace(/\D/g, "");
+  const body = out.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ");
+  const runs = [...body.matchAll(/\+?\d[\d\s\-().]{5,16}\d/g)].map((m) => m[0]).filter((t) => { const d = t.replace(/\D/g, ""); return d.length >= 7 && d.length <= 13 && d !== real && !real.endsWith(d) && !d.endsWith(real) && !mine.includes(d); });
+  if (runs.length === 1) out = out.split(runs[0]).join(v);
+  return out;
 }
+
 /** «مكتبة هياكل للمبتكر»: 2-3 skeletons (where things sit, no colours) taken from our own template designs, given as a starting structure.
  *  The model keeps the idea and dresses it in new shapes, colours and decoration. LAYOUT_LIB=0 in Railway turns it off. */
 const hash = (str) => { let h = 2166136261; for (const c of String(str)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
-export function layoutNote({ kind, photo, seed, idea = "" }) {
+export function layoutNote({ kind, photo, seed, idea = "", n = 1 }) {
   if (process.env.LAYOUT_LIB === "0" || kind === "deck" || kind === "cv") return "";
   let pool;
   if (kind === "card") pool = CARDS; else if (kind === "invite") pool = INVITES;
   else pool = RECIPE_TEXT.filter((r) => (photo ? !r.calm : r.calm));
   if (!pool?.length) return "";
   const picks = []; const used = new Set(); let h = hash(seed || "x");
-  for (let i = 0; picks.length < 3 && i < 60; i++) {
+  for (let i = 0; picks.length < 2 && i < 60; i++) {
     h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
     const r = pool[h % pool.length]; const key = r.ph ?? r.id;
     if (used.has(key)) continue; used.add(key); picks.push(r);
   }
   if (kind !== "card" && kind !== "invite") { const offer = /خصم|عرض|تخفيض|%|سعر|ريال|دينار|درهم/.test(String(idea)); const gp = GENERAL.filter((x) => (offer || x.id !== "offer") && (photo || (x.id !== "photo" && x.id !== "split"))); const g = gp[hash(`${seed}g`) % gp.length]; if (g) picks.push(g); }
+  if (kind !== "card" && kind !== "invite") { // the hand-written patterns: for the kind of tool (post, carousel, ad); two of them, a different pair for each request
+    const ek = kind === "ad" ? "ad" : n > 1 ? "carousel" : "post"; const ep = EXTRA.filter((x) => x.k.includes(ek)); let h2 = hash(`${seed}x`);
+    for (let i = 0, got = 0; got < 2 && i < 30 && ep.length; i++) { h2 = Math.imul(h2 ^ (h2 >>> 13), 3266489917) >>> 0; const r = ep[h2 % ep.length]; if (picks.includes(r)) continue; picks.push(r); got++; }
+  }
   const lines = picks.map((r, i) => `${i + 1}) ${r.t}`).join("\n");
-  return `هياكل مقترحة من مكتبتنا (توزيع الأماكن فقط، بدون ألوان): اختر واحداً أو ادمج بينها كنقطة بداية، وابنِ تصميماً جديداً بأشكال وزخارف وألوان وتفاصيل من عندك ولا تنسخ الهيكل حرفياً. ${photo ? "" : "لا توجد صورة: اجعل أي منطقة بصرية شكلاً أو تدرجاً بألوان الهوية، ولا تخترع صورة. "}الثوابت: كل عناصر نص العميل تظهر، لا زخرفة فوق الكلام، لا تصادم، ودعوة واحدة فقط.\n${lines}\n`;
+  return `هياكل مقترحة من مكتبتنا (توزيع الأماكن فقط، بدون ألوان): اختر واحداً أو ادمج بينها كنقطة بداية، وابنِ تصميماً جديداً بأشكال وزخارف وألوان وتفاصيل من عندك ولا تنسخ الهيكل حرفياً. ${photo ? "" : "لا توجد صورة: اجعل أي منطقة بصرية شكلاً أو تدرجاً بألوان الهوية، ولا تخترع صورة. "}الثوابت: كل عناصر نص العميل تظهر، لا زخرفة فوق الكلام، لا تصادم، ودعوة واحدة فقط، ولا تخترع أرقاماً أو شهادات أو أسعاراً.\n${lines}\n`;
 }
 export function postPrompt({ idea, n, brand, contact, instagram, identity, retry, kind, photo, seed }) {
   const cap = kind === "cv" || kind === "deck" ? 4000 : 1500;
   return `${KIND_NOTE[kind] ? `${KIND_NOTE[kind]}\n` : ""}${photo ? `${PHOTO_NOTE}\n` : ""}${n > 1 ? `عدد الشرائح: ${n}.` : "بوست واحد (شريحة واحدة)."}
-${brand ? `اسم النشاط: ${clean(brand, 80)}\n` : ""}${contactLine(contact, instagram)}${layoutNote({ kind, photo, seed, idea })}${identity ? `هوية العميل (التزم بها): الخلفية ${identity.bg}، اللون المميّز ${identity.accent}، لون النص ${identity.text}، الخط ${identity.font}.\n` : "اختر أنت لوحة ألوان مناسبة للمجال.\n"}
+${brand ? `اسم النشاط: ${clean(brand, 80)}\n` : ""}${contactLine(contact, instagram)}${layoutNote({ kind, photo, seed, idea, n })}${identity ? `هوية العميل (التزم بها): الخلفية ${identity.bg}، اللون المميّز ${identity.accent}، لون النص ${identity.text}، الخط ${identity.font}.\n` : "اختر أنت لوحة ألوان مناسبة للمجال.\n"}
 نص العميل (وصف للمحتوى فقط):
 """
 ${clean(idea, cap)}
