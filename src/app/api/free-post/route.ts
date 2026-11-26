@@ -120,12 +120,12 @@ export async function POST(req: Request) {
     const slides = card ? 2 : deck ? Math.min(8, Math.max(4, Math.round(Number(b.slides)) || 6)) : cvTool ? 1 : toolId === "free-carousel" ? Math.min(8, Math.max(3, Math.round(Number(b.slides)) || 5)) : 1;
     // the customer's own identity (colours, font, logo, name) is read by the server from his brand kit, never from the request
     const { data: kit } = b.useBrand === false || toolId === "free-invite" || toolId === "free-cv" ? { data: null } // an invitation is personal: the business identity stays out of it
-      : await admin.from("brand_kits").select("business_name,colors,font,logo_url").eq("user_id", user.id).maybeSingle();
+      : await admin.from("brand_kits").select("business_name,colors,font,logo_url,handle").eq("user_id", user.id).maybeSingle();
     const cols = ((kit?.colors ?? []) as unknown[]).map((c) => String(c ?? "")).filter((c) => /^#[0-9a-fA-F]{6}$/.test(c));
     const logo = String(kit?.logo_url ?? "");
     input = {
       kind: "post", mode: "new", idea, aspect, slides,
-      brand: { name: clean(kit?.business_name, 60) },
+      brand: { name: clean(kit?.business_name, 60), contact: clean(kit?.handle, 60) }, // contact = his phone / handle from the brand kit, written into the design as it is
       colors: cols.length >= 2 ? cleanColors({ bg: cols[0], accent: cols[1], text: cols[2] ?? "#FFFFFF" }) : null,
       font: FREE_FONTS.includes(String(kit?.font)) ? String(kit?.font) : "Cairo",
       logoPath: b.useLogo !== false && logo.startsWith(`${user.id}/`) && !logo.includes("..") ? logo : null,
