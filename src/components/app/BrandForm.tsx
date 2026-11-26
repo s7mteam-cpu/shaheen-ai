@@ -5,8 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 import { resetBrand, saveBrand } from "@/app/app/brand/actions";
 
 import { FontPicker } from "./FontPicker";
+import { IdentityAnalyse } from "./IdentityAnalyse";
+import type { InstaRead } from "@/lib/plan";
 
-export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[] } }) {
+export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[]; insta?: InstaRead | null } }) {
   const [name, setName] = useState(initial.business_name);
   const [logo, setLogo] = useState(initial.logo_url);
   const [preview, setPreview] = useState(initial.logo_preview);
@@ -58,9 +60,13 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
     setName(""); setLogo(null); setPreview(null); setColors([]); setHandle(""); setFont(""); setWebsite(""); setInstagram(""); setRefs([]);
     setMsg(L("تم تصفير الهوية. التصاميم الجديدة بتكون بدون هوية لين تحفظ هوية جديدة."));
   }
+  async function persist() { return (await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video })).ok; }
   async function save() {
-    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video });
-    setMsg(r.ok ? L("تم الحفظ. بتنطبق هويتك على كل تصميم جديد.") : L("تعذّر الحفظ."));
+    setMsg((await persist()) ? L("تم الحفظ. بتنطبق هويتك على كل تصميم جديد.") : L("تعذّر الحفظ."));
+  }
+  function applyRead(palette: string[], style: string) {
+    if (palette.length >= 2) setColors(palette);
+    if (style && !note.trim()) setNote(style.slice(0, 500));
   }
 
   return (
@@ -90,7 +96,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
         <span className="label">{L("بيانات التواصل")}</span>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("موقعك الإلكتروني")}</span><input dir="ltr" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={200} className="field" placeholder="example.com" /></label>
-          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("حسابك على إنستغرام")}</span><input dir="ltr" value={instagram} onChange={(e) => setInstagram(e.target.value)} maxLength={120} className="field" placeholder="@yourbrand" /></label>
+          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("حسابك على إنستغرام")}</span><input dir="ltr" value={instagram} onChange={(e) => setInstagram(e.target.value)} maxLength={120} className="field" placeholder={L("@yourbrand أو رابط الحساب")} /></label>
         </div>
         <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("حسابك أو رقم التواصل")} <span className="font-normal text-subtle">{L("(يطلع بنهاية الفيديوهات والتصاميم)")}</span></span><input id="bh" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={60} className="field" dir="auto" placeholder={L("مثال: @aldeira.kw أو 9999 9999")} /></label>
         <p className="text-[12px] text-subtle">{L("شاهين يقرا موقعك عشان يفهم نشاطك، ويحط حسابك بالتصاميم إذا ما كتبت رقم تواصل.")}</p>
@@ -129,6 +135,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
           <p className="text-[12px] leading-5 text-subtle">{L("ارفع صور وفيديوهات تملك حقها أو للاستلهام فقط. ممنوع رفع محتوى مخالف لسياسة المحتوى. اضغط «حفظ» بعد الرفع.")}</p>
         </div>
       </div>
+      <IdentityAnalyse initial={initial.insta ?? null} save={persist} onApply={applyRead} />
       {msg && <p role="status" className="text-sm text-navy-700">{L(msg)}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button type="button" onClick={save} className="btn btn-primary px-6 py-3">{L("حفظ الهوية")}</button>
