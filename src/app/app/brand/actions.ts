@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function saveBrand(data: { business_name: string; logo_url: string | null; colors: string[]; handle?: string; font?: string; website?: string; instagram?: string; style_refs?: string[]; style_note?: string; dialect?: string; about?: string; cv_text?: string; style_video?: string | null; industry?: string }) {
+export async function saveBrand(data: { business_name: string; logo_url: string | null; colors: string[]; handle?: string; font?: string; website?: string; instagram?: string; style_refs?: string[]; style_note?: string; dialect?: string; industry2?: string; about?: string; cv_text?: string; style_video?: string | null; industry?: string }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "" };
@@ -40,6 +40,13 @@ export async function saveBrand(data: { business_name: string; logo_url: string 
   if (error) ({ error } = await supabase.from("brand_kits").upsert({ ...base, ...ind, ...about })); // before SQL 0067 is run: the rest of the identity still saves
   // «لهجة المحتوى»: every post, video and design of this customer is written in it; empty = Standard Arabic
   if (!error && typeof data.dialect === "string" && (data.dialect === "" || ARAB_DIALECTS.some((x) => x[0] === data.dialect))) await mergePrefs({ dialect: data.dialect });
+  // «مجال ثاني» (optional): a field of the library, or his own words; empty clears it
+  if (!error && typeof data.industry2 === "string") {
+    const own2 = customField(data.industry2);
+    const val2 = industryById(data.industry2)?.id ?? (own2 ? `${CUSTOM_FIELD}${own2}` : "");
+    if (own2 && !industryById(data.industry2) && (await guardContent(user.id, { idea: own2 }, "my-field2"))) return { ok: false };
+    await mergePrefs({ industry2: val2 });
+  }
   revalidatePath("/app/brand");
   return { ok: !error };
 }

@@ -22,10 +22,11 @@ export async function POST(req: Request) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "سجّل دخولك أولاً." }, { status: 401 });
   const admin = createAdminClient();
-  const { data: kit } = await admin.from("brand_kits").select("business_name,about,cv_text,identity,website,instagram,analysis,plan_prefs").eq("user_id", user.id).maybeSingle();
+  const { data: kit } = await admin.from("brand_kits").select("business_name,about,cv_text,identity,industry,handle,website,instagram,analysis,plan_prefs").eq("user_id", user.id).maybeSingle();
   const id = kit?.identity as Concept | null;
   // a customer who never made an identity can still have a plan, as long as he told Shaheen about his business (name or description) in «هويتي التجارية»
-  if (!id && !String(kit?.business_name ?? "").trim() && String(kit?.about ?? "").trim().length < 15) return NextResponse.json({ error: "اكتب عن نشاطك بهويتك التجارية (أو أنشئ هوية)، وبعدها نسوي لك الخطة." }, { status: 400 });
+  const known = [kit?.business_name, kit?.industry, kit?.website, kit?.instagram, kit?.handle].some((v) => String(v ?? "").trim()) || String(kit?.about ?? "").trim().length >= 15 || String(kit?.cv_text ?? "").trim().length >= 15;
+  if (!id && !known) return NextResponse.json({ error: "عرّف شاهين بنشاطك بهويتك التجارية: اسم النشاط أو مجالك أو وصفه أو سيرتك، وبعدها نسوي لك الخطة." }, { status: 400 });
   const planName = id?.name ?? String(kit?.business_name ?? "").trim().slice(0, 60) ?? "نشاطك";
 
   const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost").eq("id", "brand-plan").maybeSingle();

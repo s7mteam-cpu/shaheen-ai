@@ -13,6 +13,7 @@ export const ROLES: { id: RoleId; label: string; scopes: "all" | "text"; text: s
 ];
 
 import { DEEP_MORE } from "./teamDeep";
+import { INDUSTRIES } from "@/design/industries";
 const G = (a: string, v: string, x: string): Play => ({ a, v, x });
 
 /** one playbook per field (id of src/design/industries.ts). Short on purpose: the model follows 3 clear lines better than a page. */
@@ -232,6 +233,16 @@ const SENSITIVE_NOTE = "مجال حساس: بدون وعود نتائج أو ض�
 
 /** the built-in playbook of one field as the three lines the model reads (also what the admin sees as the starting text) */
 export const playText = (id?: string) => { const b = (id && PLAYBOOKS[id]) || GROUP_FALLBACK; return `زاوية المحتوى: ${b.a}\nالشكل والمشاهد: ${b.v}\nتجنّب: ${b.x}`; };
+
+/** the customer's SECOND field («مجال ثاني»): only two lines of its playbook (what to say, what to avoid), told to the model as an extra the request may touch */
+export function secondLine(data: TeamData | null | undefined, id: string | undefined, mainId?: string): string {
+  if (!id || id === mainId || id === "other") return "";
+  const d = cleanTeam(data), f = d.fields?.[id];
+  if (f && f.on === false) return "";
+  const b = PLAYBOOKS[id] ?? GROUP_FALLBACK;
+  const lab = INDUSTRIES.find((i) => i.id === id)?.label ?? id;
+  return `مجال ثاني للنشاط (${lab}): استخدمه فقط لما يتعلق موضوع الطلب به، والمجال الرئيسي هو الأساس. زاوية المحتوى: ${b.a} تجنّب: ${b.x}${SENSITIVE.has(id) ? ` ${SENSITIVE_NOTE}` : ""}`;
+}
 
 export type TeamRole = { text?: string; on?: boolean };
 export type TeamField = { text?: string; on?: boolean };

@@ -128,7 +128,7 @@ export function PlanBoard({ identityName, plan: p0, analysis: a0, cost, weekCost
             <span className="text-[13px] text-subtle">{L("اختر نوع واحد أو أكثر، والخطة تتوزع عليها.")}</span>
           </div>
   );
-  if (!identityName) return <div className="card flex flex-col items-start gap-3 p-6"><p>{LT("اكتب عن نشاطك بهويتك التجارية (أو أنشئ هوية)، وبعدها نسوي لك الخطة.", "Tell Shaheen about your business in your brand page (or create an identity), then we make your plan.")}</p><div className="flex flex-wrap gap-2"><Link href="/app/brand" className="btn btn-gold px-6 py-3 font-bold">{LT("هويتي التجارية", "My brand")}</Link><Link href="/app/brand/identity" className="btn btn-outline px-6 py-3 font-bold">✨ {L("إنشاء هوية")}</Link></div></div>;
+  if (!identityName) return <div className="card flex flex-col items-start gap-3 p-6"><p>{LT("عرّف شاهين بنشاطك بهويتك التجارية (اسم النشاط أو مجالك أو وصفه أو سيرتك)، وبعدها نسوي لك الخطة.", "Tell Shaheen about your business in your brand page (name, field, description or CV), then we make your plan.")}</p><div className="flex flex-wrap gap-2"><Link href="/app/brand" className="btn btn-gold px-6 py-3 font-bold">{LT("هويتي التجارية", "My brand")}</Link><Link href="/app/brand/identity" className="btn btn-outline px-6 py-3 font-bold">✨ {L("إنشاء هوية")}</Link></div></div>;
 
   return (
     <div className="flex flex-col gap-5">

@@ -1,8 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { modelFor } from "@/lib/server/models";
 import { cachedSystem } from "@/lib/providers/text";
-import { INDUSTRIES } from "@/design/industries";
-import { cleanTeam, teamBlock, type TeamData, type TeamScope } from "@/lib/team";
+import { INDUSTRIES, industryById, customField } from "@/design/industries";
+import { guessIndustry } from "@/lib/server/guessIndustry";
+import { cleanTeam, teamBlock, secondLine, type TeamData, type TeamScope } from "@/lib/team";
 import { cleanMine, mineBlock } from "@/lib/mine";
 
 export type Scope = "all" | "post" | "ads" | "carousel" | "motion" | "montage" | "bcard" | "invite";
@@ -28,9 +29,16 @@ async function teamData(): Promise<TeamData> {
 export async function trendsFor(industry: string | undefined, scope: TeamScope, userId?: string) {
   let team = "", mine = "";
   try {
-    let raw: unknown = null;
-    if (userId) { const { data } = await createAdminClient().from("brand_kits").select("plan_prefs").eq("user_id", userId).maybeSingle(); raw = (data?.plan_prefs as { mine?: unknown } | null)?.mine; }
-    team = teamBlock(await teamData(), industry, undefined, scope, cleanMine(raw).off);
+    let raw: unknown = null, ind2: string | undefined;
+    if (userId) {
+      const { data } = await createAdminClient().from("brand_kits").select("plan_prefs").eq("user_id", userId).maybeSingle();
+      const pp = data?.plan_prefs as { mine?: unknown; industry2?: unknown } | null;
+      raw = pp?.mine;
+      const v = String(pp?.industry2 ?? ""); // «مجال ثاني»: a library field, or his own words (mapped to the closest one)
+      ind2 = scope === "cv" ? undefined : industryById(v)?.id ?? (customField(v) ? await guessIndustry(customField(v)!) : undefined);
+    }
+    const data0 = await teamData();
+    team = [teamBlock(data0, industry, undefined, scope, cleanMine(raw).off), scope === "cv" ? "" : secondLine(data0, ind2, industry)].filter(Boolean).join("\n");
     mine = mineBlock(raw, scope);
   } catch { team = team || ""; }
   const trends = scope === "cv" ? "" : await approvedTrends(industry, TREND_SCOPE[scope] ?? "all");

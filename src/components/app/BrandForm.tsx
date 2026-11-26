@@ -6,19 +6,20 @@ import { resetBrand, saveBrand } from "@/app/app/brand/actions";
 
 import { FontPicker } from "./FontPicker";
 import { libFont } from "@/lib/fonts";
-import { industryById, customField, CUSTOM_FIELD } from "@/design/industries";
+import { industryById, customField, CUSTOM_FIELD, INDUSTRIES } from "@/design/industries";
 import { IndustryList } from "./IndustryPicker";
 import { IdentityAnalyse } from "./IdentityAnalyse";
 import type { InstaRead } from "@/lib/plan";
 import { ARAB_DIALECTS, DIALECT_COOKIE } from "@/lib/countries";
 
-export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[]; insta?: InstaRead | null; industry?: string; dialect?: string; about?: string; cv_text?: string } }) {
+export function BrandForm({ initial }: { initial: { business_name: string; logo_url: string | null; logo_preview: string | null; colors: string[]; handle?: string | null; font?: string | null; website?: string | null; instagram?: string | null; style_note?: string | null; style_video?: string | null; refs?: { path: string; url: string }[]; insta?: InstaRead | null; industry?: string; dialect?: string; industry2?: string; about?: string; cv_text?: string } }) {
   const [name, setName] = useState(initial.business_name);
   const [logo, setLogo] = useState(initial.logo_url);
   const [preview, setPreview] = useState(initial.logo_preview);
   const [colors, setColors] = useState(initial.colors.length ? initial.colors : ["#0B2A4A", "#C9A45C", "#FFFFFF"]);
   const [handle, setHandle] = useState(initial.handle ?? "");
   const [font, setFont] = useState(initial.font || "Cairo");
+  const [industry2, setIndustry2] = useState(industryById(initial.industry2 ?? "")?.id ?? "");
   const [about, setAbout] = useState(initial.about ?? "");
   const [cvText, setCvText] = useState(initial.cv_text ?? "");
   const [dialect, setDialect] = useState(ARAB_DIALECTS.some((x) => x[0] === initial.dialect) ? String(initial.dialect) : "");
@@ -73,7 +74,7 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
   /** saves the identity; returns the reason when it did not save */
   async function persist(): Promise<string | null> {
     const field = industry || (fieldText.trim() ? `${CUSTOM_FIELD}${fieldText.trim()}` : "");
-    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video, industry: field, dialect, about, cv_text: cvText });
+    const r = await saveBrand({ business_name: name, logo_url: logo, colors, handle, font, website, instagram, style_refs: refs.map((x) => x.path), style_note: note, style_video: video, industry: field, dialect, industry2, about, cv_text: cvText });
     if (r.ok) document.cookie = dialect ? `${DIALECT_COOKIE}=${dialect}; path=/; max-age=31536000; samesite=lax` : `${DIALECT_COOKIE}=; path=/; max-age=0; samesite=lax`;
     return r.ok ? null : L(("error" in r && r.error) || "تعذّر الحفظ.");
   }
@@ -129,6 +130,9 @@ export function BrandForm({ initial }: { initial: { business_name: string; logo_
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2"><span className="label">{L("مجالك")} <span className="font-normal text-subtle">{industryById(industry) ? `· ${L(industryById(industry)!.label)}` : fieldText.trim() ? `· ${fieldText.trim()}` : `· ${L("يُفضّل")}`}</span></span><span aria-hidden className="text-base transition group-open:rotate-180">▾</span></summary>
         <div className="mt-3 flex flex-col gap-3">
           <p className="rounded-xl bg-white px-3 py-2 text-[13px] leading-6 text-navy-900">💡 {L("يُفضّل تحدد مجالك: كل إنتاجات شاهين (البوست والكاروسيل والفيديوهات وغيرها) تنبني على هويتك ومجالك، عشان يكون فيه تناسق بين هويتك ومجالك وشغلك. وتقدر تغيّره من هنا متى ما تبي.")}</p>
+          <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{LT("مجال ثاني لنشاطك (اختياري)", "A second field for your business (optional)")}</span>
+            <select value={industry2} onChange={(e) => setIndustry2(e.target.value)} className="field"><option value="">{LT("بدون", "None")}</option>{INDUSTRIES.filter((i) => i.id !== "other" && i.id !== industry).map((i) => <option key={i.id} value={i.id}>{L(i.label)}</option>)}</select>
+            <span className="text-[12.5px] leading-6 text-subtle">{LT("مثلاً كافيه وحلويات. المجال الرئيسي يقود شغل شاهين، والثاني يدخل لما يتعلق الموضوع به.", "For example a café and sweets. The main field leads Shaheen's work; the second one comes in when the topic touches it.")}</span></label>
           <IndustryList value={industry} onPick={(id) => { setIndustry(id); setFieldText(""); }} />
           <label className="flex flex-col gap-1.5"><span className="text-[14px] font-semibold">{L("ما لقيت مجالك؟ اكتبه بنفسك")}</span><input value={fieldText} onChange={(e) => { setFieldText(e.target.value.slice(0, 60)); if (e.target.value.trim()) setIndustry(""); }} maxLength={60} className="field" placeholder={L("مثال: ورشة نجارة وديكور خشبي")} /></label>
         </div>
