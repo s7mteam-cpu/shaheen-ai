@@ -32,7 +32,7 @@ import { prepareHtml } from "./htmlprep.mjs";
 import { planVideo, geminiHtml, geminiEdit, geminiPrompt, unsafeHtml, missingContacts, sentencesOf, timeScenes } from "./gemflow.mjs";
 import { resolveAssets } from "./assets.mjs";
 import { modelFor } from "./models.mjs";
-import { writePost, fillContact, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE, withIcons, styleNote, SELF_CHECK_ON, reviewPost, patchPost, applyPatch } from "./postflow.mjs";
+import { writePost, fillContact, editPost, stripScripts, slideCount, onlySlide, cssSize, CUT_NOTE, withIcons, styleNote, SELF_CHECK_ON, reviewPost, recheckPost, patchPost, applyPatch } from "./postflow.mjs";
 import { generateFree, refillFields, writeNarration, reviewFree, pickPalette, refineBrief } from "./freegen.mjs";
 const PLAYBOOK = createRequire(import.meta.url)("../src/remotion/playbook.json");
 const PLAYBOOK_TEXT = PLAYBOOK.map((d) => `- ${d.id} | ${d.label} (${d.keywords.slice(0, 7).join("، ")}): layout ${d.layout}، grade ${d.grade}، ترجمة ${d.captions}، انتقال ${d.transition}، عناوين ${d.titles.join("/")}، مشاهد ${d.graphics.join("/")}، أيقونات ${d.icons.join("/")}، موسيقى: ${d.music || "بدون موسيقى"}. الأسلوب: ${d.tone}. أفكار: ${d.ideas.join("؛ ")}`).join("\n");
@@ -1883,17 +1883,23 @@ async function postJob(job) {
         const imgs = await look(shots);
         const issues = await reviewPost({ images: imgs, idea, known });
         if (issues.length) {
-          await stage(90);
-          const patch = await patchPost({ html: page, issues, images: imgs });
-          const fixed = patch ? applyPatch(page, patch) : null;
-          if (fixed && !unsafeHtml(fixed).length && slideCount(fixed) >= n) {
+          console.log("post selfcheck found", job.id, JSON.stringify(issues).slice(0, 500));
+          const size = { cw, ch, imgW: Math.min(900, W * hiScale) };
+          let feedback = "", done = false;
+          for (let attempt = 1; attempt <= 2 && !done; attempt++) {
+            await stage(attempt === 1 ? 90 : 91);
+            const patch = await patchPost({ html: page, issues, images: imgs, size, feedback });
+            const fixed = patch ? applyPatch(page, patch) : null;
+            if (!fixed || unsafeHtml(fixed).length || slideCount(fixed) < n) { console.log("post selfcheck: no usable patch", job.id, attempt); feedback = "الرقعة السابقة كانت فاضية أو مرفوضة (أرجع css و/أو replace صالحين)."; continue; }
             const r2 = await draw(fixed);
-            if (r2.shots.length === n) {
-              const left = await reviewPost({ images: await look(r2.shots), idea, known }).catch(() => null);
-              if (left && left.length < issues.length) { shots = r2.shots; page = fixed; console.log("post selfcheck fixed", job.id, issues.length, "->", left.length); }
-              else console.log("post selfcheck kept the first drawing", job.id, issues.length, "->", left ? left.length : "?");
-            }
-          } else console.log("post selfcheck: no usable patch", job.id, issues.length);
+            if (r2.shots.length !== n) { feedback = "الصفحة بعد الرقعة طلعت فاضية."; continue; }
+            const chk = await recheckPost({ images: await look(r2.shots), idea, known, prior: issues }).catch(() => null);
+            console.log("post selfcheck recheck", job.id, attempt, chk ? JSON.stringify(chk).slice(0, 500) : "failed");
+            // kept only when something was really solved and the fix broke less than it solved
+            if (chk && chk.fixed.length >= 1 && chk.fixed.length > chk.added.length) { shots = r2.shots; page = fixed; done = true; console.log("post selfcheck fixed", job.id, `${issues.length} -> ${chk.still.length + chk.added.length}`); }
+            else feedback = chk ? `بعد الرقعة: انحلّ ${chk.fixed.length} من ${issues.length}. ما زال: ${chk.still.map((x) => x.what).join("؛ ") || "—"}. ظهر جديد: ${chk.added.map((x) => x.what).join("؛ ") || "—"}.` : "الفحص بعد الرقعة فشل.";
+          }
+          if (!done) console.log("post selfcheck kept the first drawing", job.id);
         } else console.log("post selfcheck: clean", job.id);
       } catch (e) { console.error("post selfcheck skipped", job.id, e?.message ?? e); }
     }

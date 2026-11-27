@@ -253,7 +253,7 @@ export const PATCH_RULES = `أنت مصمم يصلح عيوباً محددة ف�
 - css: قواعد CSS إضافية تُضاف آخر الصفحة (استخدم !important لأن الأنماط غالباً inline) لإصلاح العيوب: تباعد، حجم خط، موضع، z-index، إخفاء عنصر زائد (display:none). استهدف العناصر بأصنافها أو بـ section[data-slide="N"] وبانتقاء دقيق حتى لا تتأثر شرائح أخرى.
 - replace: استبدال نص حرفي موجود مرة واحدة فقط في الكود (لعبارة مكررة، أو تقصير كلمة، أو خط SVG مشوّه). أقصى 6 عناصر وكل نص أقل من 300 حرف.
 - ممنوع: تغيير الألوان العامة أو الأسلوب أو الترتيب العام، حذف أرقام التواصل، اختراع أسعار أو أرقام أو معلومات، أي جافاسكربت أو رابط خارجي أو @import أو url().
-- أصلح العيوب المذكورة فقط وأبقِ كل شيء آخر كما هو. إذا عيب لا يُصلح بهذه الطريقة تجاهله.`;
+- عنصر يغطي عنصراً آخر (غالباً position:absolute): غيّر موضعه (top/bottom/margin) أو صغّر ارتفاعه أو خطه، أو انقل الآخر لفوق، بحساب أبعاد حقيقية من الصورة، ولا تكتفِ بتخمين. تأكد أن الإصلاح لا يدفع عنصراً آخر ليتداخل.\n- أصلح العيوب المذكورة فقط وأبقِ كل شيء آخر كما هو. إذا عيب لا يُصلح بهذه الطريقة تجاهله.`;
 
 const jsonOf = (txt) => { const a = String(txt).indexOf("{"), b = String(txt).lastIndexOf("}"); if (a < 0 || b <= a) return null; try { return JSON.parse(String(txt).slice(a, b + 1)); } catch { return null; } };
 
@@ -265,11 +265,30 @@ export async function reviewPost({ images, idea, known = "" }) {
   return j.issues.slice(0, 5).map((x) => ({ slide: Math.max(1, Math.min(images.length, Number(x?.slide) || 1)), what: clean(x?.what, 160), where: clean(x?.where, 120) })).filter((x) => x.what);
 }
 
-/** asks for a small patch that fixes the listed defects; returns {css, replace} or null */
-export async function patchPost({ html, issues, images }) {
+/** asks for a small patch that fixes the listed defects; returns {css, replace} or null.
+ *  size = {cw, ch, imgW}: the page is written at cw × ch CSS pixels and the pictures it sees are imgW pixels wide (so it can turn what it sees into CSS numbers).
+ *  feedback = what the earlier try left broken or newly broke (a second try starts from the same original page). */
+export async function patchPost({ html, issues, images, size = null, feedback = "" }) {
   const list = issues.map((x, i) => `${i + 1}) الشريحة ${x.slide}: ${x.what}${x.where ? ` (${x.where})` : ""}`).join("\n");
-  const r = await ask({ system: PATCH_RULES, user: `العيوب:\n${list}\n\nكود الصفحة:\n\`\`\`html\n${html}\n\`\`\``, maxTokens: 2500, images, timeoutMs: 120_000 });
+  const scale = size?.cw && size?.imgW ? (size.imgW / size.cw).toFixed(2) : "";
+  const geo = size?.cw ? `\nمقاس كل شريحة في الكود: ${size.cw}×${size.ch} بكسل CSS. الصور المرسلة عرضها ${size.imgW} بكسل، يعني كل 1 بكسل CSS = ${scale} بكسل في الصورة (قسّم ما تراه على ${scale} لتحصل على رقم CSS).` : "";
+  const fb = feedback ? `\n\nمحاولة سابقة على نفس الصفحة فشلت: ${clean(feedback, 700)}\nجرّب طريقة مختلفة وأدق، وتأكد أن إصلاحك لا يخلق تداخلاً جديداً.` : "";
+  const r = await ask({ system: PATCH_RULES, user: `العيوب:\n${list}${geo}${fb}\n\nكود الصفحة:\n\`\`\`html\n${html}\n\`\`\``, maxTokens: 2500, images, timeoutMs: 120_000 });
   return jsonOf(r.text);
+}
+
+export const RECHECK_RULES = REVIEW_RULES.split("أجب بـJSON")[0] + `ستصلك صور النسخة بعد الإصلاح، وقائمة عيوب النسخة السابقة. حدّد: أي عيوب القائمة انحلّت فعلاً، وأيها ما زال موجوداً، وهل ظهر عيب واضح جديد لم يكن موجوداً.
+أجب بـJSON فقط بدون شرح: {"fixed":[أرقام العيوب المنحلّة من القائمة],"still":[{"slide":1,"what":"...","where":"..."}],"added":[{"slide":1,"what":"عيب جديد","where":"..."}]}. إذا ما انحل شي اجعل fixed فاضياً. لا تضف إلى added إلا عيباً واضحاً فعلاً.`;
+
+/** a second look after a fix: what is solved, what is still there, what is new */
+export async function recheckPost({ images, idea, known = "", prior }) {
+  const list = prior.map((x, i) => `${i + 1}) الشريحة ${x.slide}: ${x.what}${x.where ? ` (${x.where})` : ""}`).join("\n");
+  const r = await ask({ system: RECHECK_RULES, user: `طلب العميل (وصف فقط):\n"""\n${clean(idea, 900)}\n"""${known ? `\nبيانات هوية العميل المسموح ظهورها: ${clean(known, 300)}` : ""}\nعيوب النسخة السابقة:\n${list}`, maxTokens: 900, images, timeoutMs: 90_000 });
+  const j = jsonOf(r.text);
+  if (!j) throw new Error("recheck: no answer");
+  const fix = (a) => (Array.isArray(a) ? a : []).slice(0, 5).map((x) => ({ slide: Math.max(1, Math.min(images.length, Number(x?.slide) || 1)), what: clean(x?.what, 160), where: clean(x?.where, 120) })).filter((x) => x.what);
+  const fixed = [...new Set((Array.isArray(j.fixed) ? j.fixed : []).map(Number).filter((k) => Number.isInteger(k) && k >= 1 && k <= prior.length))];
+  return { fixed, still: fix(j.still), added: fix(j.added) };
 }
 
 /** applies a patch safely: exact one-time text swaps first, then one extra <style>. Returns the new page, or null when nothing was usable. */
