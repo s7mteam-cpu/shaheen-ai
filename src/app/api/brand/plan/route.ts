@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { NextResponse } from "next/server";
 import { teamBriefFor } from "@/lib/server/teamBrief";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,7 +30,8 @@ export async function POST(req: Request) {
   if (!id && !known) return NextResponse.json({ error: "عرّف شاهين بنشاطك بهويتك التجارية: اسم النشاط أو مجالك أو وصفه أو سيرتك، وبعدها نسوي لك الخطة." }, { status: 400 });
   const planName = id?.name ?? String(kit?.business_name ?? "").trim().slice(0, 60) ?? "نشاطك";
 
-  const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost").eq("id", "brand-plan").maybeSingle();
+  const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost,is_enabled").eq("id", "brand-plan").maybeSingle();
+  if (tool && !tool.is_enabled) return NextResponse.json({ error: await toolOffMessage("brand-plan") }, { status: 400 });
   const cost = scope === "week" ? (tool?.edit_cost || 2) : (tool?.credit_cost ?? 4);
   const { data: job, error: je } = await admin.from("jobs").insert({ user_id: user.id, tool_id: "brand-plan", title: `خطة ${planName || "نشاطك"}`.slice(0, 80), status: "draft", progress: 5, input: { kind: "plan" } }).select("id").single();
   if (je || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });

@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
@@ -67,7 +68,8 @@ export async function POST(req: Request) {
   if (bad) return bad;
 
   const admin = createAdminClient();
-  const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost").eq("id", LOGO_TOOL).maybeSingle();
+  const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost,is_enabled").eq("id", LOGO_TOOL).maybeSingle();
+  if (tool && !tool.is_enabled) return NextResponse.json({ error: await toolOffMessage(LOGO_TOOL) }, { status: 400 });
   const base = tool?.credit_cost ?? 6, markCost = tool?.edit_cost ?? 6;
   const { data: kit } = await admin.from("brand_kits").select("business_name,logo_url,instagram,website").eq("user_id", user.id).maybeSingle();
   const logoPath = mine(body.logo) ? body.logo : null;
