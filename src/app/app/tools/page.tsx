@@ -4,7 +4,9 @@ import { exampleCats } from "@/lib/showcase";
 import { getL } from "@/lib/server/lang";
 import { extraPricing } from "@/lib/server/pricing";
 import { getFreeEngine } from "@/lib/server/freeEngine";
-import { mainTools, pairOf } from "@/lib/toolPairs";
+import { mainTools, pairOf, templateIdOf } from "@/lib/toolPairs";
+import { toolCover } from "@/lib/video";
+import { toolSpecs } from "@/lib/tools/specs";
 
 export async function generateMetadata() { return { title: (await getL())("الأدوات") }; }
 const groups = [["image", "صور"], ["video", "فيديو"], ["audio", "صوت"], ["docs", "مستندات"]] as const;
@@ -21,10 +23,14 @@ export default async function ToolsPage() {
   const all = await getToolsL(true);
   const closed = all.filter((t) => {
     if (openIds.has(t.id) || !msgOf(t.id)) return false;
+    if (!toolSpecs[t.id] || !groups.some(([g]) => g === t.category)) return false; // only real tools of this list (not «الهوية» / «خطة المحتوى»: they live inside the brand pages)
     const pr = pairOf(t.id, all);
     return !pr || !openIds.has(pr.templates.id === t.id ? pr.fresh.id : pr.templates.id);
   });
-  const tools = mainTools([...open, ...closed]);
+  const tools = mainTools([...open, ...closed]).map((t) => {
+    const tid = templateIdOf(t.id), tpl = tid ? all.find((x) => x.id === tid) : undefined;
+    return tpl && !toolCover(t) ? { ...t, cover_url: tpl.cover_url, demo_thumb: tpl.demo_thumb, demo_url: t.demo_url ?? tpl.demo_url } : t;
+  });
   const ex = exampleCats(await getShowcase());
   const aiX = (await extraPricing()).ai_clip_x;
   const fxMin = (await getFreeEngine().catch(() => null))?.fxMinCost ?? 0;

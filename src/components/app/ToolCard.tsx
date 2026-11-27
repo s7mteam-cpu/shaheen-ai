@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { DemoVideo } from "@/components/DemoVideo";
 import { toolCover, youtubeId } from "@/lib/video";
+import { templateIdOf } from "@/lib/toolPairs";
 import type { Tool } from "@/lib/defaults";
 
 /** A tool as a card: picture + name + «ابدأ الإنشاء» then «أمثلة» + «طريقة العمل» (used on «الأدوات» and the dashboard). */
 export function ToolCard({ t, L, exampleCat, price, from, paused }: { t: Tool; L: (s: string) => string; exampleCat?: string; price?: number; from?: number; paused?: string }) {
-  const pic = toolCover(t);
+  const tid = templateIdOf(t.id);
+  const pic = toolCover(t) ?? (tid ? toolCover({ id: tid }) : null); // a «مبتكر» card with no picture borrows the picture of its ready twin
   const learn = t.tutorial_url?.trim();
   const btn = "flex w-full items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[13px] font-bold sm:text-[14px]";
   const half = "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-[12px] font-bold sm:text-[13px]";

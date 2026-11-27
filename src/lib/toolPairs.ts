@@ -14,3 +14,6 @@ export function pairOf<T extends { id: string }>(id: string, tools: T[]): { temp
   const templates = tools.find((t) => t.id === tid), fresh = tools.find((t) => t.id === fid);
   return templates && fresh ? { templates, fresh } : null;
 }
+
+/** the id of the ready-templates tool that a «مبتكر» tool belongs to (its picture is borrowed when it has none of its own) */
+export const templateIdOf = (id: string): string | undefined => TEMPLATE_OF[id];
