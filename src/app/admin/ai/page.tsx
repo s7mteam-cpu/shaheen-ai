@@ -71,46 +71,66 @@ export default async function AiHub() {
         <nav className="mt-3 flex flex-wrap gap-2" aria-label={L("أقسام الصفحة")}>
           {[["#providers", "1 · المزوّدون والمفاتيح"], ["#tools", "2 · الأدوات"], ["#models", "3 · النماذج"], ["#background", "4 · المهام الخلفية"], ["#engines", "5 · محركات خاصة"]].map(([h, l]) => <a key={h} href={h} className="chip">{L(l)}</a>)}
         </nav>
+        <p className="mt-2 text-[12.5px] text-subtle">{L("التصميم الجديد. لو تبي الشكل القديم:")} <Link href="/admin/ai/classic" className="font-semibold text-navy-700 underline">{L("افتح الصفحة القديمة")}</Link></p>
       </div>
       {bad?.to && <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-800">تنبيه: النموذج «{bad.to}» (بدل «{bad.from}») رفضه المزوّد{bad.at ? ` بتاريخ ${new Date(bad.at).toLocaleString("ar-KW", { timeZone: "Asia/Kuwait" })}` : ""}، فاشتغل الأصلي مكانه. صحّح الاسم بالقسم 3 أو رجّع الأصلي.</p>}
 
+
       {/* 1 */}
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         <Head n={1} id="providers" title={L("المزوّدون والمفاتيح")} sub={L("أربع شركات تشغّل كل شي. المفاتيح السرية تبقى في Vercel و Railway فقط (لأمانها ما تنكتب ولا تنعرض هنا)؛ هنا تشوف حالتها بس.")} />
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
           {provKeys.map(({ key, fam, label }) => {
             const stopped = (paused[key] ?? []).length;
             return (
-              <div key={key} className="card flex flex-col gap-2.5 p-4">
+              <div key={key} className="card flex flex-col gap-1.5 p-3.5">
                 <div className="flex items-center justify-between gap-2">
-                  <b className="text-[16px] text-navy-900">{label}</b>
-                  <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${hasKey(fam) ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{hasKey(fam) ? L("المفتاح موجود") : L("المفتاح ناقص")}</span>
+                  <b className="text-[15px] text-navy-900">{label}</b>
+                  <span className={`rounded-full px-2 py-0.5 text-[11.5px] font-bold ${hasKey(fam) ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{hasKey(fam) ? L("المفتاح موجود") : L("المفتاح ناقص")}</span>
                 </div>
-                <p className="text-[13px] text-subtle"><code dir="ltr">{ENV[fam]}</code> · {usedBy(fam)} {L("أداة شغّالة تعتمد عليه")}</p>
-                {fam === "google" && <p className="text-[12.5px] text-subtle"><code dir="ltr">GEMINI_VIDEO_API_KEY</code> ({L("لقطات الفيديو")}): <b className={process.env.GEMINI_VIDEO_API_KEY ? "text-emerald-700" : "text-red-700"}>{process.env.GEMINI_VIDEO_API_KEY ? L("موجود ✓") : L("غير موجود")}</b></p>}
-                <div className="flex flex-wrap items-center gap-2">
-                  <a href={SITE[fam]} target="_blank" rel="noreferrer" className="text-[13px] font-semibold text-navy-700 underline">{L("أسماء نماذجه الرسمية")}</a>
-                  <form action={pauseProvider} className="ms-auto">
-                    <input type="hidden" name="provider" value={key} />
-                    {stopped ? <><input type="hidden" name="resume" value="1" /><button className="btn btn-primary px-3 py-1.5 text-[12.5px]">{L("رجّع أدواته")} ({stopped})</button></>
-                      : <button className="btn btn-outline px-3 py-1.5 text-[12.5px] text-red-700" title={L("يوقف كل الأدوات اللي مزوّدها الأساسي هذا")}>{L("⛔ طوارئ: وقّف أدواته")}</button>}
-                  </form>
-                </div>
+                <p className="text-[12.5px] text-subtle">{usedBy(fam)} {L("أداة شغّالة تعتمد عليه")}</p>
+                {stopped > 0 && <p className="text-[12px] font-bold text-red-700">{L("موقوف بالطوارئ")} ({stopped})</p>}
+                <a href={SITE[fam]} target="_blank" rel="noreferrer" className="text-[12.5px] font-semibold text-navy-700 underline">{L("أسماء نماذجه الرسمية")}</a>
               </div>
             );
           })}
         </div>
-        <p className="text-[12.5px] leading-6 text-subtle">{L("زر الطوارئ يوقف الأدوات اللي مزوّدها الأساسي هذا (مثلاً لو صار صرف غريب أو المزوّد واقف)، ويتذكرها عشان ترجّعها كلها بضغطة. الأدوات اللي تستخدمه بشكل ثانوي ما تتوقف.")}</p>
+        <details className="rounded-xl border border-red-200 bg-red-50/50 p-3.5">
+          <summary className="cursor-pointer text-[14px] font-bold text-red-800">{L("⛔ منطقة الطوارئ: إيقاف كل أدوات مزوّد")}</summary>
+          <p className="mt-2 text-[12.5px] leading-6 text-subtle">{L("زر الطوارئ يوقف الأدوات اللي مزوّدها الأساسي هذا (مثلاً لو صار صرف غريب أو المزوّد واقف)، ويتذكرها عشان ترجّعها كلها بضغطة. الأدوات اللي تستخدمه بشكل ثانوي ما تتوقف.")}</p>
+          <div className="mt-3 grid gap-2.5 md:grid-cols-2">
+            {provKeys.map(({ key, fam, label }) => {
+              const stopped = (paused[key] ?? []).length;
+              return (
+                <form key={key} action={pauseProvider} className="card flex items-center justify-between gap-2 p-3">
+                  <input type="hidden" name="provider" value={key} />
+                  <span className="text-[13.5px] font-bold text-navy-900">{label} <span className="text-[12px] font-normal text-subtle">· <code dir="ltr">{ENV[fam]}</code></span></span>
+                  {stopped ? <><input type="hidden" name="resume" value="1" /><button className="btn btn-primary px-3 py-1.5 text-[12.5px]">{L("رجّع أدواته")} ({stopped})</button></>
+                    : <button className="btn btn-outline px-3 py-1.5 text-[12.5px] text-red-700" title={L("يوقف كل الأدوات اللي مزوّدها الأساسي هذا")}>{L("وقّف أدواته")}</button>}
+                </form>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[12px] text-subtle"><code dir="ltr">GEMINI_VIDEO_API_KEY</code> ({L("لقطات الفيديو")}): <b className={process.env.GEMINI_VIDEO_API_KEY ? "text-emerald-700" : "text-red-700"}>{process.env.GEMINI_VIDEO_API_KEY ? L("موجود ✓") : L("غير موجود")}</b></p>
+        </details>
       </section>
 
       {/* 2 */}
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         <Head n={2} id="tools" title={L("الأدوات")} sub={L("كل أداة بسطر: شغّالة أو لا، مزوّدها ونموذجها الأساسي، وأي نماذج ثانية تستخدمها. اللون يدل على المزوّد.")} />
-        <div className="card overflow-x-auto p-2">
+        {([["image", "صور وتصميم"], ["video", "فيديو"], ["audio", "صوت"], ["docs", "مستندات"]] as const).map(([cat, label], gi) => {
+          const list = rows.filter((r) => r.t.category === cat);
+          if (!list.length) return null;
+          const off = list.filter((r) => !r.t.is_enabled).length;
+          return (
+            <details key={cat} open={gi === 0} className="group rounded-xl border border-[#E1E8F0] bg-white">
+              <summary className="flex cursor-pointer items-center justify-between gap-2 p-3.5"><span className="text-[15px] font-bold text-navy-900">{L(label)} <span className="text-[12.5px] font-normal text-subtle">· {list.length} {L("أدوات")}{off ? ` · ${off} ${L("موقوفة")}` : ""}</span></span><span aria-hidden className="text-subtle transition group-open:rotate-180">⌄</span></summary>
+              <div className="border-t border-[#EDF1F6] p-2">
+              <div className="card overflow-x-auto p-2">
           <table className="w-full min-w-[820px] text-[13.5px]">
             <thead><tr className="text-right text-[12.5px] text-subtle"><th className="p-2.5 font-semibold">{L("الأداة")}</th><th className="p-2.5 font-semibold">{L("الحالة")}</th><th className="p-2.5 font-semibold">{L("المزوّد والنموذج الأساسي")}</th><th className="p-2.5 font-semibold">{L("تستخدم كمان")}</th><th className="p-2.5 font-semibold">{L("السعر")}</th><th className="p-2.5"><span className="sr-only">{L("تعديل")}</span></th></tr></thead>
             <tbody>
-              {rows.map(({ t, provider, main, allowed, extra }) => (
+                            {list.map(({ t, provider, main, allowed, extra }) => (
                 <tr key={t.id} className="border-t border-[#EDF1F6] align-top">
                   <td className="p-2.5"><b className="text-navy-900">{t.name}</b><br /><code dir="ltr" className="text-[11.5px] text-subtle">{t.id}</code></td>
                   <td className="p-2.5">
@@ -134,6 +154,11 @@ export default async function AiHub() {
             </tbody>
           </table>
         </div>
+              </div>
+            </details>
+          );
+        })}
+
         <ul className="list-disc pr-5 text-[12.5px] leading-6 text-subtle">
           <li>{L("الأداة اللي لها مزوّد أساسي: اختر المزوّد واكتب نموذجها الخاص بنفس السطر واحفظ (الخانة الفاضية = نموذج المزوّد الأصلي). هذا يغيّرها هي بس.")}</li>
           <li>{L("النماذج بعمود «تستخدم كمان» مشتركة بين عدة أدوات، وتتبدل من القسم 3 (تتبدل لكل الأدوات اللي تستخدمها).")}</li>
@@ -142,8 +167,11 @@ export default async function AiHub() {
       </section>
 
       {/* 3 */}
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         <Head n={3} id="models" title={L("النماذج")} sub={L("لما ينزل نموذج أحدث، اكتب اسمه بخانة النموذج القديم واحفظ: كل الأدوات اللي تستخدمه تتحول عليه خلال نص دقيقة، بدون رفع ملفات. الخانة الفاضية = الأصلي.")} />
+        <details className="group rounded-xl border border-[#E1E8F0] bg-white">
+          <summary className="flex cursor-pointer items-center justify-between gap-2 p-3.5 text-[14px] font-bold text-navy-900"><span>{L("عرض / إخفاء")}</span><span aria-hidden className="text-subtle transition group-open:rotate-180">⌄</span></summary>
+          <div className="flex flex-col gap-4 border-t border-[#EDF1F6] p-4">
         <ul className="card list-disc p-5 pr-9 text-[13.5px] leading-7 text-subtle">
           <li>{L("الاسم لازم يكون من نفس المزوّد، وينكتب بالإنجليزي مثل ما هو بموقعه.")}</li>
           <li>{L("نماذج النصوص (Claude و Gemini): اضغط «اختبر الاسم» قبل الحفظ. اختبار Claude طلب صغير جداً على حسابك، واختبار Google مجاني.")}</li>
@@ -151,11 +179,16 @@ export default async function AiHub() {
           <li>{L("النموذج الأحدث ممكن يكون أغلى أو أبطأ. شوف سعره بموقع المزوّد قبل التبديل.")}</li>
         </ul>
         <ModelsForm groups={groups} post={post} postDefault={map["claude-sonnet-5-5"] ?? "claude-sonnet-5-5"} hasClaudeKey={hasKey("claude")} />
+          </div>
+        </details>
       </section>
 
       {/* 4 */}
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         <Head n={4} id="background" title={L("المهام الخلفية")} sub={L("أشياء مو أدوات لكنها تستخدم الذكاء الاصطناعي طول الوقت. أول ثنتين تختار مزوّدهم ونموذجهم من هنا، والباقي يتبدل نموذجه من القسم 3.")} />
+        <details className="group rounded-xl border border-[#E1E8F0] bg-white">
+          <summary className="flex cursor-pointer items-center justify-between gap-2 p-3.5 text-[14px] font-bold text-navy-900"><span>{L("عرض / إخفاء")}</span><span aria-hidden className="text-subtle transition group-open:rotate-180">⌄</span></summary>
+          <div className="flex flex-col gap-4 border-t border-[#EDF1F6] p-4">
         <form action={saveAi} className="card flex flex-col gap-5 p-6">
           {([["«كلّم شاهين» — المساعد الجانبي", "يرد على العملاء ويعرف حساباتهم.", "chat_provider", "chat_model", ai.chat_provider, ai.chat_model], ["الكتابة — نصوص الإعلانات و«ألهمني»", "يكتب الزوايا التسويقية والنصوص والأفكار.", "copy_provider", "copy_model", ai.copy_provider, ai.copy_model]] as const).map(([title, hint, pName, mName, p, m]) => (
             <div key={pName} className="grid gap-3 border-b border-[#EDF1F6] pb-5 last:border-0 md:grid-cols-2">
@@ -174,11 +207,16 @@ export default async function AiHub() {
             <tbody>{BACKGROUND_AI.map((b) => <tr key={b.name} className="border-t border-[#EDF1F6]"><td className="p-2.5 font-semibold text-navy-900">{L(b.name)}</td><td className="p-2.5"><Model m={b.model} /></td><td className="p-2.5 text-[12.5px] text-subtle">{L(b.what)}{b.where ? ` · ${L(b.where)}` : ""}</td></tr>)}</tbody>
           </table>
         </div>
+          </div>
+        </details>
       </section>
 
       {/* 5 */}
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         <Head n={5} id="engines" title={L("محركات خاصة")} sub={L("إعدادات تخص أداة بعينها وما تدخل تحت «نموذج واحد».")} />
+        <details className="group rounded-xl border border-[#E1E8F0] bg-white">
+          <summary className="flex cursor-pointer items-center justify-between gap-2 p-3.5 text-[14px] font-bold text-navy-900"><span>{L("عرض / إخفاء")}</span><span aria-hidden className="text-subtle transition group-open:rotate-180">⌄</span></summary>
+          <div className="flex flex-col gap-4 border-t border-[#EDF1F6] p-4">
         <form action={saveFreeEngine} className="card flex flex-col gap-4 p-6">
           <div><h3 className="text-lg font-bold">{L("محرك «تصميم مبتكر» (الفيديو) عند العملاء")}</h3>
             <p className="mt-1 text-sm text-subtle">{L("القديم: كلود يكتب كود الموشن (الاستوديو الحي والتعديل المباشر). الجديد (جيميناي): كلود يرتّب النص، الصوت يتسجّل أولاً، وجيميناي يبني الفيديو كصفحة.")}</p></div>
@@ -222,6 +260,8 @@ export default async function AiHub() {
           <h3 className="text-lg font-bold">{L("كاتب «بوست مبتكر» و«كاروسيل مبتكر»")}</h3>
           <p className="text-sm text-subtle">{L("له خانة خاصة بأول القسم 3 (البطاقة ذات الإطار الذهبي).")} {L("الحالي:")} <Model m="post-writer" /></p>
         </div>
+          </div>
+        </details>
       </section>
     </div>
   );
