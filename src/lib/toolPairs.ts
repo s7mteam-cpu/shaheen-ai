@@ -3,10 +3,12 @@
 export const FRESH_OF: Record<string, string> = { post: "free-post", carousel: "free-carousel", "ad-design": "free-ad", invitations: "free-invite", "business-cards": "free-card", presentations: "free-deck", cv: "free-cv", "motion-video": "free-motion", "site-video": "site-free" };
 const TEMPLATE_OF: Record<string, string> = Object.fromEntries(Object.entries(FRESH_OF).map(([t, f]) => [f, t]));
 
+const BRAND_ONLY = new Set(["brand-identity", "brand-plan"]);
 /** the lists of tools: the «مبتكر» twin is not a card of its own while its templates tool is open */
 export function mainTools<T extends { id: string }>(tools: T[]): T[] {
   const ids = new Set(tools.map((t) => t.id));
-  return tools.filter((t) => !(TEMPLATE_OF[t.id] && ids.has(TEMPLATE_OF[t.id])));
+  // «إنشاء هوية» و«خطة المحتوى»: tools of the brand pages (price + on/off switch only), never a card of their own
+  return tools.filter((t) => !BRAND_ONLY.has(t.id) && !(TEMPLATE_OF[t.id] && ids.has(TEMPLATE_OF[t.id])));
 }
 /** both ways of this tool, when both are open */
 export function pairOf<T extends { id: string }>(id: string, tools: T[]): { templates: T; fresh: T } | null {
