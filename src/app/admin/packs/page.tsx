@@ -53,6 +53,8 @@ export default async function Packs({ searchParams }: { searchParams: Promise<{ 
     head = ["الإصدار", "مجموعات ألوان", "تخطيطات", "زخارف", "إطارات", "ملصقات", "خطوط", "أيقونات", "ستايلات صور", "أفكار جاهزة"];
     rows = INDUSTRIES.map((i) => {
       const p = DESIGN_PACKS[i.id];
+      // a field that has no design pack yet must not crash the page: it is listed with dashes and a note
+      if (!p) return { id: i.id, label: i.label, group: i.group, cells: ["—", 0, 0, 0, 0, 0, 0, 0, 0, 0], gaps: ["ما له حزمة تصميم بعد"] };
       const r = designReport(p);
       return { id: i.id, label: i.label, group: i.group, cells: [`v${p.version}`, r.palettes, r.layouts, r.decos, r.frames, r.stickers, r.fonts, r.icons, r.photo, r.recipes], gaps: r.gaps };
     });

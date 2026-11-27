@@ -284,7 +284,7 @@ export const EN: Record<string, string> = {
   "السعر (ريشة)": "Price (credits)",
   "السعر الشهري (د.ك)": "Monthly price (KWD)",
   "السعر القديم": "Old price",
-  "السعر بالريشة لكل وحدة. الريشة الواحدة ≈ 0.011 د.ك في باقاتك الحالية. لكل أداة تختار المزوّد اللي يشغّلها — القائمة تعرض فقط المزودين اللي يقدرون على هذي المهمة. لما تغيّر المزوّد، فرّغ خانة النموذج ليستخدم الافتراضي، وتأكد أن مفتاح المزوّد موجود في إعدادات الاستضافة.": "Price in credits per unit. One credit ≈ 0.06 KWD on your current plans. For each tool choose the provider that runs it — the list only shows providers capable of that task. When you change the provider, clear the model field to use the default, and make sure the provider's key is in the hosting settings.",
+  "السعر بالريشة لكل وحدة. الريشة الواحدة = سنت واحد (0.01 دولار). لكل أداة تختار المزوّد اللي يشغّلها — القائمة تعرض فقط المزودين اللي يقدرون على هذي المهمة. لما تغيّر المزوّد، فرّغ خانة النموذج ليستخدم الافتراضي، وتأكد أن مفتاح المزوّد موجود في إعدادات الاستضافة.": "Price in credits per unit. One credit = one cent (0.01 USD). For each tool choose the provider that runs it — the list only shows providers capable of that task. When you change the provider, clear the model field to use the default, and make sure the provider's key is in the hosting settings.",
   "الشارة": "Badge",
   "الشارة الصغيرة": "Small badge",
   "الشركة": "Company",
