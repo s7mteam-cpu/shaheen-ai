@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { NextResponse } from "next/server";
 import { teamBriefFor } from "@/lib/server/teamBrief";
 import { extraPricing } from "@/lib/server/pricing";
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
   const b = ((await req.json().catch(() => null)) ?? {}) as Record<string, unknown>;
   const admin = createAdminClient();
   const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", TOOL).maybeSingle();
-  if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage(TOOL) }, { status: 400 });
   // SECURITY: only a file of his own folder in the private uploads bucket (the worker checks again)
   const video = String(b.video ?? "");
   if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(mp4|mov|webm)$/i.test(video) || !video.startsWith(`${user.id}/`) || video.includes("..")) return NextResponse.json({ error: "ارفع الفيديو أولاً." }, { status: 400 });
@@ -161,7 +162,7 @@ export async function PUT(req: Request) {
     admin.from("tools").select("edit_cost,is_enabled").eq("id", TOOL).maybeSingle(),
     admin.from("jobs").select("id,title,input").eq("id", from).eq("user_id", user.id).eq("tool_id", TOOL).eq("status", "done").maybeSingle(),
   ]);
-  if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage(TOOL) }, { status: 400 });
   const n = Array.isArray((src?.input as { fxr?: { pages?: unknown[] } } | null)?.fxr?.pages) ? (src!.input as { fxr: { pages: unknown[] } }).fxr.pages.length : 0;
   if (!src || !n) return NextResponse.json({ error: "ما لقينا المونتاج." }, { status: 404 });
   // only clean, bounded values travel to the worker (which cleans them again)

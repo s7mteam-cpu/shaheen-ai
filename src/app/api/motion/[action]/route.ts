@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { NextResponse } from "next/server";
 import { setUsageCtx } from "@/lib/server/usageCtx";
 import { guardContent } from "@/lib/server/moderation";
@@ -40,7 +41,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (!["export", "save", "stock", "stockadd", "cutout", "subs", "translate"].includes(action)) { const bad = await guardContent(user.id, body, `motion/${action}`); if (bad) return bad; }
 
   const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost,is_enabled").eq("id", "motion-video").single();
-  if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage("motion-video") }, { status: 400 });
 
   async function charge(jobId: string, amount: number) {
     if (amount <= 0) return null;

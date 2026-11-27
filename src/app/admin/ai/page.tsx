@@ -10,7 +10,7 @@ import { getL } from "@/lib/server/lang";
 import { MODEL_CATALOG, FAMILY_NAME, cleanModelMap, type ModelFamily } from "@/lib/models";
 import { BACKGROUND_AI, TOOL_AI, familyOfModel } from "@/lib/aiMap";
 import { ModelsForm } from "./models/ModelsForm";
-import { pauseProvider, setToolAi, setToolEnabled } from "./hubActions";
+import { pauseProvider, setToolAi, setToolEnabled, setToolMsg } from "./hubActions";
 
 export const dynamic = "force-dynamic";
 const ENV: Record<ModelFamily, string> = { claude: "ANTHROPIC_API_KEY", google: "GEMINI_API_KEY", elevenlabs: "ELEVENLABS_API_KEY", fal: "FAL_KEY" };
@@ -32,12 +32,14 @@ export default async function AiHub() {
   const L = await getL();
   await guardPage("ai");
   const admin = createAdminClient();
-  const [{ ai }, tools, fe, { data: mrow }, { data: erow }, { data: prow }] = await Promise.all([
+  const [{ ai }, tools, fe, { data: mrow }, { data: erow }, { data: prow }, { data: trow }] = await Promise.all([
     getContent(), getTools(true), getFreeEngine(),
     admin.from("site_content").select("value").eq("key", "models").maybeSingle(),
     admin.from("site_content").select("value").eq("key", "models_last_error").maybeSingle(),
     admin.from("site_content").select("value").eq("key", "ai_paused").maybeSingle(),
+    admin.from("site_content").select("value").eq("key", "tool_msgs").maybeSingle(),
   ]);
+  const toolMsgs = (trow?.value ?? {}) as Record<string, string>;
   const map = cleanModelMap((mrow?.value as { map?: unknown } | null)?.map);
   const postRaw = String((mrow?.value as { post?: unknown } | null)?.post ?? "");
   const post = /^claude-[a-z0-9.-]{2,60}$/.test(postRaw) ? postRaw : "";
@@ -136,6 +138,11 @@ export default async function AiHub() {
                   <td className="p-2.5">
                     <form action={setToolEnabled}><input type="hidden" name="id" value={t.id} /><input type="hidden" name="on" value={t.is_enabled ? "0" : "1"} />
                       <button className={`rounded-full px-2.5 py-1 text-[12px] font-bold ${t.is_enabled ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`} title={t.is_enabled ? L("اضغط للإيقاف") : L("اضغط للتشغيل")}>{t.is_enabled ? L("شغّالة ✓") : L("موقوفة")}</button>
+                    </form>
+                    <form action={setToolMsg} className="mt-1.5 flex min-w-[170px] flex-col gap-1">
+                      <input type="hidden" name="id" value={t.id} />
+                      <input name="msg" defaultValue={toolMsgs[t.id] ?? ""} maxLength={200} placeholder={L("رسالة للعميل لو وقفتها (جاري تحديث الأداة قريباً)")} className="field py-1 text-[12px]" aria-label={L("رسالة للعميل")} />
+                      <button className="self-start text-[11.5px] font-semibold text-navy-700 underline">{L("حفظ الرسالة")}</button>
                     </form>
                   </td>
                   <td className="p-2.5">{allowed.length ? (

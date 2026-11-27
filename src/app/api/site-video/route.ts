@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/server/auth";
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: tls } = await admin.from("tools").select("is_enabled").in("id", ["site-video", "site-free"]);
   const tool = { is_enabled: (tls ?? []).some((x) => x.is_enabled) };
-  if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage("site-free") }, { status: 400 });
   // a free step: a few a quarter of an hour, and only one waiting at a time
   const since = new Date(Date.now() - 15 * 60_000).toISOString();
   const { count } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("tool_id", "site-video").gte("created_at", since);

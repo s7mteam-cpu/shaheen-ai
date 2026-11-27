@@ -5,7 +5,7 @@ import { toolCover, youtubeId } from "@/lib/video";
 import type { Tool } from "@/lib/defaults";
 
 /** A tool as a card: picture + name + «ابدأ الإنشاء» then «أمثلة» + «طريقة العمل» (used on «الأدوات» and the dashboard). */
-export function ToolCard({ t, L, exampleCat, price, from }: { t: Tool; L: (s: string) => string; exampleCat?: string; price?: number; from?: number }) {
+export function ToolCard({ t, L, exampleCat, price, from, paused }: { t: Tool; L: (s: string) => string; exampleCat?: string; price?: number; from?: number; paused?: string }) {
   const pic = toolCover(t);
   const learn = t.tutorial_url?.trim();
   const btn = "flex w-full items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[13px] font-bold sm:text-[14px]";
@@ -29,7 +29,9 @@ export function ToolCard({ t, L, exampleCat, price, from }: { t: Tool; L: (s: st
         <p className="line-clamp-2 text-[12px] leading-5 text-subtle sm:text-[13px]">{t.description}</p>
         <span className="text-[12px] font-semibold text-navy-700">{from != null ? `${L("من")} ${from} ${L("ريشة")}` : <>{price ?? t.credit_cost} {L("ريشة /")} {t.cost_unit}</>}</span>
         <div className="mt-auto flex flex-col gap-2 pt-3">
-          <Link href={`/app/tools/${t.id}`} className={`${btn} btn-gold`}>{L("ابدأ الإنشاء")}</Link>
+          {paused
+            ? <Link href={`/app/tools/${t.id}`} className={`${btn} border border-line bg-tint text-subtle`}>⏳ {L(paused)}</Link>
+            : <Link href={`/app/tools/${t.id}`} className={`${btn} btn-gold`}>{L("ابدأ الإنشاء")}</Link>}
           <div className="flex gap-2">
             {exampleCat
               ? <Link href={`/app/showcase?c=${exampleCat}`} className={on}>{L("أمثلة")}</Link>

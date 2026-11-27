@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { extraPricing } from "@/lib/server/pricing";
 import { teamBriefFor } from "@/lib/server/teamBrief";
 import { setUsageCtx } from "@/lib/server/usageCtx";
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
   const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", "presentations").single();
-  if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage("presentations") }, { status: 400 });
   const ex = await extraPricing();
   const cost = tool.credit_cost * (auto ? ex.pres_auto_units : Math.ceil(n / 10)) + (pics ? ex.pres_image_cost : 0);
   const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: "presentations", title: (topic || upload?.name || "عرض").slice(0, 80), status: "running", progress: 5, input: { topic: topic.slice(0, 2000), slides: n, lang } }).select("id").single();

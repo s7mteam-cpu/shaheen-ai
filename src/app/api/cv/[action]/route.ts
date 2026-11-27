@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { NextResponse } from "next/server";
 import { teamBriefFor } from "@/lib/server/teamBrief";
 import { setUsageCtx } from "@/lib/server/usageCtx";
@@ -59,7 +60,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     if (upload && upload.size > 3_500_000) return NextResponse.json({ error: "الملف كبير (الحد 3.5 ميغابايت)." }, { status: 400 });
     { const bad = await guardContent(user.id, { info, target }, "cv"); if (bad) return bad; }
     const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", "cv").single();
-    if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+    if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage("cv") }, { status: 400 });
     const { data: job, error } = await admin.from("jobs").insert({ user_id: user.id, tool_id: "cv", title: (target || "سيرة ذاتية").slice(0, 80), status: "running", progress: 10, input: { lang } }).select("id").single();
     if (error || !job) return NextResponse.json({ error: "تعذّر إنشاء الطلب." }, { status: 500 });
     setUsageCtx({ jobId: job.id, userId: user.id, toolId: "cv" }); // «تكلفة كل طلب»: the AI calls below are noted under this request

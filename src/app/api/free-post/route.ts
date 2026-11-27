@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { loadStyle } from "@/lib/server/myStyle";
 import { NextResponse } from "next/server";
 import { extraPricing } from "@/lib/server/pricing";
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
   const toolId = src ? src.tool_id : TOOLS.includes(String(b.tool)) ? String(b.tool) : "free-post";
   const { data: tool } = await admin.from("tools").select("credit_cost,edit_cost,is_enabled").eq("id", toolId).maybeSingle();
   if (!tool) return NextResponse.json({ error: "الأداة مو مضافة بعد (ملف SQL الخاص بالتحديث v235)." }, { status: 400 });
-  if (!tool.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  if (!tool.is_enabled) return NextResponse.json({ error: await toolOffMessage(toolId) }, { status: 400 });
 
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
   const { count } = await admin.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).in("tool_id", TOOLS).gte("created_at", since);
@@ -120,12 +121,12 @@ export async function POST(req: Request) {
     const slides = card ? 2 : deck ? Math.min(8, Math.max(4, Math.round(Number(b.slides)) || 6)) : cvTool ? 1 : toolId === "free-carousel" ? Math.min(8, Math.max(3, Math.round(Number(b.slides)) || 5)) : 1;
     // the customer's own identity (colours, font, logo, name) is read by the server from his brand kit, never from the request
     const { data: kit } = b.useBrand === false || toolId === "free-invite" || toolId === "free-cv" ? { data: null } // an invitation is personal: the business identity stays out of it
-      : await admin.from("brand_kits").select("business_name,colors,font,logo_url,handle").eq("user_id", user.id).maybeSingle();
+      : await admin.from("brand_kits").select("business_name,colors,font,logo_url,handle,instagram").eq("user_id", user.id).maybeSingle();
     const cols = ((kit?.colors ?? []) as unknown[]).map((c) => String(c ?? "")).filter((c) => /^#[0-9a-fA-F]{6}$/.test(c));
     const logo = String(kit?.logo_url ?? "");
     input = {
       kind: "post", mode: "new", idea, aspect, slides,
-      brand: { name: clean(kit?.business_name, 60), contact: clean(kit?.handle, 60) }, // contact = his phone / handle from the brand kit, written into the design as it is
+      brand: { name: clean(kit?.business_name, 60), contact: clean(kit?.handle, 60), instagram: clean(kit?.instagram, 120) }, // contact = his phone / handle from the brand kit, written into the design as it is
       colors: cols.length >= 2 ? cleanColors({ bg: cols[0], accent: cols[1], text: cols[2] ?? "#FFFFFF" }) : null,
       font: FREE_FONTS.includes(String(kit?.font)) ? String(kit?.font) : "Cairo",
       logoPath: b.useLogo !== false && logo.startsWith(`${user.id}/`) && !logo.includes("..") ? logo : null,

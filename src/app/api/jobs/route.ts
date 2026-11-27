@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { loadLike, likeText } from "@/lib/server/like";
 import { NextResponse } from "next/server";
 import { guardContent } from "@/lib/server/moderation";
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
   }
 
   const { data: tool } = await admin.from("tools").select("id,name,credit_cost,edit_cost,is_enabled").eq("id", toolId).single();
-  if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage(toolId) }, { status: 400 });
 
   const invalid = parent ? null : validate(spec, input);
   if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });

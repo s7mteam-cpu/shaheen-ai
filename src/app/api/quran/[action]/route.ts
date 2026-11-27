@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { NextResponse } from "next/server";
 import { tooMany } from "@/lib/server/throttle";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -90,7 +91,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   if (action === "export") {
     const s = (body.spec ?? {}) as Partial<QuranSpec>;
     const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", "quran-video").single();
-    if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+    if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage("quran-video") }, { status: 400 });
     const surah = clamp(Math.round(Number(s.surah) || 1), 1, 114);
     const count = SURAHS[surah - 1][1];
     const from = clamp(Math.round(Number(s.from) || 1), 1, count);

@@ -62,3 +62,20 @@ export async function setToolAi(form: FormData) {
   await audit(me, "tool_ai_changed", undefined, `${id}: ${provider} / ${model || "الأصلي"}`);
   done();
 }
+
+/** the message a customer sees when this tool is off (site_content «tool_msgs»; empty = the default text, and the tool stays hidden from the list as before) */
+export async function setToolMsg(form: FormData) {
+  const me = await requireAdmin("tools");
+  if (!me) throw new Error("تعديل رسالة الأداة يحتاج صلاحية «الأدوات والأسعار».");
+  const id = String(form.get("id") ?? "");
+  if (!/^[\w-]{1,40}$/.test(id)) return;
+  const msg = String(form.get("msg") ?? "").replace(/[<>]/g, "").trim().slice(0, 200);
+  const admin = createAdminClient();
+  const { data } = await admin.from("site_content").select("value").eq("key", "tool_msgs").maybeSingle();
+  const all = { ...((data?.value ?? {}) as Record<string, string>) };
+  if (msg) all[id] = msg; else delete all[id];
+  await admin.from("site_content").upsert({ key: "tool_msgs", value: all, updated_at: new Date().toISOString() });
+  await audit(me, "tool_msg", undefined, id);
+  done();
+  revalidatePath("/app/tools");
+}

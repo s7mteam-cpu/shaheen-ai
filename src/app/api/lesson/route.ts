@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { LIB_FONT_IDS } from "@/lib/fonts";
 import { CHAR_GENDER } from "@/remotion/characters";
 import { resolveTerrain } from "@/lib/server/maptiler";
@@ -118,7 +119,7 @@ export async function POST(req: Request) {
 
   // «فيديو من موقعك» has its own price (admin → tools); everything else is priced by its own tool.
   const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", siteData ? "site-video" : toolId).single();
-  if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+  if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage(siteData ? "site-video" : toolId) }, { status: 400 });
   const cost = Math.max(1, Math.round(seconds / 15)) * tool.credit_cost * (ai ? (await extraPricing()).ai_clip_x : 1); // AI clips cost the customer double (the price of a 15-second step is the tool's)
 
   const { data: job, error } = await admin.from("jobs")

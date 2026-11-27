@@ -1,3 +1,4 @@
+import { toolOffMessage } from "@/lib/toolPause";
 import { loadLike, likeText } from "@/lib/server/like";
 import { setUsageCtx } from "@/lib/server/usageCtx";
 import { designCatalog } from "@/design/recipes";
@@ -216,7 +217,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     const kind = DESIGN_TOOLS[toolId] as DKind | undefined;
     if (!kind) return NextResponse.json({ error: "أداة غير معروفة." }, { status: 400 });
     const { data: tool } = await admin.from("tools").select("credit_cost,is_enabled").eq("id", toolId).single();
-    if (!tool?.is_enabled) return NextResponse.json({ error: "الأداة متوقفة حالياً." }, { status: 400 });
+    if (!tool?.is_enabled) return NextResponse.json({ error: await toolOffMessage(toolId) }, { status: 400 });
     const info = String(body.info ?? "").trim().slice(0, 3000);
     if (info.length < 5) return NextResponse.json({ error: "اكتب معلومات التصميم." }, { status: 400 });
     const count = kind === "bcard" || kind === "invite" ? (Number(body.count) === 1 ? 1 : 2) : kind === "carousel" ? Math.min(10, Math.max(3, Number(body.count) || 5)) : kind === "ads" ? Math.min(4, Math.max(1, Number(body.count) || 2)) : 1;
