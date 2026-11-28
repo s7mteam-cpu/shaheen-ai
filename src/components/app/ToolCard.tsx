@@ -29,7 +29,7 @@ export function ToolCard({ t, L, exampleCat, price, from, paused }: { t: Tool; L
       <div className="flex flex-1 flex-col gap-1 p-3 sm:p-4">
         <h3 className="text-[15px] font-bold leading-6 text-navy-900 sm:text-[16px]">{t.name}</h3>
         <p className="line-clamp-2 text-[12px] leading-5 text-subtle sm:text-[13px]">{t.description}</p>
-        <span className="text-[12px] font-semibold text-navy-700">{from != null ? `${L("من")} ${from} ${L("ريشة")}` : <>{price ?? t.credit_cost} {L("ريشة /")} {t.cost_unit}</>}</span>
+        <span className="mt-0.5 w-fit rounded-full border border-gold-500/40 bg-gold-100 px-2.5 py-0.5 text-[12px] font-bold text-navy-900">{from != null ? `${L("من")} ${from} ${L("ريشة")}` : <>{price ?? t.credit_cost} {L("ريشة /")} {t.cost_unit}</>}</span>
         <div className="mt-auto flex flex-col gap-2 pt-3">
           {paused
             ? <Link href={`/app/tools/${t.id}`} className={`${btn} border border-line bg-tint text-subtle`}>⏳ {L(paused)}</Link>

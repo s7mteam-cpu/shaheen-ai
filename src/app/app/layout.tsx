@@ -121,7 +121,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <p className="bg-gold-100 px-6 py-3 text-center text-sm text-navy-900">{T("ما عندك باقة فعّالة. ", "You don't have an active plan. ")}<Link href="/?home=1#pricing" className="font-bold underline">{T("اختر باقتك", "Choose a plan")}</Link>{T(" لتبدأ.", " to get started.")}</p>
       )}
 
-      <HomeGreeting name={profile.full_name?.split(" ")[0]} />
+      <HomeGreeting name={profile.full_name?.split(" ")[0]} credits={profile.credits} libHidden={tplHidden} />
       {trial.state !== "none" && <div className="mx-auto max-w-[1400px] px-4 pt-4 sm:px-6"><TrialBanner state={trial.state} credits={trial.credits ?? 0} hours={trial.hours} expiresAt={trial.expiresAt} /></div>}
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6 p-4 max-lg:pb-28 sm:p-6 lg:flex-row">
         {/* computers: the side menu. phones: a bottom bar whose last tab opens the same menu in a sheet */}

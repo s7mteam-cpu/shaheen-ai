@@ -36,13 +36,17 @@ export default async function ToolsPage() {
   const fxMin = (await getFreeEngine().catch(() => null))?.fxMinCost ?? 0;
   return (
     <div className="flex flex-col gap-7">
-      <h1 id="tools-top" className="scroll-mt-24 text-[26px] font-bold text-navy-900 sm:text-[28px]">{L("الأدوات")}</h1>
+      <h1 id="tools-top" className="scroll-mt-24 text-[24px] font-bold text-navy-900 sm:text-[28px]">{L("الأدوات")}</h1>
+      {/* phones: jump straight to a group instead of scrolling the whole list */}
+      <nav aria-label={L("الأدوات")} className="-mx-4 -mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
+        {groups.filter(([g]) => tools.some((t) => t.category === g)).map(([g, label]) => <a key={g} href={`#tg-${g}`} className="chip shrink-0 whitespace-nowrap">{L(label)}</a>)}
+      </nav>
       {groups.map(([g, label]) => {
         const list = tools.filter((t) => t.category === g);
         if (!list.length) return null;
         return (
           <section key={g} aria-labelledby={`tg-${g}`} className="flex flex-col gap-3">
-            <h2 id={`tg-${g}`} className="text-lg font-bold text-navy-700">{L(label)}</h2>
+            <h2 id={`tg-${g}`} className="scroll-mt-24 text-lg font-bold text-navy-700">{L(label)}</h2>
             <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
               {list.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} paused={openIds.has(t.id) ? undefined : msgOf(t.id)} exampleCat={ex[t.id]} price={t.id === "real-scenes" ? t.credit_cost * aiX : undefined} from={t.id === "free-montage" && fxMin > t.credit_cost ? fxMin : undefined} /></li>)}
             </ul>
