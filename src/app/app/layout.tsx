@@ -8,6 +8,7 @@ import { Icon } from "@/components/Icon";
 import { Logo } from "@/components/Logo";
 import { SideNav } from "@/components/app/SideNav";
 import { MobileNav } from "@/components/app/MobileNav";
+import { HideOnPhoneHome } from "@/components/app/HideOnPhoneHome";
 import { HomeGreeting } from "@/components/app/HomeGreeting";
 import { UserMenu } from "@/components/app/UserMenu";
 import { ShaheenChat } from "@/components/ShaheenChat";
@@ -97,13 +98,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-2 px-2.5 py-2.5 max-[339px]:px-2 sm:gap-4 sm:px-6 sm:py-3">
           <Logo href="/app" size={36} />
           <div className="flex min-w-0 items-center gap-1 max-[339px]:gap-0.5 sm:gap-2">
-            <Link href="/app/account" aria-label={T(`رصيدك ${profile.credits} ريشة`, `Your balance: ${profile.credits} credits`)}
+<HideOnPhoneHome><Link href="/app/account" aria-label={T(`رصيدك ${profile.credits} ريشة`, `Your balance: ${profile.credits} credits`)}
               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-gold-500/45 bg-gold-500/15 px-2.5 py-1.5 max-[379px]:px-2 text-[13px] font-bold text-gold-500 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm">
               <Icon name="feather" size={16} className="max-[399px]:hidden" />{profile.credits.toLocaleString("en")}<span className="hidden sm:inline">{T("ريشة", "credits")}</span>
-            </Link>
+            </Link></HideOnPhoneHome>
             <span className="flex items-center rounded-full bg-white/[0.06] sm:bg-transparent"><LangToggle lang={chosen} /><CurrencyToggle cur={cur} lang={lang} /><ThemeToggle /></span>
             <NotificationBell notes={notes} />
-            <UserMenu name={profile.full_name || profile.email || ""} />
+            <span className="contents max-lg:hidden"><UserMenu name={profile.full_name || profile.email || ""} /></span>
           </div>
         </div>
       </header>
@@ -128,7 +129,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="max-lg:hidden lg:w-[250px] lg:shrink-0">{sideNav}</div>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
-      <MobileNav>{sideNav}</MobileNav>
+      <MobileNav isAdmin={profile.role === "admin" || profile.role === "staff"} ready={autoWeekly} libHidden={tplHidden} support={wa} />
       {needContact ? <CompleteProfile name={profile.full_name ?? ""} /> : gate && ts && <WelcomeGate offer={trial.state === "offer"} credits={ts.credits} hours={ts.hours} name={profile.full_name?.split(" ")[0]} />}
       <ShaheenChat name={profile.full_name?.split(" ")[0]} voice lang={lang} />
     </div>

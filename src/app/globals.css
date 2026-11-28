@@ -105,4 +105,4 @@ html.dark .btn-primary:hover { background: #2563A3; }
 html[dir="ltr"] svg[data-icon="arrow"] { transform: scaleX(-1); }
 
 /* phones: lift the floating «كلّم شاهين» button above the bottom bar so it never covers the tabs */
-@media (max-width: 1023px) { .shc-launch { bottom: calc(76px + env(safe-area-inset-bottom)) !important; } }
+@media (max-width: 1023px) { .shc-launch { bottom: calc(76px + env(safe-area-inset-bottom)) !important; padding: 5px !important; } .shc-launch-i { height: 38px !important; width: 38px !important; } }

@@ -11,9 +11,9 @@ export function HomeGreeting({ name, credits, libHidden }: { name?: string; cred
   if (usePathname() !== "/app") return null;
   const shortcuts: [string, string, string][] = [
     ["palette", "/app/brand", T("هويتي التجارية", "Brand kit")],
-    ["calendar", "/app/brand/plan", T("خطة المحتوى", "Content plan")],
-    ...(libHidden ? [] : [["film", "/app/templates", T("مكتبة القوالب", "Template library")] as [string, string, string]]),
     ["feather", "/app/brand/mine", T("تعليماتي", "My instructions")],
+    ...(libHidden ? [] : [["film", "/app/templates", T("مكتبة القوالب", "Template library")] as [string, string, string]]),
+    ["sparkles", "/app/showcase", T("أعمال صُنعت بشاهين", "Made with Shaheen")],
   ];
   return (
     <header className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 pt-4 sm:px-6 sm:pt-6">
