@@ -102,7 +102,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-gold-500/45 bg-gold-500/15 px-2.5 py-1.5 max-[379px]:px-2 text-[13px] font-bold text-gold-500 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm">
               <Icon name="feather" size={16} className="max-[399px]:hidden" />{profile.credits.toLocaleString("en")}<span className="hidden sm:inline">{T("ريشة", "credits")}</span>
             </Link></HideOnPhoneHome>
-            <span className="flex items-center rounded-full bg-white/[0.06] sm:bg-transparent"><LangToggle lang={chosen} /><CurrencyToggle cur={cur} lang={lang} /><ThemeToggle /></span>
+            <span className="flex items-center rounded-full bg-white/[0.06] sm:bg-transparent"><LangToggle lang={chosen} /><span className="contents max-lg:hidden"><CurrencyToggle cur={cur} lang={lang} /></span><ThemeToggle /></span>
             <NotificationBell notes={notes} />
             <span className="contents max-lg:hidden"><UserMenu name={profile.full_name || profile.email || ""} /></span>
           </div>

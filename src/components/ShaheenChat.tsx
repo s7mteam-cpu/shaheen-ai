@@ -210,6 +210,12 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
     fetch(`/api/assistant/agents?key=${k}`, { method: "DELETE" }).catch(() => null);
     fetch(`/api/assistant?agent=${k}`, { method: "DELETE" }).catch(() => null);
   }
+  // other parts of the page (the home «فريق شاهين» card) open this window with: window.dispatchEvent(new CustomEvent("shaheen:chat", { detail: "nasser" }))
+  useEffect(() => {
+    const h = (e: Event) => { const k = (e as CustomEvent<string | undefined>).detail; setOpen(true); setAgent(k ? k : null); };
+    window.addEventListener("shaheen:chat", h);
+    return () => window.removeEventListener("shaheen:chat", h);
+  }, []);
   function pick(k: AgentKey) { if (rec !== "idle") stopRec(false); setAgent(k); setVoiceNote(""); setTimeout(() => input.current?.focus(), 80); }
   // an odd team: the first one (the manager) sits alone at the head of the office, the rest sit two by two, back to back
   const head = everyone.length % 2 === 1 ? everyone[0] : null;

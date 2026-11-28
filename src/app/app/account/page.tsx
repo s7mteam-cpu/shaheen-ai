@@ -1,4 +1,5 @@
 import { getMoney } from "@/lib/server/money";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getPlans, getSessionProfile, getContent, getPayGate } from "@/lib/data";
@@ -33,7 +34,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
   const [profile, plans0, lang] = await Promise.all([getSessionProfile(), getPlans(), getLang()]);
   const plans = await localize(plans0, lang);
   const T = (ar: string, en: string) => tr(lang, ar, en);
-  const { money } = await getMoney();
+  const { money, cur } = await getMoney();
   const tabs = TABS[lang];
   const statusAr = STATUS[lang];
   const dateFmt = lang === "en" ? "en-GB" : "ar-KW";
@@ -126,7 +127,11 @@ export default async function Account({ searchParams }: { searchParams: Promise<
             </section>
           </div>
           <section className="flex flex-col gap-3">
-            <h2 className="text-xl font-bold text-navy-900">{plan ? T("غيّر باقتك", "Change plan") : T("اختر باقتك", "Choose a plan")}</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-bold text-navy-900">{plan ? T("غيّر باقتك", "Change plan") : T("اختر باقتك", "Choose a plan")}</h2>
+              {/* phones: the currency picker lives here (it left the top bar) — the plan prices below follow it */}
+              <div className="flex items-center gap-2 lg:hidden"><span className="text-[13px] text-subtle">{T("العملة", "Currency")}</span><CurrencyToggle cur={cur} lang={lang} light /></div>
+            </div>
             {(() => {
               // folded like the home page: individuals and companies, each showing one plan on its face (the customer's own, otherwise the most popular) and the rest behind a button
               const card = (p: (typeof plans)[number]) => (

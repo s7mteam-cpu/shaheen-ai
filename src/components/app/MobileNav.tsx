@@ -39,16 +39,16 @@ export function MobileNav({ isAdmin, ready, libHidden, support }: { isAdmin: boo
   const pill = (active: boolean) =>
     `flex h-7 w-12 items-center justify-center rounded-full transition-colors ${active ? "bg-gold-100 text-navy-800" : ""}`;
 
-  const row = "flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] text-ink hover:bg-tint";
-  const mine: [string, string, string][] = [
-    ["palette", "/app/brand", T("هويتي التجارية", "Brand kit")],
-    ["feather", "/app/brand/mine", T("تعليماتي", "My instructions")],
-    ...(ready ? [["check", "/app/ready", T("منشوراتك جاهزة للنشر", "Ready to post")] as [string, string, string]] : []),
-    ...(libHidden ? [] : [["film", "/app/templates", T("مكتبة القوالب", "Template library")] as [string, string, string]]),
-    ["sparkles", "/app/showcase", T("أعمال صُنعت بشاهين", "Made with Shaheen")],
-    ["card", "/app/account", T("الحساب والاشتراك", "Account & plan")],
-    ["feather", "/app/account?tab=spend", T("مصاريف الريش", "Credit usage")],
-    ["settings", "/app/account?tab=me", T("الإعدادات", "Settings")],
+  const item = "card flex items-center gap-3 rounded-2xl p-3 active:scale-[0.99]";
+  const mine: [string, string, string, string][] = [
+    ["palette", "/app/brand", T("هويتي التجارية", "Brand kit"), T("شعارك وألوانك، وشاهين يستخدمها بكل تصميم", "Your logo and colors, used in every design")],
+    ["feather", "/app/brand/mine", T("تعليماتي", "My instructions"), T("تفضيلاتك بلهجتك، وشاهين يطبّقها على كل شي", "Your preferences, applied to everything Shaheen makes")],
+    ...(ready ? [["check", "/app/ready", T("منشوراتك جاهزة للنشر", "Ready to post"), T("منشورات الأسبوع جاهزة لك", "This week's posts, ready for you")] as [string, string, string, string]] : []),
+    ...(libHidden ? [] : [["film", "/app/templates", T("مكتبة القوالب", "Template library"), T("قوالب جاهزة بستايلات مختلفة", "Ready-made templates in different styles")] as [string, string, string, string]]),
+    ["sparkles", "/app/showcase", T("أعمال صُنعت بشاهين", "Made with Shaheen"), T("بوستات وكاروسيل وريلز سوّيناها بالمنصة", "Posts, carousels and reels made on the platform")],
+    ["card", "/app/account", T("الحساب والاشتراك", "Account & plan"), T("باقتك وفواتيرك وطريقة الدفع", "Your plan, invoices and payment")],
+    ["feather", "/app/account?tab=spend", T("مصاريف الريش", "Credit usage"), T("سجل استخدام رصيدك", "Where your credits went")],
+    ["settings", "/app/account?tab=me", T("الإعدادات", "Settings"), T("بياناتك وكلمة المرور", "Your details and password")],
   ];
   const info: [string, string][] = [
     ["/?home=1#pricing", T("الأسعار", "Pricing")],
@@ -76,12 +76,27 @@ export function MobileNav({ isAdmin, ready, libHidden, support }: { isAdmin: boo
           <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-3xl border-t-2 border-gold-500 bg-canvas p-3 pb-[max(1rem,env(safe-area-inset-bottom))] [animation:sheetUp_.22s_ease-out_both]">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-field" aria-hidden />
             <div className="flex flex-col gap-3">
-              <div className="card flex flex-col gap-1 p-2">
-                {mine.map(([icon, href, label]) => (
-                  <Link key={href} href={href} onClick={() => setOpen(false)} className={row}><Icon name={icon} size={18} className="text-navy-700" />{label}</Link>
+              <div className="flex flex-col gap-2">
+                {mine.map(([icon, href, label, desc]) => (
+                  <Link key={href} href={href} onClick={() => setOpen(false)} className={item}>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-100 text-navy-800"><Icon name={icon} size={20} /></span>
+                    <span className="min-w-0 flex-1"><b className="block text-[15px] text-navy-900">{label}</b><span className="block text-[12px] leading-5 text-subtle">{desc}</span></span>
+                    <Icon name="arrow" size={16} className="shrink-0 text-subtle ltr:rotate-180" />
+                  </Link>
                 ))}
-                {support && <a href={support} target="_blank" rel="noreferrer" className={row}><Icon name="chat" size={18} className="text-navy-700" />{T("التواصل مع الدعم", "Contact support")}</a>}
-                {isAdmin && <Link href="/admin" className={`${row} font-semibold text-gold-500`}><Icon name="settings" size={18} />{T("لوحة الإدارة", "Admin panel")}</Link>}
+                {support && (
+                  <a href={support} target="_blank" rel="noreferrer" className={item}>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-100 text-navy-800"><Icon name="chat" size={20} /></span>
+                    <span className="min-w-0 flex-1"><b className="block text-[15px] text-navy-900">{T("التواصل مع الدعم", "Contact support")}</b><span className="block text-[12px] leading-5 text-subtle">{T("واتساب مباشر", "Direct WhatsApp")}</span></span>
+                    <Icon name="arrow" size={16} className="shrink-0 text-subtle ltr:rotate-180" />
+                  </a>
+                )}
+                {isAdmin && (
+                  <Link href="/admin" className={item}>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-100 text-navy-800"><Icon name="settings" size={20} /></span>
+                    <span className="min-w-0 flex-1"><b className="block text-[15px] text-navy-900">{T("لوحة الإدارة", "Admin panel")}</b></span>
+                  </Link>
+                )}
               </div>
               <div className="card flex flex-col p-2">
                 {info.map(([href, label]) => (

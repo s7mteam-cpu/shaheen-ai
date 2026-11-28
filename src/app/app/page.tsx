@@ -1,6 +1,7 @@
 import { mainTools } from "@/lib/toolPairs";
 import Link from "next/link";
 import { ToolCard } from "@/components/app/ToolCard";
+import { TeamCard } from "@/components/app/TeamCard";
 import { WorkCard } from "@/components/app/WorkCard";
 import { getToolsL, getShowcase } from "@/lib/data";
 import { exampleCats } from "@/lib/showcase";
@@ -23,7 +24,9 @@ export default async function Dashboard() {
   return (
     <div className="flex flex-col gap-8">
       <h2 className="sr-only">{L("الرئيسية")}</h2>
-      <section aria-label={L("الأدوات")}>
+      {/* phones: the team card here, and the tools live in their own tab; computers keep the tools grid */}
+      <TeamCard />
+      <section aria-label={L("الأدوات")} className="max-lg:hidden">
         <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
           {tools.map((t) => <li key={t.id} className="flex"><ToolCard t={t} L={L} exampleCat={ex[t.id]} price={t.id === "real-scenes" ? t.credit_cost * aiX : undefined} from={t.id === "free-montage" && fxMin > t.credit_cost ? fxMin : undefined} /></li>)}
         </ul>
