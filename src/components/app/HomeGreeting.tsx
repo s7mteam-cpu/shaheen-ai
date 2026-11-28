@@ -5,16 +5,10 @@ import { Icon } from "@/components/Icon";
 import { useT } from "@/components/LangProvider";
 
 /** Greeting shown at the very top of the home page (above the menu on phones).
- *  On phones it becomes a navy card with the balance and four shortcuts; from `lg` up it stays the plain greeting. */
-export function HomeGreeting({ name, credits, libHidden }: { name?: string; credits?: number; libHidden?: boolean }) {
+ *  On phones it becomes a navy card with the balance; from `lg` up it stays the plain greeting. */
+export function HomeGreeting({ name, credits }: { name?: string; credits?: number }) {
   const T = useT();
   if (usePathname() !== "/app") return null;
-  const shortcuts: [string, string, string][] = [
-    ["palette", "/app/brand", T("هويتي التجارية", "Brand kit")],
-    ["feather", "/app/brand/mine", T("تعليماتي", "My instructions")],
-    ...(libHidden ? [] : [["film", "/app/templates", T("مكتبة القوالب", "Template library")] as [string, string, string]]),
-    ["sparkles", "/app/showcase", T("أعمال صُنعت بشاهين", "Made with Shaheen")],
-  ];
   return (
     <header className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 pt-4 sm:px-6 sm:pt-6">
       <div className="relative flex flex-col gap-1.5 overflow-hidden max-lg:rounded-3xl max-lg:border max-lg:border-gold-500/40 max-lg:bg-gradient-to-br max-lg:from-navy-900 max-lg:to-navy-700 max-lg:p-5 max-lg:shadow-[0_14px_30px_-18px_rgba(10,30,54,0.7)]">
@@ -27,13 +21,6 @@ export function HomeGreeting({ name, credits, libHidden }: { name?: string; cred
           </Link>
         )}
       </div>
-      <nav aria-label={T("أقسام المنصة", "Platform sections")} className={`grid gap-2 lg:hidden ${shortcuts.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
-        {shortcuts.map(([icon, href, label]) => (
-          <Link key={href} href={href} className="card flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3 text-center text-[12px] font-bold leading-tight text-navy-900 active:scale-95">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-100 text-navy-800"><Icon name={icon} size={20} /></span>{label}
-          </Link>
-        ))}
-      </nav>
     </header>
   );
 }

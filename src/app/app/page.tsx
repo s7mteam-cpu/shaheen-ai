@@ -33,7 +33,7 @@ export default async function Dashboard() {
       </section>
 
       {works.length > 0 && (
-        <section aria-labelledby="wk" className="flex flex-col gap-4">
+        <section aria-labelledby="wk" className="flex flex-col gap-4 max-lg:hidden">
           <div className="flex items-center justify-between"><h2 id="wk" className="text-[20px] font-bold text-navy-900">{L("آخر أعمالي")}</h2><Link href="/app/works" className="text-sm font-semibold text-navy-700">{L("كل الأعمال")}</Link></div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">{works.map((w) => <WorkCard key={w.id} w={w} />)}</div>
         </section>

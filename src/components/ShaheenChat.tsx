@@ -2,6 +2,7 @@
 import { L } from "@/lib/i18n/ui";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { tr, type Lang } from "@/lib/i18n";
 import { AGENTS, CLOTHS, COLORS, FACES, PROPS, type Agent, type AgentKey, type Look } from "@/lib/agents";
@@ -20,6 +21,7 @@ type Threads = Partial<Record<AgentKey, Msg[]>>;
 /** Side panel assistant. Non-modal: the page stays usable while it's open. */
 export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: string; voice?: boolean; lang?: Lang }) {
   const T = (ar: string, en: string) => tr(lang, ar, en);
+  const path = usePathname();
   const [open, setOpen] = useState(false);
   // «الفريق»: the lobby shows the four of them at their desks; choosing one opens his own conversation
   const [agent, setAgent] = useState<AgentKey | null>(null);
@@ -237,7 +239,7 @@ export function ShaheenChat({ name, voice = false, lang = "ar" }: { name?: strin
     <>
       <style>{CSS}</style>
       {!open && (
-        <button type="button" onClick={() => setOpen(true)} aria-label={T("كلّم شاهين", "Ask Shaheen")} className="shc-launch">
+        <button type="button" onClick={() => setOpen(true)} aria-label={T("كلّم شاهين", "Ask Shaheen")} className={`shc-launch${path === "/app" ? " shc-launch-home" : ""}`}>
           <span className="shc-launch-i"><Image src="/brand/eagle.png" alt="" width={26} height={26} /></span>
           <span className="shc-launch-t">{T("كلّم شاهين", "Ask Shaheen")}</span>
         </button>
