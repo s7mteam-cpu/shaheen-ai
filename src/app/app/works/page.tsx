@@ -12,9 +12,9 @@ export default async function Works({ searchParams }: { searchParams: Promise<{ 
   const works = await listWorks({ category: c && c !== "ready" ? c : undefined, ready: c === "ready", limit: 120 });
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-[28px] font-bold text-navy-900">{L("أعمالي")}</h1>
-      <div className="flex flex-wrap gap-2" role="group" aria-label={L("تصفية حسب النوع")}>
-        {filters.map(([v, l]) => <Link key={v} href={v ? `/app/works?c=${v}` : "/app/works"} aria-pressed={c === v} className="chip">{L(l)}</Link>)}
+      <h1 className="text-[24px] font-bold text-navy-900 sm:text-[28px]">{L("أعمالي")}</h1>
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label={L("تصفية حسب النوع")}>
+        {filters.map(([v, l]) => <Link key={v} href={v ? `/app/works?c=${v}` : "/app/works"} aria-pressed={c === v} className="chip shrink-0 whitespace-nowrap">{L(l)}</Link>)}
       </div>
       <WorksGrid key={c} works={works} />
     </div>

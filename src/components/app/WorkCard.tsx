@@ -46,7 +46,7 @@ export function WorkCard({ w: initial, onDelete }: { w: Work; onDelete?: (id: st
   const [label, cls] = status[w.status] ?? status.queued;
   return (
     <article className="card flex flex-col overflow-hidden">
-      <div className="relative aspect-square bg-tint">
+      <div className="relative aspect-[16/10] bg-tint sm:aspect-square">
         {w.expired ? <div className="flex h-full flex-col items-center justify-center gap-2 p-5 text-center text-sm text-subtle"><span className="text-[34px]" aria-hidden>🕒</span>{L("انتهت مدة حفظ هذا الملف وتم حذفه")}</div> : first ? <Media f={first} className="h-full" /> : pending ? <div className="flex h-full items-center p-5"><Progress value={w.progress ?? 0} label={w.status === "queued" && !w.progress ? L("في الطابور…") : L("جاري المعالجة…")} /></div> : <div className="flex h-full items-center justify-center text-sm text-subtle">{L(label)}…</div>}
         <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold ${cls}`}>{L(label)}</span>
       </div>
@@ -55,12 +55,12 @@ export function WorkCard({ w: initial, onDelete }: { w: Work; onDelete?: (id: st
         <h3 className="line-clamp-1 text-[15px] font-bold text-navy-900">{L(w.title || w.toolName)}</h3>
         <span className="text-[13px] text-subtle">{w.toolName} · {new Date(w.created_at).toLocaleDateString(LT("ar-KW", "en-GB"))}{w.files.length > 1 ? LT(` · ${w.files.length} ملفات`, ` · ${w.files.length} files`) : ""}</span>
         {w.daysLeft !== undefined && <span className={`w-fit rounded-full px-2.5 py-0.5 text-[12px] font-bold ${w.daysLeft <= 7 ? "bg-red-50 text-red-800" : "bg-tint text-navy-700"}`}>🕒 {w.daysLeft <= 0 ? L("بيتحذف قريباً") : LT(`يتبقى ${w.daysLeft} يوم`, `${w.daysLeft} days left`)}</span>}
-        <div className="mt-1.5 flex gap-1.5">
-          {first && <a href={first.url} download className="btn btn-primary flex-1 py-2 text-[13px]"><Icon name="download" size={14} />{L("تحميل")}</a>}
+        <div className="mt-2 flex gap-1.5">
           {w.expired ? null : w.status === "failed"
-            ? <Link href={`/app/tools/${w.tool_id}`} className="btn btn-outline flex-1 py-2 text-[13px] font-semibold">{L("جرّب من جديد")}</Link>
-            : <Link href={`/app/tools/${w.tool_id}?job=${w.id}`} className="btn btn-outline flex-1 py-2 text-[13px] font-semibold">{L("فتح وتعديل")}</Link>}
-          {onDelete && <button type="button" aria-label={L("حذف")} onClick={() => onDelete(w.id)} className="btn btn-outline px-2.5 py-2 text-red-700"><Icon name="trash" size={14} /></button>}
+            ? <Link href={`/app/tools/${w.tool_id}`} className="btn btn-primary min-h-[42px] flex-1 py-2 text-[13px]">{L("جرّب من جديد")}</Link>
+            : <Link href={`/app/tools/${w.tool_id}?job=${w.id}`} className="btn btn-primary min-h-[42px] flex-1 py-2 text-[13px]">{L("فتح وتعديل")}</Link>}
+          {first && <a href={first.url} download className="btn min-h-[42px] flex-1 border border-gold-500/60 bg-gold-100 py-2 text-[13px] text-navy-900"><Icon name="download" size={14} />{L("تحميل")}</a>}
+          {onDelete && <button type="button" aria-label={L("حذف")} onClick={() => onDelete(w.id)} className="btn min-h-[42px] border border-red-200 bg-red-50 px-3.5 py-2 text-red-700"><Icon name="trash" size={15} /></button>}
         </div>
       </div>
     </article>

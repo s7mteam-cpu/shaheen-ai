@@ -103,3 +103,6 @@ html.dark .btn-primary:hover { background: #2563A3; }
 
 /* English (left-to-right): arrows point the other way */
 html[dir="ltr"] svg[data-icon="arrow"] { transform: scaleX(-1); }
+
+/* phones: lift the floating «كلّم شاهين» button above the bottom bar so it never covers the tabs */
+@media (max-width: 1023px) { .shc-launch { bottom: calc(76px + env(safe-area-inset-bottom)) !important; } }
