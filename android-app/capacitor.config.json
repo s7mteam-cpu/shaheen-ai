@@ -1,0 +1,11 @@
+{
+  "appId": "kw.shaheen.app",
+  "appName": "شاهين",
+  "webDir": "www",
+  "server": {
+    "url": "https://www.shaheen-kw.com",
+    "cleartext": false,
+    "allowNavigation": ["www.shaheen-kw.com", "*.supabase.co", "checkout.stripe.com", "*.tap.company", "*.knet.com.kw"]
+  },
+  "android": { "allowMixedContent": false }
+}
