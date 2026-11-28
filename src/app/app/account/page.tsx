@@ -62,7 +62,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
-      <h1 className="text-[28px] font-bold text-navy-900">{tab === "spend" ? T("مصاريف الريش", "Credit usage") : tab === "access" ? T("صلاحية الدعم", "Support access") : T("الحساب والاشتراك", "Account & plan")}</h1>
+      <h1 className="text-[24px] font-bold text-navy-900 sm:text-[28px]">{tab === "spend" ? T("مصاريف الريش", "Credit usage") : tab === "access" ? T("صلاحية الدعم", "Support access") : T("الحساب والاشتراك", "Account & plan")}</h1>
       {imp && (tab === "sub" || tab === "inv" || tab === "me") && (
         <p className="rounded-xl bg-navy-800 px-4 py-3 text-sm text-white">{T("🔒 أنت داخل كفريق دعم: بيانات الدفع والبطاقات والفواتير وكلمة المرور وحذف الحساب محمية ومخفية عنك.", "🔒 You are in support mode: payment details, cards, invoices, password and account deletion are protected and hidden.")}</p>
       )}
@@ -81,19 +81,19 @@ export default async function Account({ searchParams }: { searchParams: Promise<
       {tab === "sub" && !imp && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-wrap gap-5">
-            <section className="flex min-w-0 flex-[2_1_420px] flex-col gap-3 rounded-3xl bg-navy-800 p-7 text-white">
+            <section className="flex min-w-0 flex-[2_1_420px] flex-col gap-3 rounded-3xl border border-gold-500/30 bg-gradient-to-br from-navy-900 to-navy-700 p-5 text-white sm:p-7">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-bold">{T("باقتك: ", "Your plan: ")}<span className="text-gold-500">{plan?.name ?? T("بدون باقة", "No plan")}</span></h2>
                 {sub && <span className="rounded-full bg-white/10 px-3 py-1 text-[13px] font-bold">{statusAr[sub.status] ?? sub.status}</span>}
               </div>
-              <div className="flex flex-wrap gap-7 text-sm text-white/80">
+              <div className="flex flex-wrap gap-x-7 gap-y-2 text-sm text-white/80">
                 {plan && <span>{T("السعر: ", "Price: ")}<strong className="text-white">{Number(plan.price_kwd)} {T("د.ك / شهرياً", "KWD / month")}</strong> {money(Number(plan.price_kwd)).approx ? <span className="opacity-75">(≈ {money(Number(plan.price_kwd)).number} {money(Number(plan.price_kwd)).symbol})</span> : null}</span>}
                 <span>{T("الرصيد الحالي: ", "Current balance: ")}<strong className="text-white">{profile?.credits} {T("ريشة", "credits")}</strong></span>
                 {sub?.current_period_end && <span>{sub.cancel_at_period_end ? T("ينتهي في", "Ends on") : T("التجديد القادم", "Next renewal")}: <strong className="text-white">{new Date(sub.current_period_end).toLocaleDateString(dateFmt)}</strong></span>}
               </div>
               <p className="text-[13px] text-white/70">{T("ريش الباقة تتجدد كل شهر مع الدفع، والريش غير المستخدمة لا تنتقل للشهر التالي.", "Plan credits renew every month with payment. Unused credits don't roll over.")}</p>
             </section>
-            <section className="card flex min-w-0 flex-[1_1_260px] flex-col gap-3 p-7">
+            <section className="card flex min-w-0 flex-[1_1_260px] flex-col gap-3 p-5 sm:p-7">
               <h2 className="text-lg font-bold">{T("طريقة الدفع والفواتير", "Payment & billing")}</h2>
               {pendingTransfer && <p className="rounded-xl bg-amber-50 px-3 py-2 text-[13px] font-semibold text-amber-900">⏳ {T(`تحويلك (${pendingTransfer.method_name} — ${Number(pendingTransfer.amount)} د.ك) ينتظر المراجعة. بيوصلك إشعار أول ما يتفعّل.`, `Your transfer (${pendingTransfer.method_name} — ${Number(pendingTransfer.amount)} KWD) is waiting for review.`)}</p>}
               {!pendingTransfer && lastRejected && lastRejected.reviewed_at && Date.now() - new Date(lastRejected.reviewed_at).getTime() < 7 * 86_400_000 && <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-800">{T(`ما قدرنا نأكد تحويلك الأخير (${lastRejected.method_name}): ${lastRejected.reject_reason ?? ""}`, `We couldn't confirm your last transfer (${lastRejected.method_name}): ${lastRejected.reject_reason ?? ""}`)}</p>}
