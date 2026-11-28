@@ -61,7 +61,7 @@ export function MobileNav({ isAdmin, ready, libHidden, support }: { isAdmin: boo
   return (
     <>
       <nav aria-label={T("التنقل السريع", "Quick navigation")} data-mobile-nav
-        className="fixed inset-x-0 bottom-0 z-[60] flex border-t border-line bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-6px_20px_-12px_rgba(10,30,54,0.25)] backdrop-blur lg:hidden">
+        className="fixed inset-x-0 bottom-0 z-[36] flex border-t border-line bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-6px_20px_-12px_rgba(10,30,54,0.25)] backdrop-blur lg:hidden">
         <Link href="/app" onClick={() => setOpen(false)} aria-current={home ? "page" : undefined} className={tab(home)}><span className={pill(home)}><Icon name="home" size={20} /></span>{T("الرئيسية", "Home")}</Link>
         <Link href="/app/tools#tools-top" onClick={() => setOpen(false)} aria-current={tools ? "page" : undefined} className={tab(tools)}><span className={pill(tools)}><Icon name="grid" size={20} /></span>{T("الأدوات", "Tools")}</Link>
         <Link href="/app/works" onClick={() => setOpen(false)} aria-current={works ? "page" : undefined} className={tab(works)}><span className={pill(works)}><Icon name="folder" size={20} /></span>{T("أعمالي", "My works")}</Link>
@@ -70,7 +70,7 @@ export function MobileNav({ isAdmin, ready, libHidden, support }: { isAdmin: boo
       </nav>
 
       {open && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={T("قائمة المنصة", "App menu")}>
+        <div className="fixed inset-0 z-[35] lg:hidden" role="dialog" aria-modal="true" aria-label={T("قائمة المنصة", "App menu")}>
           <button type="button" aria-label={T("إغلاق", "Close")} onClick={() => setOpen(false)} className="absolute inset-0 bg-navy-950/60" />
           <div className="absolute inset-x-2 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-3xl border-2 border-gold-500 bg-canvas p-3 [animation:sheetUp_.22s_ease-out_both]">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-field" aria-hidden />

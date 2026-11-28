@@ -109,3 +109,10 @@ html[dir="ltr"] svg[data-icon="arrow"] { transform: scaleX(-1); }
 
 /* phones, home page: the «فريق شاهين» card is on the page, so the floating eagle is not needed there */
 @media (max-width: 1023px) { .shc-launch-home { display: none !important; } }
+
+/* phone home: the team office is compacted so the whole room fits above the bottom bar */
+.home-office { padding: 4px 10px 10px; }
+.home-office .shc-fig { max-width: 130px; }
+.home-office .shc-tag { font-size: 14px; padding: 3px 10px; }
+.home-office .shc-headrow { margin: 2px 0 6px; }
+.home-office .shc-pods { flex: 1; align-content: space-around; }
